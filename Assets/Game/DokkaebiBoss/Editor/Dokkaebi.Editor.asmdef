@@ -1,0 +1,6 @@
+{
+    "name": "Dokkaebi.Editor",
+    "references": ["Dokkaebi", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": false
+}

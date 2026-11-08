@@ -1,0 +1,206 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c147d79704815fd4faab0f2acc929035, type: 3}
+  m_Name: RoomRunConfig
+  m_EditorClassIdentifier: RoomRun::RoomRun.RoomRunConfig
+  startRoomId: grass
+  placeholderScenePath: Assets/Game/RoomRun/Scenes/RoomRun_Placeholder.unity
+  lockDoors: 0
+  combat: 1
+  devTools: 1
+  rooms:
+  - id: grass
+    displayName: "\uD480\uBC2D"
+    mapCell: {x: 1, y: 1}
+    scenePath: Assets/Scenes/LookStudy.unity
+    groundMeshName: RGround
+    center: {x: -400, y: 0.3, z: 3}
+    size: {x: 34, y: 24}
+    fitToStage: 1
+    floorColor: {r: 0.15, g: 0.17, b: 0.16, a: 1}
+    pillarCount: 4
+    doors:
+    - side: 0
+      targetRoomId: valley
+    waves:
+    - spawns:
+      - enemyId: shade
+        count: 4
+    - spawns:
+      - enemyId: ghost
+        count: 2
+      - enemyId: shade
+        count: 3
+  - id: valley
+    displayName: "\uC0B0\uC18D \uACC4\uACE1"
+    mapCell: {x: 1, y: 0}
+    scenePath: Assets/Art/LookStudy/Stages/Valley.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: 1}
+    size: {x: 40, y: 30}
+    fitToStage: 1
+    floorColor: {r: 0.11, g: 0.17, b: 0.16, a: 1}
+    pillarCount: 5
+    doors:
+    - side: 2
+      targetRoomId: grass
+    - side: 1
+      targetRoomId: palace
+    - side: 3
+      targetRoomId: village
+    waves:
+    - spawns:
+      - enemyId: fox
+        count: 2
+      - enemyId: shade
+        count: 2
+    - spawns:
+      - enemyId: ghost
+        count: 3
+      - enemyId: fox
+        count: 1
+  - id: village
+    displayName: "\uBBFC\uAC00"
+    mapCell: {x: 0, y: 0}
+    scenePath: Assets/Art/LookStudy/Stages/Village.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 40, y: 32}
+    fitToStage: 1
+    floorColor: {r: 0.17, g: 0.14, b: 0.12, a: 1}
+    pillarCount: 6
+    doors:
+    - side: 1
+      targetRoomId: valley
+    waves:
+    - spawns:
+      - enemyId: shade
+        count: 5
+      - enemyId: ghost
+        count: 2
+    - spawns:
+      - enemyId: dokkaebi
+        count: 1
+      - enemyId: fox
+        count: 1
+  - id: palace
+    displayName: "\uB300\uC804 \uC55E"
+    mapCell: {x: 2, y: 0}
+    scenePath: Assets/Art/LookStudy/Stages/Palace.unity
+    groundMeshName: 
+    center: {x: 0, y: 0.1, z: 4}
+    size: {x: 50, y: 56}
+    fitToStage: 1
+    floorColor: {r: 0.16, g: 0.13, b: 0.13, a: 1}
+    pillarCount: 4
+    doors:
+    - side: 3
+      targetRoomId: valley
+    - side: 1
+      targetRoomId: underworld
+    waves:
+    - spawns:
+      - enemyId: dokkaebi
+        count: 1
+      - enemyId: ghost
+        count: 2
+    - spawns:
+      - enemyId: dokkaebi_elite
+        count: 1
+  - id: underworld
+    displayName: "저승"
+    mapCell: {x: 3, y: 0}
+    scenePath: Assets/Underworld/Scenes/Underworld.unity
+    groundMeshName:
+    center: {x: -2, y: 0, z: -4}
+    size: {x: 56, y: 46}
+    fitToStage: 0
+    floorColor: {r: 0.12, g: 0.12, b: 0.16, a: 1}
+    pillarCount: 0
+    doors:
+    - side: 3
+      targetRoomId: palace
+    waves: []
+    bossPrefab: {fileID: 1358066524170288776, guid: 87edc2abe5886914c96244abaec8cdb6, type: 3}
+    bossOffset: {x: 0, y: 0, z: 6}
+    bossHp: 60
+  enemies:
+  - id: shade
+    prefab: {fileID: 1999660323683707200, guid: 643210c0d2542d44bac82a26082a3268, type: 3}
+    scale: 0.85
+    hp: 3
+    moveSpeed: 3.4
+    behaviour: 0
+    fireInterval: 2
+    bulletSpeed: 8
+    bulletCount: 3
+    spreadDeg: 30
+    alsoAimed: 0
+  - id: ghost
+    prefab: {fileID: 2169993185676791008, guid: 23a41ed1de530874a8252ee36b901a8a, type: 3}
+    scale: 1
+    hp: 5
+    moveSpeed: 2.4
+    behaviour: 1
+    fireInterval: 2.1
+    bulletSpeed: 7.5
+    bulletCount: 3
+    spreadDeg: 34
+    alsoAimed: 0
+  - id: fox
+    prefab: {fileID: 1760530914208561208, guid: d575dc42e9d111b43a11123bd9be3e79, type: 3}
+    scale: 1.15
+    hp: 7
+    moveSpeed: 3.2
+    behaviour: 3
+    fireInterval: 2
+    bulletSpeed: 8
+    bulletCount: 5
+    spreadDeg: 70
+    alsoAimed: 0
+  - id: dokkaebi
+    prefab: {fileID: 8822834645768131479, guid: ca4ea701dda7d6248b98c060443a0339, type: 3}
+    scale: 1.15
+    hp: 12
+    moveSpeed: 1.5
+    behaviour: 2
+    fireInterval: 1.9
+    bulletSpeed: 5.5
+    bulletCount: 14
+    spreadDeg: 30
+    alsoAimed: 0
+  - id: dokkaebi_elite
+    prefab: {fileID: 8822834645768131479, guid: ca4ea701dda7d6248b98c060443a0339, type: 3}
+    scale: 1.9
+    hp: 70
+    moveSpeed: 1.4
+    behaviour: 2
+    fireInterval: 1.5
+    bulletSpeed: 5.5
+    bulletCount: 20
+    spreadDeg: 30
+    alsoAimed: 1
+  playerPrefab: {fileID: 6916378304929264017, guid: 8926e74e11a08654482ca9a01f47cfce, type: 3}
+  playerScale: 1.15
+  playerHp: 6
+  playerBullet: {fileID: 2100000, guid: 9288e6b1091fb4f43a92a27c9472dd04, type: 2}
+  enemyBullet: {fileID: 2100000, guid: b45eb05edec9dd04c9082098df1ac5c4, type: 2}
+  enemyBulletCore: {fileID: 2100000, guid: e66f004d8097e524297c7b89711b32fa, type: 2}
+  ringPlayer: {fileID: 2100000, guid: 3b10c4b5d65875f44bc7d831909f008c, type: 2}
+  ringEnemy: {fileID: 2100000, guid: e42be06f8e168e04cb62c2f17f59200b, type: 2}
+  hitFlash: {fileID: 2100000, guid: 06496bbc877157240b866295f0657e70, type: 2}
+  floor: {fileID: 2100000, guid: d54957f7519a00544b6325324c2e7b4f, type: 2}
+  stone: {fileID: 2100000, guid: b445d7613afd85347bbecac6d6a0481f, type: 2}
+  tile: {fileID: 2100000, guid: 6d831ec7778655942a14c6faa128e7c3, type: 2}
+  gate: {fileID: 2100000, guid: 1424fcea5aa1fa849b737f97cf5bdb43, type: 2}
+  barrier: {fileID: 2100000, guid: 8e84f5ee5baba134e9e88cbfcc23d46b, type: 2}
+  lampFire: {fileID: 2100000, guid: 003c0de9cf3e6bf488f202597b9e353d, type: 2}

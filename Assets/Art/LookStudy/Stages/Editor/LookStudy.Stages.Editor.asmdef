@@ -1,0 +1,5 @@
+{
+  "name": "LookStudy.Stages.Editor",
+  "references": ["LookStudy.Runtime", "LookStudy.Stages", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "includePlatforms": ["Editor"]
+}

@@ -1,0 +1,12 @@
+{
+    "name": "RoomRun.Editor",
+    "rootNamespace": "RoomRun",
+    "references": [
+        "RoomRun",
+        "Unity.RenderPipelines.Core.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "autoReferenced": false
+}

@@ -1,0 +1,4 @@
+{
+  "name": "LookStudy.Stages",
+  "references": ["LookStudy.Runtime", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime", "Unity.InputSystem"]
+}

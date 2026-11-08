@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UW_StoneProp
+  m_Shader: {fileID: 4800000, guid: 29a6a84b86fb1984eb59ed86f62feb6f, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _SideNrm:
+        m_Texture: {fileID: 2800000, guid: 3ff750d42bace2c43ab2e8d7cc9f8794, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SideTex:
+        m_Texture: {fileID: 2800000, guid: 6e58b112cca1008449409f5080344c92, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TopNrm:
+        m_Texture: {fileID: 2800000, guid: 1a45f52661f2584419b15b81379d9005, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TopTex:
+        m_Texture: {fileID: 2800000, guid: 339b67c00db971d4399c0ecb5ae84aeb, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _CrackAmt: 0
+    - _NrmStr: 1
+    - _Remap: 0.85
+    - _RimAmt: 0.12
+    - _SideTile: 2
+    - _Smooth: 0.3
+    - _StainAmt: 0.45
+    - _TopMode: 0
+    - _TopTile: 3.2
+    - _WetAmt: 0.45
+    - _WetSmooth: 0.78
+    m_Colors:
+    - _CrackCol: {r: 2.2, g: 0.8, b: 5, a: 1}
+    - _Emission: {r: 0, g: 0, b: 0, a: 1}
+    - _RimCol: {r: 0.47999996, g: 0.23999995, b: 0.78, a: 1}
+    - _SideTint: {r: 0.30588236, g: 0.2784314, b: 0.3764706, a: 1}
+    - _Tint: {r: 0.26999995, g: 0.23999995, b: 0.30999997, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: R_GroundVillage
+  m_Shader: {fileID: 4800000, guid: 28220755ab987394791ab814e79ba442, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _ForestNor:
+        m_Texture: {fileID: 2800000, guid: 6a1662f676a9279419627eb07b7c7fe6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ForestTex:
+        m_Texture: {fileID: 2800000, guid: 83823439d0472c544ad1185d2f220725, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GravelNor:
+        m_Texture: {fileID: 2800000, guid: 36ff2f878e9013f4593d9281ffb2cf94, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GravelTex:
+        m_Texture: {fileID: 2800000, guid: a45ed54ec8b6af543bc3d80c6611848a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PebbleNor:
+        m_Texture: {fileID: 2800000, guid: 82cdefe10f0e3ba45999a30cc6a3e6fd, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PebbleTex:
+        m_Texture: {fileID: 2800000, guid: c1d8787e0b61e3141b37fb70c29cf90d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RockNor:
+        m_Texture: {fileID: 2800000, guid: af8f3a2fca7de32408d31a7ee88698aa, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RockTex:
+        m_Texture: {fileID: 2800000, guid: 683887a52394f0846affdc3140ac6e5e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _RockScale: 0.11
+    m_Colors:
+    - _ForestTint: {r: 0.54901963, g: 0.5176471, b: 0.45490196, a: 1}
+    - _PebbleTint: {r: 0.627451, g: 0.5411765, b: 0.42352942, a: 1}
+    - _RockTint: {r: 0.54901963, g: 0.53333336, b: 0.4862745, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

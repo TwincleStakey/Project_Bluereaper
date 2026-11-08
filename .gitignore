@@ -105,3 +105,11 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# RoomRun preview recordings
+/ArtSource/rr_clip/
+/ArtSource/rr_log.txt
+/ArtSource/rr_cmd.txt
+
+# Heavy Blender work files (remesh experiments). Keep locally, never commit.
+/ArtSource/trellis/

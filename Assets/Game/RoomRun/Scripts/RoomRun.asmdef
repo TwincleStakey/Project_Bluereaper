@@ -1,0 +1,11 @@
+{
+    "name": "RoomRun",
+    "rootNamespace": "RoomRun",
+    "references": [
+        "Unity.InputSystem",
+        "UnityEngine.UI",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Dokkaebi"
+    ],
+    "autoReferenced": true
+}
