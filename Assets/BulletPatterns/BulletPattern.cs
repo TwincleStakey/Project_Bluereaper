@@ -60,7 +60,8 @@ namespace BlueReaper.BulletPatterns
         [Min(0f)] public float Spacing = 1f;
         [Min(0f)] public float Radius = 2f;
         [Range(0f, 360f)] public float FanAngle = 90f;
-        [Min(0f)] public float TravelDistance = 10f;
+        // Retained for older assets and empty-path initialization; authored paths keep their edited length.
+        [HideInInspector, Min(0f)] public float TravelDistance = 10f;
         [Min(0.01f)] public float TravelDuration = 2f;
         [Min(1)] public int RepeatCount = 1;
         [Min(0f)] public float RepeatInterval = 0.8f;
@@ -77,8 +78,19 @@ namespace BlueReaper.BulletPatterns
         {
             if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
             if (Paths == null) Paths = new List<BulletPath>();
-            if (count < Paths.Count) Paths.RemoveRange(count, Paths.Count - count);
-            while (Paths.Count < count) Paths.Add(new BulletPath());
+            if (count == Paths.Count) return;
+            if (count < Paths.Count)
+            {
+                Paths.RemoveRange(count, Paths.Count - count);
+                return;
+            }
+            BulletPath last = Paths.Count == 0 ? null : Paths[Paths.Count - 1];
+            while (Paths.Count < count)
+                Paths.Add(last == null ? CreateDefaultPath() : new BulletPath
+                {
+                    Preset = last.Preset, Start = last.Start, Control = last.Control, End = last.End
+                });
+            GenerateLayout();
         }
 
         public void GenerateLayout()
@@ -86,25 +98,36 @@ namespace BlueReaper.BulletPatterns
             if (Layout == BulletLayout.Manual) return;
             for (int i = 0; i < MaximumCount; i++)
             {
-                Vector3 direction = Vector3.forward;
+                BulletPath path = Paths[i] ?? CreateDefaultPath();
+                Vector3 controlOffset = path.Control - path.Start;
+                Vector3 endOffset = path.End - path.Start;
                 Vector3 start = LayoutCenter;
+                float angle = 0f;
                 if (Layout == BulletLayout.Line)
                     start += Vector3.right * ((i - (MaximumCount - 1) * 0.5f) * Spacing);
                 else
                 {
-                    float angle = Layout == BulletLayout.Circle ? 360f * i / MaximumCount
+                    angle = Layout == BulletLayout.Circle ? 360f * i / MaximumCount
+                        : Mathf.Approximately(FanAngle, 360f) ? -180f + 360f * i / MaximumCount
                         : MaximumCount == 1 ? 0f : -FanAngle * 0.5f + FanAngle * i / (MaximumCount - 1);
-                    direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                    Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
                     start += direction * Radius;
                 }
-                BulletPathPreset preset = Paths[i] == null ? BulletPathPreset.Straight : Paths[i].Preset;
-                Paths[i] = new BulletPath
-                {
-                    Preset = preset, Start = start, End = start + direction * TravelDistance,
-                    Control = start + direction * TravelDistance * 0.5f
-                };
+                Vector3 heading = Vector3.ProjectOnPlane(endOffset, Vector3.up);
+                if (heading.sqrMagnitude < 0.000001f) heading = Vector3.ProjectOnPlane(controlOffset, Vector3.up);
+                float sourceAngle = heading.sqrMagnitude < 0.000001f ? 0f : Mathf.Atan2(heading.x, heading.z) * Mathf.Rad2Deg;
+                Quaternion rotation = Quaternion.Euler(0f, angle - sourceAngle, 0f);
+                path.Start = start;
+                path.Control = start + rotation * controlOffset;
+                path.End = start + rotation * endOffset;
+                Paths[i] = path;
             }
         }
+
+        private BulletPath CreateDefaultPath() => new BulletPath
+        {
+            Control = Vector3.forward * (TravelDistance * 0.5f), End = Vector3.forward * TravelDistance
+        };
 
         public bool TryEvaluate(int bulletIndex, int emissionIndex, float elapsed, out Vector3 position, out Quaternion rotation)
         {

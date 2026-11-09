@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,6 +10,9 @@ namespace BlueReaper.BulletPatterns.Editor
     {
         // shortcut: preview at most 256 paths/instances, use instancing if larger previews are needed.
         private const int PreviewLimit = 256;
+        private const float PathPickDistance = 8f;
+        private readonly Vector3[] pathPoints = new Vector3[33];
+        private readonly List<(int index, float distance)> pathHits = new List<(int, float)>();
         private BulletPattern pattern;
         private int selected;
         private float previewTime;
@@ -66,7 +70,6 @@ namespace BlueReaper.BulletPatterns.Editor
             if (layout == BulletLayout.Line) Field("Spacing", "탄 사이 간격");
             if (layout == BulletLayout.Circle || layout == BulletLayout.Fan) Field("Radius", "배치 반경");
             if (layout == BulletLayout.Fan) Field("FanAngle", "부채꼴 각도");
-            if (layout != BulletLayout.Manual) Field("TravelDistance", "생성할 경로 길이");
             ApplyInspectorChanges();
 
             int requested = Mathf.Max(1, EditorGUILayout.DelayedIntField("최대 개수 (1회 발사량)", pattern.MaximumCount));
@@ -81,13 +84,13 @@ namespace BlueReaper.BulletPatterns.Editor
             using (new EditorGUI.DisabledScope(layout == BulletLayout.Manual || pattern.GetValidationError() != null))
             {
                 if (GUILayout.Button("현재 설정으로 배치 다시 생성") && EditorUtility.DisplayDialog("배치 다시 생성",
-                    "모든 탄의 시작점·끝점·제어점을 현재 배치 설정으로 바꿉니다. 개별 수정값을 덮어쓸까요?", "다시 생성", "취소"))
+                    "경로의 길이·곡률을 유지하며 전체 탄의 위치와 회전을 현재 배치 설정에 맞춥니다. 계속할까요?", "다시 생성", "취소"))
                 {
                     Change("Generate bullet layout", pattern.GenerateLayout);
                     serializedObject.Update();
                 }
             }
-            EditorGUILayout.HelpBox("배치 설정은 '다시 생성'을 눌렀을 때 적용됩니다. 개수 증가는 기존 경로를 보존합니다.", MessageType.Info);
+            EditorGUILayout.HelpBox("개수를 늘리면 마지막 경로를 독립 복사하고 전체를 균등 재배치합니다. Manual은 배치 없이 복사합니다.\n배치와 회전은 경로 전체에 적용하며, 길이·곡률·높이 차이는 유지합니다. 경로 길이는 S/E 좌표로 조정합니다.", MessageType.Info);
 
             if (pattern.MaximumCount > 0)
             {
@@ -165,7 +168,7 @@ namespace BlueReaper.BulletPatterns.Editor
                     if (GUILayout.Button("XZ 탑뷰")) FrameTopView();
                 }
             }
-            EditorGUILayout.HelpBox("S/C/E를 드래그하고 XYZ는 위에서 입력합니다. 미리보기 원점은 저장되지 않습니다.\n패턴 전체를 시작 간격마다 발사하며, 충돌·데미지·프리팹 스크립트는 실행하지 않습니다.", MessageType.Info);
+            EditorGUILayout.HelpBox("경로 선을 클릭해 탄을 선택합니다. 겹친 경로는 반복 클릭으로 순환 선택합니다.\nS/C/E를 드래그하고 XYZ는 위에서 입력합니다. 미리보기 원점은 저장되지 않습니다.\n패턴 전체를 시작 간격마다 발사하며, 충돌·데미지·프리팹 스크립트는 실행하지 않습니다.", MessageType.Info);
         }
 
         private void Change(string undoName, Action change)
@@ -228,6 +231,7 @@ namespace BlueReaper.BulletPatterns.Editor
             {
                 for (int i = 0; i < Mathf.Min(pattern.MaximumCount, PreviewLimit); i++) DrawPath(i);
                 if (selected >= PreviewLimit) DrawPath(selected);
+                HandlePathSelection();
                 BulletPath path = pattern.Paths[selected];
                 EditPoint("S", path.Start, value => path.Start = value);
                 if (path.Preset != BulletPathPreset.Straight) EditPoint("C", path.Control, value => path.Control = value);
@@ -242,13 +246,59 @@ namespace BlueReaper.BulletPatterns.Editor
             Handles.color = index == selected ? SelectedColor : PathColor;
             if (path.Preset == BulletPathPreset.Curve)
                 Handles.DrawBezier(path.Start, path.End, path.Start + (path.Control - path.Start) * (2f / 3f),
-                    path.End + (path.Control - path.End) * (2f / 3f), Handles.color, null, index == selected ? 3f : 1f);
+                    path.End + (path.Control - path.End) * (2f / 3f), Handles.color, null, index == selected ? 3f : 2f);
             else if (path.Preset == BulletPathPreset.Corner) Handles.DrawAAPolyLine(path.Start, path.Control, path.End);
             else Handles.DrawLine(path.Start, path.End);
             float size = HandleUtility.GetHandleSize(path.Start) * 0.06f;
             if (index != selected && Handles.Button(path.Start, Quaternion.identity, size, size * 1.4f, Handles.DotHandleCap))
             { selected = index; Repaint(); }
             Handles.Label(path.Start + Vector3.left * size * 2f, $"#{index + 1}");
+        }
+
+        private void HandlePathSelection()
+        {
+            int control = GUIUtility.GetControlID(FocusType.Passive);
+            Event current = Event.current;
+            if (current.type != EventType.Layout && current.type != EventType.MouseDown) return;
+            pathHits.Clear();
+            for (int i = 0; i < Mathf.Min(pattern.MaximumCount, PreviewLimit); i++) AddPathHit(i);
+            if (selected >= PreviewLimit) AddPathHit(selected);
+            if (pathHits.Count == 0) return;
+            float nearest = float.PositiveInfinity;
+            foreach (var hit in pathHits) nearest = Mathf.Min(nearest, hit.distance);
+            if (current.type == EventType.Layout)
+            {
+                // Keep point handles ahead of line picking while allowing an 8-pixel click target.
+                HandleUtility.AddControl(control, nearest * 0.5f + 0.5f);
+            }
+            else if (current.button == 0 && !current.alt && !Tools.viewToolActive
+                && GUIUtility.hotControl == 0 && HandleUtility.nearestControl == control)
+            {
+                selected = PickPath();
+                current.Use();
+                Repaint();
+                SceneView.RepaintAll();
+            }
+        }
+
+        private void AddPathHit(int index)
+        {
+            BulletPath path = pattern.Paths[index];
+            for (int i = 0; i < pathPoints.Length; i++) pathPoints[i] = path.Evaluate(i / (float)(pathPoints.Length - 1));
+            float distance = HandleUtility.DistanceToPolyLine(pathPoints);
+            if (distance <= PathPickDistance) pathHits.Add((index, distance));
+        }
+
+        private int PickPath()
+        {
+            if (pathHits.Count == 0) return selected;
+            float nearest = float.PositiveInfinity;
+            int nearestIndex = selected;
+            foreach (var hit in pathHits)
+                if (hit.distance < nearest) { nearest = hit.distance; nearestIndex = hit.index; }
+            pathHits.RemoveAll(hit => hit.distance > nearest + 2f);
+            int current = pathHits.FindIndex(hit => hit.index == selected);
+            return current < 0 ? nearestIndex : pathHits[(current + 1) % pathHits.Count].index;
         }
 
         private void EditPoint(string label, Vector3 point, Action<Vector3> assign)

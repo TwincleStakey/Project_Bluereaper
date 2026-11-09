@@ -52,6 +52,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "resize preserves individually edited paths", () =>
                 {
+                    pattern.Layout = BulletLayout.Manual;
                     BulletPath original = pattern.Paths[0];
                     original.Control = new Vector3(1f, 5f, 3f);
                     pattern.Resize(5);
@@ -67,6 +68,68 @@ namespace BlueReaper.BulletPatterns.Editor
                     try { pattern.Resize(0); } catch (ArgumentOutOfRangeException) { rejected = true; }
                     Require(rejected, "Zero count accepted");
                 });
+                Check(report, "growth copies the last path without sharing edits", () =>
+                {
+                    pattern.Layout = BulletLayout.Manual;
+                    pattern.Resize(2);
+                    BulletPath first = pattern.Paths[0];
+                    var last = new BulletPath { Preset = BulletPathPreset.Curve,
+                        Start = new Vector3(2f, 3f, 4f), Control = new Vector3(5f, 6f, 7f), End = new Vector3(8f, 9f, 10f) };
+                    pattern.Paths[1] = last;
+                    pattern.Resize(5);
+                    for (int i = 2; i < 5; i++)
+                    {
+                        BulletPath added = pattern.Paths[i];
+                        Require(added.Preset == last.Preset && !ReferenceEquals(added, last), "Last path was not independently copied");
+                        Near(added.Start, last.Start); Near(added.Control, last.Control); Near(added.End, last.End);
+                    }
+                    pattern.Paths[2].Start = Vector3.zero;
+                    pattern.Paths[2].Control = Vector3.zero;
+                    pattern.Paths[2].End = Vector3.zero;
+                    pattern.Paths[2].Preset = BulletPathPreset.Corner;
+                    Near(last.Start, new Vector3(2f, 3f, 4f));
+                    Near(pattern.Paths[3].Control, last.Control); Near(pattern.Paths[4].End, last.End);
+                    Require(last.Preset == BulletPathPreset.Curve && pattern.Paths[3].Preset == last.Preset, "Copied edits leaked");
+                    Require(ReferenceEquals(first, pattern.Paths[0]), "Earlier path changed");
+                    pattern.Resize(5);
+                    Require(ReferenceEquals(last, pattern.Paths[1]), "Same-size resize changed existing paths");
+                });
+                Check(report, "empty path list gets independent defaults", () =>
+                {
+                    var empty = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        empty.Layout = BulletLayout.Manual;
+                        empty.Paths.Clear(); empty.Resize(2);
+                        Near(empty.Paths[0].End, new Vector3(0f, 0f, 10f));
+                        Require(!ReferenceEquals(empty.Paths[0], empty.Paths[1]), "Empty list created shared defaults");
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(empty); }
+                });
+                Check(report, "nearest path picking and overlapping path cycle", () =>
+                {
+                    var editor = UnityEditor.Editor.CreateEditor(pattern, typeof(BulletPatternEditor));
+                    try
+                    {
+                        Type type = editor.GetType();
+                        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                        var hits = (List<(int index, float distance)>)type.GetField("pathHits", flags).GetValue(editor);
+                        FieldInfo selection = type.GetField("selected", flags);
+                        MethodInfo pick = type.GetMethod("PickPath", flags);
+                        selection.SetValue(editor, 4);
+                        Require((int)pick.Invoke(editor, null) == 4, "Empty pick changed selection");
+                        hits.Add((0, 5f)); hits.Add((1, 0.5f));
+                        Require((int)pick.Invoke(editor, null) == 1, "Did not select closest path");
+                        hits.Clear(); hits.Add((0, 0f)); hits.Add((1, 0f)); hits.Add((2, 0f));
+                        selection.SetValue(editor, 0);
+                        Require((int)pick.Invoke(editor, null) == 1, "Overlapping pick did not advance");
+                        selection.SetValue(editor, 2);
+                        Require((int)pick.Invoke(editor, null) == 0, "Overlapping pick did not wrap");
+                        hits.Clear(); hits.Add((2, 0f)); selection.SetValue(editor, 2);
+                        Require((int)pick.Invoke(editor, null) == 2, "Single path pick changed selection");
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(editor); }
+                });
                 Check(report, "line layout is centered and preserves preset", () =>
                 {
                     pattern.Resize(5); pattern.Layout = BulletLayout.Line; pattern.Spacing = 2f;
@@ -78,7 +141,9 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "circle layout radial endpoints", () =>
                 {
-                    pattern.Resize(4); pattern.Layout = BulletLayout.Circle; pattern.Radius = 2f;
+                    pattern.Resize(4);
+                    for (int i = 0; i < pattern.MaximumCount; i++) pattern.Paths[i] = new BulletPath();
+                    pattern.Layout = BulletLayout.Circle; pattern.Radius = 2f;
                     pattern.LayoutCenter = new Vector3(1f, 3f, 2f); pattern.GenerateLayout();
                     Near(pattern.Paths[0].Start, pattern.LayoutCenter + Vector3.forward * 2f);
                     Near(pattern.Paths[1].End, pattern.LayoutCenter + Vector3.right * 12f);
@@ -97,6 +162,117 @@ namespace BlueReaper.BulletPatterns.Editor
                     pattern.Layout = BulletLayout.Manual;
                     BulletPath original = pattern.Paths[0]; pattern.GenerateLayout();
                     Require(ReferenceEquals(original, pattern.Paths[0]), "Manual paths regenerated");
+                });
+                Check(report, "fan growth preserves screenshot curve and distributes the full circle", () =>
+                {
+                    var fan = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        fan.Layout = BulletLayout.Fan; fan.FanAngle = 360f; fan.Radius = 2f; fan.TravelDistance = 1f;
+                        Vector3 start = new Vector3(0.041008294f, 0f, -1.7129433f);
+                        Vector3 control = new Vector3(1.7633494f, 0f, 2.7900472f);
+                        Vector3 end = new Vector3(-3.9367795f, 0f, 7.7851334f);
+                        fan.Paths[0] = new BulletPath { Preset = BulletPathPreset.Curve, Start = start, Control = control, End = end };
+                        fan.Resize(8);
+                        for (int pass = 0; pass < 2; pass++)
+                        {
+                            if (pass == 1) fan.Resize(12);
+                            for (int i = 0; i < fan.MaximumCount; i++)
+                            {
+                                BulletPath copy = fan.Paths[i];
+                                Vector3 direction = Quaternion.Euler(0f, -180f + 360f * i / fan.MaximumCount, 0f) * Vector3.forward;
+                                Near(copy.Start, direction * fan.Radius);
+                                Near((copy.End - copy.Start).normalized, direction);
+                                Require(copy.Preset == BulletPathPreset.Curve, "Curve preset lost");
+                                Close(Vector3.Distance(copy.Start, copy.Control), Vector3.Distance(start, control));
+                                Close(Vector3.Distance(copy.Control, copy.End), Vector3.Distance(control, end));
+                                Close(Vector3.Distance(copy.Start, copy.End), Vector3.Distance(start, end));
+                                Close(Vector3.Cross(copy.End - copy.Start, copy.Control - copy.Start).y,
+                                    Vector3.Cross(end - start, control - start).y);
+                                Require((copy.Evaluate(0.5f) - (copy.Start + copy.End) * 0.5f).sqrMagnitude > 0.1f,
+                                    "Curve was flattened to a straight line");
+                            }
+                            Require(Vector3.Distance(fan.Paths[0].Start, fan.Paths[fan.MaximumCount - 1].Start) > 0.1f,
+                                "360-degree fan duplicated its first and last slot");
+                        }
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(fan); }
+                });
+                Check(report, "line growth rebalances while retaining edited 3D offsets", () =>
+                {
+                    var line = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        line.LayoutCenter = new Vector3(2f, 6f, 3f); line.Spacing = 2f;
+                        BulletPath original = line.Paths[0];
+                        original.Preset = BulletPathPreset.Curve;
+                        original.Start = new Vector3(7f, 2f, -3f);
+                        original.Control = new Vector3(9f, 5f, 2f);
+                        original.End = new Vector3(7f, 4f, 7f);
+                        line.Resize(3);
+                        Require(ReferenceEquals(original, line.Paths[0]), "Existing path object replaced");
+                        for (int i = 0; i < 3; i++)
+                        {
+                            BulletPath path = line.Paths[i];
+                            Near(path.Start, line.LayoutCenter + Vector3.right * ((i - 1) * 2f));
+                            Near(path.Control - path.Start, new Vector3(2f, 3f, 5f));
+                            Near(path.End - path.Start, new Vector3(0f, 2f, 10f));
+                        }
+                        Require(!ReferenceEquals(line.Paths[1], line.Paths[2]), "Added paths share state");
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(line); }
+                });
+                Check(report, "regeneration retains distinct curve and corner shapes and is idempotent", () =>
+                {
+                    var custom = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        custom.Layout = BulletLayout.Manual; custom.Resize(2);
+                        custom.Paths[0] = new BulletPath { Preset = BulletPathPreset.Curve,
+                            Start = new Vector3(1f, 2f, 3f), Control = new Vector3(4f, 8f, 5f), End = new Vector3(5f, 4f, 12f) };
+                        custom.Paths[1] = new BulletPath { Preset = BulletPathPreset.Corner,
+                            Start = new Vector3(-2f, 1f, 0f), Control = new Vector3(3f, 4f, 2f), End = new Vector3(6f, 5f, 0f) };
+                        float[] lengths = { Vector3.Distance(custom.Paths[0].Start, custom.Paths[0].End),
+                            Vector3.Distance(custom.Paths[1].Start, custom.Paths[1].End) };
+                        custom.Layout = BulletLayout.Circle; custom.LayoutCenter = new Vector3(1f, 2f, 3f);
+                        custom.GenerateLayout();
+                        Require(custom.Paths[0].Preset == BulletPathPreset.Curve && custom.Paths[1].Preset == BulletPathPreset.Corner,
+                            "Individual presets lost");
+                        Vector3[] points = { custom.Paths[0].Start, custom.Paths[0].Control, custom.Paths[0].End,
+                            custom.Paths[1].Start, custom.Paths[1].Control, custom.Paths[1].End };
+                        custom.GenerateLayout();
+                        for (int i = 0; i < 2; i++)
+                        {
+                            Near(custom.Paths[i].Start, points[i * 3]);
+                            Near(custom.Paths[i].Control, points[i * 3 + 1]); Near(custom.Paths[i].End, points[i * 3 + 2]);
+                            Close(Vector3.Distance(custom.Paths[i].Start, custom.Paths[i].End), lengths[i]);
+                        }
+                        Close(custom.Paths[0].Control.y - custom.Paths[0].Start.y, 6f);
+                        Close(custom.Paths[1].End.y - custom.Paths[1].Start.y, 4f);
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(custom); }
+                });
+                Check(report, "vertical and stationary paths remain finite during placement", () =>
+                {
+                    var vertical = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        vertical.Layout = BulletLayout.Circle;
+                        vertical.Paths[0] = new BulletPath { Preset = BulletPathPreset.Curve,
+                            Start = Vector3.up, Control = new Vector3(2f, 4f, 0f), End = Vector3.up * 5f };
+                        vertical.Resize(4);
+                        for (int i = 0; i < 4; i++)
+                        {
+                            Near(vertical.Paths[i].End - vertical.Paths[i].Start, Vector3.up * 4f);
+                            Close((vertical.Paths[i].Control - vertical.Paths[i].Start).magnitude, Mathf.Sqrt(13f));
+                        }
+                        vertical.Resize(1);
+                        vertical.Paths[0] = new BulletPath { Start = Vector3.one, Control = Vector3.one, End = Vector3.one };
+                        vertical.Radius = 0f; vertical.Resize(3);
+                        Require(vertical.GetValidationError() == null, "Stationary path produced invalid coordinates");
+                        foreach (BulletPath path in vertical.Paths) { Near(path.Start, path.Control); Near(path.Start, path.End); }
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(vertical); }
                 });
 
                 pattern.Resize(1); pattern.Paths[0] = new BulletPath();
@@ -230,6 +406,11 @@ namespace BlueReaper.BulletPatterns.Editor
         private static void Near(Vector3 actual, Vector3 expected)
         {
             Require((actual - expected).sqrMagnitude < 0.00001f, $"Expected {expected}, got {actual}");
+        }
+
+        private static void Close(float actual, float expected)
+        {
+            Require(Mathf.Abs(actual - expected) < 0.0001f, $"Expected {expected}, got {actual}");
         }
     }
 }
