@@ -39,6 +39,17 @@ public static class AVRemote
             if (parts[0].Contains("build")) { AVBuilder.Build(); Log("BUILD OK"); }
             if (parts[0].Contains("shots")) { Shots(parts.Length > 1 ? parts[1] : Path.Combine(Dir, "shots")); }
             if (parts[0] == "probe") Probe();
+            if (parts[0] == "open")
+            {
+                if (EditorSceneManager.GetActiveScene().path != AVBuilder.ScenePath) EditorSceneManager.OpenScene(AVBuilder.ScenePath, OpenSceneMode.Single);
+                prev = AVBuilder.ScenePath;
+                var cam = Camera.main;
+                var sv = SceneView.lastActiveSceneView ?? EditorWindow.GetWindow<SceneView>();
+                sv.Focus();
+                if (cam) sv.AlignViewToObject(cam.transform);
+                sv.Repaint();
+                Log("OPEN OK");
+            }
         }
         catch (System.Exception e) { Log("EXCEPTION " + e); }
         finally

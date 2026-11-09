@@ -29,13 +29,13 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Bend: 0.22
+    - _Bend: 0.7520059
     - _Cutoff: 0.4
     - _LumScale: 2.3
     - _Remap: 1
     - _RemapDark: 1
     m_Colors:
-    - _Dark: {r: 0.047058597, g: 0.35294086, b: 0.18823498, a: 1}
-    - _Light: {r: 0.34509775, g: 0.8156863, b: 0.2980389, a: 1}
+    - _Dark: {r: 0.04705836, g: 0.35294056, b: 0.18823469, a: 1}
+    - _Light: {r: 0.34509742, g: 0.8156863, b: 0.2980386, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
