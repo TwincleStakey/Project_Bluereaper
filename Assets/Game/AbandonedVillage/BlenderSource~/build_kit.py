@@ -808,6 +808,91 @@ def collapsed_house(name, seed=19):
     return M
 
 
+def pent_roof(M, x0, x1, y0, depth, z, drop=0.55, seed=0, hole=0.0, mat="AV_Tile"):
+    """차양: a single tile slope sticking out from a wall face at y0 toward -Y."""
+    def top(x, y):
+        t = (y0 - y) / depth
+        z_ = z - drop * t ** 1.2 + 0.12 * (abs((x - (x0 + x1) / 2) / ((x1 - x0) / 2))) ** 4 * t
+        f = (x / 0.30) % 1.0 - 0.5
+        return z_ + 0.06 * math.sqrt(max(0.0, 1 - (f * 2.4) ** 2))
+    def keep(x, y):
+        return hole <= 0 or nz(x, y, seed, 0.6) < 1 - hole * 1.8
+    n = int((x1 - x0) / 0.09)
+    M.grid(mat, x0, x1, y0 - depth, y0, n, 8, top, keep=keep, uvs=0.5)
+    M.grid("AV_Wood", x0, x1, y0 - depth, y0, max(4, n // 4), 3, lambda x, y: top(x, y) - 0.14, keep=keep, uvs=0.5, flip=True)
+    M.box(mat, ((x0 + x1) / 2, y0 - depth, z - drop - 0.05), (x1 - x0, 0.1, 0.2))
+    x = x0 + 0.1
+    while x < x1:
+        M.beam("AV_Wood", (x, y0, z - 0.1), (x, y0 - depth + 0.05, z - drop - 0.12), 0.05)
+        x += 0.45
+
+
+def tall_house(name, W=6.4, D=5.2, floors=3, seed=60, lean=0.0, twist=0.0, collapse=0.0, hole=0.3, glow=()):
+    """Narrow 2-3 storey wooden house: plank and lattice walls per floor, 차양 over every floor, balcony, 팔작 roof.
+    lean shears the frame sideways (honglin Tan style), collapse slumps one roof corner and drops the top floor walls."""
+    rnd = random.Random(seed); random.seed(seed)
+    M = Mesh(name)
+    bh = 0.45
+    M.box("AV_Stone", (0, 0, bh / 2), (W + 0.9, D + 0.9, bh), jitter=0.04)
+    for i in range(int((W + 0.9) / 0.7)):
+        M.box("AV_Stone", (-(W + 0.9) / 2 + 0.35 + i * 0.7, -(D + 0.9) / 2, bh / 2), (0.65, 0.3, bh + 0.05), jitter=0.04)
+    z0 = bh + 0.1
+    fh = 2.75
+    nx = max(2, round(W / 2.2)); xs = [-W / 2 + W * i / nx for i in range(nx + 1)]
+    ys = [-D / 2, D / 2]
+    zt = z0 + fh * floors
+    for x in xs:
+        for y in ys:
+            M.box("AV_Wood", (x, y, (z0 + zt) / 2), (0.24, 0.24, zt - z0), jitter=0.01)
+    yf, yb = ys
+    for f in range(floors):
+        za = z0 + f * fh; zb = za + fh
+        top_floor = f == floors - 1
+        for zz in (za + 0.2, zb):
+            for y in ys: M.box("AV_Wood", (0, y, zz), (W + 0.3, 0.2, 0.2))
+            for x in (xs[0], xs[-1]): M.box("AV_Wood", (x, 0, zz), (0.2, D + 0.3, 0.2))
+        M.box("AV_Plank", (0, 0, za + 0.25), (W, D, 0.06))
+        for i in range(nx):
+            a, b = xs[i] + 0.12, xs[i + 1] - 0.12
+            gone = top_floor and collapse > 0 and i == nx - 1
+            if gone:
+                for k in range(3):
+                    M.beam("AV_Plank", (a + rnd.uniform(0, b - a), yf, za + 0.3), (a + rnd.uniform(0, b - a), yf - rnd.uniform(0.2, 1.2), za + rnd.uniform(0.6, 1.8)), 0.06, 0.2)
+                continue
+            k = rnd.random()
+            if k < 0.45:
+                lattice_door(M, a + 0.1, b - 0.1, za + 0.45, zb - 0.45, yf, torn=rnd.uniform(0.3, 0.75), glow=((f, i) in glow), seed=seed * 31 + f * 7 + i)
+                M.box("AV_Plank", ((a + b) / 2, yf, zb - 0.22), (b - a, 0.05, 0.4))
+                M.box("AV_Plank", ((a + b) / 2, yf, za + 0.35), (b - a, 0.05, 0.25))
+            else:
+                plank_wall(M, a, b, za + 0.25, zb - 0.1, yf, seed=seed * 13 + f * 5 + i, missing=0.12 + 0.1 * f, horiz=k > 0.8)
+            plank_wall(M, a, b, za + 0.25, zb - 0.1, yb, seed=seed * 17 + f * 5 + i, missing=0.1, horiz=True)
+        for x in (xs[0], xs[-1]):
+            start = len(M.v)
+            if not (top_floor and collapse > 0 and x > 0):
+                plank_wall(M, -D / 2 + 0.12, D / 2 - 0.12, za + 0.25, zb - 0.1, 0, seed=seed * 19 + f * 3 + int(x), missing=0.15, horiz=rnd.random() < 0.6)
+            M.transform(lambda p, x=x: (x - p.y, p.x, p.z), start)
+        if not top_floor:
+            pent_roof(M, -W / 2 - 0.45, W / 2 + 0.45, yf, 1.0 if f == 0 else 0.8, zb + 0.05, seed=seed + f, hole=hole * 0.6)
+
+
+    zf = tile_roof(M, W, D, zt + 0.25, over=1.0, rise=0.66, seed=seed, hole=hole, gable=0.5)
+
+    def deform(p):
+        h = max(0.0, p.z - z0)
+        x = p.x + lean * h * (1 + 0.04 * h)
+        y = p.y + twist * h
+        z = p.z
+        if collapse > 0:
+            # one corner of the top slumps down
+            c = smooth((p.x / (W / 2 + 1) + 0.15) * 1.4) * smooth((h - fh * (floors - 1) + 0.5) / 2.5)
+            z -= collapse * 2.2 * c
+            x += collapse * 0.6 * c
+        return (x, y, z)
+    M.transform(deform)
+    return M
+
+
 def street_stones(name, seed=50, L=4.0):
     """Sunken flat stepping stones along a mud street, local +Y is the walking direction."""
     rnd = random.Random(seed); M = Mesh(name)
@@ -879,6 +964,12 @@ ASSETS = {
     "AV_Jangseung": lambda: jangseung("AV_Jangseung", 25),
     "AV_Sotdae": lambda: sotdae("AV_Sotdae", 26),
     "AV_TileRubble": lambda: tile_rubble("AV_TileRubble", 27),
+    "AV_Tall3F_A": lambda: tall_house("AV_Tall3F_A", 6.4, 5.2, 3, 61, lean=0.0, hole=0.25, glow=((1, 0),)),
+    "AV_Tall3F_Lean": lambda: tall_house("AV_Tall3F_Lean", 6.0, 5.0, 3, 62, lean=0.085, twist=0.02, hole=0.45),
+    "AV_Tall3F_Broken": lambda: tall_house("AV_Tall3F_Broken", 6.8, 5.4, 3, 63, lean=-0.03, collapse=1.0, hole=0.6),
+    "AV_Tall2F_A": lambda: tall_house("AV_Tall2F_A", 5.6, 4.8, 2, 64, lean=-0.02, hole=0.3, glow=((0, 1),)),
+    "AV_Tall2F_Lean": lambda: tall_house("AV_Tall2F_Lean", 7.2, 5.0, 2, 65, lean=-0.11, hole=0.5),
+    "AV_Tall2F_Broken": lambda: tall_house("AV_Tall2F_Broken", 6.0, 5.0, 2, 66, lean=0.05, collapse=0.8, hole=0.55),
     "AV_StreetStones": lambda: street_stones("AV_StreetStones"),
     "AV_PlankPile": lambda: plank_pile("AV_PlankPile"),
     "AV_StrawHeap": lambda: straw_heap("AV_StrawHeap"),

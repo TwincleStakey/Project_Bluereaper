@@ -354,21 +354,23 @@ public static class AVBuilder
         House("AV_Watchtower", 12.5f, 28.5f, -8f);
         House("AV_ChogaCollapsed", 23f, 32f, 10f);
         House("AV_Hanok2F_B", -26f, 32f, 12f);
-        // west row, fronts face the arena (+X)
-        House("AV_Hanok2F_B", -21.5f, 13f, -88f);
-        House("AV_Choga_A", -20.5f, -1.5f, -92f);
-        House("AV_ChogaCollapsed", -20f, -13f, -75f);
-        House("AV_Choga_C", -33f, 4f, -95f);
-        House("AV_Hanok2F_C", -34f, 18f, -85f);
-        House("AV_Choga_B", -32f, -16f, -100f);
-        // east row, fronts face the arena (-X)
-        House("AV_Hanok2F_C", 22f, 12.5f, 91f);
-        House("AV_Choga_B", 20.5f, -2f, 95f);
-        House("AV_Choga_C", 21f, -15.5f, 84f);
-        House("AV_Hanok2F_A", 34f, 4f, 88f);
-        House("AV_Watchtower", 31f, 19f, 30f);
-        House("AV_ChogaCollapsed", 32f, -16f, 100f);
-        // south row behind the low wall, fronts face north
+        // west and east: packed rows of 2-3 storey wooden houses, fronts facing the arena, some leaning or half fallen
+        string[] westRow = { "AV_Tall2F_Broken", "AV_Tall3F_A", "AV_Tall2F_Lean", "AV_Tall3F_Broken", "AV_Tall2F_A", "AV_Tall3F_Lean", "AV_Tall2F_A" };
+        string[] eastRow = { "AV_Tall3F_Lean", "AV_Tall2F_A", "AV_Tall3F_Broken", "AV_Tall2F_Lean", "AV_Tall3F_A", "AV_Tall2F_Broken", "AV_Tall3F_A" };
+        for (int i = 0; i < westRow.Length; i++)
+        {
+            float z = -21.5f + i * 7.2f + R(-0.3f, 0.3f);
+            House(westRow[i], -20.3f + R(-0.4f, 0.4f), z, -90f + R(-4f, 4f));
+            House(eastRow[i], 20.3f + R(-0.4f, 0.4f), z + 1.2f, 90f + R(-4f, 4f));
+        }
+        // second rows behind, taller roofs peeking over
+        string[] back = { "AV_Tall3F_A", "AV_Hanok2F_C", "AV_Tall3F_Lean", "AV_Choga_C", "AV_Tall3F_Broken", "AV_Hanok2F_B" };
+        for (int i = 0; i < back.Length; i++)
+        {
+            float z = -18f + i * 8.4f;
+            House(back[i], -29.5f + R(-0.6f, 0.6f), z, -90f + R(-6f, 6f));
+            House(back[(i + 3) % back.Length], 29.5f + R(-0.6f, 0.6f), z + 2f, 90f + R(-6f, 6f));
+        }        // south row behind the low wall, fronts face north
         House("AV_Choga_A", -18f, -31f, 178f);
         House("AV_Choga_B", 14f, -31f, 183f);
         House("AV_ChogaCollapsed", 27f, -30f, 170f);
@@ -406,10 +408,8 @@ public static class AVBuilder
                 Place(rng.NextDouble() < breakChance ? b : a, p, yaw + R(-4, 4), 1f, fen);
             }
         }
-        Run("AV_FenceSsari", "AV_FenceSsariBroken", new Vector3(-15.8f, 0, -19), new Vector3(-15.8f, 0, -5), 3f, 0.35f, 0.15f);
-        Run("AV_FenceSsari", "AV_FenceSsariBroken", new Vector3(-15.8f, 0, 5), new Vector3(-15.8f, 0, 20), 3f, 0.35f, 0.12f);
-        Run("AV_FencePlank", "AV_FencePlankBroken", new Vector3(15.8f, 0, -20), new Vector3(15.8f, 0, 4), 3f, 0.4f, 0.12f);
-        Run("AV_FencePlank", "AV_FencePlankBroken", new Vector3(15.8f, 0, 15), new Vector3(15.8f, 0, 21), 3f, 0.4f, 0.1f);
+        Run("AV_FenceSsari", "AV_FenceSsariBroken", new Vector3(-15.2f, 0, -9), new Vector3(-15.2f, 0, -3), 3f, 0.5f, 0.2f);
+        Run("AV_FencePlank", "AV_FencePlankBroken", new Vector3(15.2f, 0, 13), new Vector3(15.2f, 0, 19), 3f, 0.5f, 0.2f);
         Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-36, 0, -24), new Vector3(-12.5f, 0, -24), 4f, 0.45f, 0.08f);
         Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-6.5f, 0, -24), new Vector3(36, 0, -24), 4f, 0.45f, 0.08f);
         Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-10, TerraceY, 38), new Vector3(10, TerraceY, 38), 4f, 0.4f, 0.05f);
@@ -418,7 +418,7 @@ public static class AVBuilder
         var props = Group("Props");
         Place("AV_Well", new Vector3(-6.5f, G(-6.5f, 4.5f), 4.5f), 20f, 1f, props);
         Place("AV_Cart", new Vector3(8.5f, G(8.5f, -9f), -9f), 35f, 1f, props);
-        Place("AV_Jangdokdae", new Vector3(-18f, G(-18f, 5.8f), 5.8f), -90f, 1f, props);
+        Place("AV_Jangdokdae", new Vector3(-14.8f, G(-14.8f, 6.5f), 6.5f), -90f, 1f, props);
         Place("AV_Jangdokdae", new Vector3(-10f, TerraceY, 28.5f), 0f, 1f, props);
         Place("AV_Jangseung", new Vector3(-12.2f, G(-12.2f, -25.5f), -25.5f), 170f, 1f, props);
         Place("AV_Jangseung", new Vector3(-7.4f, G(-7.4f, -25.5f), -25.5f), 190f, 0.92f, props);
@@ -429,11 +429,11 @@ public static class AVBuilder
             Place(rng.NextDouble() < 0.5 ? "AV_OnggiBroken" : "AV_Onggi", new Vector3(p.x, G(p.x, p.z), p.z), R(0, 360), R(0.8f, 1.1f), props);
             Place("AV_OnggiBroken", new Vector3(p.x + R(-1.2f, 1.2f), G(p.x, p.z), p.z + R(-1.2f, 1.2f)), R(0, 360), R(0.6f, 0.9f), props);
         }
-        Place("PH:wooden_barrels_01", new Vector3(17.6f, G(17.6f, 5.5f), 5.5f), 80f, 1f, props);
+        Place("PH:wooden_barrels_01", new Vector3(15.8f, G(15.8f, 5.5f), 5.5f), 80f, 1f, props);
         // scattered debris so the arena reads as a ruined lane, still leaving room to fight
         foreach (var p in new[] { new Vector3(-8f, 0, -6f), new Vector3(9.5f, 0, 6.5f), new Vector3(-12.5f, 0, 15f), new Vector3(6f, 0, -17f), new Vector3(12.5f, 0, -3f) })
             Place("AV_PlankPile", new Vector3(p.x, G(p.x, p.z) - 0.02f, p.z), R(0, 360), R(0.8f, 1.1f), props);
-        foreach (var p in new[] { new Vector3(-17f, 0, 8.5f), new Vector3(17.5f, 0, -12f) })
+        foreach (var p in new[] { new Vector3(-15.2f, 0, 1.5f), new Vector3(15.4f, 0, -13f) })
             Place("AV_StrawHeap", new Vector3(p.x, G(p.x, p.z) - 0.12f, p.z), R(0, 360), R(0.6f, 0.75f), props);
         foreach (var p in new[] { new Vector3(-6f, 0, -2f), new Vector3(4f, 0, 11f), new Vector3(-14f, 0, -14f), new Vector3(14.5f, 0, 14f) })
             Place("AV_TileRubble", new Vector3(p.x, G(p.x, p.z), p.z), R(0, 360), R(0.8f, 1.1f), props);
@@ -453,12 +453,12 @@ public static class AVBuilder
             }
         Place("PH:wooden_bucket_01", new Vector3(-5.2f, G(-5.2f, 3f), 3f), 40f, 1f, props);
         Place("PH:wooden_bucket_02", new Vector3(17f, G(17f, -5f), -5f), 0f, 1f, props);
-        Place("PH:wicker_basket_01", new Vector3(-17f, G(-17f, -7f), -7f), 30f, 1.2f, props);
-        Place("PH:wooden_ladder", new Vector3(-18.3f, G(-18.3f, 8.5f), 8.5f), 90f, 1.6f, props);
-        Place("PH:wooden_crate_01", new Vector3(17.5f, G(17.5f, -9f), -9f), 15f, 1f, props);
+        Place("PH:wicker_basket_01", new Vector3(-15.6f, G(-15.6f, -7f), -7f), 30f, 1.2f, props);
+        Place("PH:wooden_ladder", new Vector3(-16.6f, G(-16.6f, 9.5f), 9.5f), 90f, 1.6f, props);
+        Place("PH:wooden_crate_01", new Vector3(15.8f, G(15.8f, -9f), -9f), 15f, 1f, props);
         Place("PH:stone_fire_pit", new Vector3(12.5f, G(12.5f, -13.5f), -13.5f), 0f, 1f, props);
         Place("PH:wooden_stool_01", new Vector3(11.2f, G(11.2f, -12.6f), -12.6f), 40f, 1f, props);
-        Place("PH:wooden_broom", new Vector3(16.9f, G(16.9f, -1f) + 0.05f, -1f), 0f, 1f, props).transform.rotation = Quaternion.Euler(0, 70, 75);
+        Place("PH:wooden_broom", new Vector3(16.2f, G(16.2f, -1f) + 0.05f, -1f), 0f, 1f, props).transform.rotation = Quaternion.Euler(0, 70, 75);
         foreach (var p in new[] { new Vector3(17f, 0, 17f), new Vector3(-16.8f, 0, -11f), new Vector3(-4f, TerraceY, 35.5f), new Vector3(10f, 0, -27f) })
             Place("AV_TileRubble", new Vector3(p.x, p.y > 0 ? p.y : G(p.x, p.z), p.z), R(0, 360), 1f, props);
         Place("PH:tree_stump_01", new Vector3(10.5f, G(10.5f, 3f), 3f), 0f, 1.2f, props);
@@ -528,8 +528,8 @@ public static class AVBuilder
         Post(-14f, -4f, 180f);
         Post(14.2f, -9.5f, 0f);
         Post(10f, -21f, 90f);
-        Hang(new Vector3(17.8f, 3.0f, -15.5f));
-        PointLight(new Vector3(20.5f, 1.4f, -2f), Hex("#ff8c3c"), 2f, 5.5f, lights);
+        Hang(new Vector3(16.6f, 2.6f, -12.5f));
+        PointLight(new Vector3(20f, 4.4f, 15.6f), Hex("#ff8c3c"), 2f, 5.5f, lights);
         void Hang(Vector3 at)
         {
             var lan = Place("AV_HangingLantern", at, R(0, 360), 1f, lights);
@@ -537,13 +537,13 @@ public static class AVBuilder
         }
         Hang(new Vector3(-2.5f, TerraceY + 4.2f, 28.4f));
         Hang(new Vector3(2.5f, TerraceY + 4.2f, 28.4f));
-        Hang(new Vector3(-17.6f, 4.1f, 15.2f));
-        Hang(new Vector3(18.0f, 4.1f, 10.2f));
+        Hang(new Vector3(-16.6f, 2.6f, 14.8f)); Hang(new Vector3(-16.6f, 2.6f, -6.8f));
+        Hang(new Vector3(16.6f, 2.6f, 9.4f));
         Hang(new Vector3(13.5f, TerraceY + 8.2f, 26.8f));
         // warm light inside a few houses behind the glowing paper doors
         PointLight(new Vector3(0, TerraceY + 1.5f, 31f), Hex("#ff8c3c"), 2.5f, 6f, lights);
-        PointLight(new Vector3(-20.5f, 1.5f, -1.5f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
-        PointLight(new Vector3(22f, 1.5f, 12.5f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
+        PointLight(new Vector3(-20f, 4.4f, -7.1f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
+        PointLight(new Vector3(20f, 1.6f, 8.4f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
 
         // ---------------- 도깨비불 wisps
         var wisps = Group("Wisps");
@@ -572,8 +572,6 @@ public static class AVBuilder
         Perch(new Vector3(0.6f, TerraceY + 9.4f, 32.5f), 160f);
         Perch(new Vector3(-1.4f, TerraceY + 9.35f, 32.4f), 200f);
         Perch(new Vector3(13.2f, TerraceY + 7.15f, 27.1f), 190f);
-        Perch(new Vector3(-21.5f, 8.6f, 13.6f), 100f);
-        Perch(new Vector3(-20.2f, 4.4f, -1.2f), 80f);
         foreach (var r in bigTree.GetComponentsInChildren<MeshFilter>())
         {
             var b = r.sharedMesh.bounds; var top = r.transform.TransformPoint(b.center + Vector3.up * b.extents.y * 0.55f);
