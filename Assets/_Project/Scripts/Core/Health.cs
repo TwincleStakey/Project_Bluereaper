@@ -3,12 +3,13 @@ using UnityEngine;
 
 namespace BlueReaper.Core
 {
-    /// <summary>체력 컴포넌트. 플레이어·몬스터·보스 공용.</summary>
+    /// <summary>체력 컴포넌트. 플레이어·몬스터·보스 공용. 최대 체력은 UnitData에서 읽는다.</summary>
+    [RequireComponent(typeof(Unit))]
     public class Health : MonoBehaviour, IDamageable
     {
-        [SerializeField, Min(1f)] float maxHealth = 100f;
+        Unit unit;
 
-        public float MaxHealth => maxHealth;
+        public float MaxHealth => unit.Data.MaxHealth;
         public float Current { get; private set; }
         public bool IsDead => Current <= 0f;
 
@@ -19,8 +20,10 @@ namespace BlueReaper.Core
         public event Action<float> Damaged;
         public event Action Died;
 
+        void Awake() => unit = GetComponent<Unit>();
+
         // 오브젝트 풀에서 다시 꺼낼 때(재활성화) 체력이 초기화되도록 OnEnable에서 리셋
-        void OnEnable() => Current = maxHealth;
+        void OnEnable() => Current = MaxHealth;
 
         public void TakeDamage(float amount)
         {

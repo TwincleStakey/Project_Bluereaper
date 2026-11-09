@@ -4,11 +4,10 @@ using UnityEngine;
 namespace BlueReaper.Player
 {
     /// <summary>이동·회전·대시(무적 포함). 입력을 직접 읽지 않고 명령만 받는다.</summary>
-    [RequireComponent(typeof(CharacterController), typeof(Health))]
+    [RequireComponent(typeof(CharacterController), typeof(Health), typeof(Unit))]
     public class PlayerMotor : MonoBehaviour
     {
-        [Header("이동")]
-        [SerializeField] float moveSpeed = 7f;
+        [Header("이동 (속도는 UnitData.MoveSpeed)")]
         [SerializeField] float turnSpeed = 1080f; // 초당 회전 각도
 
         [Header("대시")]
@@ -18,6 +17,7 @@ namespace BlueReaper.Player
 
         CharacterController controller;
         Health health;
+        Unit unit;
 
         Vector3 moveInput;
         float verticalSpeed;
@@ -33,6 +33,7 @@ namespace BlueReaper.Player
         {
             controller = GetComponent<CharacterController>();
             health = GetComponent<Health>();
+            unit = GetComponent<Unit>();
         }
 
         void OnDisable()
@@ -80,7 +81,7 @@ namespace BlueReaper.Player
             }
             else
             {
-                horizontal = moveInput * moveSpeed;
+                horizontal = moveInput * unit.Data.MoveSpeed;
                 if (facingHoldLeft <= 0f && moveInput.sqrMagnitude > 0.01f)
                 {
                     var target = Quaternion.LookRotation(moveInput);
