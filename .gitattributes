@@ -1,0 +1,62 @@
+# ── 줄바꿈 통일 ──────────────────────────────
+# 텍스트 파일은 저장소 안에서 LF로 통일 (각자 PC의 Git 설정과 무관)
+* text=auto
+
+# Unity가 LF로 저장하는 파일은 작업 폴더에서도 LF 유지
+# (안 바꿨는데 "수정됨"으로 뜨는 문제 방지)
+*.unity             text eol=lf
+*.prefab            text eol=lf
+*.asset             text eol=lf
+*.meta              text eol=lf
+*.mat               text eol=lf
+*.anim              text eol=lf
+*.controller        text eol=lf
+*.overrideController text eol=lf
+*.physicMaterial    text eol=lf
+*.mask              text eol=lf
+*.playable          text eol=lf
+*.signal            text eol=lf
+*.shadergraph       text eol=lf
+*.shadersubgraph    text eol=lf
+*.vfx               text eol=lf
+*.inputactions      text eol=lf
+
+# ── 큰 파일은 Git LFS로 ──────────────────────
+# 이미지
+*.png   filter=lfs diff=lfs merge=lfs -text
+*.jpg   filter=lfs diff=lfs merge=lfs -text
+*.jpeg  filter=lfs diff=lfs merge=lfs -text
+*.tga   filter=lfs diff=lfs merge=lfs -text
+*.psd   filter=lfs diff=lfs merge=lfs -text
+*.tif   filter=lfs diff=lfs merge=lfs -text
+*.tiff  filter=lfs diff=lfs merge=lfs -text
+*.exr   filter=lfs diff=lfs merge=lfs -text
+*.hdr   filter=lfs diff=lfs merge=lfs -text
+*.gif   filter=lfs diff=lfs merge=lfs -text
+*.bmp   filter=lfs diff=lfs merge=lfs -text
+
+# 3D 모델
+*.fbx   filter=lfs diff=lfs merge=lfs -text
+*.obj   filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+*.max   filter=lfs diff=lfs merge=lfs -text
+*.ma    filter=lfs diff=lfs merge=lfs -text
+*.mb    filter=lfs diff=lfs merge=lfs -text
+*.dae   filter=lfs diff=lfs merge=lfs -text
+*.3ds   filter=lfs diff=lfs merge=lfs -text
+
+# 오디오
+*.wav   filter=lfs diff=lfs merge=lfs -text
+*.mp3   filter=lfs diff=lfs merge=lfs -text
+*.ogg   filter=lfs diff=lfs merge=lfs -text
+*.aif   filter=lfs diff=lfs merge=lfs -text
+*.aiff  filter=lfs diff=lfs merge=lfs -text
+*.flac  filter=lfs diff=lfs merge=lfs -text
+
+# 영상
+*.mp4   filter=lfs diff=lfs merge=lfs -text
+*.mov   filter=lfs diff=lfs merge=lfs -text
+
+# 폰트
+*.ttf   filter=lfs diff=lfs merge=lfs -text
+*.otf   filter=lfs diff=lfs merge=lfs -text
