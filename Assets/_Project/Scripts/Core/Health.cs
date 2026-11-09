@@ -12,6 +12,9 @@ namespace BlueReaper.Core
         public float Current { get; private set; }
         public bool IsDead => Current <= 0f;
 
+        /// <summary>켜져 있는 동안 데미지를 무시 (대시 무적, 패턴 중 무적 등).</summary>
+        public bool Invincible { get; set; }
+
         /// <summary>받은 데미지량을 전달.</summary>
         public event Action<float> Damaged;
         public event Action Died;
@@ -21,7 +24,7 @@ namespace BlueReaper.Core
 
         public void TakeDamage(float amount)
         {
-            if (IsDead || amount <= 0f) return;
+            if (IsDead || Invincible || amount <= 0f) return;
 
             Current = Mathf.Max(0f, Current - amount);
             Damaged?.Invoke(amount);
