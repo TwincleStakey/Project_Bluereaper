@@ -116,3 +116,9 @@ InitTestScene*.unity*
 
 # Abandoned village: downloads, Blender work files and preview renders stay local.
 /ArtSource/AbandonedVillage/
+
+# Reed field: Blender work files and preview renders stay local.
+/ArtSource/ReedField/
+
+# Bamboo arena: Blender work files and previews stay local.
+/ArtSource/BambooArena/

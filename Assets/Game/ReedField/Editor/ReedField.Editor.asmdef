@@ -1,0 +1,5 @@
+{
+  "name": "ReedField.Editor",
+  "references": ["ReedField.Runtime", "LookStudy.Runtime", "InkFilters","Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "includePlatforms": ["Editor"]
+}

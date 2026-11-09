@@ -1,0 +1,118 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: BA_Ground
+  m_Shader: {fileID: 4800000, guid: 4b9ff68747d53814ba51f0cb8c361637, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _DryNrm:
+        m_Texture: {fileID: 2800000, guid: 2fb4166d436877b4eb7207a4d03a5b85, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DryTex:
+        m_Texture: {fileID: 2800000, guid: 2cdf3cfc6f5a39e4f8791b296c8013b8, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LeafNrm:
+        m_Texture: {fileID: 2800000, guid: 1907dbc0ffb8604438c92360bf6ffa2b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LeafTex:
+        m_Texture: {fileID: 2800000, guid: 81095d575acfbb54da456e4d009efe80, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LitterNrm:
+        m_Texture: {fileID: 2800000, guid: 1b9c7a8d680f82142bc8c43e594c8fed, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LitterTex:
+        m_Texture: {fileID: 2800000, guid: 9f3ff32f56455ad42acee2b761defcf7, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MossTex:
+        m_Texture: {fileID: 2800000, guid: 4978dfbc2b7386244bc4092c1b98a7be, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MudNrm:
+        m_Texture: {fileID: 2800000, guid: 1b9c7a8d680f82142bc8c43e594c8fed, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MudTex:
+        m_Texture: {fileID: 2800000, guid: 9f3ff32f56455ad42acee2b761defcf7, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PathNrm:
+        m_Texture: {fileID: 2800000, guid: ce86073c9e3f48040a51cf9792ad23a4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PathTex:
+        m_Texture: {fileID: 2800000, guid: 9b51965a84d920849ab5a49fcb2e7758, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PebbleNrm:
+        m_Texture: {fileID: 2800000, guid: 537edb3d501bed045b221bf039586f48, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PebbleTex:
+        m_Texture: {fileID: 2800000, guid: 89638bd1ada508a499915f9ee505e970, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SoilNrm:
+        m_Texture: {fileID: 2800000, guid: 1b9c7a8d680f82142bc8c43e594c8fed, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SoilTex:
+        m_Texture: {fileID: 2800000, guid: 9f3ff32f56455ad42acee2b761defcf7, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StoneNrm:
+        m_Texture: {fileID: 2800000, guid: 1a45f52661f2584419b15b81379d9005, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StoneTex:
+        m_Texture: {fileID: 2800000, guid: 339b67c00db971d4399c0ecb5ae84aeb, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Calm: 0.3
+    - _Damp: 0.5
+    - _Dapple: 0.45
+    - _Leaves: 0.8
+    - _Moss: 0.5
+    - _NormalStrength: 0.55
+    - _Pebbles: 0.5
+    - _Puddles: 0
+    - _SoilTile: 3
+    - _StoneTile: 2.6
+    - _Tile: 3
+    m_Colors:
+    - _Ambient: {r: 0.2, g: 0.25, b: 0.21, a: 1}
+    - _LeafCol: {r: 0.78, g: 0.66, b: 0.42, a: 1}
+    - _Moss: {r: 0.19999996, g: 0.15999997, b: 0.079999976, a: 1}
+    - _MossCol: {r: 0.35999998, g: 0.41999996, b: 0.19999996, a: 1}
+    - _Mud: {r: 0.16999996, g: 0.11999995, b: 0.07499998, a: 1}
+    - _Path: {r: 0.25999996, g: 0.18999997, b: 0.11999995, a: 1}
+    - _Peat: {r: 0.06, g: 0.075, b: 0.05, a: 1}
+    - _Shade: {r: 0.06, g: 0.075, b: 0.05, a: 1}
+    - _Tint: {r: 0.92, g: 1, b: 0.86, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

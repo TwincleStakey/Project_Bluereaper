@@ -40,6 +40,10 @@ MonoBehaviour:
         count: 2
       - enemyId: shade
         count: 3
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 0
   - id: valley
     displayName: "\uC0B0\uC18D \uACC4\uACE1"
     mapCell: {x: 1, y: 0}
@@ -68,6 +72,10 @@ MonoBehaviour:
         count: 3
       - enemyId: fox
         count: 1
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 0
   - id: village
     displayName: "\uBBFC\uAC00"
     mapCell: {x: 0, y: 0}
@@ -92,6 +100,10 @@ MonoBehaviour:
         count: 1
       - enemyId: fox
         count: 1
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 0
   - id: palace
     displayName: "\uB300\uC804 \uC55E"
     mapCell: {x: 2, y: 0}
@@ -116,11 +128,15 @@ MonoBehaviour:
     - spawns:
       - enemyId: dokkaebi_elite
         count: 1
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 0
   - id: underworld
-    displayName: "저승"
+    displayName: "\uC800\uC2B9"
     mapCell: {x: 3, y: 0}
     scenePath: Assets/Underworld/Scenes/Underworld.unity
-    groundMeshName:
+    groundMeshName: 
     center: {x: -2, y: 0, z: -4}
     size: {x: 56, y: 46}
     fitToStage: 0
@@ -133,6 +149,7 @@ MonoBehaviour:
     bossPrefab: {fileID: 1358066524170288776, guid: 87edc2abe5886914c96244abaec8cdb6, type: 3}
     bossOffset: {x: 0, y: 0, z: 6}
     bossHp: 60
+    devOnly: 0
   - id: abandoned
     displayName: "\uD3D0\uCD0C"
     mapCell: {x: 4, y: 0}
@@ -155,6 +172,38 @@ MonoBehaviour:
         count: 1
       - enemyId: fox
         count: 2
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 1
+  - id: reeds
+    displayName: "\uAC08\uB300\uBC2D"
+    mapCell: {x: 5, y: 0}
+    scenePath: Assets/Game/ReedField/ReedField.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 56, y: 44}
+    fitToStage: 0
+    floorColor: {r: 0.08, g: 0.08, b: 0.09, a: 1}
+    pillarCount: 0
+    doors: []
+    waves: []
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 1
+  - id: bamboo
+    displayName: "\uB300\uB098\uBB34\uC232"
+    mapCell: {x: 6, y: 0}
+    scenePath: Assets/Game/BambooArena/BambooArena.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 44, y: 36}
+    fitToStage: 0
+    floorColor: {r: 0.08, g: 0.09, b: 0.08, a: 1}
+    pillarCount: 0
+    doors: []
+    waves: []
     bossPrefab: {fileID: 0}
     bossOffset: {x: 0, y: 0, z: 0}
     bossHp: 60
