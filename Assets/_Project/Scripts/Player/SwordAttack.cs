@@ -5,9 +5,11 @@ using UnityEngine;
 namespace BlueReaper.Player
 {
     /// <summary>무사 평타: 바라보는 방향 부채꼴 안의 적 전부에게 데미지.</summary>
+    [RequireComponent(typeof(Unit))]
     public class SwordAttack : MonoBehaviour
     {
-        [SerializeField] float damage = 10f;
+        [Tooltip("공격력(UnitData.Attack)에 곱하는 배율")]
+        [SerializeField] float damageMultiplier = 1f;
         [SerializeField] float range = 2.2f;
         [SerializeField, Range(0f, 360f)] float arcAngle = 120f;
         [SerializeField] float cooldown = 0.35f;
@@ -17,6 +19,9 @@ namespace BlueReaper.Player
         // 콜라이더가 여러 개인 적을 한 번 휘두르기에 두 번 때리지 않도록
         readonly HashSet<IDamageable> hitThisSwing = new();
         float cooldownLeft;
+        Unit unit;
+
+        void Awake() => unit = GetComponent<Unit>();
 
         void Update() => cooldownLeft -= Time.deltaTime;
 
@@ -28,6 +33,7 @@ namespace BlueReaper.Player
             Vector3 origin = transform.position;
             int count = Physics.OverlapSphereNonAlloc(origin, range, hits, targetLayers);
             hitThisSwing.Clear();
+            float damage = DamageFormula.Calculate(unit.Data.Attack, damageMultiplier);
 
             for (int i = 0; i < count; i++)
             {

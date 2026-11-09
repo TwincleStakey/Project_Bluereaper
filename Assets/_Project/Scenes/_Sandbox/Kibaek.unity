@@ -132,6 +132,7 @@ GameObject:
   - component: {fileID: 70206243}
   - component: {fileID: 70206242}
   - component: {fileID: 70206241}
+  - component: {fileID: 70206245}
   m_Layer: 7
   m_Name: Dummy0
   m_TagString: Untagged
@@ -166,7 +167,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 446b29e88ea018c488458641a12fdc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Health
-  maxHealth: 100
 --- !u!23 &70206242
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -245,6 +245,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 70206239}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &70206245
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 70206239}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7122ae458c8dcd45a0ebf90abbf6e78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
+  data: {fileID: 11400000, guid: 7509007d3329eeb478ecb7bcefc6a236, type: 2}
 --- !u!114 &974666820 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 140846048566676297, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
@@ -274,6 +287,7 @@ GameObject:
   - component: {fileID: 1022799481}
   - component: {fileID: 1022799480}
   - component: {fileID: 1022799479}
+  - component: {fileID: 1022799483}
   m_Layer: 7
   m_Name: Dummy1
   m_TagString: Untagged
@@ -308,7 +322,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 446b29e88ea018c488458641a12fdc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Health
-  maxHealth: 100
 --- !u!23 &1022799480
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -387,6 +400,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1022799477}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1022799483
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1022799477}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7122ae458c8dcd45a0ebf90abbf6e78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
+  data: {fileID: 11400000, guid: 7509007d3329eeb478ecb7bcefc6a236, type: 2}
 --- !u!1 &1271118103
 GameObject:
   m_ObjectHideFlags: 0
@@ -446,6 +472,7 @@ GameObject:
   - component: {fileID: 1274962931}
   - component: {fileID: 1274962930}
   - component: {fileID: 1274962929}
+  - component: {fileID: 1274962933}
   m_Layer: 7
   m_Name: Dummy4
   m_TagString: Untagged
@@ -480,7 +507,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 446b29e88ea018c488458641a12fdc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Health
-  maxHealth: 100
 --- !u!23 &1274962930
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -559,6 +585,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1274962927}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1274962933
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1274962927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7122ae458c8dcd45a0ebf90abbf6e78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
+  data: {fileID: 11400000, guid: 7509007d3329eeb478ecb7bcefc6a236, type: 2}
 --- !u!1 &1291902817
 GameObject:
   m_ObjectHideFlags: 0
@@ -572,6 +611,7 @@ GameObject:
   - component: {fileID: 1291902821}
   - component: {fileID: 1291902820}
   - component: {fileID: 1291902819}
+  - component: {fileID: 1291902823}
   m_Layer: 7
   m_Name: Dummy3
   m_TagString: Untagged
@@ -606,7 +646,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 446b29e88ea018c488458641a12fdc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Health
-  maxHealth: 100
 --- !u!23 &1291902820
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -685,6 +724,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1291902817}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1291902823
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1291902817}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7122ae458c8dcd45a0ebf90abbf6e78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
+  data: {fileID: 11400000, guid: 7509007d3329eeb478ecb7bcefc6a236, type: 2}
 --- !u!1 &1326603924
 GameObject:
   m_ObjectHideFlags: 0
@@ -698,6 +750,7 @@ GameObject:
   - component: {fileID: 1326603928}
   - component: {fileID: 1326603927}
   - component: {fileID: 1326603926}
+  - component: {fileID: 1326603930}
   m_Layer: 7
   m_Name: Dummy2
   m_TagString: Untagged
@@ -732,7 +785,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 446b29e88ea018c488458641a12fdc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Health
-  maxHealth: 100
 --- !u!23 &1326603927
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -811,6 +863,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1326603924}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1326603930
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1326603924}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7122ae458c8dcd45a0ebf90abbf6e78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
+  data: {fileID: 11400000, guid: 7509007d3329eeb478ecb7bcefc6a236, type: 2}
 --- !u!1 &1327464236
 GameObject:
   m_ObjectHideFlags: 0

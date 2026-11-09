@@ -106,6 +106,7 @@ GameObject:
   - component: {fileID: 3283033946257630600}
   - component: {fileID: 1471942442957585587}
   - component: {fileID: 4250884013731307215}
+  - component: {fileID: 1088931757704909158}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -167,7 +168,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 446b29e88ea018c488458641a12fdc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Health
-  maxHealth: 100
 --- !u!114 &8290770320053144328
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180,7 +180,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4bd86b619c86a0468f92c83794ca485, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerMotor
-  moveSpeed: 7
   turnSpeed: 1080
   dashDistance: 5
   dashDuration: 0.18
@@ -228,7 +227,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 531e4df5333504548bae05627c4f5286, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.SwordAttack
-  damage: 10
+  damageMultiplier: 1
   range: 2.2
   arcAngle: 120
   cooldown: 0.35
@@ -248,6 +247,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerController
   attackFacingHold: 0.25
+--- !u!114 &1088931757704909158
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7122ae458c8dcd45a0ebf90abbf6e78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
+  data: {fileID: 11400000, guid: 87cf4d45a8035f6478c5a14956a95e48, type: 2}
 --- !u!1 &8960930555137822400
 GameObject:
   m_ObjectHideFlags: 0
