@@ -113,3 +113,6 @@ InitTestScene*.unity*
 
 # Heavy Blender work files (remesh experiments). Keep locally, never commit.
 /ArtSource/trellis/
+
+# Abandoned village: downloads, Blender work files and preview renders stay local.
+/ArtSource/AbandonedVillage/
