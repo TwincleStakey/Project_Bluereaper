@@ -19,6 +19,14 @@ public static class AVBuilder
     const string PH = Root + "/ThirdParty/PolyHaven/";
     public const float TerraceY = 2.56f;
     public const float TerraceZ = 24f;
+    // Open combat arena: nearly square, flat ground only. Nothing that blocks or stops movement is placed inside;
+    // houses, walls, fences, props and trees all sit on or beyond these edges.
+    public const float ArenaHalfX = 23f, ArenaMinZ = -26f, ArenaMaxZ = 19f;   // 46 x 45 m
+    const float RowX = 28f;        // west/east house row centres (fronts at about +-24.3)
+    const float BackRowX = 37.2f;  // second rows behind
+    const float SouthZ = -34.5f;   // south house row centres
+    public static bool InArena(float x, float z, float margin = 0f) =>
+        Mathf.Abs(x) < ArenaHalfX - margin && z > ArenaMinZ + margin && z < ArenaMaxZ - margin;
 
     static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
     static System.Random rng;
@@ -295,7 +303,7 @@ public static class AVBuilder
                 float x = -size / 2 + size * (i + 0.5f) / ar, z = -size / 2 + size * (j + 0.5f) / ar;
                 float sd = StreetDist(x, z);
                 float n1 = Mathf.PerlinNoise(x * 0.09f + 11f, z * 0.09f + 5f), n2 = Mathf.PerlinNoise(x * 0.23f + 2f, z * 0.23f + 9f);
-                float edge = Mathf.Max(Mathf.Abs(x) / 18f, Mathf.Abs(z) / 18f);
+                float edge = Mathf.Max(Mathf.Abs(x) / 24f, Mathf.Abs(z + 3.5f) / 24f);
                 float w0 = 1f;                                                    // mud
                 float w1 = Mathf.Clamp01(1.8f - sd / 1.8f + (n2 - 0.5f) * 0.6f);  // street tracks
                 float w2 = Mathf.Clamp01((edge - 0.75f) * 1.6f + (n2 - 0.45f) * 2.2f) * (1f - w1);   // dead leaves: edges and drifts
@@ -359,22 +367,22 @@ public static class AVBuilder
         string[] eastRow = { "AV_Tall3F_Lean", "AV_Tall2F_A", "AV_Tall3F_Broken", "AV_Tall2F_Lean", "AV_Tall3F_A", "AV_Tall2F_Broken", "AV_Tall3F_A" };
         for (int i = 0; i < westRow.Length; i++)
         {
-            float z = -21.5f + i * 7.2f + R(-0.3f, 0.3f);
-            House(westRow[i], -20.3f + R(-0.4f, 0.4f), z, -90f + R(-4f, 4f));
-            House(eastRow[i], 20.3f + R(-0.4f, 0.4f), z + 1.2f, 90f + R(-4f, 4f));
+            float z = -24.5f + i * 7.2f + R(-0.3f, 0.3f);
+            House(westRow[i], -RowX + R(-0.3f, 0.3f), z, -90f + R(-4f, 4f));
+            House(eastRow[i], RowX + R(-0.3f, 0.3f), z + 1.2f, 90f + R(-4f, 4f));
         }
         // second rows behind, taller roofs peeking over
         string[] back = { "AV_Tall3F_A", "AV_Hanok2F_C", "AV_Tall3F_Lean", "AV_Choga_C", "AV_Tall3F_Broken", "AV_Hanok2F_B" };
         for (int i = 0; i < back.Length; i++)
         {
-            float z = -18f + i * 8.4f;
-            House(back[i], -29.5f + R(-0.6f, 0.6f), z, -90f + R(-6f, 6f));
-            House(back[(i + 3) % back.Length], 29.5f + R(-0.6f, 0.6f), z + 2f, 90f + R(-6f, 6f));
+            float z = -21f + i * 8.4f;
+            House(back[i], -BackRowX + R(-0.6f, 0.6f), z, -90f + R(-6f, 6f));
+            House(back[(i + 3) % back.Length], BackRowX + R(-0.6f, 0.6f), z + 2f, 90f + R(-6f, 6f));
         }        // south row behind the low wall, fronts face north
-        House("AV_Choga_A", -18f, -31f, 178f);
-        House("AV_Choga_B", 14f, -31f, 183f);
-        House("AV_ChogaCollapsed", 27f, -30f, 170f);
-        House("AV_Choga_C", -31f, -29f, 190f);
+        House("AV_Choga_A", -16f, SouthZ, 178f);
+        House("AV_Choga_B", 13f, SouthZ, 183f);
+        House("AV_ChogaCollapsed", 30f, SouthZ + 0.5f, 170f);
+        House("AV_Choga_C", -33f, SouthZ + 1.5f, 190f);
         // ---------------- terrace: retaining wall, steps and lanterns
         var ter = Group("Terrace");
         for (int k = 0; k < 8; k++)
@@ -382,13 +390,13 @@ public static class AVBuilder
             {
                 float x = side * (5.75f + 5.95f * k);
                 Place("AV_RetainingWall", new Vector3(x, -0.25f, TerraceZ - 0.75f), R(-1.2f, 1.2f), 1f, ter);
-                if ((k == 2 && side > 0) || (k == 4 && side < 0)) Place("AV_TileRubble", new Vector3(x, G(x, TerraceZ - 3f), TerraceZ - 3f), R(0, 360), 0.8f, ter);
+                if ((k == 2 && side > 0) || (k == 1 && side < 0)) Place("AV_TileRubble", new Vector3(x, G(x, TerraceZ - 2.4f), TerraceZ - 2.4f), R(0, 360), 0.8f, ter);
             }
         Place("AV_StoneSteps", new Vector3(0, -0.05f, TerraceZ - 3.6f), 0f, 1f, ter);
         // steps local origin is the bottom front edge; model rises along +Z
         foreach (var sx in new[] { -3.3f, 3.3f })
         {
-            var sl = Place("AV_StoneLantern", new Vector3(sx, G(sx, TerraceZ - 4.6f), TerraceZ - 4.6f), R(-10, 10), 1f, ter);
+            var sl = Place("AV_StoneLantern", new Vector3(sx, G(sx, TerraceZ - 4.1f), TerraceZ - 4.1f), R(-10, 10), 1f, ter);
             PointLight(sl.transform.position + Vector3.up * 1.35f, Hex("#ff9440"), 3.5f, 7f, sl.transform);
             var st = Place("AV_StoneLantern", new Vector3(sx * 0.9f, TerraceY, TerraceZ + 1.2f), R(-10, 10), 1f, ter);
             PointLight(st.transform.position + Vector3.up * 1.35f, Hex("#ff9440"), 3f, 7f, st.transform);
@@ -408,38 +416,37 @@ public static class AVBuilder
                 Place(rng.NextDouble() < breakChance ? b : a, p, yaw + R(-4, 4), 1f, fen);
             }
         }
-        Run("AV_FenceSsari", "AV_FenceSsariBroken", new Vector3(-15.2f, 0, -9), new Vector3(-15.2f, 0, -3), 3f, 0.5f, 0.2f);
-        Run("AV_FencePlank", "AV_FencePlankBroken", new Vector3(15.2f, 0, 13), new Vector3(15.2f, 0, 19), 3f, 0.5f, 0.2f);
-        Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-36, 0, -24), new Vector3(-12.5f, 0, -24), 4f, 0.45f, 0.08f);
-        Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-6.5f, 0, -24), new Vector3(36, 0, -24), 4f, 0.45f, 0.08f);
+        // fences only along the arena's side edges, in the yards in front of the house rows
+        float fx = ArenaHalfX + 0.4f;
+        Run("AV_FenceSsari", "AV_FenceSsariBroken", new Vector3(-fx, 0, -12), new Vector3(-fx, 0, -4), 3f, 0.5f, 0.2f);
+        Run("AV_FencePlank", "AV_FencePlankBroken", new Vector3(fx, 0, 8), new Vector3(fx, 0, 16), 3f, 0.5f, 0.2f);
+        // low south wall on the arena's south edge, gap for the jangseung gate
+        float wz = ArenaMinZ - 1.3f;
+        Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-ArenaHalfX - 1f, 0, wz), new Vector3(-12.5f, 0, wz), 4f, 0.45f, 0.08f);
+        Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-6.5f, 0, wz), new Vector3(ArenaHalfX + 1f, 0, wz), 4f, 0.45f, 0.08f);
         Run("AV_StoneWall", "AV_StoneWallBroken", new Vector3(-10, TerraceY, 38), new Vector3(10, TerraceY, 38), 4f, 0.4f, 0.05f);
 
-        // ---------------- street furniture, props
+        // ---------------- street furniture, props: all outside the arena (south strip behind the wall, north terrace)
         var props = Group("Props");
-        Place("AV_Well", new Vector3(-6.5f, G(-6.5f, 4.5f), 4.5f), 20f, 1f, props);
-        Place("AV_Cart", new Vector3(8.5f, G(8.5f, -9f), -9f), 35f, 1f, props);
-        Place("AV_Jangdokdae", new Vector3(-14.8f, G(-14.8f, 6.5f), 6.5f), -90f, 1f, props);
+        float sz = ArenaMinZ - 3.2f;   // strip between the south wall and the south houses
+        Place("AV_Well", new Vector3(-14.5f, TerraceY, 26.3f), 20f, 1f, props);
+        Place("AV_Cart", new Vector3(5.5f, G(5.5f, sz), sz), 80f, 1f, props);
         Place("AV_Jangdokdae", new Vector3(-10f, TerraceY, 28.5f), 0f, 1f, props);
-        Place("AV_Jangseung", new Vector3(-12.2f, G(-12.2f, -25.5f), -25.5f), 170f, 1f, props);
-        Place("AV_Jangseung", new Vector3(-7.4f, G(-7.4f, -25.5f), -25.5f), 190f, 0.92f, props);
-        Place("AV_Sotdae", new Vector3(-4.5f, G(-4.5f, -26f), -26f), 0f, 1f, props);
+        Place("AV_Jangdokdae", new Vector3(-22f, G(-22f, sz), sz), 180f, 1f, props);
+        Place("AV_Jangseung", new Vector3(-12.2f, G(-12.2f, wz - 1.2f), wz - 1.2f), 170f, 1f, props);
+        Place("AV_Jangseung", new Vector3(-7.4f, G(-7.4f, wz - 1.2f), wz - 1.2f), 190f, 0.92f, props);
+        Place("AV_Sotdae", new Vector3(-4.5f, G(-4.5f, wz - 1.6f), wz - 1.6f), 0f, 1f, props);
         Place("AV_Sotdae", new Vector3(7f, TerraceY, 27f), 40f, 1.1f, props);
-        foreach (var p in new[] { new Vector3(4.5f, 0, 14.5f), new Vector3(-14.5f, 0, -9f), new Vector3(15.5f, 0, -12f), new Vector3(-3f, 0, -13.5f), new Vector3(11f, 0, 19f) })
+        foreach (var p in new[] { new Vector3(-19f, 0, sz), new Vector3(19.5f, 0, sz - 0.2f), new Vector3(-1.5f, 0, sz - 0.3f), new Vector3(9.5f, TerraceY, 26.2f) })
         {
-            Place(rng.NextDouble() < 0.5 ? "AV_OnggiBroken" : "AV_Onggi", new Vector3(p.x, G(p.x, p.z), p.z), R(0, 360), R(0.8f, 1.1f), props);
-            Place("AV_OnggiBroken", new Vector3(p.x + R(-1.2f, 1.2f), G(p.x, p.z), p.z + R(-1.2f, 1.2f)), R(0, 360), R(0.6f, 0.9f), props);
+            float y = p.y > 0 ? p.y : G(p.x, p.z);
+            Place(rng.NextDouble() < 0.5 ? "AV_OnggiBroken" : "AV_Onggi", new Vector3(p.x, y, p.z), R(0, 360), R(0.8f, 1.1f), props);
+            Place("AV_OnggiBroken", new Vector3(p.x + R(-1.2f, 1.2f), y, p.z + R(-0.5f, 0.5f)), R(0, 360), R(0.6f, 0.9f), props);
         }
-        Place("PH:wooden_barrels_01", new Vector3(15.8f, G(15.8f, 5.5f), 5.5f), 80f, 1f, props);
-        // scattered debris so the arena reads as a ruined lane, still leaving room to fight
-        foreach (var p in new[] { new Vector3(-8f, 0, -6f), new Vector3(9.5f, 0, 6.5f), new Vector3(-12.5f, 0, 15f), new Vector3(6f, 0, -17f), new Vector3(12.5f, 0, -3f) })
-            Place("AV_PlankPile", new Vector3(p.x, G(p.x, p.z) - 0.02f, p.z), R(0, 360), R(0.8f, 1.1f), props);
-        foreach (var p in new[] { new Vector3(-15.2f, 0, 1.5f), new Vector3(15.4f, 0, -13f) })
-            Place("AV_StrawHeap", new Vector3(p.x, G(p.x, p.z) - 0.12f, p.z), R(0, 360), R(0.6f, 0.75f), props);
-        foreach (var p in new[] { new Vector3(-6f, 0, -2f), new Vector3(4f, 0, 11f), new Vector3(-14f, 0, -14f), new Vector3(14.5f, 0, 14f) })
-            Place("AV_TileRubble", new Vector3(p.x, G(p.x, p.z), p.z), R(0, 360), R(0.8f, 1.1f), props);
-        var fallen = Place("AV_StoneLantern", new Vector3(-4.5f, G(-4.5f, 8f) + 0.35f, 8f), 0f, 1f, props);
-        fallen.transform.rotation = Quaternion.Euler(0, 35, 82);
-        // stepping stones along the main street
+        Place("PH:wooden_barrels_01", new Vector3(21.5f, G(21.5f, sz), sz), 80f, 1f, props);
+        Place("AV_PlankPile", new Vector3(1.5f, G(1.5f, sz - 0.4f) - 0.02f, sz - 0.4f), R(0, 360), R(0.8f, 1.0f), props);
+        Place("AV_StrawHeap", new Vector3(-15.5f, G(-15.5f, sz) - 0.12f, sz), R(0, 360), 0.65f, props);
+        // stepping stones only where the streets leave the arena
         foreach (var s in new[] { Streets[0], Streets[1], Streets[2] })
             for (int i = 0; i < s.Length - 1; i++)
             {
@@ -448,38 +455,33 @@ public static class AVBuilder
                 {
                     var q = Vector2.Lerp(a, b, t / L) + new Vector2(R(-0.6f, 0.6f), R(-0.6f, 0.6f));
                     float yaw = Mathf.Atan2(b.x - a.x, b.y - a.y) * Mathf.Rad2Deg;
+                    if (InArena(q.x, q.y, -1.5f)) continue;
                     Place("AV_StreetStones", new Vector3(q.x, G(q.x, q.y) - 0.04f, q.y), yaw + R(-8, 8), 1f, props);
                 }
             }
-        Place("PH:wooden_bucket_01", new Vector3(-5.2f, G(-5.2f, 3f), 3f), 40f, 1f, props);
-        Place("PH:wooden_bucket_02", new Vector3(17f, G(17f, -5f), -5f), 0f, 1f, props);
-        Place("PH:wicker_basket_01", new Vector3(-15.6f, G(-15.6f, -7f), -7f), 30f, 1.2f, props);
-        Place("PH:wooden_ladder", new Vector3(-16.6f, G(-16.6f, 9.5f), 9.5f), 90f, 1.6f, props);
-        Place("PH:wooden_crate_01", new Vector3(15.8f, G(15.8f, -9f), -9f), 15f, 1f, props);
-        Place("PH:stone_fire_pit", new Vector3(12.5f, G(12.5f, -13.5f), -13.5f), 0f, 1f, props);
-        Place("PH:wooden_stool_01", new Vector3(11.2f, G(11.2f, -12.6f), -12.6f), 40f, 1f, props);
-        Place("PH:wooden_broom", new Vector3(16.2f, G(16.2f, -1f) + 0.05f, -1f), 0f, 1f, props).transform.rotation = Quaternion.Euler(0, 70, 75);
-        foreach (var p in new[] { new Vector3(17f, 0, 17f), new Vector3(-16.8f, 0, -11f), new Vector3(-4f, TerraceY, 35.5f), new Vector3(10f, 0, -27f) })
+        Place("PH:wooden_bucket_01", new Vector3(-12.6f, TerraceY, 25.8f), 40f, 1f, props);
+        Place("PH:wooden_bucket_02", new Vector3(-9.5f, G(-9.5f, sz), sz), 0f, 1f, props);
+        Place("PH:wicker_basket_01", new Vector3(4.6f, TerraceY, 27.4f), 30f, 1.2f, props);
+        Place("PH:wooden_crate_01", new Vector3(17.5f, G(17.5f, sz), sz), 15f, 1f, props);
+        Place("PH:stone_fire_pit", new Vector3(12.5f, G(12.5f, sz), sz), 0f, 1f, props);
+        Place("PH:wooden_stool_01", new Vector3(11f, G(11f, sz + 0.6f), sz + 0.6f), 40f, 1f, props);
+        foreach (var p in new[] { new Vector3(-4f, TerraceY, 35.5f), new Vector3(9f, 0, sz - 0.6f) })
             Place("AV_TileRubble", new Vector3(p.x, p.y > 0 ? p.y : G(p.x, p.z), p.z), R(0, 360), 1f, props);
-        Place("PH:tree_stump_01", new Vector3(10.5f, G(10.5f, 3f), 3f), 0f, 1.2f, props);
-        Place("PH:dead_tree_trunk_02", new Vector3(-11f, G(-11f, -13f), -13f), 60f, 1f, props);
-        Place("PH:dead_tree_trunk", new Vector3(13f, G(13f, 15.5f) + 0.1f, 15.5f), -20f, 1.3f, props);
 
         // ---------------- rocks at the village edge
         var rocks = Group("Rocks");
-        foreach (var p in new[] { new Vector3(-33, 0, -10), new Vector3(33, 0, -12), new Vector3(-30, 0, 34), new Vector3(30, 0, -30), new Vector3(-32, 0, -32), new Vector3(42, 0, 10), new Vector3(-44, 0, 8) })
+        foreach (var p in new[] { new Vector3(-45, 0, -12), new Vector3(45, 0, -14), new Vector3(-34, 0, 39), new Vector3(36, 0, -39), new Vector3(-38, 0, -39), new Vector3(47, 0, 8), new Vector3(-48, 0, 6) })
             Place(rng.NextDouble() < 0.5 ? "PH:rock_moss_set_01" : "PH:rock_moss_set_02", new Vector3(p.x, G(p.x, p.z) - 0.3f, p.z), R(0, 360), R(0.9f, 1.3f), rocks);
 
-        // ---------------- trees
+        // ---------------- trees: none in the arena
         var trees = Group("Trees");
-        var bigTree = Place("AV_DeadTree_A", new Vector3(-9.5f, G(-9.5f, 11f) - 0.1f, 11f), 30f, 1.15f, trees);
+        var bigTree = Place("AV_DeadTree_A", new Vector3(-20f, TerraceY - 0.1f, 27.5f), 30f, 1.15f, trees);
         Place("AV_DeadTree_B", new Vector3(-6f, TerraceY - 0.1f, 27.2f), 120f, 1f, trees);
-        Place("AV_DeadTree_C", new Vector3(11f, G(11f, -18f) - 0.1f, -18f), 200f, 1.1f, trees);
-        Place("AV_DeadTree_B", new Vector3(17f, G(17f, 22f) - 0.1f, 22f), 10f, 1.1f, trees);
-        Place("AV_DeadTree_C", new Vector3(-17f, G(-17f, 19f) - 0.1f, 19f), 70f, 1.2f, trees);
+        Place("AV_DeadTree_C", new Vector3(-1f, G(-1f, sz - 1f) - 0.1f, sz - 1f), 200f, 1.1f, trees);
+        Place("AV_DeadTree_B", new Vector3(18.5f, TerraceY - 0.1f, 27f), 10f, 1.1f, trees);
         for (int i = 0; i < 34; i++)
         {
-            float a = i / 34f * Mathf.PI * 2f + R(-0.08f, 0.08f), r = R(34f, 48f);
+            float a = i / 34f * Mathf.PI * 2f + R(-0.08f, 0.08f), r = R(43f, 54f);
             float x = Mathf.Cos(a) * r, z = Mathf.Sin(a) * r;
             Place(i % 3 == 0 ? "AV_DeadTree_A" : (i % 3 == 1 ? "AV_DeadTree_B" : "AV_DeadTree_C"), new Vector3(x, G(x, z) - 0.15f, z), R(0, 360), R(1.0f, 1.6f), trees);
         }
@@ -492,7 +494,7 @@ public static class AVBuilder
             float x = R(-46f, 46f), z = R(-46f, 46f);
             float sd = StreetDist(x, z);
             if (sd < 2.2f) continue;
-            float edge = Mathf.Max(Mathf.Abs(x) / 17f, Mathf.Abs(z) / 17f);
+            float edge = Mathf.Max(Mathf.Abs(x) / 23f, Mathf.Abs(z + 3.5f) / 23f);
             float dens = Mathf.Clamp01((edge - 0.55f) * 1.5f) * 0.9f + 0.16f;
             dens *= Mathf.Clamp01((sd - 2.2f) / 2.5f);
             dens *= 0.6f + 0.8f * Mathf.PerlinNoise(x * 0.12f, z * 0.12f);
@@ -505,7 +507,7 @@ public static class AVBuilder
         for (int i = 0; i < 70; i++)
         {
             float x = R(-40f, 40f), z = R(-40f, 40f);
-            if (StreetDist(x, z) < 3f || (Mathf.Abs(x) < 14 && Mathf.Abs(z) < 14)) continue;
+            if (StreetDist(x, z) < 3f || InArena(x, z, -1f)) continue;
             Place(rng.NextDouble() < 0.5 ? "PH:grass_medium_01" : "PH:fern_02", new Vector3(x, G(x, z), z), R(0, 360), R(0.8f, 1.3f), grass);
         }
 
@@ -521,15 +523,19 @@ public static class AVBuilder
             lan.name = "HangingLantern";
             PointLight(hp, Hex("#ff8a3a"), 4f, 8f, lan.transform, true);
         }
-        Post(-3.6f, -12f, 10f);
-        Post(4.8f, 3f, -80f);
-        Post(-2.6f, 16.5f, 95f);
-        Post(13f, 11.6f, 0f);
-        Post(-14f, -4f, 180f);
-        Post(14.2f, -9.5f, 0f);
-        Post(10f, -21f, 90f);
-        Hang(new Vector3(16.6f, 2.6f, -12.5f));
-        PointLight(new Vector3(20f, 4.4f, 15.6f), Hex("#ff8c3c"), 2f, 5.5f, lights);
+        // posts stand on the arena edges (side yards, south wall, foot of the terrace); arms run along the edge
+        float px = ArenaHalfX + 0.9f;
+        Post(-px, -16f, 90f);
+        Post(-px, 4f, 90f);
+        Post(px, -6f, 90f);
+        Post(px, 12f, 90f);
+        Post(-16f, ArenaMinZ - 1.4f, 0f);
+        Post(16f, ArenaMinZ - 1.4f, 0f);
+        Post(-9f, ArenaMaxZ + 2.5f, 0f);
+        Post(10f, ArenaMaxZ + 2.5f, 0f);
+        float hx = RowX - 3.7f, ix = RowX - 0.3f;   // house fronts / inside the houses
+        Hang(new Vector3(hx, 2.6f, -15.5f));
+        PointLight(new Vector3(ix, 4.4f, 12.6f), Hex("#ff8c3c"), 2f, 5.5f, lights);
         void Hang(Vector3 at)
         {
             var lan = Place("AV_HangingLantern", at, R(0, 360), 1f, lights);
@@ -537,17 +543,20 @@ public static class AVBuilder
         }
         Hang(new Vector3(-2.5f, TerraceY + 4.2f, 28.4f));
         Hang(new Vector3(2.5f, TerraceY + 4.2f, 28.4f));
-        Hang(new Vector3(-16.6f, 2.6f, 14.8f)); Hang(new Vector3(-16.6f, 2.6f, -6.8f));
-        Hang(new Vector3(16.6f, 2.6f, 9.4f));
+        Hang(new Vector3(-hx, 2.6f, 11.8f)); Hang(new Vector3(-hx, 2.6f, -9.8f));
+        Hang(new Vector3(hx, 2.6f, 6.4f));
         Hang(new Vector3(13.5f, TerraceY + 8.2f, 26.8f));
         // warm light inside a few houses behind the glowing paper doors
         PointLight(new Vector3(0, TerraceY + 1.5f, 31f), Hex("#ff8c3c"), 2.5f, 6f, lights);
-        PointLight(new Vector3(-20f, 4.4f, -7.1f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
-        PointLight(new Vector3(20f, 1.6f, 8.4f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
+        PointLight(new Vector3(-ix, 4.4f, -10.1f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
+        PointLight(new Vector3(ix, 1.6f, 5.4f), Hex("#ff8c3c"), 2.2f, 5.5f, lights);
+        // the open arena is wider now: a couple of soft unshadowed fills so the middle doesn't go black
+        PointLight(new Vector3(-8f, 6f, -6f), Hex("#7f8fb0"), 0.8f, 16f, lights, false, false);
+        PointLight(new Vector3(9f, 6f, 4f), Hex("#7f8fb0"), 0.8f, 16f, lights, false, false);
 
         // ---------------- 도깨비불 wisps
         var wisps = Group("Wisps");
-        foreach (var p in new[] { new Vector3(-15.5f, 1.4f, 7f), new Vector3(16.5f, 1.2f, -11f), new Vector3(-5f, TerraceY + 1.6f, 34f), new Vector3(6f, 1.0f, -20f) })
+        foreach (var p in new[] { new Vector3(-ArenaHalfX - 0.5f, 1.4f, 4f), new Vector3(ArenaHalfX + 0.5f, 1.2f, -14f), new Vector3(-5f, TerraceY + 1.6f, 34f), new Vector3(6f, 1.0f, ArenaMinZ - 2.5f) })
         {
             var w = new GameObject("Dokkaebibul"); w.transform.SetParent(wisps, false); w.transform.position = p;
             w.AddComponent<AVWisp>();
@@ -651,9 +660,33 @@ public static class AVBuilder
         cd.requiresDepthOption = CameraOverrideOption.On;
         SetGameView(cam, Vector3.zero, 1f);
 
+        int blockers = CheckArena();
         AssetDatabase.SaveAssets();
         EditorSceneManager.SaveScene(scene, ScenePath);
-        Debug.Log("[AV] built " + ScenePath + " grass=" + placed);
+        Debug.Log("[AV] built " + ScenePath + " grass=" + placed + " arenaBlockers=" + blockers);
+    }
+
+    // Logs every solid object reaching into the arena below head height (grass, fog, wisps, crows, puddles and the
+    // terrain are fine) and every collider other than the terrain's. Returns how many were found.
+    static int CheckArena()
+    {
+        var log = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource/AbandonedVillage/av_log.txt");
+        int n = 0;
+        foreach (var r in root.GetComponentsInChildren<Renderer>())
+        {
+            var g = r.transform; while (g.parent && g.parent != root) g = g.parent;
+            if (g.name is "Grass" or "Fog" or "Wisps" or "Crows" or "Terrain" or "Puddles" || r is ParticleSystemRenderer) continue;
+            if (r.name.Contains("HangingLantern") || (r.transform.parent && r.transform.parent.name == "HangingLantern")) continue;
+            var b = r.bounds;
+            if (b.min.y > 2.2f) continue;
+            if (b.max.x <= -ArenaHalfX || b.min.x >= ArenaHalfX || b.max.z <= ArenaMinZ || b.min.z >= ArenaMaxZ) continue;
+            float ox = Mathf.Min(b.max.x, ArenaHalfX) - Mathf.Max(b.min.x, -ArenaHalfX), oz = Mathf.Min(b.max.z, ArenaMaxZ) - Mathf.Max(b.min.z, ArenaMinZ);
+            n++; File.AppendAllText(log, $"ARENA {g.name}/{r.transform.root.name}:{r.name} at {r.transform.position} overlap {ox:F1}x{oz:F1}\n");
+        }
+        foreach (var c in root.GetComponentsInChildren<Collider>())
+            if (!(c is TerrainCollider)) { n++; File.AppendAllText(log, $"COLLIDER {c.name} {c.GetType().Name}\n"); }
+        File.AppendAllText(log, $"ARENA CHECK {n} ({ArenaHalfX * 2}x{ArenaMaxZ - ArenaMinZ} m)\n");
+        return n;
     }
 
     public static void SetGameView(Camera cam, Vector3 focus, float zoom)
