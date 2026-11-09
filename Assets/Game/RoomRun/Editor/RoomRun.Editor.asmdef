@@ -3,7 +3,9 @@
     "rootNamespace": "RoomRun",
     "references": [
         "RoomRun",
-        "Unity.RenderPipelines.Core.Runtime"
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [
         "Editor"

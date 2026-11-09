@@ -97,6 +97,7 @@ namespace RoomRun.Tests
             Assert.IsTrue(run.RunComplete, $"Run did not finish. Visited: {string.Join(",", run.Visited)} Cleared: {string.Join(",", run.Cleared)}\n{state}");
             foreach (var r in run.config.rooms)
             {
+                if (r.devOnly) continue;
                 Assert.IsTrue(run.Visited.Contains(r.id), "Never visited " + r.id);
                 if (r.IsCombat) Assert.IsTrue(sawLock.Contains(r.id), "Doors never locked in " + r.id);
             }

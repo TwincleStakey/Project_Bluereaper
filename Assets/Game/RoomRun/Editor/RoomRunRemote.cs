@@ -38,6 +38,13 @@ namespace RoomRun
             {
                 var parts = File.ReadAllText(Cmd).Trim().Split(' ');
                 File.Delete(Cmd);
+                if (parts[0] == "devkeys")
+                {
+                    SessionState.SetString(KeyState, "devkeys");
+                    Note("devkeys: entering play mode");
+                    EditorApplication.isPlaying = true;
+                    return;
+                }
                 if (parts.Length < 2 || parts[0] != "clip" || !float.TryParse(parts[1], out float secs)) { Note("unknown command"); return; }
                 SessionState.SetFloat(KeySecs, secs);
                 SessionState.SetString(KeyRoom, parts.Length > 2 ? parts[2] : "");
@@ -62,6 +69,15 @@ namespace RoomRun
                 return;
             }
 
+            if (state == "devkeys" && EditorApplication.isPlaying)
+            {
+                var run = RunDirector.Instance;
+                if (!run || run.Transitioning || run.Room == null) return;
+                SessionState.SetString(KeyState, "devkeys-running");
+                run.StartCoroutine(DevKeys(run));
+                return;
+            }
+
             if (state == "stopping")
             {
                 SessionState.SetString(KeyState, "");
@@ -71,7 +87,35 @@ namespace RoomRun
             }
 
             // Play mode was left by hand during a clip.
-            if (state != "" && state != "starting" && !EditorApplication.isPlaying) SessionState.SetString(KeyState, "");
+            if (state == "devkeys-running" && !EditorApplication.isPlaying) SessionState.SetString(KeyState, "");
+            if (state != "" && state != "starting" && state != "devkeys" && !EditorApplication.isPlaying) SessionState.SetString(KeyState, "");
+        }
+
+        // Presses each field key through the Input System, waits for the room, lets the encounter start, logs what it finds.
+        static System.Collections.IEnumerator DevKeys(RunDirector run)
+        {
+            int errors = 0;
+            Application.LogCallback onLog = (msg, stack, type) => { if (type == LogType.Error || type == LogType.Exception) { errors++; Note("ERR " + msg); } };
+            Application.logMessageReceived += onLog;
+            run.Player.DebugInvulnerable = true;
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            var keys = new[] { UnityEngine.InputSystem.Key.F6, UnityEngine.InputSystem.Key.F7, UnityEngine.InputSystem.Key.F6, UnityEngine.InputSystem.Key.F2,
+                UnityEngine.InputSystem.Key.F3, UnityEngine.InputSystem.Key.F4, UnityEngine.InputSystem.Key.F5, UnityEngine.InputSystem.Key.F1 };
+            foreach (var key in keys)
+            {
+                string before = run.Room.id;
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(kb, new UnityEngine.InputSystem.LowLevel.KeyboardState(key));
+                yield return null; yield return null;
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(kb, new UnityEngine.InputSystem.LowLevel.KeyboardState());
+                for (int f = 0; f < 10 && !run.Transitioning; f++) yield return null;
+                while (run.Transitioning) yield return null;
+                yield return new WaitForSeconds(2.5f);
+                var panel = GameObject.Find("FieldKeys");
+                Note($"{key}: {before} -> {run.Room.id} player={run.Player.transform.position} area={run.AreaCenter}/{run.AreaSize} inCombat={run.InCombat} enemies={run.Enemies.Count} hp={run.Player.Health.current} panelKeys={(panel ? panel.GetComponent<UnityEngine.UI.Text>().text.Replace('\n', '|') : "none")}");
+            }
+            Application.logMessageReceived -= onLog;
+            Note($"devkeys done, errors={errors}");
+            SessionState.SetString(KeyState, "stopping");
         }
     }
 }

@@ -4,6 +4,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 namespace RoomRun
@@ -99,6 +100,39 @@ namespace RoomRun
         {
             if (Transitioning) return;
             StartCoroutine(EnterRoom(config.Room(roomId), null));
+        }
+
+        // ---------- dev field keys: F1..F6 jump to a field in config order, F7 goes back to the previous one.
+        // The field is played fresh: its waves and boss start again, a downed player stands back up.
+        static readonly Key[] FieldKeys = { Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F8, Key.F9 };
+        string previousRoomId;
+
+        public string FieldKeyHelp()
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < config.rooms.Count && i < FieldKeys.Length; i++)
+                sb.Append($"{FieldKeys[i]}  {config.rooms[i].displayName}{(config.rooms[i].devOnly ? " (개발용)" : "")}\n");
+            sb.Append("F7  이전 필드로");
+            return sb.ToString();
+        }
+
+        public void DevJump(string roomId)
+        {
+            var room = config.Room(roomId);
+            if (room == null || Transitioning) return;
+            if (Room != null && Room.id != roomId) previousRoomId = Room.id;
+            Cleared.Remove(roomId);
+            if (PlayerDead || RunComplete) { PlayerDead = false; RunComplete = false; Player.ResetForRun(); }
+            StartCoroutine(EnterRoom(room, null));
+        }
+
+        void Update()
+        {
+            var kb = Keyboard.current;
+            if (kb == null || Transitioning) return;
+            for (int i = 0; i < config.rooms.Count && i < FieldKeys.Length; i++)
+                if (kb[FieldKeys[i]].wasPressedThisFrame) { DevJump(config.rooms[i].id); return; }
+            if (kb[Key.F7].wasPressedThisFrame && !string.IsNullOrEmpty(previousRoomId)) DevJump(previousRoomId);
         }
 
         public void OnPlayerDied()
@@ -239,8 +273,12 @@ namespace RoomRun
             if (config.devTools)
             {
                 var devTools = FindType("LookStudyDevTools");
-                if (devTools != null && !FindAnyObjectByType(devTools))
-                    new GameObject("LookStudyDevTools").AddComponent(devTools);
+                if (devTools != null)
+                {
+                    var panel = FindAnyObjectByType(devTools) as Component;
+                    if (!panel) panel = new GameObject("LookStudyDevTools").AddComponent(devTools);
+                    panel.SendMessage("SetFieldKeys", FieldKeyHelp(), SendMessageOptions.DontRequireReceiver);
+                }
             }
 
             if (!string.IsNullOrEmpty(room.groundMeshName))
@@ -463,7 +501,7 @@ namespace RoomRun
         {
             if (RunComplete || !config.combat) return;
             foreach (var r in config.rooms)
-                if (r.IsCombat && !Cleared.Contains(r.id)) return;
+                if (r.IsCombat && !r.devOnly && !Cleared.Contains(r.id)) return;
             RunComplete = true;
             Hud.ShowBanner("모든 방을 정리했다", "Enter 키로 처음부터");
         }

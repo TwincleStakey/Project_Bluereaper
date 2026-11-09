@@ -190,7 +190,7 @@ namespace RoomRun
             foreach (var id in known)
             {
                 var r = run.config.Room(id);
-                if (r == null) continue;
+                if (r == null || r.devOnly) continue;
                 var pos = new Vector2(r.mapCell.x * (cell + gap), r.mapCell.y * (cell + gap));
                 Color c;
                 if (run.Room == r) c = MapCurrent;

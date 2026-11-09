@@ -568,7 +568,7 @@ public static class AVBuilder
             var col = ps.colorOverLifetime; col.enabled = true;
             var gr = new Gradient(); gr.SetKeys(new[] { new GradientColorKey(new Color(0.6f, 1f, 1f), 0), new GradientColorKey(new Color(0.2f, 0.6f, 1f), 1) }, new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(0.9f, 0.2f), new GradientAlphaKey(0, 1) });
             col.color = gr;
-            var vel = ps.velocityOverLifetime; vel.enabled = true; vel.y = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
+            var vel = ps.velocityOverLifetime; vel.enabled = true; vel.x = new ParticleSystem.MinMaxCurve(0f, 0f); vel.z = new ParticleSystem.MinMaxCurve(0f, 0f); vel.y = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
             w.GetComponent<ParticleSystemRenderer>().sharedMaterial = mats["AV_WispMat"];
             ps.Simulate(2f, true, true); ps.Play();
             var l = PointLight(p, new Color(0.35f, 0.85f, 1f), 2.4f, 5.5f, w.transform);

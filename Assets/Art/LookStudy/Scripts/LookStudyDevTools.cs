@@ -70,6 +70,31 @@ public class LookStudyDevTools : MonoBehaviour
     Vector3 camPos0; Quaternion camRot0; float camFov0;
     float fpsT; int fpsN;
     float vd;
+    string fieldKeys; Text fieldKeysText;
+
+    // Sent by the room run (by name, it lives in another assembly): the field jump keys to list at the top of the panel.
+    public void SetFieldKeys(string text)
+    {
+        fieldKeys = text;
+        if (panel) ShowFieldKeys();
+    }
+
+    void ShowFieldKeys()
+    {
+        if (string.IsNullOrEmpty(fieldKeys)) return;
+        if (!fieldKeysText)
+        {
+            Section("필드 이동 (키)");
+            panel.transform.GetChild(panel.transform.childCount - 1).SetSiblingIndex(0);
+            var go = new GameObject("FieldKeys", typeof(Text), typeof(LayoutElement));
+            go.transform.SetParent(panel.transform, false);
+            go.transform.SetSiblingIndex(1);
+            fieldKeysText = go.GetComponent<Text>();
+            fieldKeysText.font = font; fieldKeysText.fontSize = 14; fieldKeysText.color = Color.white; fieldKeysText.raycastTarget = false;
+        }
+        fieldKeysText.text = fieldKeys;
+        fieldKeysText.GetComponent<LayoutElement>().minHeight = 18 * fieldKeys.Split('\n').Length;
+    }
 
     void Start()
     {
@@ -88,6 +113,7 @@ public class LookStudyDevTools : MonoBehaviour
         if (sh) pixelMat = new Material(sh);
         font = Font.CreateDynamicFontFromOSFont(new[] { "Malgun Gothic", "맑은 고딕", "Arial" }, 14);
         BuildUi();
+        ShowFieldKeys();
         ApplyAll();
 #if !UNITY_EDITOR
         var args = System.Environment.GetCommandLineArgs();

@@ -86,6 +86,9 @@ namespace RoomRun
         public Vector3 bossOffset;
         public int bossHp = 60;
 
+        [Tooltip("Reached only by the dev field keys: no door leads here, it is left off the map and the run does not need it cleared.")]
+        public bool devOnly;
+
         public bool IsCombat => waves != null && waves.Count > 0;
     }
 
