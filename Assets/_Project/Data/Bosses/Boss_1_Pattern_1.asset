@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a889ef0d232c048479f903cefe50d4bf, type: 3}
   m_Name: Boss_1_Pattern_1
   m_EditorClassIdentifier: Assembly-CSharp::EnemyPattern
+  RequirePhase: 01000000
   MotionClip: {fileID: 7400000, guid: 493bdd3d88063ac4ba880b7d30a2138c, type: 2}
   TelegraphType: 0
   RestTime: 0.25

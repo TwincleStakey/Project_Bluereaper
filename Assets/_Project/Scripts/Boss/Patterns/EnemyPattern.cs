@@ -5,6 +5,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "EnemyPattern", menuName = "BlueReaper/EnemyPattern")]
 public class EnemyPattern : ScriptableObject
 {
+    public uint[] RequirePhase = null;
     public AnimationClip MotionClip = null;
     public int TelegraphType = 0; //todo
     public float RestTime = 0f;

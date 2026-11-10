@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
 using BlueReaper.Data;
@@ -18,7 +19,6 @@ namespace BlueReaper.Boss
         [SerializeField] float aiTick = 0.1f;
         [SerializeField] float stopChasingDistance = 3f;
 
-        private int currentPatternIndex;
         private PatternState currentPatternState;
         private Unit unit;
         private Enemy Owner;
@@ -118,13 +118,18 @@ namespace BlueReaper.Boss
             // ObjectPool activates the boss before StageController injects its players.
             yield return null;
             var wait = new WaitForSeconds(Mathf.Max(0.01f, aiTick));
+
+            EnemyPattern selectedPattern = null;
+
             while (!health.IsDead)
             {
                 Transform target = null;
                 foreach (var player in Owner.Players)
                     if (player && player.gameObject.activeInHierarchy) { target = player; break; }
 
-                if (!target || (patterns == null || patterns.Length == 0))
+                if (target && !selectedPattern) selectedPattern = SelectNextPattern();
+
+                if (!target || !selectedPattern)
                 {
                     if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
                     PlayLocomotion(false);
@@ -134,8 +139,7 @@ namespace BlueReaper.Boss
 
                 Vector3 direction = target.position - transform.position;
                 direction.y = 0f;
-                currentPatternIndex %= patterns.Length;
-                Vector3 destination = target.position - direction.normalized * patterns[currentPatternIndex].ChasingDistance;
+                Vector3 destination = target.position - direction.normalized * selectedPattern.ChasingDistance;
                 if (!MoveTo(destination) || !IsCompleteDestination())
                 {
                     PlayLocomotion(agent.isActiveAndEnabled && agent.isOnNavMesh && agent.hasPath);
@@ -146,13 +150,23 @@ namespace BlueReaper.Boss
                 agent.isStopped = true;
                 if (direction.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(direction);
 
-                yield return ExecutePattern(patterns[currentPatternIndex]);
-                currentPatternIndex = (currentPatternIndex + 1) % patterns.Length;
+                yield return ExecutePattern(selectedPattern);
+                selectedPattern = null;
 
                 PlayLocomotion(false);
                 yield return wait;
             }
             coAIUpdate = null;
+        }
+
+        private EnemyPattern SelectNextPattern()
+        {
+            Owner.CalcPhase();
+            if (patterns == null) return null;
+
+            var candidates = patterns.Where(p => p && p.RequirePhase != null
+                && p.RequirePhase.Contains(Owner.Phase)).ToArray();
+            return candidates.Length > 0 ? candidates[UnityEngine.Random.Range(0, candidates.Length)] : null;
         }
 
         private bool MoveTo(Vector3 position)
@@ -235,13 +249,11 @@ namespace BlueReaper.Boss
                         projectile.Init(unit, pattern.BulletAttack, path, emission, origin, facing, OnProjectileReturned);
                     }
                 }
-                // A volley does not wait for either projectile travel or the parallel melee window.
+                // Projectile travel remains independent of pattern completion.
             }
-            else
-            {
-                // Melee-only patterns retain their action time before advancing to the next pattern.
-                while (coMeleeHitWindow != null || Time.time < motionUntil) yield return null;
-            }
+
+            // Finish active hit windows and motion before resting.
+            while (coMeleeHitWindow != null || Time.time < motionUntil) yield return null;
 
             if (pattern.RestTime > 0f)
                 yield return new WaitForSeconds(pattern.RestTime);
