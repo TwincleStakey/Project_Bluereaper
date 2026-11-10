@@ -30,8 +30,10 @@ namespace BlueReaper.Core
             if (IsDead || Invincible || amount <= 0f) return;
 
             Current = Mathf.Max(0f, Current - amount);
+            bool died = IsDead;
             Damaged?.Invoke(amount);
-            if (IsDead) Died?.Invoke();
+            // Capture this damage result before callbacks can apply further damage.
+            if (died) Died?.Invoke();
         }
     }
 }

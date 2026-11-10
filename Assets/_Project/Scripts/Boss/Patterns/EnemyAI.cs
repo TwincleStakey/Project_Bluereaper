@@ -34,6 +34,7 @@ namespace BlueReaper.Boss
         private float meleeStartedAt, meleeDamage, motionUntil;
         private Vector3 chaseDestination;
         private bool hasChaseDestination;
+        private bool rewardHandled;
 
         private void Awake()
         {
@@ -59,15 +60,42 @@ namespace BlueReaper.Boss
 
         private void OnEnable()
         {
-            health.Died += Release;
+            rewardHandled = false;
+            health.Died += OnHealthDied;
+
+            if(Owner.Rank == EnemyRank.Boss)
+                GameEvents.BossDefeated += OnBossDefeated;
+
             currentPatternState = PatternState.None;
             hasChaseDestination = false;
             if (coAIUpdate == null) coAIUpdate = StartCoroutine(AIUpdate());
         }
 
+        private void OnHealthDied()
+        {
+            //TODO : 유닛이 죽으면 died 이벤트를 발생 시키고, 각자 애니메이션과 기타 후처리를 수행하도록 변경. 현재는 ai가 죽음 처리까지 담당하고 있음
+            StartCoroutine(IEDied());
+        }
+
+        private void OnBossDefeated(Health boss)
+        {
+            if (boss != health || !health.IsDead || rewardHandled) return;
+            rewardHandled = true;
+            //TODO : 우선 보상 테이블은 enemy에 추가, 획득 처리 로직은 ai에서 담당하는데 실제 구현 단계에서는 즉시 처리는 enemy에서, 지연 처리는 stage에서 최종적으로 lazy하게
+            if (Owner && Owner.RewardTable)
+            {
+                (uint id, uint count) reward = Owner.RewardTable.GetReward();
+                Debug.Log($"Enemy {Owner.name} died. Reward: {reward.count} of item ID {reward.id}");
+            }
+        }
+
         private void OnDisable()
         {
-            health.Died -= Release;
+            health.Died -= OnHealthDied;
+
+            if (Owner.Rank == EnemyRank.Boss)
+                GameEvents.BossDefeated -= OnBossDefeated;
+
             Release();
         }
 
@@ -83,12 +111,6 @@ namespace BlueReaper.Boss
             if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
             currentPatternState = PatternState.None;
 
-            //TODO : 우선 보상 테이블은 enemy에 추가, 획득 처리 로직은 ai에서 담당하는데 실제 구현 단계에서는 즉시 처리는 enemy에서, 지연 처리는 stage에서 최종적으로 lazy하게
-            if (Owner && Owner.RewardTable)
-            {
-                (uint id, uint count) reward = Owner.RewardTable.GetReward();
-                Debug.Log($"Enemy {Owner.name} died. Reward: {reward.count} of item ID {reward.id}");
-            }
         }
 
         private IEnumerator AIUpdate()
@@ -284,5 +306,15 @@ namespace BlueReaper.Boss
         }
 
         private void OnProjectileReturned(ProjectileHitBox projectile) => projectiles.Remove(projectile);
+
+        private IEnumerator IEDied()
+        {
+            animator.Play("Died");
+
+            yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length);
+
+            Release();
+            if (Owner.Rank == EnemyRank.Boss) GameEvents.RaiseBossDefeated(health);
+        }
     }
 }

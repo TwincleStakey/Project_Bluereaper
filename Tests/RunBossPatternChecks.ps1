@@ -18,7 +18,7 @@ foreach ($folder in @($runtime, $testFolder, $resources, "$validationRoot/Packag
 }
 
 $scriptsRoot = Join-Path $projectRoot 'Assets/_Project/Scripts'
-foreach ($folder in @('Core', 'HitBox', 'Boss/Patterns', 'Reward')) {
+foreach ($folder in @('Core', 'HitBox', 'Boss/Patterns', 'Reward', 'Stage', 'UI')) {
     foreach ($source in Get-ChildItem -LiteralPath (Join-Path $scriptsRoot $folder) -Filter '*.cs' -Recurse) {
         $relative = $source.FullName.Substring($scriptsRoot.Length + 1)
         $target = Join-Path $runtime $relative
@@ -29,9 +29,11 @@ foreach ($folder in @('Core', 'HitBox', 'Boss/Patterns', 'Reward')) {
         }
     }
 }
-Set-Content -LiteralPath "$runtime/Runtime.asmdef" -Value '{"name":"BossPatternValidation.Runtime"}'
-Set-Content -LiteralPath "$testFolder/Tests.asmdef" -Value '{"name":"BossPatternValidation.PlayModeTests","references":["BossPatternValidation.Runtime"],"optionalUnityReferences":["TestAssemblies"]}'
-Copy-Item -LiteralPath "$PSScriptRoot/PlayMode/BossPatternExecutionTests.cs" -Destination $testFolder
+Set-Content -LiteralPath "$runtime/Runtime.asmdef" -Value '{"name":"BossPatternValidation.Runtime","references":["UnityEngine.UI","Unity.TextMeshPro"]}'
+Set-Content -LiteralPath "$testFolder/Tests.asmdef" -Value '{"name":"BossPatternValidation.PlayModeTests","references":["BossPatternValidation.Runtime","UnityEngine.UI","Unity.TextMeshPro"],"optionalUnityReferences":["TestAssemblies"]}'
+foreach ($testSource in Get-ChildItem -LiteralPath "$PSScriptRoot/PlayMode" -Filter '*.cs') {
+    Copy-Item -LiteralPath $testSource.FullName -Destination $testFolder
+}
 foreach ($source in Get-ChildItem -LiteralPath "$projectRoot/Assets/_Project/Anims/Boss" -File) {
     Copy-Item -LiteralPath $source.FullName -Destination $resources
 }
@@ -46,7 +48,7 @@ $dependencies = [ordered]@{}
 foreach ($entry in $manifest.dependencies.PSObject.Properties) {
     if ($entry.Name.StartsWith('com.unity.modules.')) { $dependencies[$entry.Name] = $entry.Value }
 }
-foreach ($packageName in @('com.unity.test-framework', 'com.unity.ext.nunit')) {
+foreach ($packageName in @('com.unity.test-framework', 'com.unity.ext.nunit', 'com.unity.ugui')) {
     $package = Get-ChildItem -LiteralPath "$projectRoot/Library/PackageCache" -Directory -Filter "$packageName@*" | Select-Object -First 1
     if (-not $package) { throw "Installed package not found: $packageName" }
     $dependencies[$packageName] = 'file:' + $package.FullName.Replace('\', '/')
