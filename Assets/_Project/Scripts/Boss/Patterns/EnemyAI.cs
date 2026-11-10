@@ -74,6 +74,7 @@ namespace BlueReaper.Boss
         private void OnHealthDied()
         {
             //TODO : 유닛이 죽으면 died 이벤트를 발생 시키고, 각자 애니메이션과 기타 후처리를 수행하도록 변경. 현재는 ai가 죽음 처리까지 담당하고 있음
+            Release();
             StartCoroutine(IEDied());
         }
 
@@ -150,7 +151,7 @@ namespace BlueReaper.Boss
                 agent.isStopped = true;
                 if (direction.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(direction);
 
-                yield return ExecutePattern(selectedPattern);
+                yield return ExecutePattern(selectedPattern, target);
                 selectedPattern = null;
 
                 PlayLocomotion(false);
@@ -206,7 +207,7 @@ namespace BlueReaper.Boss
             if (!animator.GetCurrentAnimatorStateInfo(0).IsName(state)) animator.Play(state, 0, 0f);
         }
 
-        private IEnumerator ExecutePattern(EnemyPattern pattern)
+        private IEnumerator ExecutePattern(EnemyPattern pattern, Transform target)
         {
             StopMeleeHitWindow();
             if (!pattern || !unit.Data || health.IsDead) yield break;
@@ -233,6 +234,14 @@ namespace BlueReaper.Boss
                 {
                     while (Time.time - startedAt < emission * pattern.BulletAttack.RepeatInterval) yield return null;
                     if (health.IsDead) yield break;
+                    if (pattern.BulletAttack.AimAtTargetEachEmission)
+                    {
+                        if (!target || !target.gameObject.activeInHierarchy || !Owner.Players.Contains(target)) break;
+                        origin = transform.position;
+                        Vector3 aim = target.position - origin;
+                        aim.y = 0f;
+                        if (aim.sqrMagnitude > 0.0001f) facing = Quaternion.LookRotation(aim);
+                    }
                     for (int path = 0; path < pattern.BulletAttack.MaximumCount; path++)
                     {
                         if (!pattern.BulletAttack.TryEvaluate(path, emission, emission * pattern.BulletAttack.RepeatInterval,

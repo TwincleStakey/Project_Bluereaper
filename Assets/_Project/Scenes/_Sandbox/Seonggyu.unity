@@ -949,7 +949,7 @@ MonoBehaviour:
   players:
   - {fileID: 776981060}
   enemies:
-  - {fileID: 7612043392014892968, guid: a9f65f99291e29e4fa6a062803e73e46, type: 3}
+  - {fileID: 7612043392014892968, guid: a5cc410461e137e4b9dae6d279ee21fc, type: 3}
   spawnPosition: {fileID: 257489366}
   bossHUD: {fileID: 1727004334}
 --- !u!4 &1979962090

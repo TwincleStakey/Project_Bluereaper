@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 8958735143232010885}
   - component: {fileID: 417571011864331235}
   - component: {fileID: 1480758390282028847}
+  - component: {fileID: 1568698107006558479}
   m_Layer: 8
   m_Name: ArmPart _R
   m_TagString: Untagged
@@ -112,6 +113,18 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1568698107006558479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1223142242840838077}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MeleeHitBox
 --- !u!1 &3304735332890362568
 GameObject:
   m_ObjectHideFlags: 0
@@ -545,7 +558,6 @@ GameObject:
   - component: {fileID: 8827114279774484175}
   - component: {fileID: 5992351391231718608}
   - component: {fileID: 2555222569511525894}
-  - component: {fileID: 2693051794513893880}
   m_Layer: 8
   m_Name: ArmPart_L
   m_TagString: Untagged
@@ -658,15 +670,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
---- !u!114 &2693051794513893880
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5335999795195390300}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MeleeHitBox
