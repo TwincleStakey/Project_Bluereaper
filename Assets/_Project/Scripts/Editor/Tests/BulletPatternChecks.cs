@@ -332,11 +332,17 @@ namespace BlueReaper.BulletPatterns.Editor
                     pattern.RepeatInterval = 0.8f; pattern.Paths[0].Start = new Vector3(float.PositiveInfinity, 0f, 0f);
                     Require(pattern.GetValidationError() != null, "Infinite coordinate accepted");
                     pattern.Paths[0] = new BulletPath();
+                    pattern.StartTime = -0.1f;
+                    Require(pattern.GetValidationError() != null, "Negative start delay accepted");
+                    pattern.StartTime = float.NaN;
+                    Require(pattern.GetValidationError() != null, "NaN start delay accepted");
+                    pattern.StartTime = 0f;
                     Require(pattern.GetValidationError() == null, "Valid pattern rejected");
                 });
                 Check(report, "asset save and serialized data round trip", () =>
                 {
                     pattern.Paths[0].Control = new Vector3(3f, 4f, 5f);
+                    pattern.StartTime = 0.5f;
                     savedPath = AssetDatabase.GenerateUniqueAssetPath("Assets/BulletPatternCheck.asset");
                     AssetDatabase.CreateAsset(pattern, savedPath); AssetDatabase.SaveAssetIfDirty(pattern);
                     var copy = ScriptableObject.CreateInstance<BulletPattern>();
@@ -345,6 +351,7 @@ namespace BlueReaper.BulletPatterns.Editor
                         EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(pattern), copy);
                         Near(copy.Paths[0].Control, new Vector3(3f, 4f, 5f));
                         Require(copy.RepeatCount == 3 && copy.MaximumCount == 1, "Serialization lost settings");
+                        Close(copy.StartTime, 0.5f);
                         Require(File.Exists(savedPath), "Asset was not saved");
                     }
                     finally { UnityEngine.Object.DestroyImmediate(copy); }

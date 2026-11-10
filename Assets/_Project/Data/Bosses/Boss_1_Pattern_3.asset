@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a889ef0d232c048479f903cefe50d4bf, type: 3}
+  m_Name: Boss_1_Pattern_3
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyPattern
+  MotionClip: {fileID: 7400000, guid: 6a0fe5cbda6d1724f87337aff34c906d, type: 2}
+  TelegraphType: 0
+  RestTime: 0.5
+  ChasingDistance: 1
+  MeleeAttack: {fileID: 11400000, guid: 724d4d4094bf89b459991fd815a62ece, type: 2}
+  BulletAttack: {fileID: 0}

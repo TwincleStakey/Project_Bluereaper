@@ -12,8 +12,10 @@ namespace BlueReaper.Core
     public class Enemy : MonoBehaviour
     {
         [SerializeField] EnemyRank rank;
+        [SerializeField] RewardTable rewardTable;
 
         public EnemyRank Rank => rank;
+        public RewardTable RewardTable => rewardTable;
 
         /// <summary>살아있는 플레이어 목록. 스테이지가 관리하므로 사망 시 자동으로 빠진다.</summary>
         public IReadOnlyList<Transform> Players { get; private set; } = Array.Empty<Transform>();

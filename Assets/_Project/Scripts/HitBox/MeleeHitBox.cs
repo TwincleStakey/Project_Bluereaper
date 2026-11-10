@@ -1,22 +1,50 @@
+using System;
+using System.Collections.Generic;
 using BlueReaper.Core;
 using UnityEngine;
 
 public class MeleeHitBox : MonoBehaviour
 {
-    private Unit owner = null;
-    private float damageMultiplier = 1f;
+    private Unit owner;
+    private float damage;
+    private bool armed;
+    private Collider[] hitColliders;
+    private Action<IDamageable> onContact;
+    private readonly HashSet<IDamageable> hitTargets = new();
 
-    public void Init(Unit unit, float damageMultiplier)
+    private void Awake()
     {
-        this.owner = unit;
-        this.damageMultiplier = damageMultiplier;
+        hitColliders = GetComponents<Collider>();
+        foreach (var hitCollider in hitColliders) hitCollider.isTrigger = true;
+        SetArmed(false);
     }
 
-    private void OnTriggerEnter(Collider other)
+    public void Init(Unit unit, float damageMultiplier, Action<IDamageable> onContact = null)
     {
-        if (other.TryGetComponent(out IDamageable damageable))
-        {
-            damageable.TakeDamage(owner.Data.Attack * damageMultiplier);
-        }
+        owner = unit;
+        damage = unit && unit.Data ? DamageFormula.Calculate(unit.Data.Attack, damageMultiplier) : 0f;
+        this.onContact = onContact;
+        hitTargets.Clear();
+    }
+
+    public void SetArmed(bool value)
+    {
+        armed = value;
+        if (hitColliders == null) return;
+        foreach (var hitCollider in hitColliders) hitCollider.enabled = value;
+    }
+
+    private void OnDisable() => SetArmed(false);
+    private void OnTriggerEnter(Collider other) => TryHit(other);
+    private void OnTriggerStay(Collider other) => TryHit(other);
+
+    private void TryHit(Collider other)
+    {
+        if (!armed || !owner || other.transform.IsChildOf(owner.transform)) return;
+        if (owner.GetComponent<Enemy>() && other.GetComponentInParent<Enemy>()) return;
+        var target = other.GetComponentInParent<IDamageable>();
+        if (target == null) return;
+        if (onContact != null) onContact(target);
+        else if (hitTargets.Add(target)) target.TakeDamage(damage);
     }
 }

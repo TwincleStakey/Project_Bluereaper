@@ -7,7 +7,6 @@ namespace BlueReaper.Data
         menuName = "BlueReaper/Melee Attack Pattern")]
     public sealed class MeleeAttackPattern : ScriptableObject
     {
-        public AnimationClip AttackAnimation = null;
         // 공격 시작 후 판정 시작까지의 지연 시간(초)
         public float HitStartSeconds = 0.2f;
 

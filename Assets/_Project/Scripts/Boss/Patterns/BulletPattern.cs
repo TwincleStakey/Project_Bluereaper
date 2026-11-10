@@ -54,8 +54,8 @@ namespace BlueReaper.BulletPatterns
     [CreateAssetMenu(fileName = "BulletPattern", menuName = "BlueReaper/Bullet Pattern")]
     public sealed class BulletPattern : ScriptableObject
     {
-        public AnimationClip AttackAnimation = null;
         public GameObject BulletPrefab;
+        [Min(0f)] public float StartTime = 0f;
         public BulletLayout Layout = BulletLayout.Line;
         public Vector3 LayoutCenter;
         [Min(0f)] public float Spacing = 1f;
@@ -156,6 +156,8 @@ namespace BlueReaper.BulletPatterns
 
         public string GetValidationError()
         {
+            if (!IsFinite(StartTime) || StartTime < 0f || !IsFinite(StartTime + TotalDuration))
+                return "발사 시작 지연은 0 이상의 유한한 값이어야 합니다.";
             if (MaximumCount == 0) return "최소 한 발의 경로가 필요합니다.";
             if (!IsFinite(TravelDuration) || TravelDuration <= 0f) return "이동 시간은 0보다 큰 유한한 값이어야 합니다.";
             if (RepeatCount < 1 || !IsFinite(RepeatInterval) || RepeatInterval < 0f || !IsFinite(TotalDuration))

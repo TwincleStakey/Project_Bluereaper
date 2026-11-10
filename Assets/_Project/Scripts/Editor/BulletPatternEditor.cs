@@ -14,6 +14,7 @@ namespace BlueReaper.BulletPatterns.Editor
         private readonly Vector3[] pathPoints = new Vector3[33];
         private readonly List<(int index, float distance)> pathHits = new List<(int, float)>();
         private BulletPattern pattern;
+        private float PreviewDuration => pattern.StartTime + pattern.TotalDuration;
         private int selected;
         private float previewTime;
         private bool playing;
@@ -22,7 +23,6 @@ namespace BlueReaper.BulletPatterns.Editor
         private bool showHitboxes = true;
         private Vector3 previewOrigin;
         private float previewYaw;
-        private AnimationClip cachedClip;
         private GameObject cachedPrefab;
         private MeshFilter[] meshes = Array.Empty<MeshFilter>();
         private Collider[] colliders = Array.Empty<Collider>();
@@ -32,7 +32,6 @@ namespace BlueReaper.BulletPatterns.Editor
         private void OnEnable()
         {
             pattern = (BulletPattern)target;
-            CacheClip();
             CachePrefab();
             SceneView.duringSceneGui += DrawScene;
             EditorApplication.update += Tick;
@@ -56,8 +55,8 @@ namespace BlueReaper.BulletPatterns.Editor
         {
             serializedObject.Update();
             EditorGUILayout.LabelField("탄막 패턴", EditorStyles.boldLabel);
-            Field("AttackAnimation", "공격 애니메이션");
             Field("BulletPrefab", "탄 프리팹 (Collider 포함)");
+            Field("StartTime", "공격 시작 후 발사 지연 (초)");
             Field("TravelDuration", "이동 시간 (초)");
             Field("RepeatCount", "총 발사 횟수 (최초 포함)");
             Field("RepeatInterval", "발사 시작 간격 (초)");
@@ -155,7 +154,7 @@ namespace BlueReaper.BulletPatterns.Editor
             if (EditorGUI.EndChangeCheck()) SceneView.RepaintAll();
             using (new EditorGUI.DisabledScope(error != null || EditorApplication.isPlayingOrWillChangePlaymode))
             {
-                float duration = error == null ? pattern.TotalDuration : 1f;
+                float duration = error == null ? PreviewDuration : 1f;
                 EditorGUI.BeginChangeCheck();
                 previewTime = EditorGUILayout.Slider("전체 경과 시간 (초)", previewTime, 0f, duration);
                 if (EditorGUI.EndChangeCheck()) { playing = false; SceneView.RepaintAll(); }
@@ -188,20 +187,15 @@ namespace BlueReaper.BulletPatterns.Editor
         {
             if (!playing || pattern == null) return;
             double now = EditorApplication.timeSinceStartup;
-            previewTime = Mathf.Min(pattern.TotalDuration, previewTime + (float)(now - previousUpdate));
+            previewTime = Mathf.Min(PreviewDuration, previewTime + (float)(now - previousUpdate));
             previousUpdate = now;
-            if (previewTime >= pattern.TotalDuration || pattern.GetValidationError() != null) playing = false;
+            if (previewTime >= PreviewDuration || pattern.GetValidationError() != null) playing = false;
             Repaint();
             SceneView.RepaintAll();
         }
 
         private void OnPlayModeChanged(PlayModeStateChange state) { playing = false; SceneView.RepaintAll(); }
         private void RefreshPreview() { playing = false; CachePrefab(); Repaint(); SceneView.RepaintAll(); }
-
-        private void CacheClip()
-        {
-            cachedClip = pattern == null ? null : pattern.AttackAnimation;
-        }
 
         private void CachePrefab()
         {
@@ -322,15 +316,17 @@ namespace BlueReaper.BulletPatterns.Editor
 
         private void DrawBullets()
         {
+            float elapsed = previewTime - pattern.StartTime;
+            if (elapsed < 0f) return;
             int last = pattern.RepeatInterval == 0f ? pattern.RepeatCount - 1
-                : (int)Math.Min(pattern.RepeatCount - 1d, Math.Floor((double)previewTime / pattern.RepeatInterval));
+                : (int)Math.Min(pattern.RepeatCount - 1d, Math.Floor((double)elapsed / pattern.RepeatInterval));
             int drawn = 0;
             for (int emission = last; emission >= 0 && drawn < PreviewLimit; emission--)
             {
-                if (!pattern.TryEvaluate(0, emission, previewTime, out _, out _)) break;
+                if (!pattern.TryEvaluate(0, emission, elapsed, out _, out _)) break;
                 for (int i = 0; i < pattern.MaximumCount && drawn < PreviewLimit; i++)
                 {
-                    if (!pattern.TryEvaluate(i, emission, previewTime, out Vector3 position, out Quaternion rotation)) continue;
+                    if (!pattern.TryEvaluate(i, emission, elapsed, out Vector3 position, out Quaternion rotation)) continue;
                     Matrix4x4 pose = PreviewMatrix * Matrix4x4.TRS(position, rotation *
                         (cachedPrefab == null ? Quaternion.identity : cachedPrefab.transform.localRotation),
                         cachedPrefab == null ? Vector3.one : cachedPrefab.transform.localScale);
