@@ -54,6 +54,7 @@ namespace BlueReaper.BulletPatterns
     [CreateAssetMenu(fileName = "BulletPattern", menuName = "BlueReaper/Bullet Pattern")]
     public sealed class BulletPattern : ScriptableObject
     {
+        public AnimationClip AttackAnimation = null;
         public GameObject BulletPrefab;
         public BulletLayout Layout = BulletLayout.Line;
         public Vector3 LayoutCenter;

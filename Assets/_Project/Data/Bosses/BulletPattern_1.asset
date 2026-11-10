@@ -10,8 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 464f607179181bf44a435a37e18ba145, type: 3}
-  m_Name: BulletPattern
+  m_Name: BulletPattern_1
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.BulletPatterns.BulletPattern
+  AttackAnimation: {fileID: 7400000, guid: 6a0fe5cbda6d1724f87337aff34c906d, type: 2}
   BulletPrefab: {fileID: 747046017749657896, guid: c2b6ab7809c83a9478e399d65e144c96, type: 3}
   Layout: 3
   LayoutCenter: {x: 0, y: 0, z: 0}

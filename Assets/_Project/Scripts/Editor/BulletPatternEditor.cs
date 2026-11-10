@@ -22,6 +22,7 @@ namespace BlueReaper.BulletPatterns.Editor
         private bool showHitboxes = true;
         private Vector3 previewOrigin;
         private float previewYaw;
+        private AnimationClip cachedClip;
         private GameObject cachedPrefab;
         private MeshFilter[] meshes = Array.Empty<MeshFilter>();
         private Collider[] colliders = Array.Empty<Collider>();
@@ -31,6 +32,7 @@ namespace BlueReaper.BulletPatterns.Editor
         private void OnEnable()
         {
             pattern = (BulletPattern)target;
+            CacheClip();
             CachePrefab();
             SceneView.duringSceneGui += DrawScene;
             EditorApplication.update += Tick;
@@ -54,6 +56,7 @@ namespace BlueReaper.BulletPatterns.Editor
         {
             serializedObject.Update();
             EditorGUILayout.LabelField("탄막 패턴", EditorStyles.boldLabel);
+            Field("AttackAnimation", "공격 애니메이션");
             Field("BulletPrefab", "탄 프리팹 (Collider 포함)");
             Field("TravelDuration", "이동 시간 (초)");
             Field("RepeatCount", "총 발사 횟수 (최초 포함)");
@@ -194,6 +197,11 @@ namespace BlueReaper.BulletPatterns.Editor
 
         private void OnPlayModeChanged(PlayModeStateChange state) { playing = false; SceneView.RepaintAll(); }
         private void RefreshPreview() { playing = false; CachePrefab(); Repaint(); SceneView.RepaintAll(); }
+
+        private void CacheClip()
+        {
+            cachedClip = pattern == null ? null : pattern.AttackAnimation;
+        }
 
         private void CachePrefab()
         {

@@ -13,6 +13,11 @@ namespace BlueReaper.Stage
         [Tooltip("이 스테이지에 참가한 플레이어 (1~3명)")]
         [SerializeField] List<Health> players = new();
 
+        [SerializeField] List<Enemy> enemies = new();
+
+        [SerializeField] Transform spawnPosition = null;
+
+
         readonly List<Transform> alivePlayers = new();
 
         public IReadOnlyList<Transform> AlivePlayers => alivePlayers;
@@ -24,6 +29,15 @@ namespace BlueReaper.Stage
                 alivePlayers.Add(player.transform);
                 // 적들은 이 리스트 자체를 참조하므로, 여기서 빼면 모든 적에게 바로 반영된다
                 player.Died += () => alivePlayers.Remove(player.transform);
+            }
+        }
+
+        private void Start()
+        {
+            //test
+            for(int i = 0; i < enemies.Count; i++)
+            {
+                SpawnEnemy(enemies[i], spawnPosition.position, spawnPosition.rotation);
             }
         }
 
