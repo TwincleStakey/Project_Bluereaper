@@ -37,7 +37,7 @@ public static class InkFilterTools
         t = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
 
-    [MenuItem("InkFilters/Add To Open Scene")]
+    [MenuItem("Tools/Dev/Ink Filters/Add To Open Scene")]
     public static void Add() { Ensure(); EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene()); EditorSceneManager.SaveOpenScenes(); }
 
     public static string OutDir => Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), "Downloads", "scene-refs", "ink-filter-test");
@@ -53,7 +53,7 @@ public static class InkFilterTools
         cam.targetTexture = null; RenderTexture.active = null; Object.DestroyImmediate(rt); Object.DestroyImmediate(tex);
     }
 
-    [MenuItem("InkFilters/Capture Reed Field Comparison")]
+    [MenuItem("Tools/Dev/Ink Filters/Capture Reed Field Comparison")]
     public static void CaptureReeds()
     {
         var f = Ensure(); var cam = Camera.main;
@@ -114,11 +114,11 @@ public static class InkFilterTools
         Debug.Log(sb.ToString());
     }
 
-    [MenuItem("InkFilters/Probe Play (reeds)")] public static void ProbeReeds() => Probe("reeds");
-    [MenuItem("InkFilters/Probe Play (bamboo)")] public static void ProbeBamboo() => Probe("bamboo");
+    [MenuItem("Tools/Dev/Ink Filters/Probe Play (reeds)")] public static void ProbeReeds() => Probe("reeds");
+    [MenuItem("Tools/Dev/Ink Filters/Probe Play (bamboo)")] public static void ProbeBamboo() => Probe("bamboo");
 
     // Small forward step with ink on: the brush strokes must slide down the screen together with the ground.
-    [MenuItem("InkFilters/Probe Step (current field)")]
+    [MenuItem("Tools/Dev/Ink Filters/Probe Step (current field)")]
     public static void ProbeStep()
     {
         if (!EditorApplication.isPlaying) return;
@@ -166,7 +166,7 @@ public static class InkFilterTools
     }
 
     // Average frame time of the scene camera per mode (GPU synced every 10 frames).
-    [MenuItem("InkFilters/Benchmark Modes")]
+    [MenuItem("Tools/Dev/Ink Filters/Benchmark Modes")]
     public static void Bench()
     {
         var f = Ensure(); var cam = Camera.main; if (!cam) return;

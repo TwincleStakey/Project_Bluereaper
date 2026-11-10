@@ -68,6 +68,12 @@ public class LookStudyDevTools : MonoBehaviour
     readonly Dictionary<Material, Dictionary<string, Color>> savedColors = new Dictionary<Material, Dictionary<string, Color>>();
     float savedBend = -1f;
     Vector3 camPos0; Quaternion camRot0; float camFov0;
+    // Fields under Assets/Game (the abandoned village) bring their own grade and moon. The panel
+    // used to stamp its "기본" values over them (exposure 0 instead of the village's +1.1: 11-10, "폐촌 너무 어두워").
+    // There the grade buttons are applied as offsets from the field's own grade, and the sun keeps its own angle until a
+    // light preset or the sun-height slider is actually used.
+    bool foreignField, lightTouched;
+    float sat0, con0, exp0; Color filter0 = Color.white; Quaternion sunRot0;
     float fpsT; int fpsN;
     float vd;
     string fieldKeys; Text fieldKeysText;
@@ -102,12 +108,18 @@ public class LookStudyDevTools : MonoBehaviour
         cam = Camera.main;
         sun = RenderSettings.sun ? RenderSettings.sun : FindAnyObjectByType<Light>();
         if (cam) { camPos0 = cam.transform.position; camRot0 = cam.transform.rotation; camFov0 = cam.fieldOfView; }
+        string scenePath = UnityEngine.SceneManagement.SceneManager.GetActiveScene().path;
+        // the fields under Assets/Game (abandoned village; reed field and bamboo arena re-apply their own grade anyway).
+        // The underworld keeps the old behaviour: its look was tuned with the panel's values on top.
+        foreignField = scenePath.StartsWith("Assets/Game/");
+        if (sun) sunRot0 = sun.transform.rotation;
         var vol = FindAnyObjectByType<Volume>();
         if (vol)
         {
             var p = vol.profile; // runtime clone, the asset is untouched
             p.TryGet(out bloom); p.TryGet(out color); p.TryGet(out vignette);
             if (bloom) bloomValue = bloom.intensity.value;
+            if (color) { sat0 = color.saturation.value; con0 = color.contrast.value; exp0 = color.postExposure.value; filter0 = color.colorFilter.value; }
         }
         var sh = Resources.Load<Shader>("LookStudyPixelOut");
         if (sh) pixelMat = new Material(sh);
@@ -146,7 +158,11 @@ public class LookStudyDevTools : MonoBehaviour
     void ApplyAll()
     {
         var l = Lights[lightIndex];
-        if (sun) sun.transform.rotation = Quaternion.Euler(Mathf.Clamp(l.euler.x + sunTilt, 4f, 88f), l.euler.y, 0);
+        if (sun)
+        {
+            if (foreignField && !lightTouched) sun.transform.rotation = sunRot0;
+            else sun.transform.rotation = Quaternion.Euler(Mathf.Clamp(l.euler.x + sunTilt, 4f, 88f), l.euler.y, 0);
+        }
         Shader.SetGlobalVector("_LSSunCol", l.sun);
         Shader.SetGlobalVector("_LSShadowMul", l.shadow);
         Shader.SetGlobalVector("_LSSkyTop", l.top);
@@ -161,10 +177,21 @@ public class LookStudyDevTools : MonoBehaviour
         var g = Grades[gradeIndex];
         if (color)
         {
-            color.saturation.Override(Mathf.Clamp(g.saturation + satOffset, -100f, 100f));
-            color.contrast.Override(g.contrast);
-            color.postExposure.Override(g.exposure);
-            color.colorFilter.Override(g.filter);
+            if (foreignField)
+            {
+                var g0 = Grades[0];
+                color.saturation.Override(Mathf.Clamp(sat0 + g.saturation - g0.saturation + satOffset, -100f, 100f));
+                color.contrast.Override(con0 + g.contrast - g0.contrast);
+                color.postExposure.Override(exp0 + g.exposure - g0.exposure);
+                color.colorFilter.Override(filter0 * g.filter);
+            }
+            else
+            {
+                color.saturation.Override(Mathf.Clamp(g.saturation + satOffset, -100f, 100f));
+                color.contrast.Override(g.contrast);
+                color.postExposure.Override(g.exposure);
+                color.colorFilter.Override(g.filter);
+            }
         }
         if (bloom) bloom.intensity.Override(bloomValue);
         ApplyPalette(g);
@@ -230,7 +257,7 @@ public class LookStudyDevTools : MonoBehaviour
 
     void ResetAll()
     {
-        lightIndex = 0; gradeIndex = 0; posterize = false; fog = -1f; cloudShade = -1f; windMul = 1f; sunTilt = 0f; satOffset = 0f;
+        lightIndex = 0; gradeIndex = 0; lightTouched = false; posterize = false; fog = -1f; cloudShade = -1f; windMul = 1f; sunTilt = 0f; satOffset = 0f;
         SetPixel(0);
         foreach (var (s, def) in sliderDefaults) s.SetValueWithoutNotify(def);
         var b = FindAnyObjectByType<Volume>();
@@ -292,9 +319,22 @@ public class LookStudyDevTools : MonoBehaviour
         lay.childControlWidth = true; lay.childControlHeight = true; lay.childForceExpandHeight = false; lay.childForceExpandWidth = true;
         panel.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        Section("빛");
+        // frame pacing (same PlayerPrefs keys as FrameCap): uncapped by default; the 60 cap and VSync for testing
+        Section("프레임");
         var r = NewRow();
-        for (int i = 0; i < Lights.Length; i++) { int k = i; if (i == 3) r = NewRow(); Toggle(r, Lights[i].name, () => lightIndex == k, () => { lightIndex = k; ApplyAll(); }); }
+        Toggle(r, "60 고정", () => PlayerPrefs.GetInt("RR.Cap60", 0) != 0, () =>
+        {
+            bool on = PlayerPrefs.GetInt("RR.Cap60", 0) == 0; PlayerPrefs.SetInt("RR.Cap60", on ? 1 : 0);
+            Application.targetFrameRate = on ? 60 : -1; RefreshToggles();
+        });
+        Toggle(r, "VSync", () => PlayerPrefs.GetInt("RR.VSync", 0) != 0, () =>
+        {
+            bool on = PlayerPrefs.GetInt("RR.VSync", 0) == 0; PlayerPrefs.SetInt("RR.VSync", on ? 1 : 0);
+            QualitySettings.vSyncCount = on ? 1 : 0; RefreshToggles();
+        });
+        Section("빛");
+        r = NewRow();
+        for (int i = 0; i < Lights.Length; i++) { int k = i; if (i == 3) r = NewRow(); Toggle(r, Lights[i].name, () => lightIndex == k, () => { lightIndex = k; lightTouched = true; ApplyAll(); }); }
         Section("색감");
         r = NewRow();
         for (int i = 0; i < Grades.Length; i++) { int k = i; if (i == 3) r = NewRow(); Toggle(r, Grades[i].name, () => gradeIndex == k, () => { gradeIndex = k; ApplyAll(); }); }
@@ -305,7 +345,7 @@ public class LookStudyDevTools : MonoBehaviour
         Toggle(r, "색 단계 줄이기", () => posterize, () => { posterize = !posterize; ApplyAll(); });
 
         Section("조절");
-        MakeSlider("해 높이", -25f, 25f, 0f, v => { sunTilt = v; ApplyAll(); });
+        MakeSlider("해 높이", -25f, 25f, 0f, v => { sunTilt = v; lightTouched = true; ApplyAll(); });
         MakeSlider("채도", -60f, 60f, 0f, v => { satOffset = v; ApplyAll(); });
         MakeSlider("블룸", 0f, 2f, bloomValue, v => { bloomValue = v; ApplyAll(); });
         MakeSlider("안개", 0f, 0.012f, Lights[0].fogDensity, v => { fog = v; ApplyAll(); });

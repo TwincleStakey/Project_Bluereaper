@@ -24,7 +24,7 @@ namespace Underworld.EditorTools
         static Transform root;
 
         // ------------------------------------------------------------------ assets
-        [MenuItem("Underworld/Build Scene")]
+        [MenuItem("Tools/Underworld/Build Scene")]
         public static void BuildMenu() { Build(); }
 
         static Texture2D SaveTex(string name, int size, Func<float, float, Color> f, bool alpha, TextureWrapMode wrap)
@@ -275,11 +275,36 @@ namespace Underworld.EditorTools
             return cam;
         }
 
-        // Layout v2: 44 x 28 m arena (3-player boss fights). Portal platform back-right, soul gate (혼문) + bridge on the left.
-        static readonly Vector3 PortalC = new(10f, 5.0f, 14.3f);
+        // Layout v3 (11-10, Kido: every arena 2x per side): 88 x 56 m plaza, was 44 x 28. The old layout points are moved
+        // three ways. Edge and open-floor points spread out (M: 2x inside the old plaza; outside it they keep their
+        // distance from the plaza edge, so cliff rocks and fog stay on the rim). The soul-gate terrace with its bridge (L)
+        // and the portal platform (B) move as rigid groups, so they keep their size. Scattered props (rubble, ghosts,
+        // motes, fog banks) are tiled 2 x 2 (T) so the open floor keeps the same density.
+        const float OldHX = 22f, OldCZ = -1f, OldHZ = 14f;
+        static float MapX(float x) => Mathf.Abs(x) <= OldHX ? x * 2f : x + Mathf.Sign(x) * OldHX;
+        static float MapZ(float z) { float d = z - OldCZ; return OldCZ + (Mathf.Abs(d) <= OldHZ ? d * 2f : d + Mathf.Sign(d) * OldHZ); }
+        static Vector3 Mv(Vector3 p) => new(MapX(p.x), p.y, MapZ(p.z));
+        static Vector3 Mv(float x, float y, float z) => Mv(new Vector3(x, y, z));
+        static readonly Vector3 LShift = new(-22f, 0f, -6f), BShift = new(10f, 0f, 14f);
+        static Vector3 L(Vector3 p) => p + LShift;
+        static Vector3 L(float x, float y, float z) => L(new Vector3(x, y, z));
+        static Vector3 B(Vector3 p) => p + BShift;
+        static Vector3 B(float x, float y, float z) => B(new Vector3(x, y, z));
+        static readonly Vector3[] Tiles = { new(-OldHX, 0, -OldHZ), new(OldHX, 0, -OldHZ), new(-OldHX, 0, OldHZ), new(OldHX, 0, OldHZ) };
+        // a tiled copy is dropped where the gate terrace or the portal platform now stands, or off the plaza
+        static bool OnFloor(Vector3 p)
+        {
+            if (Mathf.Abs(p.x) > 42.5f || p.z < -27.5f || p.z > 25.5f) return false;
+            if (p.x < -34.5f && p.z > -16.5f && p.z < -5f) return false;       // gate terrace
+            if (p.x > 11f && p.x < 29f && p.z > 22f) return false;            // portal platform
+            return true;
+        }
+        static IEnumerable<Vector3> T(Vector3 p) { foreach (var o in Tiles) { var q = p + o; if (OnFloor(q)) yield return q; } }
+
+        static readonly Vector3 PortalC = B(10f, 5.0f, 14.3f);
         // matches the reference: soul gate stands on the back edge at the back-left, facing into the arena;
         // the bridge leaves the left balcony (terrace) out into the abyss. Main camera yaws -35 so the arena reads diagonally.
-        static readonly Vector3 GateP = new(-26.0f, 0f, 6.0f), BridgeA = new(-26.0f, 0.02f, 5.0f), BridgeB = new(-26.0f, -0.28f, -25.0f);
+        static readonly Vector3 GateP = L(-26.0f, 0f, 6.0f), BridgeA = L(-26.0f, 0.02f, 5.0f), BridgeB = L(-26.0f, -0.28f, -25.0f);
         static float BridgeYaw => Mathf.Atan2(BridgeB.x - BridgeA.x, BridgeB.z - BridgeA.z) * Mathf.Rad2Deg;
         const float CamYaw = -35f;
 
@@ -296,19 +321,19 @@ namespace Underworld.EditorTools
             gb.name = "GateDais"; gb.transform.SetParent(g, false); gb.transform.localPosition = GateP + new Vector3(0, 0.08f, 0.3f); gb.transform.localScale = new Vector3(11f, 0.16f, 3.4f);
             gb.GetComponent<Renderer>().sharedMaterial = M["UW_Floor"];
             Span("UW_BridgeWide", g, bridgeA, bridgeB);
-            for (float z = 6f; z > -22f; z -= 4.5f) Place("UW_Rock_" + rnd.Next(5), g, new Vector3(R(-28f, -24f), R(-6.5f, -4.5f), z), R(0, 360), R(1.4f, 2.0f));
-            Place("UW_Statue", g, new Vector3(10f, 1.2f, 13.2f), 180);
-            Place("UW_PortalFrame", g, new Vector3(10f, 1.2f, 15.6f), 180);
-            Place("UW_RockPillar", g, new Vector3(3.2f, 1.0f, 16.6f), 20, 0.95f);
-            Place("UW_RockPillar", g, new Vector3(20.8f, -0.5f, 13.4f), -40, 1.05f);
+            for (float z = 6f; z > -22f; z -= 4.5f) Place("UW_Rock_" + rnd.Next(5), g, L(R(-28f, -24f), R(-6.5f, -4.5f), z), R(0, 360), R(1.4f, 2.0f));
+            Place("UW_Statue", g, B(10f, 1.2f, 13.2f), 180);
+            Place("UW_PortalFrame", g, B(10f, 1.2f, 15.6f), 180);
+            Place("UW_RockPillar", g, B(3.2f, 1.0f, 16.6f), 20, 0.95f);
+            Place("UW_RockPillar", g, B(20.8f, -0.5f, 13.4f), -40, 1.05f);
 
             var ch = Group("Chains").transform;
-            Span("UW_Chain", ch, new Vector3(4.2f, 7.8f, 16.2f), new Vector3(7.2f, 8.0f, 16.3f));
-            Span("UW_Chain", ch, new Vector3(4.0f, 5.4f, 16.0f), new Vector3(7.6f, 5.2f, 15.7f));
-            Span("UW_Chain", ch, new Vector3(19.8f, 8.0f, 13.6f), new Vector3(13.0f, 8.6f, 15.9f));
-            Span("UW_Chain", ch, new Vector3(20.0f, 5.0f, 13.4f), new Vector3(13.2f, 4.8f, 15.3f));
-            Span("UW_ChainShort", ch, new Vector3(3.5f, 4.0f, 15.8f), new Vector3(1.0f, 0.1f, 12.5f));
-            Span("UW_ChainShort", ch, new Vector3(20.2f, 3.0f, 12.8f), new Vector3(18.2f, 1.25f, 10.6f));
+            Span("UW_Chain", ch, B(4.2f, 7.8f, 16.2f), B(7.2f, 8.0f, 16.3f));
+            Span("UW_Chain", ch, B(4.0f, 5.4f, 16.0f), B(7.6f, 5.2f, 15.7f));
+            Span("UW_Chain", ch, B(19.8f, 8.0f, 13.6f), B(13.0f, 8.6f, 15.9f));
+            Span("UW_Chain", ch, B(20.0f, 5.0f, 13.4f), B(13.2f, 4.8f, 15.3f));
+            Span("UW_ChainShort", ch, B(3.5f, 4.0f, 15.8f), B(1.0f, 0.1f, 12.5f));
+            Span("UW_ChainShort", ch, B(20.2f, 3.0f, 12.8f), B(18.2f, 1.25f, 10.6f));
 
             // lanterns
             var lg = Group("Lanterns").transform;
@@ -324,62 +349,84 @@ namespace Underworld.EditorTools
                 PointLight(lg, "PaperLight", arm, Hex("#FF4A2A"), 3.0f, 5.5f);
                 Billboard(lg, "PaperHalo", arm, M["UW_HaloPaper"], p.x + 3);
             }
-            Tall(new Vector3(-31.0f, 0f, 5.0f), 0); Tall(new Vector3(-21.0f, 0f, 5.0f), 0); Tall(new Vector3(-20.8f, 0.9f, -0.6f), 0); Tall(new Vector3(-20.8f, 0.9f, -9.0f), 0);
-            Tall(new Vector3(6.2f, 1.2f, 9.6f), 0); Tall(new Vector3(13.8f, 1.2f, 9.6f), 0); Tall(new Vector3(17.4f, 1.2f, 11.0f), 30);
-            Tall(new Vector3(20.6f, 0, -3.6f), 15); Tall(new Vector3(-9.0f, 0, 11.6f), 0);
-            Low(new Vector3(-6.0f, 0, -14.2f), 20); Low(new Vector3(-29.2f, 0, -3.0f), 0); Low(new Vector3(-29.2f, 0, -13.0f), 0); Low(new Vector3(14.6f, 0, -14.2f), 40);
-            Low(new Vector3(21.0f, 0, 5.0f), 0); Low(new Vector3(-12.6f, 0, -1.2f), 0); Low(new Vector3(-12.6f, 0, 6.4f), 0); Low(new Vector3(2.0f, 0, 12.2f), 0);
-            Pole(new Vector3(-15.0f, 0.9f, -0.2f), 90); Pole(new Vector3(21.2f, 0, -9.6f), 180); Pole(new Vector3(-29.4f, 0, -8.0f), 0); Pole(new Vector3(-29.4f, 0, 2.0f), 0); Pole(new Vector3(-4.0f, 0, 12.5f), 90);
+            Tall(L(-31.0f, 0f, 5.0f), 0); Tall(L(-21.0f, 0f, 5.0f), 0); Tall(L(-20.8f, 0.9f, -0.6f), 0); Tall(L(-20.8f, 0.9f, -9.0f), 0);
+            Tall(B(6.2f, 1.2f, 9.6f), 0); Tall(B(13.8f, 1.2f, 9.6f), 0); Tall(B(17.4f, 1.2f, 11.0f), 30);
+            Tall(Mv(20.6f, 0, -3.6f), 15); Tall(Mv(-9.0f, 0, 11.6f), 0);
+            Low(Mv(-6.0f, 0, -14.2f), 20); Low(L(-29.2f, 0, -3.0f), 0); Low(L(-29.2f, 0, -13.0f), 0); Low(Mv(14.6f, 0, -14.2f), 40);
+            Low(Mv(21.0f, 0, 5.0f), 0); Low(L(-12.6f, 0, -1.2f), 0); Low(L(-12.6f, 0, 6.4f), 0); Low(B(2.0f, 0, 12.2f), 0);
+            Pole(L(-15.0f, 0.9f, -0.2f), 90); Pole(Mv(21.2f, 0, -9.6f), 180); Pole(L(-29.4f, 0, -8.0f), 0); Pole(L(-29.4f, 0, 2.0f), 0); Pole(Mv(-4.0f, 0, 12.5f), 90);
+            // the longer rim gets more light: lanterns spaced along the front, right and back edges
+            Tall(new Vector3(42.0f, 0, 14.0f), 0); Tall(new Vector3(-40.5f, 0, 24.0f), 0); Tall(new Vector3(-20.0f, 0, -27.0f), 10); Tall(new Vector3(30.0f, 0, -27.2f), 20);
+            Low(new Vector3(-30.0f, 0, -27.6f), 0); Low(new Vector3(8.0f, 0, -27.8f), 30); Low(new Vector3(42.4f, 0, -16.0f), 0); Low(new Vector3(-30.0f, 0, 25.4f), 0); Low(new Vector3(4.0f, 0, 25.6f), 0);
+            Pole(new Vector3(42.6f, 0, 2.0f), 180); Pole(new Vector3(-12.0f, 0, -27.6f), 90); Pole(new Vector3(-24.0f, 0, 25.6f), 90);
 
             // walls / balustrades
             var wg = Group("Walls").transform;
             int wi = 0;
             void Wall(Vector3 p, float yaw) { Place("UW_Wall_" + (wi++ % 3), wg, p, yaw); }
-            
-            Wall(new Vector3(-21.2f, 0.9f, 0.2f), 0); Wall(new Vector3(-16.4f, 0.9f, 0.2f), 0);
-            Wall(new Vector3(-20.6f, 0.9f, -9.7f), 180); Wall(new Vector3(-16.0f, 0.9f, -9.7f), 180);
-            Wall(new Vector3(3.2f, 1.2f, 9.25f), 0); Wall(new Vector3(5.2f, 1.2f, 9.25f), 180); Wall(new Vector3(15.2f, 1.2f, 9.25f), 0); Wall(new Vector3(17.2f, 1.2f, 9.25f), 180);
-            Wall(new Vector3(1.8f, 1.2f, 11.2f), 90); Wall(new Vector3(1.7f, 1.2f, 13.6f), 90);
-            for (float z = -13f; z < 8f; z += 2.4f) if (Mathf.Abs(z + 3.4f) > 1.6f && Mathf.Abs(z - 5f) > 1.2f) Wall(new Vector3(21.7f, 0, z), -90);
-            Wall(new Vector3(6.0f, 0, -14.7f), 180); Wall(new Vector3(9.6f, 0, -14.7f), 180); Wall(new Vector3(18.6f, 0, -14.7f), 180);
-            Wall(new Vector3(-8.0f, 0, 12.6f), 0); Wall(new Vector3(-5.8f, 0, 12.6f), 180);
+
+            Wall(L(-21.2f, 0.9f, 0.2f), 0); Wall(L(-16.4f, 0.9f, 0.2f), 0);
+            Wall(L(-20.6f, 0.9f, -9.7f), 180); Wall(L(-16.0f, 0.9f, -9.7f), 180);
+            Wall(B(3.2f, 1.2f, 9.25f), 0); Wall(B(5.2f, 1.2f, 9.25f), 180); Wall(B(15.2f, 1.2f, 9.25f), 0); Wall(B(17.2f, 1.2f, 9.25f), 180);
+            Wall(B(1.8f, 1.2f, 11.2f), 90); Wall(B(1.7f, 1.2f, 13.6f), 90);
+            // broken balustrade along the right rim, gaps for the lanterns and the poles
+            for (float z = -26f; z < 22f; z += 2.4f) if (Mathf.Abs(z + 16f) > 1.6f && Mathf.Abs(z - 2f) > 1.6f && Mathf.Abs(z - 14f) > 1.4f && Mathf.Abs(z - 9f) > 1.2f && Mathf.Abs(z + 7.2f) > 1.2f && rnd.NextDouble() > 0.22) Wall(new Vector3(43.4f, 0, z), -90);
+            // front rim: runs of balustrade with gaps (the front edge stays readable from the camera)
+            for (float x = 4f; x < 40f; x += 2.3f) if (Mathf.Abs(x - 8f) > 1.4f && Mathf.Abs(x - 30f) > 1.4f && Mathf.Abs(x - 29.2f) > 1.2f && Mathf.Sin(x * 0.45f) > -0.35f) Wall(new Vector3(x, 0, -28.4f), 180);
+            Wall(new Vector3(-26.0f, 0, -28.4f), 180); Wall(new Vector3(-23.8f, 0, -28.4f), 180);
+            // back rim, left of the portal platform
+            for (float x = -32f; x < 8f; x += 2.3f) if (Mathf.Abs(x + 24f) > 1.4f && Mathf.Abs(x - 4f) > 1.4f && Mathf.Abs(x + 30f) > 1.4f && Mathf.Abs(x + 18f) > 1.2f && Mathf.Abs(x + 8f) > 1.4f && Mathf.Sin(x * 0.5f + 1f) > -0.4f) Wall(new Vector3(x, 0, 26.2f), 0);
 
             var fg = Group("Fences").transform;
-            Span("UW_Fence", fg, new Vector3(-17.4f, 0, -14.6f), new Vector3(-8.8f, 0, -14.6f));
-            Span("UW_Fence", fg, new Vector3(-21.6f, 0, -11.0f), new Vector3(-18.0f, 0, -14.5f));
+            // fence model is about 8.6 m long: two runs instead of one stretched one
+            Span("UW_Fence", fg, new Vector3(-34.8f, 0, -28.2f), new Vector3(-26.2f, 0, -28.2f));
+            Span("UW_Fence", fg, new Vector3(-22.4f, 0, -28.2f), new Vector3(-13.8f, 0, -28.2f));
+            Span("UW_Fence", fg, new Vector3(-43.2f, 0, -20.0f), new Vector3(-39.6f, 0, -23.6f));
 
-            // cliffs and background rock
+            // cliffs and background rock, all the way round the bigger plaza
             var rg = Group("Rocks").transform;
             void Rock(Vector3 p, float s) => Place("UW_Rock_" + rnd.Next(5), rg, p, R(0, 360), s, new Vector3(R(-15, 15), R(0, 360), R(-15, 15)));
-            for (float z = 4; z < 12; z += 3.2f) Rock(new Vector3(R(-24.5f, -23f), R(-7f, -5.5f), z), R(1.6f, 2.6f));
-            for (float z = -16; z < 2; z += 3.4f) Rock(new Vector3(R(-23.6f, -22.8f), R(-6.5f, -5f), z), R(1.5f, 2.2f));
-            for (float x = -16; x < 22; x += 3.6f) Rock(new Vector3(x, R(-3.6f, -2f), R(-17f, -16f)), R(1.6f, 2.4f));
-            for (float z = -13; z < 11; z += 3.4f) Rock(new Vector3(R(23.2f, 24.5f), R(-3f, -1.2f), z), R(1.5f, 2.4f));
-            for (float x = -20; x < 24; x += 4.2f) Rock(new Vector3(x, R(-2f, 1.5f), R(18.5f, 21f)), R(2.2f, 3.6f));
-            Rock(new Vector3(0.5f, 0.6f, 17.4f), 1.6f); Rock(new Vector3(18.6f, 1.0f, 17.0f), 2.0f); Rock(new Vector3(-6.5f, 0.3f, 14.4f), 1.6f); Rock(new Vector3(-17f, 0.2f, 12.6f), 1.8f);
+            for (float z = -2; z < 27; z += 3.2f) Rock(new Vector3(R(-46.5f, -45f), R(-7f, -5.5f), z), R(1.6f, 2.6f));
+            for (float z = -21; z < -16; z += 3.4f) Rock(new Vector3(R(-45.6f, -44.8f), R(-6.5f, -5f), z), R(1.5f, 2.2f));
+            for (float x = -40; x < 44; x += 3.6f) Rock(new Vector3(x, R(-3.6f, -2f), R(-31f, -30f)), R(1.6f, 2.4f));
+            for (float z = -27; z < 23; z += 3.4f) Rock(new Vector3(R(45.2f, 46.5f), R(-3f, -1.2f), z), R(1.5f, 2.4f));
+            for (float x = -42; x < 46; x += 4.2f) Rock(new Vector3(x, R(-2f, 1.5f), R(32.5f, 35f)), R(2.2f, 3.6f));
+            Rock(B(0.5f, 0.6f, 17.4f), 1.6f); Rock(B(18.6f, 1.0f, 17.0f), 2.0f); Rock(Mv(-6.5f, 0.3f, 14.4f), 1.6f); Rock(Mv(-17f, 0.2f, 12.6f), 1.8f);
+            Rock(new Vector3(-36f, 0.2f, 27.2f), 1.7f); Rock(new Vector3(38f, 0.3f, 26.4f), 1.9f); Rock(new Vector3(-6f, 0.1f, 27.6f), 1.5f);
 
             var dg = Group("Debris").transform;
-            Vector3[] rub = { new(-8, 0, -3), new(4, 0, -7), new(14, 0, 4), new(-16, 0, -12), new(9, 0, -13), new(-3, 0, 7), new(17f, 0, -10), new(-11f, 0, -6f), new(6f, 0, 4.4f), new(-18.4f, 0.9f, -2.0f), new(-1f, 0, -12.8f), new(19f, 0, 1f) };
-            for (int i = 0; i < rub.Length; i++) Place("UW_Rubble_" + (i % 4), dg, rub[i], R(0, 360), R(0.8f, 1.3f));
+            Vector3[] rub = { new(-8, 0, -3), new(4, 0, -7), new(14, 0, 4), new(-16, 0, -12), new(9, 0, -13), new(-3, 0, 7), new(17f, 0, -10), new(-11f, 0, -6f), new(6f, 0, 4.4f), new(-1f, 0, -12.8f), new(19f, 0, 1f) };
+            int ri = 0;
+            foreach (var p0 in rub) foreach (var p in T(p0)) Place("UW_Rubble_" + (ri++ % 4), dg, p + new Vector3(R(-1.5f, 1.5f), 0, R(-1.5f, 1.5f)), R(0, 360), R(0.8f, 1.3f));
+            Place("UW_Rubble_1", dg, L(-18.4f, 0.9f, -2.0f), R(0, 360), R(0.8f, 1.3f));
 
             var vg = Group("Vegetation").transform;
-            Place("UW_DeadTree_2", vg, new Vector3(-21.0f, 0.9f, 6.6f), 30, 1.15f);
-            Place("UW_DeadTree_0", vg, new Vector3(-21.2f, 0, -12.6f), 100, 1.0f);
-            Place("UW_DeadTree_1", vg, new Vector3(21.4f, 0, -12.8f), 200, 1.1f);
-            Place("UW_DeadTree_2", vg, new Vector3(0.6f, 1.2f, 16.6f), 300, 1.2f);
-            Place("UW_DeadTree_0", vg, new Vector3(19.6f, 1.2f, 16.2f), 40, 1.3f);
-            Place("UW_DeadTree_1", vg, new Vector3(-19.5f, 0, 11.6f), 140, 1.0f);
+            Place("UW_DeadTree_2", vg, L(-21.0f, 0.9f, 6.6f), 30, 1.15f);
+            Place("UW_DeadTree_0", vg, Mv(-21.2f, 0, -12.6f), 100, 1.0f);
+            Place("UW_DeadTree_1", vg, Mv(21.4f, 0, -12.8f), 200, 1.1f);
+            Place("UW_DeadTree_2", vg, B(0.6f, 1.2f, 16.6f), 300, 1.2f);
+            Place("UW_DeadTree_0", vg, B(19.6f, 1.2f, 16.2f), 40, 1.3f);
+            Place("UW_DeadTree_1", vg, Mv(-19.5f, 0, 11.6f), 140, 1.0f);
+            Place("UW_DeadTree_2", vg, new Vector3(42.6f, 0, 20.0f), 250, 1.1f);
+            Place("UW_DeadTree_0", vg, new Vector3(2.0f, 0, -27.8f), 60, 1.05f);
+            Place("UW_DeadTree_1", vg, new Vector3(-42.0f, 0, 12.0f), 170, 1.15f);
             Vector3[] sh = { new(-19.2f, 0, -13.6f), new(-12.5f, 0, -14.9f), new(18.0f, 0, -14.3f), new(21.6f, 0, 2.2f), new(-21.6f, 0, -6.2f), new(-1.5f, 0, -15.1f),
-                new(-19.0f, 0f, 9.0f), new(21.5f, 0, 7.8f), new(1.0f, 1.2f, 16.0f), new(4.5f, 0, -15.0f), new(-8.0f, 0, 12.8f), new(-16.4f, 0, 12.2f) };
-            for (int i = 0; i < sh.Length; i++) Place("UW_Shrub_" + (i % 3), vg, sh[i], R(0, 360), R(0.9f, 1.5f));
+                new(-19.0f, 0f, 9.0f), new(21.5f, 0, 7.8f), new(4.5f, 0, -15.0f), new(-8.0f, 0, 12.8f), new(-16.4f, 0, 12.2f) };
+            Vector3[] shMore = { new(-42.6f, 0, 4f), new(-42.8f, 0, 18f), new(42.8f, 0, -8f), new(42.6f, 0, 10f), new(-24f, 0, -28.6f), new(20f, 0, -28.8f),
+                new(-36f, 0, 26f), new(-12f, 0, 26.4f), new(38f, 0, -26.6f), new(42f, 0, -24f) };
+            int si = 0;
+            foreach (var p in sh) Place("UW_Shrub_" + (si++ % 3), vg, Mv(p), R(0, 360), R(0.9f, 1.5f));
+            foreach (var p in shMore) Place("UW_Shrub_" + (si++ % 3), vg, p, R(0, 360), R(0.9f, 1.5f));
+            Place("UW_Shrub_1", vg, B(1.0f, 1.2f, 16.0f), R(0, 360), R(0.9f, 1.5f));
 
             var fl = Group("FloatingRuins").transform;
             void Pag(Vector3 p, float s, float ph) { var go = Place("UW_Pagoda", fl, p, R(0, 360), s); var f = go.AddComponent<UWFloat>(); f.bob = 0.4f; f.spin = 2f; f.phase = ph; f.swayDeg = 2f; }
-            Pag(new Vector3(-31f, -5f, 9f), 1.5f, 0); Pag(new Vector3(-29f, -9f, -14f), 1.1f, 1.3f); Pag(new Vector3(-36f, 1f, 18f), 1.6f, 2.1f);
-            Pag(new Vector3(31f, -3f, 6f), 1.3f, 0.7f); Pag(new Vector3(28f, -9f, -12f), 1.0f, 2.9f);
+            Pag(Mv(-31f, -5f, 9f), 1.5f, 0); Pag(L(-29f, -9f, -14f), 1.1f, 1.3f); Pag(Mv(-36f, 1f, 18f), 1.6f, 2.1f);
+            Pag(Mv(31f, -3f, 6f), 1.3f, 0.7f); Pag(Mv(28f, -9f, -12f), 1.0f, 2.9f);
+            Pag(new Vector3(-20f, -6f, -42f), 1.2f, 1.7f); Pag(new Vector3(24f, -4f, -40f), 1.4f, 0.4f); Pag(new Vector3(56f, -2f, -24f), 1.1f, 2.4f);
 
             var og = Group("OrbPosts").transform;
-            foreach (var p in new[] { new Vector3(16.4f, 0, -0.8f), new Vector3(17.0f, 1.2f, 14.0f), new Vector3(-1.0f, 0f, 10.4f), new Vector3(-6.0f, 0, -9.0f) })
+            foreach (var p in OrbPosts)
             {
                 Place("UW_LanternLow", og, p, 45, 1.25f);
                 var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(post.GetComponent<Collider>());
@@ -387,6 +434,7 @@ namespace Underworld.EditorTools
                 post.GetComponent<Renderer>().sharedMaterial = M["UW_StoneProp"];
             }
         }
+        static readonly Vector3[] OrbPosts = { Mv(16.4f, 0, -0.8f), B(17.0f, 1.2f, 14.0f), Mv(-1.0f, 0f, 10.4f), Mv(-6.0f, 0, -9.0f), new(-24f, 0, 4f), new(14f, 0, -18f) };
 
         static void Ghosts()
         {
@@ -396,9 +444,11 @@ namespace Underworld.EditorTools
             {
                 (new(-12.5f, 0, 2.0f), 150, false), (new(6.5f, 0, 6.0f), 200, true), (new(16.0f, 0, 2.2f), 230, false), (new(-7.5f, 0, -8.5f), 170, false),
                 (new(1.5f, 0, -11.5f), 190, true), (new(17.0f, 0, -7.0f), 220, false), (new(-3.5f, 0, 3.5f), 175, false), (new(12.5f, 0, 6.8f), 210, false),
-                (new(-16.4f, 0.9f, -6.0f), 120, true), (new(6.0f, 1.2f, 12.0f), 180, false), (new(-14.0f, 0, -9.0f), 160, false), (new(9.0f, 0, -4.0f), 200, true),
+                (new(-14.0f, 0, -9.0f), 160, false), (new(9.0f, 0, -4.0f), 200, true),
             };
-            foreach (var (p, yaw, tall) in gs) Ghost(g, p, yaw, tall, (float)rnd.NextDouble() * 10f);
+            foreach (var (p0, yaw, tall) in gs) foreach (var p in T(p0)) Ghost(g, p, yaw + (float)rnd.NextDouble() * 30f - 15f, tall, (float)rnd.NextDouble() * 10f);
+            Ghost(g, L(-16.4f, 0.9f, -6.0f), 120, true, (float)rnd.NextDouble() * 10f);
+            Ghost(g, B(6.0f, 1.2f, 12.0f), 180, false, (float)rnd.NextDouble() * 10f);
             // a procession of souls crossing the bridge toward the gate
             Vector3 a = BridgeA, b = BridgeB;
             float yawIn = Mathf.Atan2(a.x - b.x, a.z - b.z) * Mathf.Rad2Deg;
@@ -446,22 +496,22 @@ namespace Underworld.EditorTools
         static void Fog()
         {
             var g = Group("FogCards").transform;
-            Card(g, "VoidFog_A", new Vector3(0, -3.0f, 0), new Vector3(90, 0, 0), new Vector2(150, 150), M["UW_FogVoid"]);
-            Card(g, "VoidFog_B", new Vector3(0, -7.0f, 0), new Vector3(90, 0, 0), new Vector2(160, 160), M["UW_FogVoid"]);
-            Card(g, "EdgeFog_L1", new Vector3(-34.0f, -1.0f, -6), new Vector3(10, 75, 0), new Vector2(24, 10), M["UW_FogEdge"]);
-            Card(g, "EdgeFog_L2", new Vector3(-30.0f, 0.0f, 0), new Vector3(10, 62, 0), new Vector2(30, 12), M["UW_FogEdge"]);
-            Card(g, "EdgeFog_F1", new Vector3(-10.0f, -1.2f, -18.0f), new Vector3(25, 0, 0), new Vector2(32, 8), M["UW_FogEdge"]);
-            Card(g, "EdgeFog_F2", new Vector3(12.0f, -1.6f, -18.5f), new Vector3(25, 0, 0), new Vector2(32, 8), M["UW_FogEdge"]);
-            Card(g, "EdgeFog_R1", new Vector3(25.0f, -1.0f, 0), new Vector3(10, -75, 0), new Vector2(36, 9), M["UW_FogEdge"]);
-            Card(g, "EdgeFog_B1", new Vector3(4.0f, 0.0f, 21.5f), new Vector3(-10, 0, 0), new Vector2(60, 12), M["UW_FogEdge"]);
+            Card(g, "VoidFog_A", new Vector3(0, -3.0f, 0), new Vector3(90, 0, 0), new Vector2(300, 300), M["UW_FogVoid"]);
+            Card(g, "VoidFog_B", new Vector3(0, -7.0f, 0), new Vector3(90, 0, 0), new Vector2(320, 320), M["UW_FogVoid"]);
+            Card(g, "EdgeFog_L1", Mv(-34.0f, -1.0f, -6), new Vector3(10, 75, 0), new Vector2(48, 10), M["UW_FogEdge"]);
+            Card(g, "EdgeFog_L2", Mv(-30.0f, 0.0f, 0), new Vector3(10, 62, 0), new Vector2(60, 12), M["UW_FogEdge"]);
+            Card(g, "EdgeFog_F1", Mv(-10.0f, -1.2f, -18.0f), new Vector3(25, 0, 0), new Vector2(64, 8), M["UW_FogEdge"]);
+            Card(g, "EdgeFog_F2", Mv(12.0f, -1.6f, -18.5f), new Vector3(25, 0, 0), new Vector2(64, 8), M["UW_FogEdge"]);
+            Card(g, "EdgeFog_R1", Mv(25.0f, -1.0f, 0), new Vector3(10, -75, 0), new Vector2(72, 9), M["UW_FogEdge"]);
+            Card(g, "EdgeFog_B1", Mv(4.0f, 0.0f, 21.5f), new Vector3(-10, 0, 0), new Vector2(120, 12), M["UW_FogEdge"]);
             void Rim(string n, Vector3 p, float yaw, float w) => Card(g, n, p, new Vector3(-18, yaw, 0), new Vector2(w, 7), M["UW_FogEdge"]);
-            for (float z = -20; z <= 10; z += 7.5f) Rim("RimFog_L", new Vector3(-31.0f, -1.6f, z), -90, 10);
-            for (float x = -16; x <= 20; x += 8f) Rim("RimFog_F", new Vector3(x, -1.6f, -17.2f), 180, 11);
-            for (float z = -12; z <= 10; z += 7.5f) Rim("RimFog_R", new Vector3(24.2f, -1.6f, z), 90, 10);
-            for (float x = -18; x <= 0; x += 8f) Rim("RimFog_B", new Vector3(x, -1.6f, 15.2f), 0, 11);
-            Card(g, "GroundMist_A", new Vector3(-6.0f, 0.35f, -4.0f), new Vector3(90, 0, 0), new Vector2(34, 22), M["UW_FogGround"]);
-            Card(g, "GroundMist_B", new Vector3(9.0f, 0.55f, 2.0f), new Vector3(90, 20, 0), new Vector2(28, 20), M["UW_FogGround"]);
-            Card(g, "GroundMist_C", new Vector3(-18.0f, 1.2f, -4.5f), new Vector3(90, 0, 0), new Vector2(10, 12), M["UW_FogGround"]);
+            for (float z = -34; z <= 22; z += 7.5f) Rim("RimFog_L", new Vector3(-53.0f, -1.6f, z), -90, 10);
+            for (float x = -32; x <= 42; x += 8f) Rim("RimFog_F", new Vector3(x, -1.6f, -31.2f), 180, 11);
+            for (float z = -24; z <= 22; z += 7.5f) Rim("RimFog_R", new Vector3(46.2f, -1.6f, z), 90, 10);
+            for (float x = -38; x <= 8; x += 8f) Rim("RimFog_B", new Vector3(x, -1.6f, 29.2f), 0, 11);
+            Card(g, "GroundMist_A", Mv(-6.0f, 0.35f, -4.0f), new Vector3(90, 0, 0), new Vector2(68, 44), M["UW_FogGround"]);
+            Card(g, "GroundMist_B", Mv(9.0f, 0.55f, 2.0f), new Vector3(90, 20, 0), new Vector2(56, 40), M["UW_FogGround"]);
+            Card(g, "GroundMist_C", L(-18.0f, 1.2f, -4.5f), new Vector3(90, 0, 0), new Vector2(10, 12), M["UW_FogGround"]);
             // soul veil hanging inside the gate opening, plus mist swallowing the far end of the bridge
             Card(g, "SoulVeil", GateP + new Vector3(0, 3.4f, 0), new Vector3(0, 0, 0), new Vector2(6.8f, 6.4f), M["UW_SoulVeil"]);
             Card(g, "GateBackFog", GateP + new Vector3(0, 0.5f, 4.5f), new Vector3(-10, 0, 0), new Vector2(22, 9), M["UW_FogEdge"]);
@@ -495,42 +545,45 @@ namespace Underworld.EditorTools
             Billboard(g, "SoulGateGlow", GateP + new Vector3(0, 2.6f, 0), M["UW_OrbSmall"], 4.2f);
 
             var og = Group("Orbs").transform;
-            Vector3[] orbs = { new(16.4f, 2.35f, -0.8f), new(17.0f, 3.55f, 14.0f), new(-1.0f, 2.35f, 10.4f), new(-6.0f, 2.35f, -9.0f), new(14.0f, 2.9f, 9.8f), new(4.6f, 2.2f, 2.2f),
-                new(-4.4f, 2.5f, -2.4f), new(9.0f, 1.9f, -6.4f), new(-11.0f, 2.3f, 4.6f), new(18.6f, 2.4f, 6.0f), new(-15.0f, 2.0f, -11.0f), new(0.0f, 2.8f, -6.0f), new(11.0f, 2.2f, -11.5f), new(-9.5f, 3.0f, 9.5f) };
-            for (int i = 0; i < orbs.Length; i++)
+            // hero orbs sit on the orb posts and light the floor; the loose ones are tiled over the plaza (no lights)
+            for (int i = 0; i < OrbPosts.Length; i++)
             {
-                bool hero = i < 7;
-                Billboard(og, "Orb", orbs[i], hero ? M["UW_OrbViolet"] : M["UW_OrbSmall"], i * 1.7f);
-                if (hero) PointLight(og, "OrbLight", orbs[i], Hex("#A060FF"), 3.0f, 5.5f, false, 0.08f);
+                var p = OrbPosts[i] + Vector3.up * 2.35f;
+                Billboard(og, "Orb", p, M["UW_OrbViolet"], i * 1.7f);
+                PointLight(og, "OrbLight", p, Hex("#A060FF"), 3.0f, 5.5f, false, 0.08f);
             }
+            Vector3[] orbs = { new(14.0f, 2.9f, 9.8f), new(4.6f, 2.2f, 2.2f), new(-4.4f, 2.5f, -2.4f), new(9.0f, 1.9f, -6.4f), new(-11.0f, 2.3f, 4.6f), new(18.6f, 2.4f, 6.0f), new(-15.0f, 2.0f, -11.0f), new(0.0f, 2.8f, -6.0f), new(11.0f, 2.2f, -11.5f), new(-9.5f, 3.0f, 9.5f) };
+            int oi = 0;
+            foreach (var p0 in orbs) foreach (var p in T(p0)) Billboard(og, "Orb", p, M["UW_OrbSmall"], (oi++) * 1.7f);
             var motes = new Vector3[] { new(-1, 1.6f, 6), new(3.5f, 1.2f, -3), new(11.5f, 1.4f, -2), new(-9, 1.7f, -5), new(7.5f, 2.6f, 8.5f), new(-14, 2.2f, -8), new(14, 1.3f, -10), new(0, 2.1f, -13), new(-18, 2.4f, -4), new(20, 1.8f, -6) };
-            for (int i = 0; i < motes.Length; i++) Billboard(og, "Mote", motes[i], M["UW_OrbSmall"], 20 + i * 2.3f);
+            int mi = 0;
+            foreach (var p0 in motes) foreach (var p in T(p0)) Billboard(og, "Mote", p, M["UW_OrbSmall"], 20 + (mi++) * 2.3f);
 
-            var emb = PS(g, "EmbersViolet", new Vector3(0, 0.4f, -1), M["UW_PtEmber"], 600);
+            var emb = PS(g, "EmbersViolet", new Vector3(0, 0.4f, -1), M["UW_PtEmber"], 2400);
             { var main = emb.main; main.startLifetime = new ParticleSystem.MinMaxCurve(4f, 7f); main.startSize = new ParticleSystem.MinMaxCurve(0.04f, 0.1f); main.startColor = Hex("#C08BFF", 1.8f);
-              var em = emb.emission; em.rateOverTime = 80;
-              var shp = emb.shape; shp.shapeType = ParticleSystemShapeType.Box; shp.scale = new Vector3(46, 0.5f, 30);
+              var em = emb.emission; em.rateOverTime = 320;
+              var shp = emb.shape; shp.shapeType = ParticleSystemShapeType.Box; shp.scale = new Vector3(92, 0.5f, 60);
               var vel = emb.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World; vel.x = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f); vel.y = new ParticleSystem.MinMaxCurve(0.25f, 0.6f); vel.z = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f);
               var nz = emb.noise; nz.enabled = true; nz.strength = 0.3f; nz.frequency = 0.5f;
               var col = emb.colorOverLifetime; col.enabled = true; col.color = Fade(Hex("#C08BFF")); }
-            var red = PS(g, "EmbersRed", new Vector3(0, 0.4f, -1), M["UW_PtEmber"], 120);
+            var red = PS(g, "EmbersRed", new Vector3(0, 0.4f, -1), M["UW_PtEmber"], 480);
             { var main = red.main; main.startLifetime = new ParticleSystem.MinMaxCurve(3f, 5f); main.startSize = new ParticleSystem.MinMaxCurve(0.04f, 0.08f); main.startColor = Hex("#FF5A2A", 2.2f);
-              var em = red.emission; em.rateOverTime = 14;
-              var shp = red.shape; shp.shapeType = ParticleSystemShapeType.Box; shp.scale = new Vector3(46, 0.5f, 30);
+              var em = red.emission; em.rateOverTime = 56;
+              var shp = red.shape; shp.shapeType = ParticleSystemShapeType.Box; shp.scale = new Vector3(92, 0.5f, 60);
               var vel = red.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World; vel.x = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f); vel.y = new ParticleSystem.MinMaxCurve(0.4f, 0.9f); vel.z = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f);
               var nz = red.noise; nz.enabled = true; nz.strength = 0.5f; nz.frequency = 0.8f;
               var col = red.colorOverLifetime; col.enabled = true; col.color = Fade(Hex("#FF5A2A")); }
 
-            var ash = PS(g, "Ash", new Vector3(0, 11f, 0), M["UW_PtAsh"], 300);
+            var ash = PS(g, "Ash", new Vector3(0, 11f, 0), M["UW_PtAsh"], 1200);
             { var main = ash.main; main.startLifetime = new ParticleSystem.MinMaxCurve(9f, 12f); main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.07f); main.startColor = HexA("#8A8296", 0.7f); main.gravityModifier = 0.012f;
-              var em = ash.emission; em.rateOverTime = 28;
-              var shp = ash.shape; shp.shapeType = ParticleSystemShapeType.Box; shp.scale = new Vector3(50, 1, 36);
+              var em = ash.emission; em.rateOverTime = 112;
+              var shp = ash.shape; shp.shapeType = ParticleSystemShapeType.Box; shp.scale = new Vector3(100, 1, 72);
               var nz = ash.noise; nz.enabled = true; nz.strength = 0.4f; nz.frequency = 0.3f;
               var col = ash.colorOverLifetime; col.enabled = true; col.color = Fade(HexA("#8A8296", 0.7f), 0.1f, 0.8f); }
 
-            void Mist(string name, Vector3 pos, Vector3 box, float rate, Vector2 size, Color c, bool flat)
+            void Mist(string name, Vector3 pos, Vector3 box, float rate, Vector2 size, Color c, bool flat, int max = 80)
             {
-                var ps = PS(g, name, pos, M["UW_PtMist"], 80);
+                var ps = PS(g, name, pos, M["UW_PtMist"], max);
                 var main = ps.main; main.startLifetime = new ParticleSystem.MinMaxCurve(12f, 18f); main.startSize = new ParticleSystem.MinMaxCurve(size.x, size.y); main.startColor = c;
                 main.startRotation = new ParticleSystem.MinMaxCurve(0, Mathf.PI * 2);
                 var em = ps.emission; em.rateOverTime = rate;
@@ -540,21 +593,24 @@ namespace Underworld.EditorTools
                 var col = ps.colorOverLifetime; col.enabled = true; col.color = Fade(c, 0.25f, 0.65f);
                 if (flat) ps.GetComponent<ParticleSystemRenderer>().renderMode = ParticleSystemRenderMode.HorizontalBillboard;
             }
-            Mist("GroundMist", new Vector3(0, 0.6f, -1), new Vector3(42, 0.4f, 26), 9f, new Vector2(6, 11), HexA("#5A4C6C", 0.3f), true);
+            Mist("GroundMist", new Vector3(0, 0.6f, -1), new Vector3(84, 0.4f, 52), 36f, new Vector2(6, 11), HexA("#5A4C6C", 0.3f), true, 320);
             // patchy fog banks: clumps in corners, between props and low spots, leaving gaps so detail stays readable
             Vector3[] banks = { new(-14, 0.6f, -6), new(-6, 0.6f, 8), new(4, 0.6f, -10), new(13, 0.6f, -2), new(18, 0.8f, 8), new(-19, 0.6f, -14),
-                new(1, 0.6f, 3), new(8, 1.6f, 10.5f), new(17, 0.6f, -13), new(-26, 0.6f, -5), new(-26, 0.4f, -19), new(-9, 0.6f, -12), new(20, 0.6f, 2) };
-            for (int i = 0; i < banks.Length; i++)
-                Mist("FogBank", banks[i], new Vector3(5f, 1.0f, 5f), 1.6f, new Vector2(6, 10f), HexA(i % 2 == 0 ? "#7A6E90" : "#685E7C", 0.5f), false);
-            Mist("BridgeGroundMist", new Vector3(-26, 0.5f, -10), new Vector3(7, 0.4f, 30), 4f, new Vector2(5, 9), HexA("#6A5C80", 0.32f), true);
+                new(1, 0.6f, 3), new(17, 0.6f, -13), new(-9, 0.6f, -12), new(20, 0.6f, 2) };
+            int bi = 0;
+            foreach (var p0 in banks) foreach (var p in T(p0)) { Mist("FogBank", p, new Vector3(5f, 1.0f, 5f), 1.6f, new Vector2(6, 10f), HexA(bi % 2 == 0 ? "#7A6E90" : "#685E7C", 0.5f), false); bi++; }
+            Mist("FogBank", B(8, 1.6f, 10.5f), new Vector3(5f, 1.0f, 5f), 1.6f, new Vector2(6, 10f), HexA("#7A6E90", 0.5f), false);
+            Mist("FogBank", L(-26, 0.6f, -5), new Vector3(5f, 1.0f, 5f), 1.6f, new Vector2(6, 10f), HexA("#685E7C", 0.5f), false);
+            Mist("FogBank", L(-26, 0.4f, -19), new Vector3(5f, 1.0f, 5f), 1.6f, new Vector2(6, 10f), HexA("#7A6E90", 0.5f), false);
+            Mist("BridgeGroundMist", L(-26, 0.5f, -10), new Vector3(7, 0.4f, 30), 4f, new Vector2(5, 9), HexA("#6A5C80", 0.32f), true);
             Mist("GateMist", GateP + new Vector3(0, 0.8f, -1.5f), new Vector3(10, 1.2f, 3), 3f, new Vector2(4, 7), HexA("#8A78B0", 0.35f), false);
-            Mist("EdgeSpillLeft", new Vector3(-35, -0.5f, -4), new Vector3(4, 2, 18), 3f, new Vector2(7, 12), HexA("#4B3A5E", 0.4f), false);
-            Mist("EdgeSpillFront", new Vector3(-8, -0.8f, -17), new Vector3(28, 2, 3), 3f, new Vector2(7, 11), HexA("#4B3A5E", 0.35f), false);
-            Mist("RimSpillL", new Vector3(-31.0f, -0.6f, -6), new Vector3(2, 1.5f, 18), 4f, new Vector2(5, 9), HexA("#7A6C96", 0.45f), false);
-            Mist("RimSpillF", new Vector3(2, -0.6f, -16.5f), new Vector3(40, 1.5f, 2), 7f, new Vector2(5, 9), HexA("#7A6C96", 0.42f), false);
-            Mist("RimSpillR", new Vector3(23.5f, -0.6f, -1), new Vector3(2, 1.5f, 24), 5f, new Vector2(5, 9), HexA("#7A6C96", 0.42f), false);
-            Mist("RimSpillB", new Vector3(-8, -0.4f, 14.5f), new Vector3(20, 1.5f, 2), 3f, new Vector2(5, 9), HexA("#7A6C96", 0.4f), false);
-            Mist("BridgeMist", new Vector3(-26, -1.2f, -24f), new Vector3(10, 2, 6), 3f, new Vector2(6, 10), HexA("#5A4878", 0.4f), false);
+            Mist("EdgeSpillLeft", Mv(-35, -0.5f, -4), new Vector3(4, 2, 36), 6f, new Vector2(7, 12), HexA("#4B3A5E", 0.4f), false, 160);
+            Mist("EdgeSpillFront", Mv(-8, -0.8f, -17), new Vector3(56, 2, 3), 6f, new Vector2(7, 11), HexA("#4B3A5E", 0.35f), false, 160);
+            Mist("RimSpillL", Mv(-31.0f, -0.6f, -6), new Vector3(2, 1.5f, 36), 8f, new Vector2(5, 9), HexA("#7A6C96", 0.45f), false, 160);
+            Mist("RimSpillF", Mv(2, -0.6f, -16.5f), new Vector3(80, 1.5f, 2), 14f, new Vector2(5, 9), HexA("#7A6C96", 0.42f), false, 160);
+            Mist("RimSpillR", Mv(23.5f, -0.6f, -1), new Vector3(2, 1.5f, 48), 10f, new Vector2(5, 9), HexA("#7A6C96", 0.42f), false, 160);
+            Mist("RimSpillB", Mv(-8, -0.4f, 14.5f), new Vector3(40, 1.5f, 2), 6f, new Vector2(5, 9), HexA("#7A6C96", 0.4f), false, 160);
+            Mist("BridgeMist", L(-26, -1.2f, -24f), new Vector3(10, 2, 6), 3f, new Vector2(6, 10), HexA("#5A4878", 0.4f), false);
             Mist("PortalHaze", PortalC + new Vector3(0, -3f, -2.8f), new Vector3(9, 1.5f, 3), 2f, new Vector2(4, 7), HexA("#6A3A9A", 0.3f), false);
         }
 
@@ -567,7 +623,7 @@ namespace Underworld.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Hex("#0E0C14");
             var acd = cam.GetUniversalAdditionalCameraData(); acd.renderPostProcessing = true; acd.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             acd.antialiasingQuality = AntialiasingQuality.High;
-            Aim(cam, new Vector3(-4.5f, 0, 3.5f), 37, 48, CamYaw);
+            Aim(cam, new Vector3(-4.5f, 0, 3.5f), 60, 52, CamYaw);
 
             var volGo = new GameObject("PostVolume"); volGo.transform.SetParent(root, false);
             var vol = volGo.AddComponent<Volume>(); vol.isGlobal = true;
@@ -655,7 +711,7 @@ namespace Underworld.EditorTools
             }
             // brightness range check: same wide shot at darker / brighter settings
             var bright = Object.FindFirstObjectByType<UWBrightness>();
-            cam.fieldOfView = 44; Aim(cam, new Vector3(-4.5f, 0, 3.5f), 37, 48, CamYaw);
+            cam.fieldOfView = 44; Aim(cam, new Vector3(-4.5f, 0, 3.5f), 60, 52, CamYaw);
             foreach (var b in new[] { -0.6f, 0.6f }) { bright.Set(b); Shot(cam, Path.Combine(dir, $"06_bright_{(b < 0 ? "minus" : "plus")}.png"), 1600, 900); }
             bright.Set(0f);
             // mood range check: violet (default) vs toned-down grey with haze
@@ -665,10 +721,10 @@ namespace Underworld.EditorTools
             cam.fieldOfView = 46; Aim(cam, new Vector3(-24, 1.2f, 0f), 22, 36, CamYaw);
             Shot(cam, Path.Combine(dir, "07_mood_grey_gate.png"), 1600, 900);
             envc.Set(0f, 0.3f);
-            cam.fieldOfView = 44; Aim(cam, new Vector3(-4.5f, 0, 3.5f), 37, 48, CamYaw);
+            cam.fieldOfView = 44; Aim(cam, new Vector3(-4.5f, 0, 3.5f), 60, 52, CamYaw);
             if (frames > 0)
             {
-                cam.fieldOfView = 44; Aim(cam, new Vector3(-4.5f, 0, 3.5f), 37, 48, CamYaw);
+                cam.fieldOfView = 44; Aim(cam, new Vector3(-4.5f, 0, 3.5f), 60, 52, CamYaw);
                 for (int i = 0; i < frames; i++)
                 {
                     SimAll(12f + i / 24f);

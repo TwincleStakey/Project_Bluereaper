@@ -8,7 +8,8 @@ public class LookStudyTrampleFeed : MonoBehaviour
 {
     Transform player;
     Vector3 last;
-    float stepTimer, findTimer;
+    float stepTimer, findTimer, boundsTimer;
+    int boundsScene = -1, boundsTries;
     bool left;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -34,6 +35,15 @@ public class LookStudyTrampleFeed : MonoBehaviour
         var trail = LookStudyTrail.Instance;
         if (!trail)
         {
+            // 11-10 perf: StageBounds walks every renderer in the scene. It used to run every frame in fields with no
+            // LookStudy ground (폐촌: ~7,900 renderers, 9.6 ms a frame). Now at most once a second, and a scene that
+            // still has none after a few tries (its stage meshes can appear a little after load) is left alone.
+            int scene = SceneManager.GetActiveScene().handle;
+            if (scene != boundsScene) { boundsScene = scene; boundsTries = 0; boundsTimer = 0f; }
+            if (boundsTries >= 6) return;
+            boundsTimer -= Time.deltaTime;
+            if (boundsTimer > 0f) return;
+            boundsTimer = 1f; boundsTries++;
             if (!StageBounds(out var b)) return; // not a LookStudy scene
             float size = Mathf.Clamp(Mathf.Max(b.size.x, b.size.z) + 4f, 40f, 160f);
             trail = LookStudyTrail.Ensure(new Vector2(b.center.x, b.center.z), size);

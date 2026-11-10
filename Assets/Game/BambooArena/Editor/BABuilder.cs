@@ -1,4 +1,4 @@
-// Builds the bamboo arena scene (menu BambooArena/Build Scene): materials, the forest floor (dry bamboo leaves, a
+// Builds the bamboo arena scene (menu Tools/Dev/Bamboo Arena/Build Scene): materials, the forest floor (dry bamboo leaves, a
 // packed-earth footpath, pebbles, moss), floor props after the bamboo refs (fallen and split culms lying flat; stumps,
 // shoots, roots and mossy rocks near the bamboo; nothing blocks the clearing), low undergrowth, the instanced bamboo wall, mist sheets, light shafts, drifting leaves, sun, camera
 // at the RoomRun angle, post-processing, the ink filter, invisible walls, and the RoomRun dev room (F9).
@@ -17,6 +17,8 @@ public static class BABuilder
 {
     public const string Root = "Assets/Game/BambooArena";
     public const string ScenePath = Root + "/BambooArena.unity";
+    public static readonly Vector2 ArenaSize = new Vector2(88, 72);   // was 44 x 36
+    const int E = 2, A = 2;   // prop counts: x2 along the edge (perimeter); inside only x2 so the bigger clearing stays clean (11-10)
     const string Gen = Root + "/Generated";
     const string Mats = Root + "/Materials";
     const string AV = "Assets/Game/AbandonedVillage/Models/";
@@ -82,7 +84,7 @@ public static class BABuilder
         });
     }
 
-    [MenuItem("BambooArena/Build Scene")]
+    [MenuItem("Tools/Dev/Bamboo Arena/Build Scene")]
     public static void Build()
     {
         var active = EditorSceneManager.GetActiveScene();
@@ -102,9 +104,9 @@ public static class BABuilder
             m.SetTexture("_PathTex", RF("brown_mud_02_diff")); m.SetTexture("_PathNrm", RF("brown_mud_02_nor_gl"));   // packed earth
             m.SetTexture("_PebbleTex", RF("river_small_rocks_diff")); m.SetTexture("_PebbleNrm", RF("river_small_rocks_nor_gl"));
             m.SetTexture("_MossTex", Tex("mossy_rock_diff"));
-            m.SetFloat("_SoilTile", 3.0f); m.SetFloat("_Calm", 0.3f); m.SetFloat("_NormalStrength", 0.55f);
-            m.SetFloat("_Leaves", 0.8f); m.SetFloat("_Moss", 0.5f); m.SetFloat("_Pebbles", 0.5f); m.SetFloat("_Damp", 0.5f); m.SetFloat("_Dapple", 0.45f);
-            m.SetColor("_LeafCol", new Color(0.78f, 0.66f, 0.42f));   // muted straw, no bright confetti
+            m.SetFloat("_SoilTile", 2.4f); m.SetFloat("_Calm", 0.4f);   // 11-10: bare soil pulled toward the leaf palette (it read as a red-brown patch on the bigger floor) m.SetFloat("_NormalStrength", 0.9f);   // 11-10: crisper floor
+            m.SetFloat("_Leaves", 0.95f); m.SetFloat("_Moss", 0.5f); m.SetFloat("_Pebbles", 0.5f); m.SetFloat("_Damp", 0.5f); m.SetFloat("_Dapple", 0.45f);
+            m.SetColor("_LeafCol", new Color(0.86f, 0.72f, 0.44f));   // straw drifts that read against the darker soil
             m.SetColor("_Tint", new Color(0.92f, 1.0f, 0.86f));
             m.SetColor("_Shade", new Color(0.06f, 0.075f, 0.05f));
             m.SetColor("_Ambient", new Color(0.20f, 0.25f, 0.21f));
@@ -146,12 +148,17 @@ public static class BABuilder
         rootGo.AddComponent<ReedInstancer>();
         var field = rootGo.AddComponent<BambooField>();
         if (keep != null) JsonUtility.FromJsonOverwrite(keep, field);
+        // 11-10 (Kido: the wall did not read as a tall dense wall, the floor was a foggy blur)
+        field.spacing = Mathf.Min(field.spacing, 1.05f); field.heightScale = Mathf.Max(field.heightScale, 1.25f);
+        field.wallDepth = Mathf.Max(field.wallDepth, 12f); field.groundFog = Mathf.Min(field.groundFog, 0.12f);
         field.clumps = new[] { FbxMesh("BA_Bamboo_A"), FbxMesh("BA_Bamboo_B"), FbxMesh("BA_Bamboo_C") };
         field.farClump = FbxMesh("BA_Bamboo_Far");
         field.bambooMat = bamboo; field.sunLight = sun;
         field.groundCover = AssetDatabase.LoadAllAssetsAtPath("Assets/Game/ReedField/Models/RF_LowGrass.fbx").OfType<Mesh>().FirstOrDefault();
         field.groundCoverMat = coverMat; field.groundCoverScale = 1.1f;
         field.seeThroughTarget = null;
+        // 11-10 (Kido: every arena 2x per side, 4x the area). The scene keeps its own settings, so force the new size.
+        field.arena = ArenaSize;
 
         // ---------------------------------------------------------------- floor props (after the bamboo-forest refs)
         // Nothing here has a collider and nothing in the middle stands up: fallen and split culms lie flat, stumps,
@@ -167,7 +174,9 @@ public static class BABuilder
             if (mats.Length > 0) foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) r.sharedMaterials = mats.Take(r.GetComponent<MeshFilter>().sharedMesh.subMeshCount).ToArray();
             foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
-            drifts.Add(new Vector3(pos.x, pos.z, 1.2f + scale));
+            // dry leaves pile up only against props near the bamboo; out in the clearing the floor stays clean
+            // (11-10: with the bigger clearing every scattered culm left a leaf blotch and the floor read as one smear)
+            if (field.Outside(new Vector2(pos.x, pos.z)) > -6f) drifts.Add(new Vector3(pos.x, pos.z, 0.9f + scale * 0.6f));
             return go;
         }
         var rs = new System.Random(field.seed + 5);
@@ -202,26 +211,32 @@ public static class BABuilder
         }
         Vector3 Jit(Vector3 c, float r) => c + new Vector3((Rn() * 2 - 1) * r, 0, (Rn() * 2 - 1) * r);
         // cut stumps in small groups at the bamboo edge, with a shoot or two and roots beside them
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < 9 * E; i++)
         {
             var c = NearEdge(0.2f, 2.5f);
             Place(Fbx("BA_Stumps"), c, Rn() * 360, 0.9f + Rn() * 0.6f, stump, stumpCut);
-            if (Rn() < 0.6f) Place(Fbx("BA_Shoots"), Jit(c, 1.2f), Rn() * 360, 0.8f + Rn() * 0.5f, shootMat);
+            Rn();   // (a shoot used to go here; keeps the rest of the layout seeded the same)
             if (Rn() < 0.5f) Place(Fbx("BA_Roots"), Jit(c, 0.6f), Rn() * 360, 0.9f + Rn() * 0.4f, rootMat);
         }
-        // young shoots coming up near the bamboo
-        for (int i = 0; i < 7; i++) Place(Fbx("BA_Shoots"), NearEdge(0.1f, 1.5f), Rn() * 360, 0.7f + Rn() * 0.7f, shootMat);
+        // no bamboo shoots: from the RoomRun camera they read as odd brown cones (Kido 11-10)
         // roots surfacing from the bamboo wall
-        for (int i = 0; i < 8; i++) Place(Fbx("BA_Roots"), NearEdge(0.0f, 1.5f), Rn() * 360, 1f + Rn() * 0.6f, rootMat);
-        // fallen culms: lone ones along the edge, a few piles lying in the clearing (flat on the ground)
-        for (int i = 0; i < 6; i++) Place(Fbx("BA_Fallen"), NearEdge(0.6f), Rn() * 360, 1f, fallenMat);
-        for (int i = 0; i < 3; i++) Place(Fbx("BA_FallenPile"), NearEdge(0.8f, 2.5f), Rn() * 360, 1f, fallenMat);
-        for (int i = 0; i < 5; i++) Place(Fbx("BA_FallenPile"), Inside(4f), Rn() * 360, 0.9f + Rn() * 0.3f, fallenMat);
+        for (int i = 0; i < 8 * E; i++) Place(Fbx("BA_Roots"), NearEdge(0.0f, 1.5f), Rn() * 360, 1f + Rn() * 0.6f, rootMat);
+        // fallen culms spread naturally: lone ones and small groups of 2-3 lying at different angles, more toward the
+        // bamboo, a couple of small piles at the foot of the wall (one heap in the open read as a bundle of sticks)
+        for (int i = 0; i < 8 * E; i++) Place(Fbx("BA_Fallen"), NearEdge(0.6f, 4f), Rn() * 360, 0.8f + Rn() * 0.35f, fallenMat);
+        for (int i = 0; i < 2 * E; i++) Place(Fbx("BA_FallenPile"), NearEdge(0.4f, 1.5f), Rn() * 360, 0.8f, fallenMat);
+        for (int g = 0; g < 5 * A; g++)
+        {
+            var c = Inside(5f); float yaw = Rn() * 360;
+            int n = 1 + rs.Next(3);
+            for (int k = 0; k < n; k++) Place(Fbx("BA_Fallen"), Jit(c, 1.4f), yaw + (Rn() * 2 - 1) * 35f, 0.7f + Rn() * 0.4f, fallenMat);
+        }
+        for (int i = 0; i < 6 * A; i++) Place(Fbx("BA_Fallen"), Inside(4f), Rn() * 360, 0.6f + Rn() * 0.4f, fallenMat);
         // split and broken bits scattered about, a few in the open
-        for (int i = 0; i < 10; i++) Place(Fbx("BA_Split"), Inside(3f), Rn() * 360, 0.9f + Rn() * 0.3f, fallenMat);
-        for (int i = 0; i < 5; i++) Place(Fbx("BA_Split"), NearEdge(0.5f), Rn() * 360, 1f, fallenMat);
+        for (int i = 0; i < 7 * A; i++) Place(Fbx("BA_Split"), Inside(3f), Rn() * 360, 0.8f + Rn() * 0.3f, fallenMat);
+        for (int i = 0; i < 5 * E; i++) Place(Fbx("BA_Split"), NearEdge(0.5f), Rn() * 360, 1f, fallenMat);
         // small mossy rocks half sunk at the bamboo foot (LookStudy rock set)
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 8 * E; i++)
         {
             var rock = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx");
             var go = Place(rock, NearEdge(0.0f, 2f) + Vector3.down * 0.08f, Rn() * 360, 0.25f + Rn() * 0.3f, Rn() < 0.5f ? stone : stone2);
@@ -248,11 +263,11 @@ public static class BABuilder
         var fr = new System.Random(field.seed + 11);
         var full = field.FullSize;
         int made = 0;
-        for (int i = 0; i < 400 && made < 60; i++)
+        for (int i = 0; i < 400 * E && made < 60 * E; i++)
         {
             float x = (float)(fr.NextDouble() - 0.5) * (field.arena.x + 24f), z = (float)(fr.NextDouble() - 0.5) * (field.arena.y + 24f);
             float o = field.Outside(new Vector2(x, z));
-            if (o < -6f && fr.NextDouble() > 0.15) continue;   // a few drift over the clearing
+            if (o < 1.5f) continue;   // 11-10: none over the clearing; mist only lies in the bamboo
             var go = new GameObject("MistSheet");
             go.transform.SetParent(fogRoot, false);
             go.transform.position = new Vector3(x, Mathf.Lerp(0.8f, 3.5f, (float)fr.NextDouble()), z);
@@ -277,7 +292,7 @@ public static class BABuilder
         shaftMat.SetColor("_Color", new Color(1.0f, 0.88f, 0.62f)); shaftMat.SetFloat("_Intensity", 0.16f);
         var shafts = new GameObject("LightShafts").transform;
         var sr = new System.Random(field.seed + 23);
-        for (int i = 0; i < 14; i++)
+        for (int i = 0; i < 8 * E; i++)
         {
             var p = NearEdgeShaft(field, sr);
             var go = new GameObject("Shaft");
@@ -382,7 +397,7 @@ public static class BABuilder
     static Mesh BuildGround(BambooField f, List<Vector3> drifts)
     {
         var full = f.FullSize;
-        int nx = Mathf.CeilToInt(full.x), nz = Mathf.CeilToInt(full.y);
+        int nx = Mathf.CeilToInt(full.x * 2f), nz = Mathf.CeilToInt(full.y * 2f);   // 0.5 m cells: soft mask edges, no 1 m stair steps
         var v = new List<Vector3>(); var c = new List<Color>(); var t = new List<int>();
         for (int j = 0; j <= nz; j++)
         for (int i = 0; i <= nx; i++)
@@ -451,7 +466,7 @@ public static class BABuilder
 // (no void past the bamboo), and the player at the south edge with the bamboo in front dissolved around them.
 public static class BACapture
 {
-    [MenuItem("BambooArena/Capture Shots")]
+    [MenuItem("Tools/Dev/Bamboo Arena/Capture Shots")]
     public static void Capture()
     {
         var f = Object.FindAnyObjectByType<BambooField>(); var cam = Camera.main;
@@ -495,7 +510,7 @@ public static class BACapture
         Debug.Log("[Bamboo] shots saved to " + InkFilterTools.OutDir);
     }
 
-    [MenuItem("BambooArena/Benchmark (editor)")]
+    [MenuItem("Tools/Dev/Bamboo Arena/Benchmark (editor)")]
     public static void Bench()
     {
         var cam = Camera.main; var f = Object.FindAnyObjectByType<BambooField>();
@@ -530,7 +545,7 @@ public static class BAPlay
 {
     static System.Type Dir => System.AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType("RoomRun.RunDirector")).FirstOrDefault(x => x != null);
 
-    [MenuItem("BambooArena/Play: Jump To Bamboo")]
+    [MenuItem("Tools/Dev/Bamboo Arena/Play: Jump To Bamboo")]
     public static void Jump()
     {
         if (!Application.isPlaying) { Debug.LogWarning("[Bamboo] enter Play first"); return; }
@@ -542,7 +557,7 @@ public static class BAPlay
 
     // Centre shot (ink-filter-test/v3/bamboo_center.png), then the player's CharacterController is walked across the
     // whole clearing in rows and columns; anything that stops it before the outer wall is logged.
-    [MenuItem("BambooArena/Play: Centre Shot + Walk Test")]
+    [MenuItem("Tools/Dev/Bamboo Arena/Play: Centre Shot + Walk Test")]
     public static void WalkTest()
     {
         if (!Application.isPlaying) return;
@@ -584,7 +599,7 @@ public static class BAPlay
         EditorApplication.update += Step;
     }
 
-    [MenuItem("BambooArena/Play: Edge Shot")]
+    [MenuItem("Tools/Dev/Bamboo Arena/Play: Edge Shot")]
     public static void EdgeShot()
     {
         if (!Application.isPlaying) return;

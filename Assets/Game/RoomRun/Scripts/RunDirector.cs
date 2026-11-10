@@ -49,6 +49,11 @@ namespace RoomRun
             fxGo.transform.SetParent(transform, false);
             fxGo.AddComponent<Fx>().Init(config);
 
+            // light pools around players and bullets, enemy rim, in the dark fields (FieldLighting.DarkRooms)
+            gameObject.AddComponent<FieldLighting>();
+            // huge merged stage meshes are split into tiles so they can be culled (MeshChunker)
+            gameObject.AddComponent<MeshChunkerRunner>();
+
             var rigGo = new GameObject("CameraRig");
             rigGo.transform.SetParent(transform, false);
             Rig = rigGo.AddComponent<CameraRig>();

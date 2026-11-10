@@ -1,4 +1,4 @@
-// Builds the reed field scene (menu ReedField/Build Scene): materials, ground and water meshes, the broken boardwalk,
+// Builds the reed field scene (menu Tools/Dev/Reed Field/Build Scene): materials, ground and water meshes, the broken boardwalk,
 // landmarks, fog, 도깨비불 wisps, the unseen stalkers and their eyes, moon light, camera and post-processing.
 // Re-running it rebuilds everything from the ReedField settings in the open scene (or the defaults the first time).
 using System.Collections.Generic;
@@ -122,10 +122,10 @@ public static class RFBuilder
         }
     }
 
-    [MenuItem("ReedField/Rebuild With Default Settings")]
+    [MenuItem("Tools/Dev/Reed Field/Rebuild With Default Settings")]
     public static void BuildDefaults() => Build(false);
 
-    [MenuItem("ReedField/Build Scene")]
+    [MenuItem("Tools/Dev/Reed Field/Build Scene")]
     public static void BuildKeep() => Build(true);
 
     public static void Build(bool keepSettings)
@@ -204,6 +204,20 @@ public static class RFBuilder
         rootGo.AddComponent<ReedInstancer>();
         var field = rootGo.AddComponent<ReedField>();
         if (keep != null) JsonUtility.FromJsonOverwrite(keep, field);
+        field.riverWidth = Mathf.Max(field.riverWidth, 14f);   // 11-10: a wide, deep river along the south
+        // 11-10 (Kido: every arena 2x per side, 4x the area): 112 x 88, channel, path and clearings laid out again for it
+        field.arena = new Vector2(112, 88);
+        field.channel = ReedLayout.Channel; field.path = ReedLayout.Path; field.clearings = ReedLayout.Clearings;
+        _ = field.PathLine;   // rebuilds the cached channel and path curves from the new points
+        // Old (56 x 44) layout points -> the new arena: inside the old arena they spread 2x, outside they keep their
+        // distance from the arena edge, so bank silhouettes and river rocks stay on the bank and in the river.
+        Vector2 Map(float x, float z)
+        {
+            const float ox = 28f, oz = 22f;
+            float mx = Mathf.Abs(x) <= ox ? x * 2f : x + Mathf.Sign(x) * ox;
+            float mz = Mathf.Abs(z) <= oz ? z * 2f : z + Mathf.Sign(z) * oz;
+            return new Vector2(mx, mz);
+        }
         field.susuki = new[] { FbxMesh("RF_Susuki_A"), FbxMesh("RF_Susuki_B"), FbxMesh("RF_Susuki_C") };
         field.susukiBroken = FbxMesh("RF_Susuki_Broken");
         field.susukiFar = FbxMesh("RF_Susuki_Far");
@@ -218,8 +232,11 @@ public static class RFBuilder
         // landmarks first, so the reeds keep clear of them
         var props = new GameObject("Landmarks").transform;
         var keepOut = new List<Vector3>();
-        void Prop(string fbx, float x, float z, float yaw, float scale, float clear)
+        void Prop(string fbx, float x, float z, float yaw, float scale, float clear, bool mapped = true)
         {
+            if (mapped) { var m = Map(x, z); x = m.x; z = m.y; }
+            // nothing stands in the channel or on its sandbar
+            if (clear > 0 && field.ChannelDistance(new Vector2(x, z), out float chHalf) < chHalf + 3f) { Debug.LogWarning($"[ReedField] {fbx} at {x},{z} is in the channel, skipped"); return; }
             var src = AssetDatabase.LoadAssetAtPath<GameObject>(AV + fbx + ".fbx");
             if (!src) { Debug.LogWarning("[ReedField] missing " + fbx); return; }
             var go = (GameObject)PrefabUtility.InstantiatePrefab(src, props);
@@ -245,12 +262,32 @@ public static class RFBuilder
         Prop("AV_DeadTree_B", 9f, 29f, 10, 1.3f, 0);
         Prop("AV_DeadTree_A", -21f, 30f, 150, 1.2f, 0);
         Prop("AV_DeadTree_C", 31f, 26f, 280, 1.2f, 0);
-        Prop("AV_DeadTree_B", -12f, -37f, 100, 1.3f, 0);
-        Prop("AV_DeadTree_A", 20f, -38f, 40, 1.1f, 0);
+        Prop("AV_DeadTree_B", -12f, -43f, 100, 1.3f, 0);   // far bank (river is 14 m wide since 11-10)
+        Prop("AV_DeadTree_A", 20f, -44f, 40, 1.1f, 0);
         Prop("AV_Sotdae", -18f, 5.5f, 20, 1f, 0.7f);
         Prop("AV_Crow", 16.2f, 11.6f, 200, 1f, 0);
         Prop("AV_Crow", 17.9f, 9.3f, 80, 1f, 0);
         Prop("AV_Crow", -13.2f, 10.4f, 140, 1f, 0);
+        // landmarks for the new space (already in 112 x 88 coordinates): one in or beside each new clearing
+        Prop("AV_DeadTree_A", -38f, -21f, 210, 1.1f, 1.6f, false);
+        Prop("AV_Crow", -37.2f, -22.4f, 30, 1f, 0, false);
+        Prop("AV_Sotdae", 12.5f, 33.5f, 10, 1f, 0.7f, false);
+        Prop("AV_Sotdae", 14.1f, 32.2f, 55, 0.9f, 0.7f, false);
+        Prop("AV_Sotdae", 11.2f, 31.6f, 95, 1.05f, 0.7f, false);
+        Prop("AV_DeadTree_C", -48f, 35f, 120, 1.0f, 1.2f, false);
+        Prop("AV_Jangseung", -44.5f, 29.5f, 200, 1f, 0.9f, false);
+        Prop("AV_DeadTree_B", 47f, -33f, 20, 1.1f, 1.4f, false);
+        Prop("AV_DeadTree_A", 50f, 12f, 300, 0.95f, 1.4f, false);
+        Prop("AV_DeadTree_C", -52f, 2f, 160, 1.05f, 1.3f, false);
+        Prop("AV_Sotdae", 28f, -6f, 30, 1f, 0.7f, false);
+        Prop("AV_Jangseung", 36f, 40f, 170, 1f, 0.9f, false);
+        // more bank silhouettes along the longer edges
+        Prop("AV_DeadTree_B", -63f, -30f, 70, 1.3f, 0, false);
+        Prop("AV_DeadTree_A", 64f, -22f, 240, 1.25f, 0, false);
+        Prop("AV_DeadTree_C", -40f, 52f, 330, 1.3f, 0, false);
+        Prop("AV_DeadTree_B", 44f, 53f, 190, 1.2f, 0, false);
+        Prop("AV_DeadTree_A", -45f, -66f, 15, 1.2f, 0, false);
+        Prop("AV_DeadTree_C", 48f, -67f, 260, 1.3f, 0, false);
         field.keepOut = keepOut.ToArray();
 
         // ground and water
@@ -264,6 +301,81 @@ public static class RFBuilder
         var wGo = new GameObject("RF_Water");
         wGo.AddComponent<MeshFilter>().sharedMesh = AssetDatabase.LoadAssetAtPath<Mesh>($"{Gen}/RF_Water.asset");
         var wr = wGo.AddComponent<MeshRenderer>(); wr.sharedMaterial = water; wr.shadowCastingMode = ShadowCastingMode.Off;
+
+        // ---------------------------------------------------------------- the deep, fast river (Kido 11-10)
+        var riverMat = Mat("RF_River", "ReedField/River");
+        riverMat.SetTexture("_SurfaceMap", AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/ThirdParty/URP_Water/WaterSurface_single.tif"));
+        riverMat.SetTexture("_FoamTex", AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/ThirdParty/URP_Water/WaterFoam.png"));
+        var rz = field.RiverZ; riverMat.SetVector("_RiverZ", new Vector4(rz.x, rz.y, 0, 0));
+        EditorUtility.SetDirty(riverMat);
+        var riverMesh = field.BuildRiverMesh(); SaveMesh(riverMesh, "RF_River");
+        AssetDatabase.SaveAssets();
+        var rGo = new GameObject("RF_River");
+        rGo.AddComponent<MeshFilter>().sharedMesh = AssetDatabase.LoadAssetAtPath<Mesh>($"{Gen}/RF_River.asset");
+        var rr = rGo.AddComponent<MeshRenderer>(); rr.sharedMaterial = riverMat; rr.shadowCastingMode = ShadowCastingMode.Off; rr.receiveShadows = false;
+        // rocks breaking the current (LookStudy rock set): whitecaps and wakes come from RFRiver
+        var rocksRoot = new GameObject("RiverRocks").transform;
+        rocksRoot.gameObject.AddComponent<RFRiver>();
+        var rockMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Game/BambooArena/Materials/BA_Stone2.mat");
+        var rockSpots = new[] { new Vector3(-17f, -28.5f, 0.9f), new Vector3(-4f, -31f, 1.2f), new Vector3(9f, -27.5f, 0.7f), new Vector3(21f, -30f, 1.0f), new Vector3(-27f, -32f, 0.8f) };
+        var rrnd = new System.Random(field.seed + 41);
+        var moreRocks = new[] { new Vector3(-62f, -52f, 1.0f), new Vector3(-44f, -55f, 0.8f), new Vector3(38f, -53f, 1.1f), new Vector3(58f, -56f, 0.9f), new Vector3(2f, -57f, 0.8f) };
+        foreach (var rs0 in rockSpots.Select(r => { var m = Map(r.x, r.y); return new Vector3(m.x, m.y, r.z); }).Concat(moreRocks))
+        {
+            var rs = rs0;
+            var src = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rrnd.Next(13):00}.fbx");
+            if (!src) continue;
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(src, rocksRoot);
+            go.transform.position = new Vector3(rs.x, field.waterLevel - 0.25f, rs.y);
+            go.transform.rotation = Quaternion.Euler((float)rrnd.NextDouble() * 20 - 10, (float)rrnd.NextDouble() * 360, (float)rrnd.NextDouble() * 20 - 10);
+            go.transform.localScale = Vector3.one * rs.z;
+            if (rockMat) foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) r.sharedMaterials = Enumerable.Repeat(rockMat, r.sharedMaterials.Length).ToArray();
+            foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+        }
+
+        // ---------------------------------------------------------------- the moored ferry boat, tied to the 장승 at the
+        // south landing (the path's entrance); the current holds it out downstream (west) on a taut rope.
+        {
+            var boatSrc = AssetDatabase.LoadAssetAtPath<GameObject>($"{Root}/Models/RF_Boat.fbx");
+            var jang = props.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name.StartsWith("AV_Jangseung") && Mathf.Abs(t.position.x - Map(-1.8f, -19.9f).x) < 0.1f);
+            if (boatSrc && jang)
+            {
+                var boatWood = Mat("RF_BoatWood", "Universal Render Pipeline/Lit");
+                var boatDark = Mat("RF_BoatWoodDark", "Universal Render Pipeline/Lit");
+                var boatIron = Mat("RF_BoatIron", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.07f, 0.065f, 0.06f)); m.SetFloat("_Metallic", 0.6f); m.SetFloat("_Smoothness", 0.35f); });
+                var plank = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/AbandonedVillage/Textures/weathered_brown_planks_diff_1k.jpg");
+                var plankN = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/AbandonedVillage/Textures/weathered_brown_planks_nor_gl_1k.jpg");
+                foreach (var m in new[] { boatWood, boatDark })
+                {
+                    m.SetTexture("_BaseMap", plank); m.SetTexture("_BumpMap", plankN); m.EnableKeyword("_NORMALMAP");
+                    m.SetFloat("_Smoothness", 0.1f); m.SetFloat("_Cull", 0f);   // two-sided: thin plank shell
+                }
+                boatWood.SetColor("_BaseColor", new Color(0.72f, 0.58f, 0.42f)); boatDark.SetColor("_BaseColor", new Color(0.42f, 0.33f, 0.24f));
+                foreach (var m in new[] { boatWood, boatDark, boatIron }) EditorUtility.SetDirty(m);
+
+                var moor = new GameObject("MooredBoat");
+                var tie = new GameObject("RopeTie").transform;
+                tie.SetParent(moor.transform, false);
+                // tied round the 장승's body about knee-to-waist high, on its river side
+                tie.position = jang.position + new Vector3(0, 0.95f, -0.18f);
+                var b = (GameObject)PrefabUtility.InstantiatePrefab(boatSrc, moor.transform);
+                b.name = "RF_Boat";
+                foreach (var r in b.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterials = new[] { boatWood, boatDark, boatIron }; r.shadowCastingMode = ShadowCastingMode.On; }
+                foreach (var c in b.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                var ropeGo = new GameObject("Rope");
+                ropeGo.transform.SetParent(moor.transform, false);
+                var lr = ropeGo.AddComponent<LineRenderer>();
+                lr.useWorldSpace = true; lr.widthMultiplier = 0.035f; lr.numCapVertices = 2; lr.positionCount = 14;
+                lr.shadowCastingMode = ShadowCastingMode.On; lr.textureMode = LineTextureMode.Tile;
+                lr.sharedMaterial = Mat("RF_Rope", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.36f, 0.29f, 0.19f)); m.SetFloat("_Smoothness", 0.05f); });
+                var boat = moor.AddComponent<RFBoat>();
+                boat.boat = b.transform; boat.tiePoint = tie; boat.rope = lr;
+                boat.waterY = field.waterLevel; boat.ropeLength = 6.5f; boat.flow = new Vector2(-1, 0);
+                keepOut.Add(new Vector3(jang.position.x, jang.position.z, 1.2f));
+                field.keepOut = keepOut.ToArray();
+            }
+            else Debug.LogWarning("[ReedField] boat or landing 장승 missing");
+        }
 
         // boardwalk where the path meets the water, and a ruined stretch at the south entrance
         var bwRoot = new GameObject("Boardwalk").transform;
@@ -336,7 +448,7 @@ public static class RFBuilder
         var fogRoot = new GameObject("GroundFog").transform;
         var quad = Resources.GetBuiltinResource<Mesh>("Quad.fbx");
         var fr = new System.Random(field.seed + 11);
-        for (int i = 0; i < 46; i++)
+        for (int i = 0; i < 46 * 4; i++)
         {
             var go = new GameObject("FogSheet");
             go.transform.SetParent(fogRoot, false);
@@ -351,7 +463,8 @@ public static class RFBuilder
 
         // 도깨비불
         var spirits = new GameObject("Spirits").transform;
-        var wispSpots = new[] { new Vector3(-20, 0, 2), new Vector3(9, 0, 14), new Vector3(20, 0, -8), new Vector3(-8, 0, -12) };
+        var wispSpots = new[] { new Vector3(-40, 0, 4), new Vector3(18, 0, 28), new Vector3(40, 0, -16), new Vector3(-16, 0, -24),
+                                new Vector3(-36, 0, -30), new Vector3(30, 0, 24), new Vector3(-48, 0, 34), new Vector3(48, 0, -30) };
         foreach (var s in wispSpots)
         {
             var go = new GameObject("Dokkaebibul");
@@ -485,6 +598,9 @@ public static class RFBuilder
         field.ApplyMood();
         field.BakeReedShadow();
 
+        // screen filters (F10). The rebuild clears the scene, so the filter has to be put back every time (11-10: it was
+        // lost on a rebuild and F10 did nothing in the reed field).
+        InkFilterTools.Ensure();
         EditorSceneManager.SaveScene(scene, ScenePath);
         AddRoomRunRoom();
         Debug.Log($"[ReedField] built: {Object.FindAnyObjectByType<ReedInstancer>().Count} reed instances");
@@ -566,7 +682,7 @@ public static class RFBuilder
                 // already there: only keep the size in step with the arena
                 var ex = rooms.GetArrayElementAtIndex(i);
                 var f = Object.FindAnyObjectByType<ReedField>();
-                ex.FindPropertyRelative("size").vector2Value = f ? f.arena : new Vector2(56, 44);
+                ex.FindPropertyRelative("size").vector2Value = f ? f.arena : new Vector2(112, 88);
                 so.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssets();
                 return;
             }
@@ -579,7 +695,7 @@ public static class RFBuilder
         r.FindPropertyRelative("scenePath").stringValue = ScenePath;
         r.FindPropertyRelative("groundMeshName").stringValue = "";
         r.FindPropertyRelative("center").vector3Value = Vector3.zero;
-        r.FindPropertyRelative("size").vector2Value = new Vector2(56, 44);
+        r.FindPropertyRelative("size").vector2Value = new Vector2(112, 88);
         r.FindPropertyRelative("fitToStage").boolValue = false;
         r.FindPropertyRelative("floorColor").colorValue = new Color(0.08f, 0.08f, 0.09f);
         r.FindPropertyRelative("pillarCount").intValue = 0;
@@ -596,7 +712,7 @@ public static class RFBuilder
 // Renders the scene camera (and a closer view) to ArtSource/ReedField for a quick check.
 public static class RFCapture
 {
-    [MenuItem("ReedField/Capture Check Shots (no fog sheets)")]
+    [MenuItem("Tools/Dev/Reed Field/Capture Check Shots (no fog sheets)")]
     public static void CaptureNoFog()
     {
         var f = GameObject.Find("GroundFog");
@@ -604,7 +720,7 @@ public static class RFCapture
         try { Capture(); } finally { if (f) f.SetActive(true); }
     }
 
-    [MenuItem("ReedField/Capture Check Shots")]
+    [MenuItem("Tools/Dev/Reed Field/Capture Check Shots")]
     public static void Capture()
     {
         var dir = System.IO.Path.Combine(System.IO.Directory.GetParent(Application.dataPath).FullName, "ArtSource", "ReedField");
@@ -641,7 +757,7 @@ public static class RFCapture
 // Play-mode helper: jumps the RoomRun run into the reed field (same as pressing F8).
 public static class RFPlayJump
 {
-    [MenuItem("ReedField/Play: Jump To Reed Field")]
+    [MenuItem("Tools/Dev/Reed Field/Play: Jump To Reed Field")]
     public static void Jump()
     {
         if (!Application.isPlaying) { Debug.LogWarning("[ReedField] enter Play first"); return; }
@@ -658,7 +774,7 @@ public static class RFPlayCorners
 {
     static int next;
 
-    [MenuItem("ReedField/Play: Next Corner")]
+    [MenuItem("Tools/Dev/Reed Field/Play: Next Corner")]
     public static void NextCorner()
     {
         if (!Application.isPlaying) return;
@@ -681,7 +797,7 @@ public static class RFPlayCorners
 // with the baked shadows on, off, and with realtime prop shadows on, for a fair before/after.
 public static class RFBenchmark
 {
-    [MenuItem("ReedField/Benchmark (editor)")]
+    [MenuItem("Tools/Dev/Reed Field/Benchmark (editor)")]
     public static void Run()
     {
         var cam = Camera.main; var f = Object.FindAnyObjectByType<ReedField>();
@@ -716,7 +832,7 @@ public static class RFPlayWade
     static double start; static Component player; static System.Reflection.MethodInfo place;
     static readonly Vector3 from = new Vector3(-10f, 0, 0.5f), to = new Vector3(-4f, 0, -5.5f);
 
-    [MenuItem("ReedField/Play: Wade Through Water")]
+    [MenuItem("Tools/Dev/Reed Field/Play: Wade Through Water")]
     public static void Wade()
     {
         if (!Application.isPlaying) return;

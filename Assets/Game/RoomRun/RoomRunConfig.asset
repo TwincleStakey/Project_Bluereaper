@@ -23,9 +23,9 @@ MonoBehaviour:
     mapCell: {x: 1, y: 1}
     scenePath: Assets/Scenes/LookStudy.unity
     groundMeshName: RGround
-    center: {x: -400, y: 0.3, z: 3}
-    size: {x: 34, y: 24}
-    fitToStage: 1
+    center: {x: -400, y: 0.3, z: 0}
+    size: {x: 112, y: 88}
+    fitToStage: 0
     floorColor: {r: 0.15, g: 0.17, b: 0.16, a: 1}
     pillarCount: 4
     doors:
@@ -49,9 +49,9 @@ MonoBehaviour:
     mapCell: {x: 1, y: 0}
     scenePath: Assets/Art/LookStudy/Stages/Valley.unity
     groundMeshName: 
-    center: {x: 0, y: 0, z: 1}
-    size: {x: 40, y: 30}
-    fitToStage: 1
+    center: {x: -6, y: 0, z: -3}
+    size: {x: 112, y: 88}
+    fitToStage: 0
     floorColor: {r: 0.11, g: 0.17, b: 0.16, a: 1}
     pillarCount: 5
     doors:
@@ -81,9 +81,9 @@ MonoBehaviour:
     mapCell: {x: 0, y: 0}
     scenePath: Assets/Art/LookStudy/Stages/Village.unity
     groundMeshName: 
-    center: {x: 0, y: 0, z: 0}
-    size: {x: 40, y: 32}
-    fitToStage: 1
+    center: {x: 0, y: 0, z: -4}
+    size: {x: 112, y: 88}
+    fitToStage: 0
     floorColor: {r: 0.17, g: 0.14, b: 0.12, a: 1}
     pillarCount: 6
     doors:
@@ -109,9 +109,9 @@ MonoBehaviour:
     mapCell: {x: 2, y: 0}
     scenePath: Assets/Art/LookStudy/Stages/Palace.unity
     groundMeshName: 
-    center: {x: 0, y: 0.1, z: 4}
-    size: {x: 50, y: 56}
-    fitToStage: 1
+    center: {x: 0, y: 0.1, z: 0}
+    size: {x: 104, y: 94}
+    fitToStage: 0
     floorColor: {r: 0.16, g: 0.13, b: 0.13, a: 1}
     pillarCount: 4
     doors:
@@ -138,7 +138,7 @@ MonoBehaviour:
     scenePath: Assets/Underworld/Scenes/Underworld.unity
     groundMeshName: 
     center: {x: -2, y: 0, z: -4}
-    size: {x: 56, y: 46}
+    size: {x: 100, y: 74}
     fitToStage: 0
     floorColor: {r: 0.12, g: 0.12, b: 0.16, a: 1}
     pillarCount: 0
@@ -156,7 +156,7 @@ MonoBehaviour:
     scenePath: Assets/Game/AbandonedVillage/AbandonedVillage.unity
     groundMeshName: 
     center: {x: 0, y: 0, z: -3.5}
-    size: {x: 43, y: 42}
+    size: {x: 89, y: 87}
     fitToStage: 0
     floorColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
     pillarCount: 0
@@ -182,7 +182,7 @@ MonoBehaviour:
     scenePath: Assets/Game/ReedField/ReedField.unity
     groundMeshName: 
     center: {x: 0, y: 0, z: 0}
-    size: {x: 56, y: 44}
+    size: {x: 112, y: 88}
     fitToStage: 0
     floorColor: {r: 0.08, g: 0.08, b: 0.09, a: 1}
     pillarCount: 0
@@ -198,7 +198,7 @@ MonoBehaviour:
     scenePath: Assets/Game/BambooArena/BambooArena.unity
     groundMeshName: 
     center: {x: 0, y: 0, z: 0}
-    size: {x: 44, y: 36}
+    size: {x: 88, y: 72}
     fitToStage: 0
     floorColor: {r: 0.08, g: 0.09, b: 0.08, a: 1}
     pillarCount: 0
@@ -267,6 +267,7 @@ MonoBehaviour:
   playerPrefab: {fileID: 6916378304929264017, guid: 8926e74e11a08654482ca9a01f47cfce, type: 3}
   playerScale: 1.15
   playerHp: 6
+  playerFootRing: 0
   playerBullet: {fileID: 2100000, guid: 9288e6b1091fb4f43a92a27c9472dd04, type: 2}
   enemyBullet: {fileID: 2100000, guid: b45eb05edec9dd04c9082098df1ac5c4, type: 2}
   enemyBulletCore: {fileID: 2100000, guid: e66f004d8097e524297c7b89711b32fa, type: 2}

@@ -12,6 +12,10 @@ public class LookStudyWorld : MonoBehaviour
     public Mesh[] realClumps, realBlades; public Mesh mYellow, mWhite, mRose, mIvy, mLeaves, mVines, mBush;
     public Material fGrass, fYellow, fWhite, fRose, fIvy, fLeaves, fVines, fBush;
     public const float VividX = -400f;
+    // Grass field arena (RoomRun F1), 11-10: 112 x 88 m (Kido: 4x the area, reed field size), centred on (VividX, 0).
+    // Dense meadow inside, a hedge of tall bushes and grass just outside the edge, thinner meadow beyond so the
+    // camera never sees the ground end.
+    public const float RealHalfX = 56f, RealHalfZ = 44f;
     public const float SaltX = 400f, CanyonX = 800f;
     public static readonly Vector2 Lake = new Vector2(20, -8);
     public const float LakeR = 15f;
@@ -294,7 +298,7 @@ public class LookStudyWorld : MonoBehaviour
     void BuildReal()
     {
         inst = root.gameObject.AddComponent<LookStudyInstancer>();
-        AddMesh("RGround", GridMesh(VividX - 70, VividX + 70, -70, 70, 0.5f, VividH, (x, z, h) => Color.black), ground);
+        AddMesh("RGround", GridMesh(VividX - 110, VividX + 110, -100, 100, 0.6f, VividH, (x, z, h) => Color.black), ground);
         var rnd = new System.Random(909);
         var clumps = System.Array.ConvertAll(realClumps, m => new Source(m));
         var blades = System.Array.ConvertAll(realBlades, m => new Source(m));
@@ -322,10 +326,11 @@ public class LookStudyWorld : MonoBehaviour
         }
 
         const float Chunk = 8f;
-        for (float cz = -56; cz < 56; cz += Chunk)
-        for (float cx = VividX - 56; cx < VividX + 56; cx += Chunk)
+        // dense over the arena plus a margin; thinner beyond the hedge (only seen past the edge when zoomed out)
+        for (float cz = -96; cz < 96; cz += Chunk)
+        for (float cx = VividX - 104; cx < VividX + 104; cx += Chunk)
         {
-            bool view = true; // the whole field is playable now, so it is dense everywhere
+            bool view = Mathf.Abs(cx + Chunk * 0.5f - VividX) < RealHalfX + 8f && Mathf.Abs(cz + Chunk * 0.5f) < RealHalfZ + 8f;
             int nc = (int)((view ? 13f : 4f) * Chunk * Chunk), nb = (int)((view ? 30f : 7f) * Chunk * Chunk);
             for (int i = 0; i < nc; i++)
             {
@@ -343,7 +348,7 @@ public class LookStudyWorld : MonoBehaviour
         for (int i = 0; i < 200; i++)
         {
             bool near = i < 26;
-            float x = VividX + (near ? R(rnd, -17, -3) : R(rnd, -54, 54)), z = near ? R(rnd, 0, 12) : R(rnd, -54, 54);
+            float x = VividX + (near ? R(rnd, -17, -3) : R(rnd, -RealHalfX + 2, RealHalfX - 2)), z = near ? R(rnd, 0, 12) : R(rnd, -RealHalfZ + 2, RealHalfZ - 2);
             var c = new Color(1.5f, 1.38f, 0.72f, 1) * R(rnd, 0.88f, 1.14f); c.a = 1;
             for (int b = 0; b < 3; b++)
                 I(realClumps[rnd.Next(realClumps.Length)], fGrass, new Vector3(x + R(rnd, -0.3f, 0.3f), VividH(x, z), z + R(rnd, -0.3f, 0.3f)), Stand(16f), R(rnd, 1.9f, 2.7f), c, (float)rnd.NextDouble());
@@ -368,14 +373,14 @@ public class LookStudyWorld : MonoBehaviour
         // Flower drifts all over the field: big yellow patches, pockets of blue and pink, daisies everywhere.
         Scatter(mYellow, fYellow, 230, 4f, -1.5f, 7.5f, 4.4f, 0.36f, 0.52f, FlowerTilt, yel, 0.1f, false, "RYellow");
         for (int d = 0; d < 22; d++)
-            Scatter(mYellow, fYellow, rnd.Next(70, 170), R(rnd, -50, 50), R(rnd, -50, 50), R(rnd, 3f, 7f), R(rnd, 2.5f, 5f), 0.34f, 0.5f, FlowerTilt, yel, 0.1f, false, "RYellow");
+            Scatter(mYellow, fYellow, rnd.Next(70, 170), R(rnd, -50, 50), R(rnd, -38, 38), R(rnd, 3f, 7f), R(rnd, 2.5f, 5f), 0.34f, 0.5f, FlowerTilt, yel, 0.1f, false, "RYellow");
         for (int d = 0; d < 10; d++)
-            Scatter(mWhite, fWhite, rnd.Next(60, 120), R(rnd, -50, 50), R(rnd, -50, 50), R(rnd, 3f, 5f), R(rnd, 2f, 4f), 0.2f, 0.3f, FlowerTilt, new Color(0.42f, 0.56f, 1.15f), 0.1f, false, "RBlue");
+            Scatter(mWhite, fWhite, rnd.Next(60, 120), R(rnd, -50, 50), R(rnd, -38, 38), R(rnd, 3f, 5f), R(rnd, 2f, 4f), 0.2f, 0.3f, FlowerTilt, new Color(0.42f, 0.56f, 1.15f), 0.1f, false, "RBlue");
         for (int d = 0; d < 7; d++)
-            Scatter(mWhite, fWhite, rnd.Next(40, 80), R(rnd, -50, 50), R(rnd, -50, 50), R(rnd, 2.5f, 4f), R(rnd, 2f, 3.5f), 0.24f, 0.34f, FlowerTilt, new Color(1.05f, 0.62f, 0.86f), 0.1f, false, "RPink");
-        Scatter(mWhite, fWhite, 900, 0f, 0f, 56f, 56f, 0.34f, 0.5f, FlowerTilt, white, 0.06f, false, "RWhite");
-        Scatter(mLeaves, fLeaves, 600, 0f, 0f, 56f, 56f, 0.5f, 0.9f, 0f, new Color(1.25f, 1.3f, 1.0f), 0.12f, false, "RLeaves");
-        Scatter(mIvy, fIvy, 260, 0f, 0f, 56f, 56f, 0.8f, 1.15f, 0f, new Color(0.62f, 0.72f, 0.62f), 0.1f, false, "RIvy");
+            Scatter(mWhite, fWhite, rnd.Next(40, 80), R(rnd, -50, 50), R(rnd, -38, 38), R(rnd, 2.5f, 4f), R(rnd, 2f, 3.5f), 0.24f, 0.34f, FlowerTilt, new Color(1.05f, 0.62f, 0.86f), 0.1f, false, "RPink");
+        Scatter(mWhite, fWhite, 900, 0f, 0f, 56f, 44f, 0.34f, 0.5f, FlowerTilt, white, 0.06f, false, "RWhite");
+        Scatter(mLeaves, fLeaves, 600, 0f, 0f, 56f, 44f, 0.5f, 0.9f, 0f, new Color(1.25f, 1.3f, 1.0f), 0.12f, false, "RLeaves");
+        Scatter(mIvy, fIvy, 260, 0f, 0f, 56f, 44f, 0.8f, 1.15f, 0f, new Color(0.62f, 0.72f, 0.62f), 0.1f, false, "RIvy");
         Scatter(mYellow, fYellow, 60, -9f, 8f, 4.5f, 3.5f, 0.32f, 0.46f, FlowerTilt, yel, 0.1f, false, "RYellow");
         Scatter(mWhite, fWhite, 110, 0f, 0f, 24f, 15f, 0.34f, 0.5f, FlowerTilt, white, 0.06f, false, "RWhite");
         Scatter(mWhite, fWhite, 90, -7f, 9f, 4.5f, 2.8f, 0.2f, 0.3f, FlowerTilt, new Color(0.42f, 0.56f, 1.15f), 0.1f, false, "RBlue");
@@ -384,6 +389,44 @@ public class LookStudyWorld : MonoBehaviour
         Scatter(mLeaves, fLeaves, 90, 0f, 2f, 24f, 15f, 0.5f, 0.9f, 0f, new Color(1.25f, 1.3f, 1.0f), 0.12f, false, "RLeaves");
         Scatter(mIvy, fIvy, 50, -3f, -2f, 22f, 14f, 0.8f, 1.15f, 0f, new Color(0.62f, 0.72f, 0.62f), 0.1f, false, "RIvy");
         Scatter(mVines, fVines, 16, -4f, 5f, 20f, 12f, 0.45f, 0.7f, 0f, new Color(0.92f, 1.05f, 0.9f), 0.1f, false, "RVines");
+
+        // The arena edge: a continuous hedge of tall bushes, 3-4 rows deep and taller toward the outside, with tall grass
+        // spilling out in front of it, so the boundary reads as "can't go through" from every side. Instanced (8 m
+        // chunks, culled per camera) like the grass.
+        if (mBush)
+        {
+            void HedgeRow(float off, float step, float s0, float s1, float jitter)
+            {
+                float hx = RealHalfX + off, hz = RealHalfZ + off;
+                float per = 4f * (hx + hz);
+                for (float d = 0; d < per; d += step * R(rnd, 0.8f, 1.2f))
+                {
+                    // walk the rectangle: south, east, north, west
+                    float t = d; Vector2 q;
+                    if (t < 2 * hx) q = new Vector2(-hx + t, -hz);
+                    else if ((t -= 2 * hx) < 2 * hz) q = new Vector2(hx, -hz + t);
+                    else if ((t -= 2 * hz) < 2 * hx) q = new Vector2(hx - t, hz);
+                    else { t -= 2 * hx; q = new Vector2(-hx, hz - t); }
+                    float x = VividX + q.x + R(rnd, -jitter, jitter), z = q.y + R(rnd, -jitter, jitter);
+                    var c = Color.white * R(rnd, 0.82f, 1.05f); c.a = 1;
+                    I(mBush, fBush, new Vector3(x, VividH(x, z) + 0.1f, z), Quaternion.Euler(0, R(rnd, 0, 360), 0), R(rnd, s0, s1), c);
+                }
+            }
+            HedgeRow(1.6f, 1.9f, 1.5f, 2.1f, 0.5f);
+            HedgeRow(3.6f, 2.1f, 2.0f, 2.7f, 0.7f);
+            HedgeRow(5.8f, 2.4f, 2.4f, 3.2f, 0.9f);
+            HedgeRow(8.4f, 2.8f, 2.6f, 3.6f, 1.2f);
+            // tall grass tufts at the foot of the hedge, so it does not start on a hard line
+            for (int i = 0; i < 1400; i++)
+            {
+                int side = rnd.Next(4); float u = R(rnd, -1f, 1f), off = R(rnd, -0.6f, 2.2f);
+                float x = side < 2 ? u * (RealHalfX + off) : (side == 2 ? 1 : -1) * (RealHalfX + off);
+                float z = side < 2 ? (side == 0 ? 1 : -1) * (RealHalfZ + off) : u * (RealHalfZ + off);
+                x += VividX;
+                var c = new Color(1.1f, 1.25f, 0.85f, 1) * R(rnd, 0.85f, 1.1f); c.a = 1;
+                I(realClumps[rnd.Next(realClumps.Length)], fGrass, new Vector3(x, VividH(x, z) - 0.03f, z), Stand(14f), R(rnd, 1.6f, 2.4f), c, (float)rnd.NextDouble());
+            }
+        }
 
         // Bushes, hand placed like the reference group plus a few further out.
         if (mBush)

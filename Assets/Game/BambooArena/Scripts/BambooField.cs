@@ -15,7 +15,7 @@ namespace BambooArena
     public class BambooField : MonoBehaviour
     {
         [Header("Layout")]
-        public Vector2 arena = new Vector2(44, 36);   // the empty clearing (RoomRun room size)
+        public Vector2 arena = new Vector2(88, 72);   // the empty clearing (RoomRun room size)
         [Tooltip("Ragged edge: bamboo comes this far in or stays this far out of the clearing line.")]
         public float edgeNoise = 1.6f;
         public float wallDepth = 10f;                 // dense, detailed bamboo
@@ -121,7 +121,7 @@ namespace BambooArena
                     bool inner = o < wallDepth;
                     if (far == inner) continue;
                     // a few gaps so the wall is not a hedge
-                    if (!far && Mathf.PerlinNoise(p.x * 0.3f + 40, p.y * 0.3f) < 0.22f && o > 3f) continue;
+                    if (!far && Mathf.PerlinNoise(p.x * 0.3f + 40, p.y * 0.3f) < 0.12f && o > 4f) continue;
                     Vector2 inward = -new Vector2(Mathf.Clamp(p.x, -arena.x * 0.5f, arena.x * 0.5f) == p.x ? 0 : Mathf.Sign(p.x),
                                                    Mathf.Clamp(p.y, -arena.y * 0.5f, arena.y * 0.5f) == p.y ? 0 : Mathf.Sign(p.y));
                     if (inward == Vector2.zero) inward = -p.normalized;
@@ -178,7 +178,7 @@ namespace BambooArena
 
         public void BakeShade()
         {
-            const int N = 256;
+            const int N = 512;
             if (!shade) shade = new Texture2D(N, N, TextureFormat.R8, false, true) { wrapMode = TextureWrapMode.Clamp, name = "BA_CanopyShade", hideFlags = HideFlags.DontSave };
             var full = FullSize;
             var px = new Color32[N * N];
@@ -202,7 +202,7 @@ namespace BambooArena
 
         // A narrow mountain-trail footpath (packed earth), winding through the clearing from the south bamboo to the
         // north bamboo, a little wider and narrower along the way. 0..1, flush with the ground (ground shader only).
-        public float TrailX(float z) => Mathf.Sin(z * 0.15f + 0.6f) * 4.5f + (Mathf.PerlinNoise(z * 0.07f, 5) - 0.5f) * 4f;
+        public float TrailX(float z) => Mathf.Sin(z * 0.075f + 0.6f) * 11f + (Mathf.PerlinNoise(z * 0.035f, 5) - 0.5f) * 8f;   // wider swings for the 88 x 72 clearing
         public float Trail(Vector2 p)
         {
             float half = 0.75f + 0.3f * Mathf.PerlinNoise(p.y * 0.2f, 17);
@@ -223,6 +223,7 @@ namespace BambooArena
             Shader.SetGlobalVectorArray("_RF_Stalkers", new Vector4[4]);
             Shader.SetGlobalVector("_RF_FogCol", new Vector4(fog.r, fog.g, fog.b, groundFogHeight));
             Shader.SetGlobalVector("_RF_FogParams", new Vector4(groundFog, distanceFog, 0.6f, hazeStart));
+            Shader.SetGlobalVector("_RF_FogArena", new Vector4(transform.position.x, transform.position.z, arena.x * 0.5f, arena.y * 0.5f));
             Shader.SetGlobalFloat("_RF_ShadowOn", shade ? 1f : 0f);
             if (shade) Shader.SetGlobalTexture("_RF_ReedShadow", shade);
             Shader.SetGlobalTexture("_RF_PropShadow", Texture2D.whiteTexture);

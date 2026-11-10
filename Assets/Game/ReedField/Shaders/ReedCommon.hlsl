@@ -10,7 +10,12 @@ float4 _RF_Wind;        // xy: wind direction (normalized), z: strength, w: gust
 float4 _RF_Gust;        // x: gust size (m), y: gust strength, z: flutter, w: sheen on gusts
 float4 _RF_Stalkers[4]; // xz position, z unused, w radius (0 = off). Unseen things pushing through the reeds.
 float4 _RF_FogCol;      // rgb, a: ground fog height (m)
-float4 _RF_FogParams;   // x: ground fog density, y: distance fog density, z: fog noise amount, w: unused
+float4 _RF_FogParams;   // x: ground fog density, y: distance fog density, z: fog noise amount, w: haze start (m)
+float4 _RF_FogArena;    // xy: arena centre (xz), zw: half size. zw = 0: no arena known
+#ifndef RR_FOGSHIFT_DECLARED
+#define RR_FOGSHIFT_DECLARED
+float  _RR_FogShift;    // RoomRun CameraRig: how much further the camera sits than at zoom 1 (m). Fog distances drop it.
+#endif
 
 // LookStudy trample map (written by LookStudyTrail): R = flattened amount, BA = push direction.
 float _LSTrailOn;
@@ -76,11 +81,14 @@ float2 RFBend(float2 root, float rnd, float stiffness, out float gust, out float
     float amount = (0.2 + gust * 0.17 * _RF_Gust.y + sway) * _RF_Wind.z * soft;
     float2 offs = dir * amount + side * sin(t * 0.97 + ph * 1.3) * 0.03 * _RF_Wind.z * soft;
 
-    // Trampled reeds lie down the way the player pushed them and rise back as the trail fades.
+    // Reeds hardly break (Kido 11-10): brushed past, they only part a little away from the player and spring straight
+    // back. The trail map is shared with the LookStudy grass and fades over ~7 s, so the reeds use only its freshest
+    // part (top 15%, gone in about a second), lean at most ~15 degrees and keep their wind sway on top.
     float4 tr = RFTrail(root);
-    trample = tr.r;
+    trample = saturate((tr.r - 0.85) / 0.15);
+    trample = trample * trample * (3 - 2 * trample);
     float2 push = tr.ba * 2 - 1;
-    offs = lerp(offs, normalize(push + 1e-4) * 1.1, saturate(trample));
+    offs += normalize(push + 1e-4) * 0.3 * trample;
 
     // Something unseen moving through the reeds parts them.
     [unroll] for (int k = 0; k < 4; k++)
@@ -115,7 +123,14 @@ float3 RFFog(float3 col, float3 ws)
     float n = RFNoise(ws.xz * 0.06 + float2(_RF_Time * 0.05, _RF_Time * 0.02));
     float low = saturate((_RF_FogCol.a - ws.y) / max(_RF_FogCol.a, 0.01));
     float fogLow = saturate(low * low * _RF_FogParams.x * lerp(1 - _RF_FogParams.z, 1 + _RF_FogParams.z, n));
-    float dist = length(ws - _WorldSpaceCameraPos);
+    // The playfield floor stays readable: ground fog is thin inside the arena and thickens a few metres past its edge.
+    if (_RF_FogArena.z > 0)
+    {
+        float2 o = max(abs(ws.xz - _RF_FogArena.xy) - _RF_FogArena.zw, 0);
+        fogLow *= lerp(0.3, 1.0, saturate(length(o) / 6.0));
+    }
+    // Zooming the RoomRun camera out must not wash the arena out: measure the haze as if the camera were at zoom 1.
+    float dist = max(length(ws - _WorldSpaceCameraPos) - _RR_FogShift, 0);
     // Distance haze starts beyond the play area, so the arena stays clear and the hills fade out.
     float fogFar = 1 - exp(-max(dist - _RF_FogParams.w, 0) * _RF_FogParams.y);
     col = lerp(col, _RF_FogCol.rgb, fogLow);

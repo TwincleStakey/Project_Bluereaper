@@ -18,7 +18,7 @@ namespace RoomRun
         const string PlaceholderPath = Root + "/Scenes/RoomRun_Placeholder.unity";
         const string DD = "Assets/Art/DDConcept";
 
-        [MenuItem("RoomRun/Build Scenes")]
+        [MenuItem("Tools/RoomRun/Build Scenes")]
         public static void BuildKeepConfig() => Build(false);
 
         // Batch entry point. Rewrites the config from the defaults below.
@@ -164,7 +164,7 @@ namespace RoomRun
             EditorSceneManager.SaveScene(scene, BootPath);
         }
 
-        [MenuItem("RoomRun/Add Scenes To Build Settings")]
+        [MenuItem("Tools/RoomRun/Add Scenes To Build Settings")]
         public static void AddToBuild()
         {
             var config = AssetDatabase.LoadAssetAtPath<RoomRunConfig>(ConfigPath);

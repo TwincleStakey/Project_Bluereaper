@@ -80,6 +80,9 @@ namespace RoomRun
     [RequireComponent(typeof(CharacterController), typeof(Health))]
     public sealed class PlayerController : MonoBehaviour
     {
+        // Renderers of the character model's own foot ring, kept hidden (the hurt blink must not switch them back on).
+        readonly System.Collections.Generic.HashSet<Renderer> hiddenRing = new System.Collections.Generic.HashSet<Renderer>();
+
         public const float MuzzleHeight = 1.05f;
 
         [Header("Move")]
@@ -137,13 +140,34 @@ namespace RoomRun
             {
                 var m = Instantiate(cfg.playerPrefab, visual);
                 m.transform.localScale = Vector3.one * cfg.playerScale;
+                // The character model carries its own glowing foot ring (DD_RingPlayer); hidden unless the switch is on.
+                // (11-10: a runtime blank material from Shader.Find broke builds, where that shader is stripped.)
+                if (!cfg.playerFootRing)
+                    foreach (var r in m.GetComponentsInChildren<Renderer>(true))
+                    {
+                        var mats = r.sharedMaterials;
+                        int ring = 0;
+                        foreach (var mt in mats) if (mt && mt.name.Contains("RingPlayer")) ring++;
+                        if (ring == 0) continue;
+                        if (ring == mats.Length) { r.enabled = false; hiddenRing.Add(r); }
+                        else
+                        {
+                            // the ring is one slot of a shared mesh: draw that slot with a shader that draws nothing
+                            var blank = Shader.Find("RoomRun/Invisible");
+                            if (!blank) { Debug.LogWarning("[RoomRun] RoomRun/Invisible shader missing; foot ring left visible"); continue; }
+                            var none = new Material(blank) { name = "RR_Invisible" };
+                            for (int i = 0; i < mats.Length; i++) if (mats[i] && mats[i].name.Contains("RingPlayer")) mats[i] = none;
+                            r.sharedMaterials = mats;
+                        }
+                    }
             }
             else
             {
                 MeshLib.Part("Stand-in", MeshLib.Capsule, cfg.ringPlayer, visual, Vector3.up * 0.9f, new Vector3(0.7f, 0.9f, 0.7f));
             }
             renderers = visual.GetComponentsInChildren<Renderer>();
-            MeshLib.Part("FootRing", MeshLib.Ring, cfg.ringPlayer, transform, Vector3.up * 0.06f, Vector3.one * 0.75f);
+            // Kido 11-10: no ring under the player. Kept behind the config switch (off) for co-op identification later.
+            if (cfg.playerFootRing) MeshLib.Part("FootRing", MeshLib.Ring, cfg.ringPlayer, transform, Vector3.up * 0.06f, Vector3.one * 0.75f);
 
             var lg = new GameObject("MuzzleLight");
             lg.transform.SetParent(transform, false);
@@ -292,7 +316,7 @@ namespace RoomRun
 
         void SetVisible(bool on)
         {
-            foreach (var r in renderers) if (r) r.enabled = on;
+            foreach (var r in renderers) if (r) r.enabled = on && !hiddenRing.Contains(r);
         }
     }
 }

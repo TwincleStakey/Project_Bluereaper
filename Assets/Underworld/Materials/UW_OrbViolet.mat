@@ -30,7 +30,7 @@ Material:
     - _Phase: 0
     - _Size: 0.75
     m_Colors:
-    - _Core: {r: 3.3, g: 3.15, b: 3.5, a: 1}
+    - _Core: {r: 3.3215687, g: 3.1568627, b: 3.5, a: 1}
     - _Halo: {r: 1.337255, g: 0.79372555, b: 2.2, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

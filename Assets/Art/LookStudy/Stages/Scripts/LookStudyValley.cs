@@ -17,6 +17,10 @@ public class LookStudyValley : MonoBehaviour
     public Prop[] extras;
 
     public const float Water = 0f;
+    // 11-10 (Kido: arenas 4x the area, reed field size): a 112 x 88 arena over the valley floor, x -62..50, z -47..41.
+    // A belt of pines with trunk colliders and boulders closes the edges; the terrain runs on well past them.
+    public const float ArenaCX = -6f, ArenaCZ = -3f, ArenaHX = 56f, ArenaHZ = 44f;
+    public static bool InArena(float x, float z, float margin = 0f) => Mathf.Abs(x - ArenaCX) < ArenaHX + margin && Mathf.Abs(z - ArenaCZ) < ArenaHZ + margin;
     Transform root;
     public readonly List<Vector3> WispPositions = new List<Vector3>();
 
@@ -26,7 +30,8 @@ public class LookStudyValley : MonoBehaviour
         new Vector4(46, 44, 3.6f, 1.2f), new Vector4(34, 37, 5.0f, 2.0f), new Vector4(27, 26, 7.5f, 2.4f),
         new Vector4(20, 17, 4.2f, 0.42f), new Vector4(10, 12, 3.2f, 0.34f), new Vector4(3, 6, 6.2f, 2.0f),
         new Vector4(-1, -2, 4.0f, 1.3f), new Vector4(-3, -9, 6.6f, 2.2f), new Vector4(-12, -16, 3.6f, 0.4f),
-        new Vector4(-24, -20, 3.4f, 0.32f), new Vector4(-38, -29, 4.4f, 0.5f), new Vector4(-60, -42, 5.5f, 0.8f)
+        new Vector4(-24, -20, 3.4f, 0.32f), new Vector4(-38, -29, 4.4f, 0.5f), new Vector4(-60, -42, 5.5f, 0.8f),
+        new Vector4(-84, -56, 6.0f, 0.9f), new Vector4(-112, -74, 6.5f, 1.0f)   // runs on out of the arena to the south-west
     };
 
     void OnEnable() { Build(); }
@@ -140,7 +145,7 @@ public class LookStudyValley : MonoBehaviour
 
     void BuildTerrain()
     {
-        const float X0 = -70, X1 = 70, Z0 = -55, Z1 = 62, Step = 0.35f;
+        const float X0 = -110, X1 = 92, Z0 = -92, Z1 = 86, Step = 0.45f;
         int nx = Mathf.CeilToInt((X1 - X0) / Step) + 1, nz = Mathf.CeilToInt((Z1 - Z0) / Step) + 1;
         var v = new Vector3[nx * nz]; var c = new Color[nx * nz];
         for (int j = 0; j < nz; j++)
@@ -171,7 +176,7 @@ public class LookStudyValley : MonoBehaviour
 
     void BuildWater()
     {
-        const float X0 = -70, X1 = 56, Z0 = -55, Z1 = 52, Step = 0.5f;
+        const float X0 = -110, X1 = 56, Z0 = -92, Z1 = 52, Step = 0.5f;
         var verts = new List<Vector3>(); var cols = new List<Color>(); var tris = new List<int>();
         int nx = Mathf.CeilToInt((X1 - X0) / Step) + 1, nz = Mathf.CeilToInt((Z1 - Z0) / Step) + 1;
         var map = new int[nx * nz];
@@ -346,9 +351,9 @@ public class LookStudyValley : MonoBehaviour
             Stamp(p, new Vector3(b.x, -0.28f, b.y), Quaternion.Euler(0, R(r, 0, 360), 0), new Vector3(s, 0.42f * s, s), Tint(r));
         }
         // Rounded cobbles along the shoreline, thicker near the water.
-        for (int i = 0; i < 900; i++)
+        for (int i = 0; i < 1500; i++)
         {
-            float x = R(r, -56, 50), z = R(r, -44, 44);
+            float x = R(r, -64, 52), z = R(r, -49, 43);
             Nearest(x, z, out float d, out float w, out float depth, out _, out _);
             if (d > w + 7f) continue;
             if (d < w - 1.2f && depth > 0.7f) continue;
@@ -383,17 +388,48 @@ public class LookStudyValley : MonoBehaviour
                 Stamp(pineDead, new Vector3(d.x, Height(d.x, d.y) - 0.3f, d.y), RandY(r, 6f), new Vector3(d.z, d.z, d.z), new Color(0.66f, 0.62f, 0.58f, 0));
         }
 
+        // Boulders where the stream leaves the arena, so the edge there is closed too.
+        foreach (var b in new[] { new Vector3(-63, -36, 5.0f), new Vector3(-64.5f, -50, 5.6f), new Vector3(-66, -31, 4.2f), new Vector3(-67, -55, 4.6f) })
+            Big(r, b.x, b.y, b.z);
+        FlushBatches(true);
+
         // Pine forest on both slopes, thick outside the arena so the middle stays open.
         if (pineTrunk != null && pineTrunk.mesh && pineBranches != null && pineBranches.mesh)
         {
-            int placed = 0;
-            for (int i = 0; i < 620 && placed < 150; i++)
+            // the arena edge: rows of pines right outside it, trunks solid, gaps only over the water
+            for (int pass = 0; pass < 3; pass++)
             {
-                float x = R(r, -68, 66), z = R(r, -52, 60);
+                float off = 1.8f + pass * 3.3f, hx = ArenaHX + off, hz = ArenaHZ + off;
+                float per = 4f * (hx + hz);
+                for (float dd = R(r, 0, 2); dd < per; dd += R(r, 2.6f, 3.6f))
+                {
+                    float t = dd; Vector2 q;
+                    if (t < 2 * hx) q = new Vector2(-hx + t, -hz);
+                    else if ((t -= 2 * hx) < 2 * hz) q = new Vector2(hx, -hz + t);
+                    else if ((t -= 2 * hz) < 2 * hx) q = new Vector2(hx - t, hz);
+                    else { t -= 2 * hx; q = new Vector2(-hx, hz - t); }
+                    float x = ArenaCX + q.x + R(r, -0.9f, 0.9f), z = ArenaCZ + q.y + R(r, -0.9f, 0.9f);
+                    Nearest(x, z, out float d0, out float w0, out _, out _, out _);
+                    float h0 = Height(x, z);
+                    if (d0 < w0 + 1.5f || h0 < 0.15f) continue;
+                    float s0 = R(r, 0.65f, 1.0f);
+                    var rot0 = Quaternion.Euler(R(r, -4, 4), R(r, 0, 360), R(r, -4, 4));
+                    var pos0 = new Vector3(x, h0 - 0.25f, z);
+                    Stamp(pineTrunk, pos0, rot0, new Vector3(s0, s0, s0), new Color(0.42f, 0.36f, 0.34f, 0));
+                    if (pass == 0) Col(pos0 + Vector3.up * 2f, new Vector3(0.8f * s0, 4f, 0.8f * s0), Quaternion.identity);
+                    Stamp(pineBranches, pos0, rot0, new Vector3(s0, s0, s0), new Color(R(r, 0.34f, 0.5f), R(r, 0.46f, 0.62f), R(r, 0.46f, 0.6f), 1));
+                }
+                FlushBatches(true);
+            }
+
+            int placed = 0;
+            for (int i = 0; i < 2400 && placed < 520; i++)
+            {
+                float x = R(r, -106, 88), z = R(r, -88, 82);
                 Nearest(x, z, out float d, out float w, out _, out _, out _);
                 float h = Height(x, z);
                 if (d < w + 15f || h > 16f) continue;
-                if (Mathf.Abs(x) < 34f && Mathf.Abs(z) < 25f && d < w + 21f) continue;
+                if (InArena(x, z, 9f)) continue;   // inside: open floor; the edge belt is placed above
                 if (new Vector2((x + 19f) / 11f, (z - 7f) / 8f).magnitude < 1f) continue;
                 float s = R(r, 0.55f, 0.95f);
                 var rot = Quaternion.Euler(R(r, -4, 4), R(r, 0, 360), R(r, -4, 4));
@@ -402,7 +438,7 @@ public class LookStudyValley : MonoBehaviour
                 Stamp(pineTrunk, pos, rot, new Vector3(s, s, s), new Color(0.42f, 0.36f, 0.34f, 0));
                 Col(pos + Vector3.up * 2f, new Vector3(0.7f * s, 4f, 0.7f * s), Quaternion.identity);
                 Stamp(pineBranches, pos, rot, new Vector3(s, s, s), tint);
-                placed++;
+                if (++placed % 130 == 0) FlushBatches(true);
             }
         }
         FlushBatches(true);
@@ -458,8 +494,8 @@ public class LookStudyValley : MonoBehaviour
         var gs = new Prop[grassClumps.Length];
         for (int i = 0; i < gs.Length; i++) gs[i] = new Prop { mesh = grassClumps[i], material = grassMat };
         const float Chunk = 8f;
-        for (float cz = -48; cz < 48; cz += Chunk)
-        for (float cx = -60; cx < 56; cx += Chunk)
+        for (float cz = -56; cz < 50; cz += Chunk)
+        for (float cx = -72; cx < 60; cx += Chunk)
         {
             for (int i = 0; i < 1500; i++)
             {
@@ -520,7 +556,7 @@ public class LookStudyValley : MonoBehaviour
             var sh = spray.shape; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 2.4f;
             FadeAlpha(spray, new Color(0.72f, 0.82f, 0.82f), 0.2f);
             spray.Play();
-            foreach (var p in new[] { new Vector3(27, 0.5f, 26), new Vector3(1, 0.4f, -2), new Vector3(-20, 0.4f, -18) })
+            foreach (var p in new[] { new Vector3(27, 0.5f, 26), new Vector3(1, 0.4f, -2), new Vector3(-20, 0.4f, -18), new Vector3(-48, 0.4f, -34) })
             {
                 var drift = Particle(root, "StreamMist", mistMat, 26, 6f, 11f, 5f, 11f, new Vector3(-0.28f, 0.04f, -0.2f), 0.12f, 2.6f, true);
                 drift.transform.position = p;
@@ -531,9 +567,9 @@ public class LookStudyValley : MonoBehaviour
         }
         if (moteMat)
         {
-            var motes = Particle(root, "Motes", moteMat, 150, 4f, 9f, 0.04f, 0.09f, Vector3.up * 0.1f, 0.25f, 16f, true);
-            motes.transform.position = new Vector3(4, 3, 4);
-            var sh = motes.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(55, 5, 44);
+            var motes = Particle(root, "Motes", moteMat, 450, 4f, 9f, 0.04f, 0.09f, Vector3.up * 0.1f, 0.25f, 48f, true);
+            motes.transform.position = new Vector3(ArenaCX, 3, ArenaCZ);
+            var sh = motes.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(112, 5, 88);
             var c = motes.colorOverLifetime; c.enabled = true;
             var g = new Gradient();
             g.SetKeys(new[] { new GradientColorKey(new Color(0.55f, 1f, 0.9f), 0), new GradientColorKey(new Color(0.55f, 1f, 0.9f), 1) },

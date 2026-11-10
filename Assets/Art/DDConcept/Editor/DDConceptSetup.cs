@@ -236,7 +236,7 @@ public static class DDConceptSetup
         return p;
     }
 
-    [MenuItem("DD/Build Concept Scene")]
+    [MenuItem("Tools/DD/Build Concept Scene")]
     public static void Build()
     {
         AssetDatabase.Refresh();
@@ -361,7 +361,7 @@ public static class DDConceptSetup
         Debug.Log("[DD] Concept scene built: " + ScenePath);
     }
 
-    [MenuItem("DD/Capture Preview")]
+    [MenuItem("Tools/DD/Capture Preview")]
     public static void CaptureMenu() => Capture("unity_preview");
 
     public static void Capture(string fileName)

@@ -104,7 +104,7 @@ Shader "BambooArena/Floor"
                 }
                 // dry bamboo leaves: the main cover, in drifts (pale straw / tan, muted), thin on the trail
                 float leafN = RFNoise(xz * 0.14 + 7.7) * 0.5 + mid * 0.3 + fine * 0.2;
-                float leaves = smoothstep(0.4, 0.58, leafN + drift * 0.4 + under * 0.1) * (1 - tr * 0.85) * (1 - peb * 0.7) * _Leaves;
+                float leaves = smoothstep(0.26, 0.66, leafN + 0.1 + drift * 0.4 + under * 0.1) * (1 - tr * 0.85) * (1 - peb * 0.7) * _Leaves;
                 [branch] if (leaves > 0.01)
                 {
                     float2 lu = Rot(xz, 0.83, 0.56) / 1.9;

@@ -4,6 +4,8 @@
     "references": [
         "RoomRun",
         "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.GPUDriven.Runtime",
         "Unity.InputSystem",
         "UnityEngine.UI"
     ],

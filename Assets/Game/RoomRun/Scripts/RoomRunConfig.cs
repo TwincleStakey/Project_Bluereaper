@@ -110,6 +110,8 @@ namespace RoomRun
         public GameObject playerPrefab;
         public float playerScale = 1.15f;
         public int playerHp = 6;
+        [Tooltip("Light ring under the player's feet. Off by default; meant for telling co-op players apart.")]
+        public bool playerFootRing = false;
 
         [Header("Materials")]
         public Material playerBullet;

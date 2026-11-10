@@ -53,7 +53,17 @@ namespace RoomRun
             }
             renderers = visual.GetComponentsInChildren<Renderer>();
             originalMats = new Material[renderers.Length][];
-            for (int i = 0; i < renderers.Length; i++) originalMats[i] = renderers[i].sharedMaterials;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                originalMats[i] = renderers[i].sharedMaterials;
+                // dark fields: an extra rim slot so the enemy reads against the dark and catches nearby light
+                if (FieldLighting.EnemyRim && !(renderers[i] is ParticleSystemRenderer))
+                {
+                    var m = new Material[originalMats[i].Length + 1];
+                    originalMats[i].CopyTo(m, 0); m[m.Length - 1] = FieldLighting.EnemyRim;
+                    originalMats[i] = m; renderers[i].sharedMaterials = m;
+                }
+            }
             flash = cfg.hitFlash;
 
             MeshLib.Part("FootRing", MeshLib.Ring, cfg.ringEnemy, transform, Vector3.up * 0.06f, Vector3.one * (0.85f * s));

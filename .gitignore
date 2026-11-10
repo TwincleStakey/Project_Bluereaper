@@ -122,3 +122,6 @@ InitTestScene*.unity*
 
 # Bamboo arena: Blender work files and previews stay local.
 /ArtSource/BambooArena/
+
+# Snow plague: downloads, Blender work files and previews stay local.
+/ArtSource/SnowPlague/

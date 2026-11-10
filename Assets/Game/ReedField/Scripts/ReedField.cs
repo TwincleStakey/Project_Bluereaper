@@ -13,6 +13,16 @@ using UnityEngine.Rendering.Universal;
 
 namespace Reeds
 {
+    // The 112 x 88 layout (11-10, Kido: every arena 2x per side). The old 56 x 44 points doubled, plus clearings for the
+    // new space so the field has several places to fight in. The builder writes these into the scene on every rebuild.
+    public static class ReedLayout
+    {
+        public static Vector2[] Channel => new[] { new Vector2(-80, 18), new Vector2(-48, 14), new Vector2(-24, 2), new Vector2(-4, -14), new Vector2(20, -18), new Vector2(44, -6), new Vector2(80, -24) };
+        public static Vector2[] Path => new[] { new Vector2(-8, -42), new Vector2(-6, -30), new Vector2(0, -16), new Vector2(0, 0), new Vector2(-12, 16), new Vector2(-28, 24), new Vector2(-22, 36), new Vector2(-16, 42) };
+        public static Vector3[] Clearings => new[] { new Vector3(0, 0, 6.5f), new Vector3(-28, 24, 10f), new Vector3(34, 20, 7.5f), new Vector3(32, -30, 6f),
+                                                     new Vector3(-40, -24, 7f), new Vector3(10, 30, 6.5f), new Vector3(-46, 32, 5.5f), new Vector3(46, -36, 5f) };
+    }
+
     [ExecuteAlways]
     [RequireComponent(typeof(ReedInstancer))]
     public class ReedField : MonoBehaviour
@@ -54,19 +64,19 @@ namespace Reeds
 
         [Header("Arena")]
         [Tooltip("Playable square (x, z). The player cannot leave it; RoomRun uses the same size.")]
-        public Vector2 arena = new Vector2(56, 44);
+        public Vector2 arena = new Vector2(112, 88);   // 11-10: 2x per side (was 56 x 44)
         [Tooltip("Scenery beyond the arena so the camera never sees an edge.")]
         public float outerMargin = 34f;
         public float riverWidth = 9f;
         public int seed = 7;
         public float waterLevel = -0.32f;
         [Tooltip("Water channel through the field, as control points (x, z) of a smooth curve.")]
-        public Vector2[] channel = { new Vector2(-40, 9), new Vector2(-24, 7), new Vector2(-12, 1), new Vector2(-2, -7), new Vector2(10, -9), new Vector2(22, -3), new Vector2(40, -12) };
+        public Vector2[] channel = ReedLayout.Channel;
         public float channelWidth = 3.6f;
         [Tooltip("Trodden path / boardwalk through the reeds, as control points (x, z).")]
-        public Vector2[] path = { new Vector2(-4, -21), new Vector2(-3, -15), new Vector2(0, -8), new Vector2(0, 0), new Vector2(-6, 8), new Vector2(-14, 12), new Vector2(-11, 18), new Vector2(-8, 21) };
+        public Vector2[] path = ReedLayout.Path;
         [Tooltip("Open spots (x, z, radius) with only low grass: spawn point and room to fight in.")]
-        public Vector3[] clearings = { new Vector3(0, 0, 4.5f), new Vector3(-14, 12, 7.5f), new Vector3(17, 10, 5.5f), new Vector3(16, -15, 4f) };
+        public Vector3[] clearings = ReedLayout.Clearings;
         [Tooltip("Spots (x, z, radius) kept clear for props such as dead trees and 장승.")]
         public Vector3[] keepOut = new Vector3[0];
 
@@ -268,7 +278,9 @@ namespace Reeds
                 h = Mathf.Lerp(h, waterLevel - 0.45f, cut);
             }
             float river = RiverFactor(p);
-            h = Mathf.Lerp(h, waterLevel - 0.6f, Mathf.SmoothStep(0f, 1f, river) * (1f - Mathf.Clamp01(bank / 4f)));
+            // deep river (Kido 11-10): the bed drops away past the wading strip to ~2.5 m under the surface mid-stream
+            float riverBed = waterLevel - 0.6f - 1.9f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 1f, river));
+            h = Mathf.Lerp(h, riverBed, Mathf.SmoothStep(0f, 1f, river) * (1f - Mathf.Clamp01(bank / 4f)));
             h += ClearingFactor(p) * 0.06f;
             return h;
         }
@@ -352,28 +364,42 @@ namespace Reeds
                 Put(mesh, mat, origin, rot0, new Vector3(p.x, y - 0.02f, p.y), R() * 360f, w, h);
             }
 
-            // Outside: a wall of very tall reeds on the banks, then wide cheap clumps over the hills, thinning into haze.
-            // LOD by distance from the arena: the bank wall uses the lighter far clump, everything beyond uses cards.
+            // Outside (Kido 11-10: the edge has to read as "can't go there" like the bamboo arena, the north edge most of
+            // all): a continuous wall of very tall, dense reeds on the bank sides, rows getting taller toward the outside
+            // and standing on the bank berm (GroundHeight rises outside the arena). Detailed clumps in the front rows, the
+            // lighter far clump behind. No flat card clumps: from the RoomRun camera they read as petals lying on the ground.
             var far = susukiFar ? susukiFar : susuki[0];
-            var card = susukiCard ? susukiCard : far;
             var full = FullSize;
             float fx = full.x * 0.5f, fz = full.y * 0.5f;
-            const float outerStep = 1.5f;
+            const float wallDepth = 11f, wallStep = 0.7f, outerStep = 1.6f;
+            for (float z = -fz; z <= fz; z += wallStep)
+            for (float x = -fx; x <= fx; x += wallStep)
+            {
+                var p = new Vector2(x + (R() - 0.5f) * wallStep * 0.8f, z + (R() - 0.5f) * wallStep * 0.8f);
+                Outside(p, out float bank, out float south);
+                bool farBank = south > riverWidth + 1.5f;
+                float o = Mathf.Max(bank, farBank ? south - riverWidth - 1.5f : 0f);
+                if (o <= 0.2f || o > wallDepth) continue;
+                float y = GroundHeight(p);
+                // taller toward the outside: ~3.4 m at the front row, ~5.5 m at the back
+                float t = Mathf.Clamp01(o / wallDepth);
+                float h = height * Mathf.Lerp(1.7f, 2.75f, Mathf.Sqrt(t)) * Mathf.Lerp(0.9f, 1.1f, R());
+                bool front = o < 4f;
+                var mesh = front ? susuki[rnd.Next(susuki.Length)] : far;
+                float w = (front ? 1.35f : 1.7f) * Mathf.Lerp(0.9f, 1.15f, R());
+                Put(mesh, susukiMat, origin, rot0, new Vector3(p.x, y - 0.05f, p.y), R() * 360f, w, h);
+            }
+            // Beyond the wall: the far clump only, sparse over the hills, thinning into the haze.
             for (float z = -fz; z <= fz; z += outerStep)
             for (float x = -fx; x <= fx; x += outerStep)
             {
                 var p = new Vector2(x + (R() - 0.5f) * outerStep * 0.9f, z + (R() - 0.5f) * outerStep * 0.9f);
                 Outside(p, out float bank, out float south);
-                bool outside = bank > 1.2f || south > riverWidth + 1.5f;
-                if (!outside) continue;
-                float o = Mathf.Max(bank, south - riverWidth - 1.5f);
-                bool wall = o < 7f;
-                // Far away the clumps get sparser and bigger; the haze does the rest.
-                if (!wall && R() > Mathf.Lerp(0.85f, 0.45f, Mathf.InverseLerp(7f, outerMargin, o))) continue;
+                float o = Mathf.Max(bank, south > riverWidth + 1.5f ? south - riverWidth - 1.5f : 0f);
+                if (o <= wallDepth) continue;
+                if (R() > Mathf.Lerp(0.8f, 0.35f, Mathf.InverseLerp(wallDepth, outerMargin, o))) continue;
                 float y = GroundHeight(p);
-                float h = height * (wall ? Mathf.Lerp(1.35f, 1.6f, R()) : Mathf.Lerp(1.0f, 1.3f, R()));
-                float w = (wall ? 1.8f : 2.4f) * Mathf.Lerp(0.9f, 1.2f, R());
-                Put(wall ? far : card, susukiMat, origin, rot0, new Vector3(p.x, y - 0.05f, p.y), R() * 360f, w, h);
+                Put(far, susukiMat, origin, rot0, new Vector3(p.x, y - 0.05f, p.y), R() * 360f, 2.0f * Mathf.Lerp(0.9f, 1.2f, R()), height * Mathf.Lerp(2.2f, 2.8f, R()));
             }
             // The far river bank gets reeds at the waterline too.
             for (float x = -fx; x <= fx; x += 1.4f)
@@ -513,6 +539,31 @@ namespace Reeds
             return mesh;
         }
 
+        // The deep river along the south: from just inside the arena edge to past the far bank, one row of quads.
+        public Vector2 RiverZ => new Vector2(transform.position.z - arena.y * 0.5f + 1.0f, transform.position.z - arena.y * 0.5f - riverWidth - 2.5f);
+        public Mesh BuildRiverMesh()
+        {
+            var full = FullSize;
+            float z0 = -arena.y * 0.5f + 1.0f, z1 = -arena.y * 0.5f - riverWidth - 3.5f;
+            var v = new List<Vector3>(); var t = new List<int>();
+            int n = Mathf.CeilToInt(full.x / 4f);
+            for (int i = 0; i <= n; i++)
+            {
+                float x = -full.x * 0.5f + full.x * i / n;
+                v.Add(new Vector3(x, waterLevel + 0.01f, z0)); v.Add(new Vector3(x, waterLevel + 0.01f, z1));
+                if (i > 0) { int s0 = v.Count - 4; t.AddRange(new[] { s0, s0 + 2, s0 + 1, s0 + 1, s0 + 2, s0 + 3 }); }
+            }
+            for (int i = 0; i < t.Count; i += 3)
+            {
+                var nn = Vector3.Cross(v[t[i + 1]] - v[t[i]], v[t[i + 2]] - v[t[i]]);
+                if (nn.y < 0) { (t[i + 1], t[i + 2]) = (t[i + 2], t[i + 1]); }
+            }
+            var mesh = new Mesh { name = "RF_River" };
+            mesh.SetVertices(v); mesh.SetTriangles(t, 0);
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            return mesh;
+        }
+
         public Mesh BuildWaterMesh()
         {
             EnsureLines();
@@ -531,7 +582,7 @@ namespace Reeds
             }
             // The river along the south edge: one wide strip across the whole scene.
             var full = FullSize;
-            float z0 = -arena.y * 0.5f + 7f, z1 = -arena.y * 0.5f - riverWidth - 4f;
+            float z0 = -arena.y * 0.5f + 7f, z1 = -arena.y * 0.5f - 2.5f;   // the deep river has its own surface (BuildRiverMesh)
             int b0 = v.Count;
             v.Add(new Vector3(-full.x * 0.5f, waterLevel, z0)); v.Add(new Vector3(full.x * 0.5f, waterLevel, z0));
             v.Add(new Vector3(-full.x * 0.5f, waterLevel, z1)); v.Add(new Vector3(full.x * 0.5f, waterLevel, z1));
@@ -560,6 +611,7 @@ namespace Reeds
             var fog = Current.fog;
             Shader.SetGlobalVector(ID_FogCol, new Vector4(fog.r, fog.g, fog.b, groundFogHeight));
             Shader.SetGlobalVector(ID_FogP, new Vector4(groundFog, distanceFog, 0.6f, hazeStart));
+            Shader.SetGlobalVector("_RF_FogArena", new Vector4(transform.position.x, transform.position.z, arena.x * 0.5f, arena.y * 0.5f));
             var prop = mood == Mood.Sunset ? propShadowSunset : propShadowMoonlit;
             Shader.SetGlobalFloat("_RF_ShadowOn", reedShadowTex ? 1f : 0f);
             if (reedShadowTex) Shader.SetGlobalTexture("_RF_ReedShadow", reedShadowTex);

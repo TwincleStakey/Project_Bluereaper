@@ -82,7 +82,7 @@ public static class RFShoreCheck
         EditorApplication.update -= Tick; EditorApplication.update += Tick;
     }
 
-    [MenuItem("ReedField/Play: Shore Check (log + shots)")]
+    [MenuItem("Tools/Dev/Reed Field/Play: Shore Check (log + shots)")]
     public static void Check()
     {
         if (!EditorApplication.isPlaying) { Debug.LogError("[Shore] enter Play first"); return; }
@@ -102,7 +102,7 @@ public static class RFShoreCheck
 
     // The four review shots at one bank spot: off / ink / sumi-e / watercolour.
     // Walks the player's CharacterController straight south from inside the arena and logs where it stops.
-    [MenuItem("ReedField/Play: South Walk Test")]
+    [MenuItem("Tools/Dev/Reed Field/Play: South Walk Test")]
     public static void SouthWalk()
     {
         if (!EditorApplication.isPlaying) return;
@@ -124,7 +124,7 @@ public static class RFShoreCheck
         });
     }
 
-    [MenuItem("ReedField/Play: Shore Shots (4 filters)")]
+    [MenuItem("Tools/Dev/Reed Field/Play: Shore Shots (4 filters)")]
     public static void Shots()
     {
         if (!EditorApplication.isPlaying) { Debug.LogError("[Shore] enter Play first"); return; }

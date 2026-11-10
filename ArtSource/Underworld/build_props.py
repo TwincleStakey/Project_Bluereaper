@@ -3,7 +3,10 @@
 import bpy, bmesh, math, random, os
 from mathutils import Vector, Matrix, Euler, noise
 
-OUT = r"F:\UnityProject\BulletHeavenArt\Assets\Underworld\Models"
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.normpath(os.path.join(HERE, "..", "..", "Assets", "Underworld", "Models"))
+# UW_ONLY_GROUND=1 rebuilds and exports only the ground slabs (plaza, platform, terrace, steps)
+ONLY_GROUND = os.environ.get("UW_ONLY_GROUND") == "1"
 os.makedirs(OUT, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
@@ -427,15 +430,16 @@ def slab(name, outline, top, depth, jitter, seed, undercut=0.0):
 
 
 def make_ground():
-    # wider arena for 3-player boss fights: 44 x 28 m plaza
-    slab("UW_Plaza", [(-22, -11), (-18, -15), (22, -15), (22, 10), (18, 13), (-22, 13)], 0.0, 7.0, 0.5, 1, undercut=2.5)
-    slab("UW_PlatformBack", [(2, 9), (18, 9), (18.5, 17.5), (1.5, 17.5)], 1.2, 1.6, 0.15, 2)
-    slab("UW_GateTerrace", [(-22, -10), (-14, -10), (-14, 0.5), (-22, 0.5)], 0.9, 1.3, 0.15, 3)
+    # 11-10: 88 x 56 m plaza (2x per side, was 44 x 28). The portal platform moves +10/+14 and the gate terrace
+    # -22/-6 as whole pieces (same size), matching UWBuilder's B() and L() shifts.
+    slab("UW_Plaza", [(-44, -21), (-36, -29), (44, -29), (44, 21), (36, 27), (-44, 27)], 0.0, 7.0, 0.5, 1, undercut=2.5)
+    slab("UW_PlatformBack", [(12, 23), (28, 23), (28.5, 31.5), (11.5, 31.5)], 1.2, 1.6, 0.15, 2)
+    slab("UW_GateTerrace", [(-44, -16), (-36, -16), (-36, -5.5), (-44, -5.5)], 0.9, 1.3, 0.15, 3)
     b = B("UW_Steps", ["M_Stone"])
     for k in (1, 2, 3):
-        b.box((6.0, 0.45, 1.2 - 0.3 * k), (10.0, 9 - 0.45 * k + 0.225, (1.2 - 0.3 * k) / 2))
+        b.box((6.0, 0.45, 1.2 - 0.3 * k), (20.0, 23 - 0.45 * k + 0.225, (1.2 - 0.3 * k) / 2))
     for k in (1, 2):
-        b.box((0.45, 3.4, 0.9 - 0.3 * k), (-14 + 0.45 * k - 0.225, -4.75, (0.9 - 0.3 * k) / 2))
+        b.box((0.45, 3.4, 0.9 - 0.3 * k), (-36 + 0.45 * k - 0.225, -10.75, (0.9 - 0.3 * k) / 2))
     b.build()
 
 
@@ -518,25 +522,26 @@ def make_bridge_wide():
 
 
 # ---------------------------------------------------------------- run
-make_gate(); make_bridge(); make_bridge_wide(); make_lantern_tall(); make_lantern_low(); make_lantern_pole()
-for i in range(3):
-    make_wall(i)
-make_fence()
-make_chain("UW_Chain", 10.0, 1.6)
-make_chain("UW_ChainShort", 4.0, 0.5)
-for i in range(5):
-    make_rock(i)
-make_pillar(); make_portal_frame()
-hooded("UW_Statue", 4.2, 1.15, ["M_Stone", "M_Dark"], "M_Stone", 0.0, 3, statue=True)
-hooded("UW_Ghost", 1.85, 0.5, ["M_Cloth", "M_Dark"], "M_Cloth", 0.35, 8)
-hooded("UW_GhostTall", 2.2, 0.42, ["M_Cloth", "M_Dark"], "M_Cloth", 0.5, 12)
-make_pagoda()
-for i in range(3):
-    make_tree(i)
-for i in range(3):
-    make_shrub(i)
-for i in range(4):
-    make_rubble(i)
+if not ONLY_GROUND:
+    make_gate(); make_bridge(); make_bridge_wide(); make_lantern_tall(); make_lantern_low(); make_lantern_pole()
+    for i in range(3):
+        make_wall(i)
+    make_fence()
+    make_chain("UW_Chain", 10.0, 1.6)
+    make_chain("UW_ChainShort", 4.0, 0.5)
+    for i in range(5):
+        make_rock(i)
+    make_pillar(); make_portal_frame()
+    hooded("UW_Statue", 4.2, 1.15, ["M_Stone", "M_Dark"], "M_Stone", 0.0, 3, statue=True)
+    hooded("UW_Ghost", 1.85, 0.5, ["M_Cloth", "M_Dark"], "M_Cloth", 0.35, 8)
+    hooded("UW_GhostTall", 2.2, 0.42, ["M_Cloth", "M_Dark"], "M_Cloth", 0.5, 12)
+    make_pagoda()
+    for i in range(3):
+        make_tree(i)
+    for i in range(3):
+        make_shrub(i)
+    for i in range(4):
+        make_rubble(i)
 make_ground()
 
 for ob in list(bpy.context.scene.objects):
@@ -547,5 +552,6 @@ for ob in list(bpy.context.scene.objects):
                              apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
                              bake_space_transform=True, object_types={"MESH"}, mesh_smooth_type="FACE",
                              use_mesh_modifiers=True, add_leaf_bones=False)
-bpy.ops.wm.save_as_mainfile(filepath=r"F:\UnityProject\BulletHeavenArt\ArtSource\Underworld\underworld_props.blend")
+if not ONLY_GROUND:
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "underworld_props.blend"))
 print("EXPORTED", len(bpy.context.scene.objects))

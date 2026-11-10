@@ -15,6 +15,10 @@ float3 _LSSkyGlow;
 float3 _LSCloudCol;
 float3 _LSFogCol;
 float _LSFogDensity;
+#ifndef RR_FOGSHIFT_DECLARED
+#define RR_FOGSHIFT_DECLARED
+float _RR_FogShift;   // RoomRun CameraRig: extra camera distance beyond zoom 1 (m); fog is measured without it
+#endif
 float _LSStars;
 float _LSCloudShade;
 float4 _LSPush;
@@ -124,7 +128,7 @@ float3 LSSky(float3 d)
 
 float3 LSFog(float3 col, float3 positionWS)
 {
-    float dist = length(_WorldSpaceCameraPos - positionWS);
+    float dist = max(length(_WorldSpaceCameraPos - positionWS) - _RR_FogShift, 0.0);
     float f = 1.0 - exp(-pow(dist * _LSFogDensity, 1.35));
     return lerp(col, _LSFogCol, saturate(f));
 }

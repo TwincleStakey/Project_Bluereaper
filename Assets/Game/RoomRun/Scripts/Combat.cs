@@ -136,9 +136,15 @@ namespace RoomRun
         readonly Stack<Bullet> poolPlayer = new Stack<Bullet>();
         readonly Stack<Bullet> poolEnemy = new Stack<Bullet>();
         readonly RaycastHit[] hits = new RaycastHit[12];
+        // Health of each collider a bullet touched (null = not an actor), so it is not looked up again every frame.
+        readonly Dictionary<int, Health> healthOf = new Dictionary<int, Health>();
         RoomRunConfig cfg;
 
         public int LiveEnemyBullets { get; private set; }
+
+        // Live bullets, read by FieldLighting to hang lights on the nearest ones.
+        public int LiveCount => live.Count;
+        public void GetLive(int i, out Vector3 pos, out Team team) { pos = live[i].go.transform.position; team = live[i].team; }
 
         public void Init(RoomRunConfig config) => cfg = config;
 
@@ -197,6 +203,7 @@ namespace RoomRun
 
         public void ClearAll()
         {
+            healthOf.Clear();   // a new room: colliders change
             for (int i = live.Count - 1; i >= 0; i--) Recycle(i);
             LiveEnemyBullets = 0;
         }
@@ -232,7 +239,9 @@ namespace RoomRun
             for (int i = 0; i < n; i++)
             {
                 var h = hits[i];
-                var health = h.collider.GetComponentInParent<Health>();
+                if (h.collider is TerrainCollider) continue;   // terrain is always floor
+                int id = h.collider.GetInstanceID();
+                if (!healthOf.TryGetValue(id, out var health)) healthOf[id] = health = h.collider.GetComponentInParent<Health>();
                 if (health)
                 {
                     if (health.team == b.team || !health.Alive || health.invulnerable) continue;

@@ -10,7 +10,7 @@ namespace RoomRun
     {
         const string BootPath = "Assets/Game/RoomRun/Scenes/RoomRun.unity";
         const string Pref = "RoomRun.AlwaysPlayFromRoomRun";
-        const string MenuPath = "RoomRun/Always Play From RoomRun";
+        const string MenuPath = "Tools/RoomRun/Always Play From RoomRun";
 
         static RoomRunPlayStart()
         {

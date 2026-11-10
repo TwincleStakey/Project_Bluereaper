@@ -10,6 +10,7 @@ namespace Reeds
     [ExecuteAlways]
     public class ReedInstancer : MonoBehaviour
     {
+        // 8 m chunks: 16 m was measured (11-10) to add ~15% triangles for no CPU gain
         const float Chunk = 8f;
         const int Max = 1023;
 
@@ -66,15 +67,42 @@ namespace Reeds
             Count++;
         }
 
+
+        // 11-10 perf: vegetation is left out of the SSAO depth-normals pass, which drew every clump a second time
+        // (half the reed/grass triangles). Drawn with a runtime copy of the material that has that pass off; the copy
+        // re-syncs its properties once a frame, so runtime colour changes (dev panel palettes) still show.
+        static readonly Dictionary<Material, Material> noAO = new Dictionary<Material, Material>();
+        static readonly Dictionary<Material, int> noAOFrame = new Dictionary<Material, int>();
+        static Material NoAO(Material src)
+        {
+            if (!src) return src;
+            if (!noAO.TryGetValue(src, out var m) || !m)
+            {
+                m = new Material(src) { name = src.name + " (no AO)", hideFlags = HideFlags.DontSave };
+                m.SetShaderPassEnabled("DepthNormals", false);
+                noAO[src] = m; noAOFrame[src] = Time.frameCount;
+            }
+            else if (noAOFrame[src] != Time.frameCount)
+            {
+                m.CopyPropertiesFromMaterial(src); m.SetShaderPassEnabled("DepthNormals", false);
+                noAOFrame[src] = Time.frameCount;
+            }
+            return m;
+        }
+
         void Draw(ScriptableRenderContext ctx, Camera cam)
         {
             if (!isActiveAndEnabled || cam.cameraType == CameraType.Preview || cam.cameraType == CameraType.Reflection) return;
+            // cameras that cannot see this layer (water-ripple / trail / effect cameras) never draw the reeds
+            if ((cam.cullingMask & (1 << gameObject.layer)) == 0) return;
             GeometryUtility.CalculateFrustumPlanes(cam, planes);
             int drawn = 0; long tris = 0;
             foreach (var b in buckets)
             {
                 if (!b.hasBounds || !GeometryUtility.TestPlanesAABB(planes, b.bounds)) continue;
-                var rp = new RenderParams(b.mat)
+                // reeds and grass leave SSAO; the bamboo keeps it (few triangles, and its wall reads with the AO)
+                var mat = b.mat.shader && b.mat.shader.name == "ReedField/Reed" ? NoAO(b.mat) : b.mat;
+                var rp = new RenderParams(mat)
                 {
                     camera = cam, layer = gameObject.layer, shadowCastingMode = ShadowCastingMode.Off, receiveShadows = true,
                     worldBounds = b.bounds

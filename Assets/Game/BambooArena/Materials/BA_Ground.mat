@@ -93,20 +93,20 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Calm: 0.3
+    - _Calm: 0.4
     - _Damp: 0.5
     - _Dapple: 0.45
-    - _Leaves: 0.8
+    - _Leaves: 0.95
     - _Moss: 0.5
-    - _NormalStrength: 0.55
+    - _NormalStrength: 0.9
     - _Pebbles: 0.5
     - _Puddles: 0
-    - _SoilTile: 3
+    - _SoilTile: 2.4
     - _StoneTile: 2.6
     - _Tile: 3
     m_Colors:
     - _Ambient: {r: 0.2, g: 0.25, b: 0.21, a: 1}
-    - _LeafCol: {r: 0.78, g: 0.66, b: 0.42, a: 1}
+    - _LeafCol: {r: 0.86, g: 0.72, b: 0.44, a: 1}
     - _Moss: {r: 0.19999996, g: 0.15999997, b: 0.079999976, a: 1}
     - _MossCol: {r: 0.35999998, g: 0.41999996, b: 0.19999996, a: 1}
     - _Mud: {r: 0.16999996, g: 0.11999995, b: 0.07499998, a: 1}

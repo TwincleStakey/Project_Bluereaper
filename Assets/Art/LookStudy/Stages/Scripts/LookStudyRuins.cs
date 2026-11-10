@@ -260,7 +260,7 @@ public class LookStudyRuins : MonoBehaviour
     void AshFall(Vector3 center, Vector3 box, float rate)
     {
         if (!emberMat) return;
-        var a = LookStudyValley.Particle(root, "Ash", emberMat, 240, 5f, 10f, 0.03f, 0.07f, new Vector3(0.25f, -0.32f, -0.45f), 0.3f, rate, true);
+        var a = LookStudyValley.Particle(root, "Ash", emberMat, Mathf.Max(240, (int)(rate * 11f)), 5f, 10f, 0.03f, 0.07f, new Vector3(0.25f, -0.32f, -0.45f), 0.3f, rate, true);
         a.transform.position = center;
         var sh = a.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = box;
         var c = a.colorOverLifetime; c.enabled = true;
@@ -271,27 +271,35 @@ public class LookStudyRuins : MonoBehaviour
         a.Play();
     }
 
-    // ---------- palace court (48 x 56, hall to the north)
+    // ---------- palace court (11-10: 108 x 95, was 54 x 63; hall to the north)
+    // Old layout points spread 2x across and 1.5x along the court (PX, PZ); the buildings and props keep their size,
+    // and the gallery rows get longer with the same spacing.
+    const float PalaceSX = 2f, PalaceSZ = 1.5f;
+    static float PX(float x) => x * PalaceSX;
+    static float PZ(float z) => z * PalaceSZ;
+    public const float PalaceGalX = 54f, PalaceSouthZ = -49.5f, PalaceNorthZ = 45.75f;
 
     public static float PalaceH(float x, float z)
     {
-        float road = (1f - SS(2.6f, 3.9f, Mathf.Abs(x))) * (1f - SS(28f, 30f, z)) * SS(-34f, -32f, z) * 0.13f;
+        float road = (1f - SS(2.6f, 3.9f, Mathf.Abs(x))) * (1f - SS(42f, 45f, z)) * SS(-51f, -48f, z) * 0.13f;
         return road + (N(x * 0.3f, z * 0.3f) - 0.5f) * 0.05f;
     }
 
     void BuildPalace()
     {
         var r = new System.Random(77); Random.InitState(77);
-        Ground(-70, 70, -60, 70, 0.5f, PalaceH, (x, z, h) =>
+        Ground(-110, 110, -85, 100, 0.5f, PalaceH, (x, z, h) =>
         {
             float ash = N(x * 0.07f + 2, z * 0.07f + 5);
-            float nearFire = Mathf.Max(1f - SS(6f, 20f, new Vector2(x, z - 30f).magnitude), 1f - SS(10f, 18f, 32f - Mathf.Abs(x)) * 1f);
-            bool outside = Mathf.Abs(x) > 28f || z < -34f;
-            return new Color(0, outside ? 1f : 0f, outside ? 0f : 1f, Mathf.Clamp01(SS(0.52f, 0.72f, ash) * 0.75f + nearFire * 0.5f));
+            float nearFire = Mathf.Max(1f - SS(6f, 20f, new Vector2(x, z - 45f).magnitude), 1f - SS(10f, 18f, 59f - Mathf.Abs(x)) * 1f);
+            // court paving fades into the trampled dirt outside over a few metres, broken up by noise (no hard cut line)
+            float outD = Mathf.Max(Mathf.Abs(x) - PalaceGalX - 2f, PalaceSouthZ - 2f - z) + (N(x * 0.35f + 9f, z * 0.35f) - 0.5f) * 2.4f;
+            float dirt = SS(-1.2f, 1.6f, outD);
+            return new Color(0, dirt, 1f - dirt, Mathf.Clamp01(SS(0.52f, 0.72f, ash) * 0.75f + nearFire * 0.5f));
         });
 
         // Terrace and the main hall: stonework survives, the upper roof is burning open.
-        var hall = new Vector3(0, 0, 38);
+        var hall = new Vector3(0, 0, PZ(38));
         K("Terrace_Stone", hall, 0, 0.18f); K("Terrace_Rail", hall, 0, 0.25f);
         var top = hall + Vector3.up * 1.6f;
         K("Hall_Wall", top, 0, 0.7f); K("Hall_Pillar", top, 0, 0.72f); K("Hall_Bracket", top, 0, 0.72f);
@@ -299,9 +307,9 @@ public class LookStudyRuins : MonoBehaviour
 
         // Rank stones in two rows, some toppled.
         for (int side = -1; side <= 1; side += 2)
-        for (int i = 0; i < 11; i++)
+        for (int i = 0; i < 17; i++)
         {
-            float z = -24f + i * 4.7f, x = side * 8.5f;
+            float z = -36f + i * 4.7f, x = side * 12f;
             var c = r.NextDouble();
             if (c < 0.18) K("Prop_RankStone", new Vector3(x + R(r, -.4f, .4f), 0.12f, z + R(r, -.6f, .6f)), R(r, 0, 360), 0.3f, 1f, 1f, 86f);
             else K("Prop_RankStone", new Vector3(x, PalaceH(x, z), z), R(r, -6, 6), c < 0.5 ? 0.45f : 0.1f, 1.05f);
@@ -320,63 +328,104 @@ public class LookStudyRuins : MonoBehaviour
             else { K("Prop_TileHeap", p + Vector3.up * 0.2f, R(r, 0, 360), 0.3f, 1.3f); K("Prop_Beam", p + new Vector3(0.4f, 0.3f, 0.2f), R(r, 0, 360), 0.95f); }
         }
         var fires = new List<Vector3>();
-        for (int i = 0; i < 19; i++)
+        for (int i = 0; i < 30; i++)
         {
-            float z = -29f + i * 3.05f;
-            if (z > 1 && z < 7) continue;       // side gates (spawn chokepoints)
-            foreach (var x in new[] { -27f, 27f })
+            float z = -46.55f + i * 3.05f;     // runs right down to the south row, no gap at the corners
+            if (Mathf.Abs(z - 6f) < 3f) continue;       // side gates (spawn chokepoints)
+            foreach (var x in new[] { -PalaceGalX, PalaceGalX })
             {
                 int st = PickState(r, x * 0.13f + z);
                 Gallery(x, z, x < 0 ? 90 : -90, st, false);
                 if (st == 1 && r.NextDouble() < 0.55) fires.Add(new Vector3(x, 2.4f, z));
             }
         }
-        for (int i = 0; i < 18; i++)
+        for (int i = 0; i < 36; i++)
         {
-            float x = -25.5f + i * 3.05f;
+            float x = -52.5f + i * 3.05f;
             if (Mathf.Abs(x) < 3.5f) continue;  // south gate
-            Gallery(x, -33f, 180, 2, true);     // kept low so it never hides the player
+            Gallery(x, PalaceSouthZ, 180, 2, true);     // kept low so it never hides the player
         }
-        for (int i = 0; i < 6; i++) { float x = i < 3 ? -26f + i * 3.05f : 26f - (i - 3) * 3.05f; Gallery(x, 30.5f, 0, PickState(r, i), false); }
+        // north galleries from the corners in toward the hall terrace
+        for (int i = 0; i < 18; i++) { float x = i < 9 ? -53f + i * 3.05f : 53f - (i - 9) * 3.05f; Gallery(x, PalaceNorthZ, 0, PickState(r, i), false); }
+        // corner posts close the gaps where the rows meet
+        foreach (var cx in new[] { -PalaceGalX, PalaceGalX }) { Gallery(cx, PalaceSouthZ, 180, 2, true); Gallery(cx, PalaceNorthZ, 0, 0, false); }
 
         // Debris and barricades: dense at the edges, the centre stays clear for bullets.
-        K("Prop_Palanquin", new Vector3(-11.5f, 0.05f, -4), 28, 0.72f, 1.1f, 1f, 0, 13f);
-        K("Prop_Palanquin", new Vector3(13, 0.05f, 14), 200, 0.95f, 1f, 1f, 7f, -10f);
-        K("Prop_Cart", new Vector3(12.5f, 0.1f, -12), 62, 0.5f, 1f, 1f, 6f, 10f);
-        for (int b = 0; b < 3; b++)
+        K("Prop_Palanquin", new Vector3(PX(-11.5f), 0.05f, PZ(-4)), 28, 0.72f, 1.1f, 1f, 0, 13f);
+        K("Prop_Palanquin", new Vector3(PX(13), 0.05f, PZ(14)), 200, 0.95f, 1f, 1f, 7f, -10f);
+        K("Prop_Palanquin", new Vector3(-38f, 0.05f, -34f), 120, 0.8f, 1f, 1f, 5f, 9f);
+        K("Prop_Cart", new Vector3(PX(12.5f), 0.1f, PZ(-12)), 62, 0.5f, 1f, 1f, 6f, 10f);
+        K("Prop_Cart", new Vector3(-40f, 0.1f, 20f), 150, 0.6f, 1f, 1f, -5f, 8f);
+        for (int b = 0; b < 6; b++)
         {
-            var c = new Vector3(new[] { -15f, 16f, -17f }[b], 0, new[] { 12f, 3f, -20f }[b]);
+            var c = new Vector3(new[] { PX(-15f), PX(16f), PX(-17f), 40f, -42f, 36f }[b], 0, new[] { PZ(12f), PZ(3f), PZ(-20f), -36f, -8f, 32f }[b]);
             float yaw = R(r, 0, 180);
             var d = Quaternion.Euler(0, yaw, 0);
             for (int k = -1; k <= 1; k++) K("Prop_Fence", c + d * new Vector3(k * 3.4f, 0, 0), yaw + R(r, -10, 10), 0.45f, 1.1f, 1f, R(r, -10, 10), R(r, -8, 8));
         }
-        foreach (var f in new[] { new Vector3(-20f, -9f, 30f), new Vector3(18f, 22f, 150f), new Vector3(-5f, 22f, 280f), new Vector3(21f, -16f, 80f) })
+        foreach (var f in new[] { new Vector3(PX(-20f), PZ(-9f), 30f), new Vector3(PX(18f), PZ(22f), 150f), new Vector3(PX(-5f), PZ(22f), 280f), new Vector3(PX(21f), PZ(-16f), 80f),
+                                  new Vector3(-24f, -40f, 200f), new Vector3(46f, 6f, 320f), new Vector3(-46f, 30f, 110f) })
         {
             var p = new Vector3(f.x, 0.05f, f.y);
             K("Prop_BannerPole", p, f.z, 0.5f, 1f, 1f, 84f);
             K("Prop_BannerCloth", p + new Vector3(0.4f, 0.03f, 0.3f), f.z + 90f, 0.2f, 1.6f, 1f);
         }
-        K("Prop_Basin", new Vector3(-18, 0, 24), 0, 0.15f, 1.1f);
-        K("Prop_Basin", new Vector3(19, 0.5f, 24), 30, 0.2f, 1.1f, 1f, 110f);
-        for (int i = 0; i < 26; i++)
+        K("Prop_Basin", new Vector3(PX(-18), 0, PZ(24)), 0, 0.15f, 1.1f);
+        K("Prop_Basin", new Vector3(PX(19), 0.5f, PZ(24)), 30, 0.2f, 1.1f, 1f, 110f);
+        // debris: dense toward the galleries, the middle stays clear for bullets
+        for (int i = 0; i < 104; i++)
         {
-            float x = R(r, -24, 24), z = R(r, -30, 28);
-            if (Mathf.Abs(x) < 14f && z < 20f) continue;
+            float x = R(r, -51, 51), z = R(r, -46, 43);
+            if (Mathf.Abs(x) < 28f && z < 30f) continue;
             if (r.NextDouble() < 0.5) K("Prop_TileHeap", new Vector3(x, 0.05f, z), R(r, 0, 360), 0.25f, R(r, 0.8f, 1.5f));
             else K("Prop_Beam", new Vector3(x, 0.08f, z), R(r, 0, 360), 0.95f, R(r, 0.8f, 1.6f));
         }
+        // Beyond the galleries: a broken outer palace wall, charred pines and rubble, so the edge does not open onto bare dirt.
+        foreach (var side in new[] { -1f, 1f })
+            for (float z = PalaceSouthZ - 6f; z < PalaceNorthZ + 10f; z += 3.05f)
+            {
+                if (r.NextDouble() < 0.18) { K("Prop_TileHeap", new Vector3(side * (PalaceGalX + 9f), 0.05f, z), R(r, 0, 360), 0.3f, R(r, 1f, 1.4f)); continue; }
+                { var q = new Vector3(side * (PalaceGalX + 9f), 0.02f, z); float yw = side < 0 ? 90 : -90; K("Gal_Plinth", q, yw, 0.4f); K("Gal_Wall", q, yw, R(r, 0.72f, 0.95f), 1f, 0.8f); }
+            }
+        for (float x = -PalaceGalX - 9f; x <= PalaceGalX + 9f; x += 3.05f)
+        {
+            if (Mathf.Abs(x) < 4f) continue;   // the south gate's road
+            if (r.NextDouble() < 0.18) { K("Prop_TileHeap", new Vector3(x, 0.05f, PalaceSouthZ - 9f), R(r, 0, 360), 0.3f, R(r, 1f, 1.4f)); continue; }
+            { var q = new Vector3(x, 0.02f, PalaceSouthZ - 9f); K("Gal_Plinth", q, 180, 0.4f); K("Gal_Wall", q, 180, R(r, 0.72f, 0.95f), 1f, 0.8f); }
+        }
+        for (int i = 0; i < 90; i++)
+        {
+            float x = R(r, -96, 96), z = R(r, -78, 90);
+            if (Mathf.Abs(x) < PalaceGalX + 4f && z > PalaceSouthZ - 4f) continue;
+            if (Mathf.Abs(x) < 5f && z < PalaceSouthZ) continue;
+            if (r.NextDouble() < 0.5) K("Prop_TileHeap", new Vector3(x, 0.05f, z), R(r, 0, 360), 0.35f, R(r, 0.9f, 1.6f));
+            else K("Prop_Beam", new Vector3(x, 0.08f, z), R(r, 0, 360), 0.95f, R(r, 0.8f, 1.6f));
+        }
         Flush(true);
+        if (pineDead)
+        {
+            for (int i = 0; i < 70; i++)
+            {
+                float x = R(r, -100, 100), z = R(r, -82, 95);
+                if (Mathf.Abs(x) < PalaceGalX + 12f && z > PalaceSouthZ - 12f) continue;
+                if (Mathf.Abs(x) < 6f && z < PalaceSouthZ) continue;
+                float s = R(r, 0.8f, 1.3f);
+                Stamp(pineDead, pineDeadMat, new Vector3(x, PalaceH(x, z) - 0.3f, z), Quaternion.Euler(R(r, -5, 5), R(r, 0, 360), R(r, -5, 5)), new Vector3(s, s, s), new Color(0.4f, 0.36f, 0.34f, 1));
+            }
+            Flush(true);
+        }
 
         Fire(hall + new Vector3(-1.5f, 9.4f, 0.3f), 2.8f, 70f, 2.6f);
         Fire(hall + new Vector3(-6.5f, 7f, -3.8f), 1.9f, 42f, 1.4f);
         Fire(hall + new Vector3(6.5f, 7.2f, -3f), 1.6f, 36f, 1.2f);
         Fire(hall + new Vector3(0, 3.5f, -4.8f), 1.2f, 30f, 0.5f);
         int nf = 0;
-        foreach (var f in fires) { if (nf++ > 7) break; Fire(f, 1.0f, 20f, 0.7f); }
-        Fire(new Vector3(-11.5f, 0.9f, -4), 0.6f, 12f, 0.5f);
-        Fire(new Vector3(13, 0.7f, 14), 0.7f, 12f, 0.5f);
-        foreach (var w in new[] { new Vector3(-6, 1.3f, -18), new Vector3(7, 1.3f, 6), new Vector3(-3.5f, 1.3f, 15) }) Wisp(w);
-        AshFall(new Vector3(0, 18, 3), new Vector3(70, 6, 70), 22);
+        foreach (var f in fires) { if (nf++ > 13) break; Fire(f, 1.0f, 20f, 0.7f); }
+        Fire(new Vector3(PX(-11.5f), 0.9f, PZ(-4)), 0.6f, 12f, 0.5f);
+        Fire(new Vector3(PX(13), 0.7f, PZ(14)), 0.7f, 12f, 0.5f);
+        Fire(new Vector3(-38f, 0.8f, -34f), 0.6f, 12f, 0.5f);
+        foreach (var w in new[] { new Vector3(PX(-6), 1.3f, PZ(-18)), new Vector3(PX(7), 1.3f, PZ(6)), new Vector3(PX(-3.5f), 1.3f, PZ(15)), new Vector3(34, 1.3f, -30), new Vector3(-30, 1.3f, 10) }) Wisp(w);
+        AshFall(new Vector3(0, 18, 0), new Vector3(140, 6, 120), 60);
     }
 
     static int PickState(System.Random r, float seed)
@@ -385,7 +434,11 @@ public class LookStudyRuins : MonoBehaviour
         return v < 0.26 ? 0 : v < 0.55 ? 1 : v < 0.85 ? 2 : 3;
     }
 
-    // ---------- thatched village (64 x 64, threshing yard in the centre)
+    // ---------- thatched village (threshing yard in the centre). 11-10: a 112 x 88 arena (x +-56, z -48..40), closed by
+    // a belt of pines with low stone walls in front; the old house ring stays and more houses fill the wider sides.
+    public const float VillageHalfX = 56f, VillageMinZ = -48f, VillageMaxZ = 40f;
+    public static bool InVillageArena(float x, float z, float margin = 0f) =>
+        Mathf.Abs(x) < VillageHalfX + margin && z > VillageMinZ - margin && z < VillageMaxZ + margin;
 
     static readonly Vector2[] Lanes = { new Vector2(0, -32), new Vector2(22, 24), new Vector2(-24, 22), new Vector2(30, -8), new Vector2(-31, -6) };
 
@@ -422,7 +475,7 @@ public class LookStudyRuins : MonoBehaviour
     void BuildVillage()
     {
         var r = new System.Random(31); Random.InitState(31);
-        Ground(-72, 72, -72, 72, 0.45f, VillageH, (x, z, h) =>
+        Ground(-104, 104, -96, 92, 0.5f, VillageH, (x, z, h) =>
         {
             float yard = 1f - SS(8f, 11.5f, new Vector2(x, z).magnitude + (N(x * 0.2f, z * 0.2f) - 0.5f) * 3f);
             float lane = 1f - SS(1.9f, 3.6f, LaneDist(x, z));
@@ -438,6 +491,9 @@ public class LookStudyRuins : MonoBehaviour
             new Vector4(10, 21, 208, 2), new Vector4(21, 10, 248, 0), new Vector4(26, -6, 285, 3), new Vector4(18, -18, 322, 0),
             new Vector4(-35, 19, 110, 3), new Vector4(-24, 32, 140, 0), new Vector4(0, 34, 180, 1), new Vector4(25, 31, 214, 2),
             new Vector4(37, 16, 240, 0), new Vector4(-38, -16, 65, 1), new Vector4(37, -22, 300, 3),
+            // the wider arena: more houses out on the east and west sides and in the south corners, facing in
+            new Vector4(-47, 2, 90, 0), new Vector4(48, -6, 270, 2), new Vector4(-46, -34, 50, 3), new Vector4(46, -36, 310, 1),
+            new Vector4(-22, -38, 20, 1), new Vector4(24, -39, 340, 0), new Vector4(-49, 26, 120, 1), new Vector4(49, 28, 235, 3),
         };
         var fires = new List<Vector3>();
         foreach (var h in layout)
@@ -481,17 +537,18 @@ public class LookStudyRuins : MonoBehaviour
         foreach (var s in new[] { new Vector3(7, -7, 1.1f), new Vector3(10, -4, 0.9f), new Vector3(-9, -7, 1f), new Vector3(13, 7, 1f), new Vector3(-14, 2, 0.8f) })
             K("Prop_Straw", new Vector3(s.x, VillageH(s.x, s.y) - 0.05f, s.y), R(r, 0, 360), 0.14f, s.z, 0.92f);
         K("Prop_Cart", new Vector3(4.5f, 0.1f, 7), 200, 0.35f, 1f, 0.9f, 7f, 11f);
-        for (int i = 0; i < 14; i++)
+        for (int i = 0; i < 26; i++)
         {
-            float a = R(r, 0, 6.28f), d = R(r, 12, 32);
+            float a = R(r, 0, 6.28f), d = R(r, 12, 46);
             var p = new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); p.y = VillageH(p.x, p.z);
-            if (LaneDist(p.x, p.z) < 3.2f) continue;
+            if (LaneDist(p.x, p.z) < 3.2f || !InVillageArena(p.x, p.z, -3f)) continue;
             K("Prop_Fence", p, R(r, 0, 360), R(r, 0.1f, 0.7f), 1f, 0.95f, R(r, -14, 14), R(r, -12, 12));
         }
-        for (int i = 0; i < 28; i++)
+        for (int i = 0; i < 60; i++)
         {
-            float a = R(r, 0, 6.28f), d = R(r, 7, 30);
+            float a = R(r, 0, 6.28f), d = R(r, 7, 48);
             var p = new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); p.y = VillageH(p.x, p.z) + 0.06f;
+            if (!InVillageArena(p.x, p.z, -2f)) continue;
             K(r.NextDouble() < 0.5 ? "Prop_Beam" : "Prop_Plank", p, R(r, 0, 360), 0.85f, R(r, 0.8f, 1.5f));
         }
         Flush(true);
@@ -504,42 +561,89 @@ public class LookStudyRuins : MonoBehaviour
             Stamp(jangseung, jangseungMat, new Vector3(3.8f, VillageH(3.8f, -27) - 0.15f, -27), Quaternion.Euler(4, 200, -7), new Vector3(s, s, s), new Color(0.85f, 0.85f, 0.85f, 0.2f));
             Flush(true);
         }
-        // Dead and living pines mass on the hill behind the houses.
-        for (int i = 0; i < 420; i++)
+        // The arena edge: a low broken stone wall just inside the pine belt, gaps where the lanes leave.
         {
-            float x = R(r, -70, 70), z = R(r, -70, 70), d = new Vector2(x, z).magnitude;
-            if (d < 40f) continue;
+            void WallRun(Vector2 a, Vector2 b)
+            {
+                float L = Vector2.Distance(a, b);
+                for (float t = 0; t <= L; t += 0.75f)
+                {
+                    var q2 = Vector2.Lerp(a, b, t / L);
+                    if (LaneDist(q2.x, q2.y) < 2.8f || r.NextDouble() < 0.1) continue;
+                    var q = new Vector3(q2.x, VillageH(q2.x, q2.y), q2.y);
+                    RockAt(r, q + Vector3.up * 0.05f, R(r, 0.6f, 1.0f));
+                    if (r.NextDouble() < 0.75) RockAt(r, q + Vector3.up * 0.45f, R(r, 0.45f, 0.75f));
+                }
+            }
+            float wx = VillageHalfX + 1.2f, wz0 = VillageMinZ - 1.2f, wz1 = VillageMaxZ + 1.2f;
+            WallRun(new Vector2(-wx, wz0), new Vector2(wx, wz0));
+            WallRun(new Vector2(wx, wz0), new Vector2(wx, wz1));
+            WallRun(new Vector2(wx, wz1), new Vector2(-wx, wz1));
+            WallRun(new Vector2(-wx, wz1), new Vector2(-wx, wz0));
+            Flush(true);
+        }
+        // Pine belt right behind the wall (with trunk colliders), then dead and living pines massed outside.
+        for (int pass = 0; pass < 3; pass++)
+        {
+            float off = 3.2f + pass * 3.4f, hx = VillageHalfX + off, z0 = VillageMinZ - off, z1 = VillageMaxZ + off;
+            float per = 2f * (2f * hx + (z1 - z0));
+            for (float d = R(r, 0, 2); d < per; d += R(r, 2.6f, 3.6f))
+            {
+                float t = d; Vector2 q;
+                if (t < 2 * hx) q = new Vector2(-hx + t, z0);
+                else if ((t -= 2 * hx) < z1 - z0) q = new Vector2(hx, z0 + t);
+                else if ((t -= z1 - z0) < 2 * hx) q = new Vector2(hx - t, z1);
+                else { t -= 2 * hx; q = new Vector2(-hx, z1 - t); }
+                float x = q.x + R(r, -1f, 1f), z = q.y + R(r, -1f, 1f);
+                if (LaneDist(x, z) < 2.2f && pass == 0) continue;   // lanes run out between the trees
+                float y = VillageH(x, z) - 0.25f, s = R(r, 0.75f, 1.2f);
+                var rot = Quaternion.Euler(R(r, -3, 3), R(r, 0, 360), R(r, -3, 3));
+                Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(0.42f, 0.36f, 0.34f, 1));
+                Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1));
+                if (pass == 0) Col(new Vector3(x, y + 2f, z), new Vector3(0.8f * s, 4f, 0.8f * s), Quaternion.identity);
+            }
+            Flush(true);
+        }
+        for (int i = 0; i < 900; i++)
+        {
+            float x = R(r, -100, 100), z = R(r, -92, 88);
+            if (InVillageArena(x, z, 12f)) continue;
             float y = VillageH(x, z) - 0.25f, s = R(r, 0.65f, 1.15f);
             var rot = Quaternion.Euler(R(r, -3, 3), R(r, 0, 360), R(r, -3, 3));
             Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(0.42f, 0.36f, 0.34f, 1));
             Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1));
         }
-        foreach (var d in new[] { new Vector3(-6, -19, 1.1f), new Vector3(31, 7, 1f), new Vector3(-31, 7, 0.9f), new Vector3(17, 33, 1f), new Vector3(-16, 12, 0.7f) })
+        foreach (var d in new[] { new Vector3(-6, -19, 1.1f), new Vector3(31, 7, 1f), new Vector3(-31, 7, 0.9f), new Vector3(17, 33, 1f), new Vector3(-16, 12, 0.7f), new Vector3(42, -20, 1f), new Vector3(-40, -26, 1.1f), new Vector3(-36, 32, 0.9f) })
             Stamp(pineDead, pineDeadMat, new Vector3(d.x, VillageH(d.x, d.y) - 0.3f, d.y), Quaternion.Euler(R(r, -5, 5), R(r, 0, 360), R(r, -5, 5)), new Vector3(d.z, d.z, d.z), new Color(0.52f, 0.48f, 0.45f, 1));
         Flush(true);
         // Dead grass in tufts along walls and verges.
         if (grass != null && grass.Length > 0)
         {
-            for (int i = 0; i < 70000; i++)
+            // 16 m chunks, one mesh each, so the camera culls what it cannot see (the field is 4x bigger now)
+            const float GC = 16f;
+            for (float cz = -56f; cz < 48f; cz += GC)
+            for (float cx = -64f; cx < 64f; cx += GC)
             {
-                float x = R(r, -48, 48), z = R(r, -48, 48);
-                if (r.NextDouble() > VillageGrass(x, z)) continue;
-                if ((i & 4095) == 4095) Flush(false);
-                float s = R(r, 0.8f, 1.7f);
-                var t = Color.Lerp(new Color(0.46f, 0.44f, 0.34f, 1), new Color(0.82f, 0.72f, 0.46f, 1), N(x * 0.3f, z * 0.3f));
-                Stamp(grass[r.Next(grass.Length)], grassMat, new Vector3(x, VillageH(x, z) - 0.03f, z), Quaternion.Euler(R(r, -10, 10), R(r, 0, 360), R(r, -10, 10)), new Vector3(s, s, s), t);
+                for (int i = 0; i < 2900; i++)
+                {
+                    float x = cx + R(r, 0, GC), z = cz + R(r, 0, GC);
+                    if (r.NextDouble() > VillageGrass(x, z)) continue;
+                    float s = R(r, 0.8f, 1.7f);
+                    var t = Color.Lerp(new Color(0.46f, 0.44f, 0.34f, 1), new Color(0.82f, 0.72f, 0.46f, 1), N(x * 0.3f, z * 0.3f));
+                    Stamp(grass[r.Next(grass.Length)], grassMat, new Vector3(x, VillageH(x, z) - 0.03f, z), Quaternion.Euler(R(r, -10, 10), R(r, 0, 360), R(r, -10, 10)), new Vector3(s, s, s), t);
+                }
+                Flush(false);
             }
-            Flush(false);
         }
         foreach (var f in fires) Fire(f, 1.5f, 34f, 1.5f);
         Fire(new Vector3(4.5f, 1.1f, 7), 0.55f, 11f, 0.4f);
-        foreach (var w in new[] { new Vector3(0, 1.4f, -12), new Vector3(-13, 1.6f, -13), new Vector3(12, 1.6f, 14) }) Wisp(w);
-        AshFall(new Vector3(0, 15, 0), new Vector3(70, 6, 70), 18);
+        foreach (var w in new[] { new Vector3(0, 1.4f, -12), new Vector3(-13, 1.6f, -13), new Vector3(12, 1.6f, 14), new Vector3(-40, 1.6f, -10), new Vector3(40, 1.6f, 12), new Vector3(8, 1.5f, -36) }) Wisp(w);
+        AshFall(new Vector3(0, 15, -4), new Vector3(130, 6, 110), 50);
     }
 
     public static LookStudyWalker.Surface PalaceSurface(float x, float z)
     {
-        return Mathf.Abs(x) > 28f || z < -34f ? LookStudyWalker.Surface.Dirt : LookStudyWalker.Surface.Stone;
+        return Mathf.Abs(x) > PalaceGalX + 1f || z < PalaceSouthZ - 1f ? LookStudyWalker.Surface.Dirt : LookStudyWalker.Surface.Stone;
     }
 
     public static float VillageGrass(float x, float z)

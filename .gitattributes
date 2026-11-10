@@ -169,3 +169,7 @@ Packages/packages-lock.json linguist-generated
 
 # Exceptions for .asset files such as lightning pre-baking
 LightingData.asset     binary
+# Terrain data is saved binary; as text its CR LF byte pairs were stripped on commit (11-10, AV_TerrainData)
+*TerrainData*.asset    binary
+# Generated debris meshes for the abandoned village (large, rebuilt by AVBuilder)
+Assets/Game/AbandonedVillage/Generated/*.asset lfs

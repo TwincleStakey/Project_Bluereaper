@@ -15,6 +15,9 @@ namespace RoomRun
         public PlayerController Target;
         public Camera Cam { get; private set; }
 
+        static readonly int ID_FogShift = Shader.PropertyToID("_RR_FogShift");
+        float fogBase = -1f, fogWritten = -1f;
+
         Vector3 focus, center;
         Vector2 clamp;
         float shake, zoom = 1f;
@@ -61,6 +64,9 @@ namespace RoomRun
 
         public void Shake(float amount) => shake = Mathf.Max(shake, amount);
 
+        // Wheel zoom (1 = default). Set by remote captures.
+        public float Zoom { get => zoom; set => zoom = Mathf.Clamp(value, 0.6f, 3.5f); }
+
         Vector3 WantedFocus()
         {
             if (!Target) return focus;
@@ -94,6 +100,31 @@ namespace RoomRun
             }
             transform.position = focus + offset + jitter;
             transform.rotation = Quaternion.LookRotation(-offset);
+            KeepFogAtZoom();
+        }
+
+        // Fog is measured from the camera, so pulling the camera back used to drown the whole arena (Kido 11-10, every
+        // field). Fog is kept as it looks at zoom 1: the field shaders subtract the extra distance (_RR_FogShift) and
+        // Unity's own exponential fog is thinned by the same ratio. Zooming in never adds fog.
+        void KeepFogAtZoom()
+        {
+            float baseDist = new Vector2(height, back).magnitude;
+            float extra = Mathf.Max(0f, zoom - 1f) * baseDist;
+            Shader.SetGlobalFloat(ID_FogShift, extra);
+
+            // a scene load or a field script may set its own density; take that as the zoom-1 value
+            if (!Mathf.Approximately(RenderSettings.fogDensity, fogWritten)) fogBase = RenderSettings.fogDensity;
+            if (fogBase < 0f) return;
+            float k = baseDist / (baseDist + extra);
+            fogWritten = fogBase * k;
+            RenderSettings.fogDensity = fogWritten;
+        }
+
+        void OnDisable()
+        {
+            Shader.SetGlobalFloat(ID_FogShift, 0f);
+            if (fogBase >= 0f && Mathf.Approximately(RenderSettings.fogDensity, fogWritten)) RenderSettings.fogDensity = fogBase;
+            fogBase = fogWritten = -1f;
         }
     }
 }
