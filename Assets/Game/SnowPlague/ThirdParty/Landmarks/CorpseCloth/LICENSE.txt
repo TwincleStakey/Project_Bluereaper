@@ -1,0 +1,11 @@
+Model Information:
+* title:	Corpse
+* source:	https://sketchfab.com/3d-models/corpse-be9b034525c246cebab3620acb5a8027
+* author:	Tamal De Quezo (https://sketchfab.com/Tamaldequeso)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Corpse" (https://sketchfab.com/3d-models/corpse-be9b034525c246cebab3620acb5a8027) by Tamal De Quezo (https://sketchfab.com/Tamaldequeso) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

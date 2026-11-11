@@ -93,13 +93,13 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Calm: 0.4
-    - _Damp: 0.5
+    - _Calm: 0.05
+    - _Damp: 0.75
     - _Dapple: 0.45
     - _Leaves: 0.95
-    - _Moss: 0.5
-    - _NormalStrength: 0.9
-    - _Pebbles: 0.5
+    - _Moss: 0.7
+    - _NormalStrength: 1.4
+    - _Pebbles: 1
     - _Puddles: 0
     - _SoilTile: 2.4
     - _StoneTile: 2.6

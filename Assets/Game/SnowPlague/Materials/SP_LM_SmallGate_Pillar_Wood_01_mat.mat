@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SP_LM_SmallGate_Pillar_Wood_01_mat
+  m_Shader: {fileID: 4800000, guid: 515169841aa33c141a11526bd3c5675d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 0b3bb5d4f63f2b2429ee68bd26a9710a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AOStrength: 0.8
+    - _Cull: 0
+    - _Desaturate: 0.45
+    - _Flicker: 0
+    - _GroundMelt: 0.05
+    - _NormalStrength: 1
+    - _SeeThrough: 0
+    - _Smoothness: 0.12
+    - _SnowBias: 0.2
+    - _SnowCap: 0
+    - _TriScale: 4
+    - _Triplanar: 0
+    - _VColAlbedo: 0
+    - _VertexFrost: 0
+    - _Wetness: 0
+    m_Colors:
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Tint: {r: 0.66, g: 0.63, b: 0.6, a: 1}
+    - _TintVar: {r: 1, g: 1, b: 1, a: 0.1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

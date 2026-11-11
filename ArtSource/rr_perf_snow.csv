@@ -1,0 +1,5 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+snow,base [enemies 0 bullets 0],179,5.59,7.99,4.99,3.52,5.22,699,696,391,712,1,14
+snow,shadows [enemies 0 bullets 0],196,5.10,7.38,4.51,3.34,4.67,663,663,387,706,1,14
+snow,post [enemies 0 bullets 0],186,5.38,8.62,4.80,3.45,5.07,679,676,371,712,1,14
+snow,swarm:300 [enemies 300 bullets 4937],52,19.19,36.58,18.26,13.25,5.75,4952,4874,2406,7074,1,26

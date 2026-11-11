@@ -1,4 +1,5 @@
 // Yokai behaviours. All movement is steering inside the room, so stages need no navmesh.
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RoomRun
@@ -14,7 +15,7 @@ namespace RoomRun
         Health health;
         Transform visual;
         Renderer[] renderers;
-        Material[][] originalMats;
+        Material[][] originalMats, flashMats;
         Material flash;
         float fallbackY, fireTimer, telegraph, flashLeft, contactCool, phase, ringAngle;
         float dashWait, dashLeft;
@@ -39,6 +40,9 @@ namespace RoomRun
             float s = d.scale;
             cc.height = 1.8f * s; cc.center = new Vector3(0, 0.95f * s, 0); cc.radius = 0.5f * s;
             cc.skinWidth = 0.03f; cc.stepOffset = 0.3f; cc.minMoveDistance = 0f;
+            // 11-11 perf: in a crowd the controllers overlap each other all the time and the depenetration pass was
+            // most of cc.Move's cost (150 enemies: 3.8 ms); separation steering already keeps them apart
+            cc.enableOverlapRecovery = false;
 
             visual = new GameObject("Visual").transform;
             visual.SetParent(transform, false);
@@ -66,7 +70,8 @@ namespace RoomRun
             }
             flash = cfg.hitFlash;
 
-            MeshLib.Part("FootRing", MeshLib.Ring, cfg.ringEnemy, transform, Vector3.up * 0.06f, Vector3.one * (0.85f * s));
+            // 11-12 Kido: no red rings under enemies (every field)
+            // MeshLib.Part("FootRing", MeshLib.Ring, cfg.ringEnemy, transform, Vector3.up * 0.06f, Vector3.one * (0.85f * s));
 
             fireTimer = Random.Range(0.6f, 1f) * d.fireInterval;
             dashWait = Random.Range(0.8f, 1.4f);
@@ -107,11 +112,15 @@ namespace RoomRun
                     break;
             }
 
-            move += Separation() * 2.5f;
-            var delta = Ground.LimitClimb(transform.position, move * dt, fallbackY);
-            float groundY = Ground.Sample(transform.position + delta, fallbackY);
-            delta.y = groundY - transform.position.y;
-            cc.Move(delta);
+            using (mSep.Auto()) move += Separation() * 2.5f;
+            Vector3 delta;
+            using (mGround.Auto())
+            {
+                delta = Ground.LimitClimb(transform.position, move * dt, fallbackY);
+                float groundY = Ground.Sample(transform.position + delta, fallbackY);
+                delta.y = groundY - transform.position.y;
+            }
+            using (mMove.Auto()) MoveCheap(delta);
 
             if (dist < 1.0f + cc.radius && contactCool <= 0f && player.Health.Hit(1)) contactCool = 0.8f;
             contactCool -= dt;
@@ -124,6 +133,34 @@ namespace RoomRun
                 flashLeft -= dt;
                 if (flashLeft <= 0f) ApplyFlash(false);
             }
+        }
+
+        // 11-11 perf: CharacterController.Move cost ~25 us per enemy in a crowd (3.8 ms for 150), most of it resolving
+        // contacts with the other enemies, which separation steering already keeps apart. Enemies now move by one
+        // sphere cast against everything except actors (walls, props, stage colliders) and slide along what they hit;
+        // the controller stays on as their collider for the player and bullets.
+        static readonly int SolidMask = ~(1 << Ground.ActorLayer);
+        void MoveCheap(Vector3 delta)
+        {
+            var pos = transform.position;
+            var flat = new Vector3(delta.x, 0f, delta.z);
+            float len = flat.magnitude;
+            if (len > 1e-5f)
+            {
+                float r = cc.radius * 0.9f;
+                var origin = pos + Vector3.up * (cc.center.y);
+                if (Physics.SphereCast(origin, r, flat / len, out var hit, len + cc.skinWidth, SolidMask, QueryTriggerInteraction.Ignore))
+                {
+                    // stop at the contact and slide the rest along the surface
+                    float go = Mathf.Max(0f, hit.distance - cc.skinWidth);
+                    var n = hit.normal; n.y = 0f;
+                    var slide = n.sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(flat * ((len - go) / len), n.normalized) : Vector3.zero;
+                    flat = flat / len * go;
+                    if (slide.sqrMagnitude > 1e-8f && !Physics.SphereCast(origin + flat, r, slide.normalized, out _, slide.magnitude + cc.skinWidth, SolidMask, QueryTriggerInteraction.Ignore))
+                        flat += slide;
+                }
+            }
+            transform.position = pos + flat + Vector3.up * delta.y;
         }
 
         void TickFire(float dt, Vector3 dirTo, System.Action<Vector3> volley)
@@ -201,19 +238,63 @@ namespace RoomRun
             }
         }
 
+        // 11-11 perf (150 enemies: 174 -> 64 fps): separation compared every enemy with every other one, reading both
+        // transforms and colliders each time (N^2 native calls). Now positions and radii are read once a frame into
+        // arrays and bucketed into a 2 m grid; each enemy looks only at its own and the 8 neighbouring cells.
+        // read by PerfProbe
+        static readonly Unity.Profiling.ProfilerMarker mSep = new Unity.Profiling.ProfilerMarker("Enemy.Separation"),
+            mGround = new Unity.Profiling.ProfilerMarker("Enemy.Ground"), mMove = new Unity.Profiling.ProfilerMarker("Enemy.Move");
+        static int sepFrame = -1;
+        static Vector2[] sepPos = new Vector2[256];
+        static float[] sepRad = new float[256];
+        static readonly Dictionary<long, List<int>> sepGrid = new Dictionary<long, List<int>>();
+        static readonly Stack<List<int>> sepPool = new Stack<List<int>>();
+        const float SepCell = 3f; // >= the largest separation reach, (r1 + r2) * 1.3
+        int sepIndex = -1;
+
+        static long Cell(int x, int z) => ((long)x << 32) ^ (uint)z;
+
+        void BuildSeparation()
+        {
+            sepFrame = Time.frameCount;
+            foreach (var l in sepGrid.Values) { l.Clear(); sepPool.Push(l); }
+            sepGrid.Clear();
+            var list = run.Enemies;
+            if (sepPos.Length < list.Count) { sepPos = new Vector2[list.Count * 2]; sepRad = new float[list.Count * 2]; }
+            for (int i = 0; i < list.Count; i++)
+            {
+                var e = list[i];
+                if (!e) { sepRad[i] = -1f; continue; }
+                var p = e.transform.position;
+                sepPos[i] = new Vector2(p.x, p.z); sepRad[i] = e.cc.radius; e.sepIndex = i;
+                long key = Cell(Mathf.FloorToInt(p.x / SepCell), Mathf.FloorToInt(p.z / SepCell));
+                if (!sepGrid.TryGetValue(key, out var cell)) { cell = sepPool.Count > 0 ? sepPool.Pop() : new List<int>(); sepGrid[key] = cell; }
+                cell.Add(i);
+            }
+        }
+
         Vector3 Separation()
         {
-            Vector3 push = Vector3.zero;
-            foreach (var e in run.Enemies)
+            if (sepFrame != Time.frameCount) BuildSeparation();
+            int me = sepIndex;
+            if (me < 0 || me >= run.Enemies.Count || run.Enemies[me] != this) return Vector3.zero; // spawned this frame
+            Vector2 mp = sepPos[me]; float mr = sepRad[me];
+            int cx = Mathf.FloorToInt(mp.x / SepCell), cz = Mathf.FloorToInt(mp.y / SepCell);
+            Vector2 push = Vector2.zero;
+            for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++)
             {
-                if (e == this || !e) continue;
-                var d = transform.position - e.transform.position;
-                d.y = 0;
-                float m = d.magnitude;
-                float r = (cc.radius + e.cc.radius) * 1.3f;
-                if (m > 0.001f && m < r) push += d / m * (1f - m / r);
+                if (!sepGrid.TryGetValue(Cell(cx + dx, cz + dz), out var cell)) continue;
+                foreach (int j in cell)
+                {
+                    if (j == me || sepRad[j] < 0f) continue;
+                    var d = mp - sepPos[j];
+                    float m = d.magnitude;
+                    float r = (mr + sepRad[j]) * 1.3f;
+                    if (m > 0.001f && m < r) push += d / m * (1f - m / r);
+                }
             }
-            return push;
+            return new Vector3(push.x, 0f, push.y);
         }
 
         void Face(Vector3 dirTo, float dt)
@@ -237,9 +318,10 @@ namespace RoomRun
                 if (!renderers[i]) continue;
                 if (on)
                 {
-                    var f = new Material[originalMats[i].Length];
-                    for (int k = 0; k < f.Length; k++) f[k] = flash;
-                    renderers[i].sharedMaterials = f;
+                    // built once per renderer instead of on every hit
+                    if (flashMats == null) flashMats = new Material[renderers.Length][];
+                    if (flashMats[i] == null) { flashMats[i] = new Material[originalMats[i].Length]; for (int k = 0; k < flashMats[i].Length; k++) flashMats[i][k] = flash; }
+                    renderers[i].sharedMaterials = flashMats[i];
                 }
                 else
                 {

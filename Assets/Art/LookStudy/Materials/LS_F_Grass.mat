@@ -35,7 +35,7 @@ Material:
     - _Remap: 1
     - _RemapDark: 1
     m_Colors:
-    - _Dark: {r: 0.04705836, g: 0.35294056, b: 0.18823469, a: 1}
-    - _Light: {r: 0.34509742, g: 0.8156863, b: 0.2980386, a: 1}
+    - _Dark: {r: 0.047054075, g: 0.35293478, b: 0.1882292, a: 1}
+    - _Light: {r: 0.34509164, g: 0.8156863, b: 0.29803282, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

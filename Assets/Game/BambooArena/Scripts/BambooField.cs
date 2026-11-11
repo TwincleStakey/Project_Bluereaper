@@ -70,7 +70,12 @@ namespace BambooArena
 
         static readonly int ID_See = Shader.PropertyToID("_BA_SeeThrough"), ID_SeeOn = Shader.PropertyToID("_BA_SeeThroughOn");
 
-        void OnEnable() { inst = GetComponent<ReedInstancer>(); dirty = true; }
+        void OnEnable()
+        {
+            inst = GetComponent<ReedInstancer>(); dirty = true;
+            // floor clutter (pebbles, sticks, twigs) is built at play time only (BAGroundDebris)
+            if (Application.isPlaying && !GetComponent<BAGroundDebris>()) gameObject.AddComponent<BAGroundDebris>();
+        }
         void OnValidate() { dirty = true; }
 
         void Update()

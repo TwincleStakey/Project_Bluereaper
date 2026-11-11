@@ -15,6 +15,10 @@ Shader "SnowPlague/Prop"
         _AOStrength("Vertex AO strength", Range(0, 1)) = 0.8
         _SnowBias("Snow bias", Range(-1, 1)) = 0
         _GroundMelt("Ground melt height (m)", Range(0, 1)) = 0.25
+        _SnowCap("Snow cap on flat tops (patchy)", Range(0, 1)) = 0
+        _VColAlbedo("Vertex colour is albedo (scans)", Range(0, 1)) = 0
+        [Toggle] _Triplanar("World triplanar (cliffs: no UV stretch)", Float) = 0
+        _TriScale("Triplanar metres per tile", Float) = 4
         [HDR] _EmissionColor("Emission", Color) = (0, 0, 0, 1)
         _Flicker("Flicker", Range(0, 1)) = 0
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 2
@@ -50,7 +54,6 @@ Shader "SnowPlague/Prop"
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPPassPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
-            #pragma shader_feature_local SP_SEETHROUGH
             #define SP_PASS_SHADOW
             #include "Assets/Game/SnowPlague/Shaders/SPLit.hlsl"
             #include "Assets/Game/SnowPlague/Shaders/SPPropSurface.hlsl"
@@ -79,6 +82,7 @@ Shader "SnowPlague/Prop"
             HLSLPROGRAM
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPPassPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
             #pragma shader_feature_local SP_SEETHROUGH
             #define SP_PASS_DEPTHNORMALS
@@ -95,7 +99,6 @@ Shader "SnowPlague/Prop"
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPPassPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
             #pragma shader_feature EDITOR_VISUALIZATION
-            #pragma shader_feature_local SP_SEETHROUGH
             #define SP_PASS_META
             #include "Assets/Game/SnowPlague/Shaders/SPLit.hlsl"
             #include "Assets/Game/SnowPlague/Shaders/SPPropSurface.hlsl"

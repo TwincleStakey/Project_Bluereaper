@@ -10,6 +10,7 @@
 //                                 @x,z stands the player there first; a trailing ! keeps firing at the nearest enemy)
 // and the editor enters play mode, jumps to the room, walks the player in a figure eight and saves
 // frames to ArtSource/rr_clip, then leaves play mode. Progress goes to ArtSource/rr_log.txt.
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -255,11 +256,29 @@ namespace RoomRun
         static System.Collections.IEnumerator Census(RunDirector run, string room)
         {
             run.Player.DebugInvulnerable = true;
+            // census grass@3.5 : at that wheel zoom
+            float zoom = CameraRig.FixedZoom;
+            int at = room.IndexOf('@');
+            if (at >= 0) { float.TryParse(room.Substring(at + 1), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out zoom); room = room.Substring(0, at); }
             if (run.Room.id != room) run.DevJump(room);
             for (int f = 0; f < 10 && !run.Transitioning; f++) yield return null;
             while (run.Transitioning) yield return null;
             yield return new WaitForSeconds(3f);
+            run.Rig.Zoom = zoom; run.Rig.Snap();
+            yield return null;
             var cam = run.Rig.Cam;
+            // instanced vegetation is not a Renderer: list it per mesh
+            var inst = new System.Collections.Generic.Dictionary<string, long>();
+            for (int si = 0; si < UnityEngine.SceneManagement.SceneManager.sceneCount; si++)
+                foreach (var root in UnityEngine.SceneManagement.SceneManager.GetSceneAt(si).GetRootGameObjects())
+                    foreach (var li in root.GetComponentsInChildren<LookStudyInstancer>())
+                        foreach (var kv in li.VisibleTris(cam)) inst[kv.Key] = (inst.TryGetValue(kv.Key, out var o) ? o : 0) + kv.Value;
+            inst.TryGetValue("~draw calls", out long instCalls); inst.Remove("~draw calls");
+            int nInst = 0;
+            for (int si = 0; si < UnityEngine.SceneManagement.SceneManager.sceneCount; si++)
+                foreach (var root in UnityEngine.SceneManagement.SceneManager.GetSceneAt(si).GetRootGameObjects()) nInst += root.GetComponentsInChildren<LookStudyInstancer>().Length;
+            Note($"census {room}@{zoom}: instanced {inst.Values.Sum() / 1000}k tris, {instCalls} draw calls, {nInst} instancers");
+            foreach (var kv in inst.OrderByDescending(k => k.Value).Take(12)) Note($"  inst {kv.Key} {kv.Value / 1000}k");
             var planes = GeometryUtility.CalculateFrustumPlanes(cam);
             var rows = new System.Collections.Generic.List<(long tris, string what)>();
             long total = 0, shadowTotal = 0;
@@ -319,13 +338,23 @@ namespace RoomRun
             const int W = 1600, H = 900;
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32) { antiAliasing = 2 };
             var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
+            float[] zooms = ShotZooms;
             foreach (var token in rooms)
             {
                 if (string.IsNullOrEmpty(token)) continue;
+                // "z=1,1.2,1.4" sets the zoom levels for the rooms after it
+                if (token.StartsWith("z="))
+                {
+                    zooms = System.Array.ConvertAll(token.Substring(2).Split(','), s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
+                    continue;
+                }
                 string id = token, tag = token;
                 Vector3? at = null;
                 bool firing = id.EndsWith("!");
                 if (firing) { id = id.TrimEnd('!'); tag = id + "_fire"; }
+                // "grass+150!" : 150 extra enemies around the player before the shots
+                int swarm = 0, plus = id.IndexOf('+');
+                if (plus > 0) { int.TryParse(id.Substring(plus + 1), out swarm); id = id.Substring(0, plus); tag = id + $"_swarm{swarm}" + (firing ? "_fire" : ""); }
                 int a = token.IndexOf('@');
                 if (a > 0)
                 {
@@ -349,10 +378,16 @@ namespace RoomRun
                     if (cc) cc.enabled = true;
                     yield return new WaitForSeconds(0.5f);
                 }
+                if (swarm > 0) { run.DevSwarm(swarm); yield return new WaitForSeconds(4f); }
                 var keepSource = run.Player.Source;
                 if (firing) { run.Player.Source = new Firer(run); yield return new WaitForSeconds(1.2f); }
                 var rig = run.Rig;
-                foreach (float z in ShotZooms)
+                // other fields' stale DontSave renderers (no scene) draw over every stage in the shared editor; hide them
+                var orphans = new List<Renderer>();
+                foreach (var r in Resources.FindObjectsOfTypeAll<Renderer>())
+                    if (r && !EditorUtility.IsPersistent(r) && r.enabled && !r.gameObject.scene.IsValid()) { r.enabled = false; orphans.Add(r); }
+                if (orphans.Count > 0) Note($"  hid {orphans.Count} orphan renderers from other fields");
+                foreach (float z in zooms)
                 {
                     rig.Zoom = z; rig.Snap();
                     for (int f = 0; f < 4; f++) yield return null;
@@ -362,8 +397,18 @@ namespace RoomRun
                     cam.targetTexture = null;
                     File.WriteAllBytes(Path.Combine(dir, $"{tag}_z{z:0.0}.jpg"), tex.EncodeToJPG(90));
                 }
-                rig.Zoom = 1f;
+                foreach (var r in orphans) if (r) r.enabled = true;
+                rig.Zoom = CameraRig.FixedZoom;
                 if (firing) run.Player.Source = keepSource;
+                // what the post stack actually resolves to for the game camera (diagnosing the dark underworld)
+                var stack = UnityEngine.Rendering.VolumeManager.instance.stack;
+                var cadj = stack.GetComponent<UnityEngine.Rendering.Universal.ColorAdjustments>();
+                var vig = stack.GetComponent<UnityEngine.Rendering.Universal.Vignette>();
+                var vols = Object.FindObjectsByType<UnityEngine.Rendering.Volume>(FindObjectsSortMode.None)
+                    .Select(v => $"{v.name}(p{v.priority} w{v.weight:0.##} {(v.isGlobal ? "global" : "local")} layer{v.gameObject.layer})");
+                var camData = rig.Cam.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+                Note($"  post stack: exposure {(cadj ? cadj.postExposure.value : -99):0.00}, saturation {(cadj ? cadj.saturation.value : 0):0}, vignette {(vig ? vig.intensity.value : 0):0.00}; volumeMask {(camData ? camData.volumeLayerMask.value : -1)} trigger {(camData && camData.volumeTrigger ? camData.volumeTrigger.name : "cam")}; volumes: {string.Join(", ", vols)}");
+                Note($"  fog {RenderSettings.fog} {RenderSettings.fogMode} density {RenderSettings.fogDensity:0.0000} colour {RenderSettings.fogColor}; ambient {RenderSettings.ambientMode} {RenderSettings.ambientLight}");
                 Note($"shots {tag} done (fps {1f / Mathf.Max(Time.smoothDeltaTime, 1e-4f):0})");
             }
             Object.Destroy(rt); Object.Destroy(tex);

@@ -208,6 +208,22 @@ MonoBehaviour:
     bossOffset: {x: 0, y: 0, z: 0}
     bossHp: 60
     devOnly: 1
+  - id: snow
+    displayName: "\uC124\uC6D0 \uC5ED\uBCD1"
+    mapCell: {x: 7, y: 0}
+    scenePath: Assets/Game/SnowPlague/SnowPlague.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 112, y: 88}
+    fitToStage: 0
+    floorColor: {r: 0.16862746, g: 0.20784314, b: 0.2509804, a: 1}
+    pillarCount: 0
+    doors: []
+    waves: []
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 1
   enemies:
   - id: shade
     prefab: {fileID: 1999660323683707200, guid: 643210c0d2542d44bac82a26082a3268, type: 3}

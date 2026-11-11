@@ -26,3 +26,23 @@ ThatchedRoof001A (thatch), Paper005 (창호지 paper)
 - Scene assembly, terrain, lights, fog and post-processing: `Editor/AVBuilder.cs`.
 
 Downloads and Blender work files stay local in `ArtSource/AbandonedVillage/` (gitignored).
+
+## 11-12 redo (free assets)
+- Quixel Megascans via Fab (Standard License, free): moist chunky mud, dead shrubs, Japanese stone wall, wild grass (x2),
+  dry grass, grass clumps, mossy thatch roof, wood debris, roof tile, clay pot, wooden sticks and twigs, stones and pebbles
+  pack, small rocks pack, military trenches debris patch rock S 01, fallen leaves decal, blood stain decals
+  (`ThirdParty/Megascans/`; plant opacity stretched into the base-colour alpha, normals flipped to GL).
+- Sketchfab, KOREA HERITAGE SERVICE [KHS] (@KHS_Asset), CC BY 4.0: "Jar", "Straw_Jar" (채독뚜껑, 낙안읍성), "Straw_Mat"
+  (멍석) — `ThirdParty/Megascans/KJar`, `KStrawJar`, `KStrawMat`.
+- Japanese Black Pine by matt z chan (Sketchfab, CC BY 4.0) and the tree pack prefabs imported by the snow field
+  (SnowPlague/ThirdParty/Trees, see its CREDITS.txt); 폐촌 uses copies of their materials in `ThirdParty/Trees/Materials`.
+- Ground textures copied from the bamboo arena / reed field (Poly Haven CC0): forest_ground_04, brown_mud_leaves_01,
+  leaf_scattered_gravel.
+- Blood: "Blood Decals - 3 Free Realistic PBR Decals" by Weasel Whistle (Fab, Standard License, free) — PoolFootprints,
+  Splatter (`ThirdParty/Megascans/Decals/AV_WW_*`); Quixel Megascans "Hand Smear" (Fab, free).
+- Sketchfab, KOREA HERITAGE SERVICE [KHS] (@KHS_Asset), CC BY 4.0: Earthenware_Bowl, Basin, Cauldron_Lid, Concave
+  Roof-end Tile (Twin Bird), Roof-end Tile (Face Design), Sickle, Weeding_Hoe, Fire_Shovel, Rice_Straw, Straw Bag, Broom,
+  Winnow, Sieve, Basket, Small_Dining_Table (소반), Large_Scooped_Wooden_Bowl, Spoon_and_Chopsticks, Gourd
+  (`ThirdParty/Megascans/K*`).
+- Sketchfab: "CC0 - Planks broken" by plaggy; "Animal skulls" by FFeller (CC BY); "Sandbag broken" by vicente betoret
+  ferrero / deathcow (CC BY) (`Planks`, `Skulls`, `Sack`).

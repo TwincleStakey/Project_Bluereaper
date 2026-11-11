@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SP_Ice
+  m_Shader: {fileID: 4800000, guid: bfd560ed6f180164d8ae880731b23c9d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2450
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _GroundMask:
+        m_Texture: {fileID: 2800000, guid: 53a3489eba0d24a4391daf9a0ae03179, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _IceA:
+        m_Texture: {fileID: 2800000, guid: 75f3d91ea131430409b12fcf3e8154f3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _IceN:
+        m_Texture: {fileID: 2800000, guid: e834888fe6e7bc04899953d43a306993, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _IceR:
+        m_Texture: {fileID: 2800000, guid: ce3cfc5a146bb3440ad8e9125f678b8a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowA:
+        m_Texture: {fileID: 2800000, guid: ed9244b77e8380340a592e33348eb716, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowN:
+        m_Texture: {fileID: 2800000, guid: e1451b6b1ecb9b14b80cbe4b7fdf52bc, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Bubbles: 0.6
+    - _Clear: 1
+    - _ClearSmooth: 0.93
+    - _CrackDepth: 0.15
+    - _CrackScale: 0.24
+    - _Cracks: 0.85
+    - _Dust: 1
+    - _EdgeDust: 0.72
+    - _FineCracks: 0.2
+    - _Frost: 0.5
+    - _GlowRadius: 5
+    - _GlowStrength: 1
+    - _GlowStretch: 2.2
+    - _IceNFlipY: 0
+    - _IceNormal: 0.25
+    - _IceSmooth: 0.78
+    - _IceTile: 6
+    - _LanternStreak: 0.6
+    - _MoonStreak: 0.25
+    - _Patches: 0.5
+    - _ReflStrength: 3
+    - _Rim: 0.9
+    - _RoughScale: 1
+    - _SSRStrength: 0.8
+    - _Scratch: 0.6
+    - _ShoreNoise: 0.6
+    - _Smooth: 0.92
+    - _SnowNormal: 0.6
+    - _SnowSmooth: 0.38
+    - _SnowTile: 2.4
+    - _Sparkle: 6
+    m_Colors:
+    - _BaseCol: {r: 0.4, g: 0.46666667, b: 0.5411765, a: 1}
+    - _ClearCol: {r: 0.15294118, g: 0.18039216, b: 0.20784314, a: 1}
+    - _CrackCol: {r: 0.5, g: 0.56, b: 0.62, a: 1}
+    - _DeepCol: {r: 0.012, g: 0.02, b: 0.03, a: 1}
+    - _FrostCol: {r: 0.68235296, g: 0.69803923, b: 0.72156864, a: 1}
+    - _IceTint: {r: 0.32, g: 0.38, b: 0.42, a: 1}
+    - _LanternCol: {r: 3, g: 1.35, b: 0.42, a: 1}
+    - _MaskRect: {r: -105, g: -72, b: 210, a: 142}
+    - _PatchCol: {r: 0.95, g: 0.97, b: 1, a: 1}
+    - _ShallowCol: {r: 0.03, g: 0.059999965, b: 0.07499998, a: 1}
+    - _SkyCol: {r: 0.07, g: 0.09, b: 0.13, a: 1}
+    - _SnowTint: {r: 0.95199996, g: 0.95, b: 0.948, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

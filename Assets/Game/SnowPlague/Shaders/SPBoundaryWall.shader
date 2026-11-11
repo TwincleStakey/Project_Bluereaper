@@ -14,6 +14,7 @@ Shader "SnowPlague/BoundaryWall"
         _Scroll("Scroll speeds (layer 1, layer 2)", Vector) = (0.25, 0.6, 0, 0)
         _Tiling("Noise tiling (x around, y up) layer 1 / 2", Vector) = (8, 1.5, 14, 3)
         _Intersect("Intersection width (m)", Float) = 0.4
+        _FadeTop("Fade-out height (0-1 of the ring)", Range(0.05, 1)) = 1
     }
     SubShader
     {
@@ -35,7 +36,7 @@ Shader "SnowPlague/BoundaryWall"
             TEXTURE2D(_NoiseTex); SAMPLER(sampler_NoiseTex);
             CBUFFER_START(UnityPerMaterial)
                 float4 _NoiseTex_ST, _Col, _EdgeCol, _Scroll, _Tiling;
-                float _Intensity, _Fresnel, _Intersect;
+                float _Intensity, _Fresnel, _Intersect, _FadeTop;
             CBUFFER_END
             struct A { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; UNITY_VERTEX_INPUT_INSTANCE_ID };
             struct V { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float3 ws : TEXCOORD1; float3 n : TEXCOORD2; float4 sp : TEXCOORD3; UNITY_VERTEX_INPUT_INSTANCE_ID };
@@ -55,7 +56,7 @@ Shader "SnowPlague/BoundaryWall"
                 float3 v = GetWorldSpaceNormalizeViewDir(i.ws);
                 float fres = pow(1 - abs(dot(normalize(i.n), v)), _Fresnel);
                 float bottom = pow(1 - saturate(i.uv.y), 1.6);
-                float top = 1 - smoothstep(0.6, 1.0, i.uv.y);
+                float top = 1 - smoothstep(_FadeTop * 0.6, _FadeTop, i.uv.y);   // look1: _FadeTop < 1 = a low line, not a wall
                 float2 suv = i.sp.xy / i.sp.w;
                 float gap = LinearEyeDepth(SampleSceneDepth(suv), _ZBufferParams) - LinearEyeDepth(i.ws, GetWorldToViewMatrix());
                 float hit = 1 - saturate(gap / _Intersect);

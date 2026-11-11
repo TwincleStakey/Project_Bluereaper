@@ -1,0 +1,2 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+grass,swarm:150 [enemies 154 bullets 387],109,9.19,15.19,8.29,3.22,4.38,2544,2535,809,8103,1,2

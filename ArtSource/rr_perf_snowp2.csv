@@ -1,0 +1,3 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+abandoned,gpu [enemies 8 bullets 11],46,21.55,31.16,18.17,2.22,17.87,1561,1234,151,3129,1,144
+snow,gpu [enemies 0 bullets 0],53,18.87,25.54,16.05,5.94,18.65,1060,1023,558,4259,1,24

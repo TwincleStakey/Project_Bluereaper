@@ -53,7 +53,8 @@ Shader "SnowPlague/HeightFog"
                 float3 cam = _WorldSpaceCameraPos;
                 float dist = max(length(ws - cam) - _RR_FogShift - _Start, 0);
                 float2 drift = _RF_Wind.xy * _RF_Time * 0.6;
-                float n = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, (ws.xz + drift) / _NoiseScale).r;
+                // LOD 0: world-space UVs jump at depth edges, implicit mips would draw seams along silhouettes
+                float n = SAMPLE_TEXTURE2D_LOD(_NoiseTex, sampler_NoiseTex, (ws.xz + drift) / _NoiseScale, 0).r;
                 float h = exp(-max(ws.y - _Base, 0) * _Falloff);
                 float f = (1 - exp(-dist * _Density)) * h * lerp(1 - _NoiseAmount, 1 + _NoiseAmount, n);
                 float3 fc = lerp(_NearCol.rgb, _FarCol.rgb, saturate(dist / _FarDist));

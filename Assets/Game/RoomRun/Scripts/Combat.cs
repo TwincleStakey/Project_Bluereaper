@@ -125,7 +125,9 @@ namespace RoomRun
     {
         class Bullet
         {
-            public GameObject go;
+            // no GameObject any more (11-11 perf): position and facing live here, drawing is instanced
+            public Vector3 pos;
+            public Quaternion rot;
             public Team team;
             public Vector3 dir;
             public float speed, life, radius;
@@ -144,7 +146,10 @@ namespace RoomRun
 
         // Live bullets, read by FieldLighting to hang lights on the nearest ones.
         public int LiveCount => live.Count;
-        public void GetLive(int i, out Vector3 pos, out Team team) { pos = live[i].go.transform.position; team = live[i].team; }
+        public void GetLive(int i, out Vector3 pos, out Team team) { pos = live[i].pos; team = live[i].team; }
+        public void GetLive(int i, out Vector3 pos, out Vector3 dir, out Team team) { var b = live[i]; pos = b.pos; dir = b.dir; team = b.team; }
+        // LookFX: a muzzle flash for player shots
+        public static event Action<Vector3, Vector3, Team> Fired;
 
         public void Init(RoomRunConfig config) => cfg = config;
 
@@ -152,7 +157,7 @@ namespace RoomRun
         public void ForEachEnemyBullet(Action<Vector3, Vector3> visit)
         {
             foreach (var b in live)
-                if (b.team == Team.Enemy) visit(b.go.transform.position, b.dir * b.speed);
+                if (b.team == Team.Enemy) visit(b.pos, b.dir * b.speed);
         }
 
         public void Fire(Team team, Vector3 pos, Vector3 dir, float speed, int damage = 1)
@@ -162,43 +167,87 @@ namespace RoomRun
             dir.y = 0;
             dir.Normalize();
             b.dir = dir;
+            Fired?.Invoke(pos, dir, team);
             b.speed = speed;
             b.damage = damage;
             b.life = team == Team.Player ? 1.6f : 6f;
-            b.go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(dir));
-            b.go.SetActive(true);
+            b.pos = pos; b.rot = Quaternion.LookRotation(dir);
             live.Add(b);
+        }
+
+        // 11-11 perf: each bullet used to carry its own MeshRenderers (two per enemy shot), so 2,400 enemy shots were
+        // ~5,000 draw calls. Bullets are now plain transforms and are drawn instanced in LateUpdate, one draw per
+        // part per 1,023 bullets. Same meshes, materials, sizes and offsets as before.
+        //   player: cool and long capsule, so it never reads as an enemy shot
+        //   enemy:  warm round body with a bright core drawn after it
+        struct PartDef { public Mesh mesh; public Material mat; public Matrix4x4 local; }
+        PartDef[] playerParts, enemyParts;
+        readonly Matrix4x4[] batch = new Matrix4x4[1023];
+
+        void EnsureParts()
+        {
+            if (playerParts != null) return;
+            playerParts = new[] { new PartDef { mesh = MeshLib.Capsule, mat = Instanced(cfg.playerBullet), local = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(90, 0, 0), new Vector3(0.13f, 0.34f, 0.13f)) } };
+            enemyParts = new[]
+            {
+                new PartDef { mesh = MeshLib.Sphere, mat = Instanced(cfg.enemyBullet), local = Matrix4x4.Scale(Vector3.one * 0.44f) },
+                new PartDef { mesh = MeshLib.Sphere, mat = Instanced(cfg.enemyBulletCore), local = Matrix4x4.TRS(new Vector3(0, 0.1f, 0), Quaternion.identity, Vector3.one * 0.26f) },
+            };
+        }
+
+        static Material Instanced(Material m)
+        {
+            if (!m || m.enableInstancing) return m;
+            return new Material(m) { name = m.name + " (instanced)", enableInstancing = true, hideFlags = HideFlags.DontSave };
         }
 
         Bullet Create(Team team)
         {
-            var go = new GameObject(team == Team.Player ? "PlayerBullet" : "EnemyBullet");
-            go.transform.SetParent(transform, false);
-            var b = new Bullet { go = go, team = team };
-            if (team == Team.Player)
+            return new Bullet { team = team, radius = team == Team.Player ? 0.14f : 0.2f };
+        }
+
+        // Drawn per camera as it starts rendering, so manual renders (captures) get the bullets too.
+        void OnEnable() => UnityEngine.Rendering.RenderPipelineManager.beginCameraRendering += DrawFor;
+        void OnDisable() => UnityEngine.Rendering.RenderPipelineManager.beginCameraRendering -= DrawFor;
+
+        // LookFX draws bullets as sprites (core, halo, trail) instead of the meshes when it is on.
+        public static bool HideMeshes;
+
+        void DrawFor(UnityEngine.Rendering.ScriptableRenderContext ctx, Camera cam)
+        {
+            if (!cfg || live.Count == 0 || HideMeshes) return;
+            if (cam.cameraType == CameraType.Preview || cam.cameraType == CameraType.Reflection) return;
+            if ((cam.cullingMask & (1 << gameObject.layer)) == 0) return;
+            EnsureParts();
+            DrawTeam(Team.Player, playerParts, cam);
+            DrawTeam(Team.Enemy, enemyParts, cam);
+        }
+
+        void DrawTeam(Team team, PartDef[] parts, Camera cam)
+        {
+            foreach (var part in parts)
             {
-                // Cool and long, so it never reads as an enemy shot.
-                var p = MeshLib.Part("Body", MeshLib.Capsule, cfg.playerBullet, go.transform, Vector3.zero, new Vector3(0.13f, 0.34f, 0.13f));
-                p.transform.localRotation = Quaternion.Euler(90, 0, 0);
-                b.radius = 0.14f;
+                if (!part.mesh || !part.mat) continue;
+                var rp = new RenderParams(part.mat) { camera = cam, layer = gameObject.layer, shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off };
+                int n = 0;
+                foreach (var b in live)
+                {
+                    if (b.team != team) continue;
+                    batch[n++] = Matrix4x4.TRS(b.pos, b.rot, Vector3.one) * part.local;
+                    if (n == batch.Length) { Graphics.RenderMeshInstanced(rp, part.mesh, 0, batch, n); n = 0; }
+                }
+                if (n > 0) Graphics.RenderMeshInstanced(rp, part.mesh, 0, batch, n);
             }
-            else
-            {
-                // Warm and round, with a bright core.
-                MeshLib.Part("Body", MeshLib.Sphere, cfg.enemyBullet, go.transform, Vector3.zero, Vector3.one * 0.44f);
-                var core = MeshLib.Part("Core", MeshLib.Sphere, cfg.enemyBulletCore, go.transform, new Vector3(0, 0.1f, 0), Vector3.one * 0.26f);
-                core.GetComponent<MeshRenderer>().sortingOrder = 1;
-                b.radius = 0.2f;
-            }
-            return b;
         }
 
         void Recycle(int index)
         {
             var b = live[index];
-            b.go.SetActive(false);
             (b.team == Team.Player ? poolPlayer : poolEnemy).Push(b);
-            live.RemoveAt(index);
+            // swap-remove (Update walks the list backwards, so the moved last bullet was already updated this frame)
+            int last = live.Count - 1;
+            live[index] = live[last];
+            live.RemoveAt(last);
         }
 
         public void ClearAll()
@@ -216,14 +265,14 @@ namespace RoomRun
             {
                 var b = live[i];
                 b.life -= dt;
-                var pos = b.go.transform.position;
+                var pos = b.pos;
                 float dist = b.speed * dt;
                 if (b.life <= 0f || Resolve(b, pos, dist))
                 {
                     Recycle(i);
                     continue;
                 }
-                b.go.transform.position = pos + b.dir * dist;
+                b.pos = pos + b.dir * dist;
                 if (b.team == Team.Enemy) enemyCount++;
             }
             LiveEnemyBullets = enemyCount;
@@ -313,8 +362,12 @@ namespace RoomRun
             return ps;
         }
 
+        // LookFX hangs a short light flash on bursts (hits, deaths).
+        public static event Action<Vector3, Kind> Burst_;
+
         public static void Burst(Vector3 pos, Kind kind, int count)
         {
+            Burst_?.Invoke(pos, kind);
             if (!instance) return;
             var ps = kind switch
             {

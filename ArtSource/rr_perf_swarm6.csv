@@ -1,0 +1,5 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+grass,base [enemies 4 bullets 0],189,5.30,6.60,4.60,2.20,5.05,419,419,295,7368,1,2
+grass,swarm:150 [enemies 154 bullets 393],162,6.17,10.22,5.31,2.97,4.99,2567,2557,802,8119,1,2
+abandoned,base [enemies 8 bullets 12],337,2.97,7.10,2.18,1.27,2.09,398,370,119,162,1,145
+abandoned,swarm:150 [enemies 158 bullets 2379],93,10.70,19.08,9.44,4.30,3.33,5353,5266,1176,1873,1,145

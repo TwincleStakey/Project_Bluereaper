@@ -1,0 +1,5 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+abandoned,swarm:150 [enemies 158 bullets 2355],125,7.98,13.75,7.23,4.17,5.70,4604,4419,1185,4850,1,145
+abandoned,off:LookFX [enemies 158 bullets 2069],119,8.38,14.12,7.63,4.26,5.77,4605,4421,1186,5441,1,145
+reeds,swarm:150 [enemies 150 bullets 2507],105,9.57,15.54,8.76,4.04,8.42,4127,4109,1203,8687,2,58
+reeds,off:LookFX [enemies 150 bullets 2328],100,9.96,16.09,9.20,4.17,8.38,4092,4076,1205,9333,2,58

@@ -52,6 +52,8 @@ namespace RoomRun
             DontDestroyOnLoad(go);
             var p = go.AddComponent<PerfProbe>();
             p.rooms = args[i + 1].Split(',');
+            int vi = System.Array.IndexOf(args, "-rrvariants"); // e.g. -rrvariants base,zoom:1.8,zoom:3.5
+            if (vi >= 0 && vi + 1 < args.Length) p.variants = args[vi + 1].Split(',');
             p.outFile = Path.Combine(Application.persistentDataPath, "rr_perf.csv");
             p.Note = s => Debug.Log("[Perf] " + s);
             p.Finished = Application.Quit;
@@ -61,6 +63,7 @@ namespace RoomRun
         {
             while (!RunDirector.Instance || RunDirector.Instance.Transitioning || RunDirector.Instance.Room == null) yield return null;
             var run = RunDirector.Instance;
+            noteStatic = Note;
             run.Player.DebugInvulnerable = true;
             int keepVsync = QualitySettings.vSyncCount, keepTarget = Application.targetFrameRate;
             QualitySettings.vSyncCount = 0; Application.targetFrameRate = -1;
@@ -76,8 +79,10 @@ namespace RoomRun
                 "PreUpdate.PhysicsUpdate", "PostLateUpdate.FinishFrameRendering", "PostLateUpdate.UpdateAllRenderers", "PreLateUpdate.ParticleSystemBeginUpdateAll",
                 "PostLateUpdate.ParticleSystemEndUpdateAll", "PostLateUpdate.UpdateAllSkinnedMeshes", "Update.DirectorUpdate", "PostLateUpdate.PlayerSendFrameComplete",
                 "PreLateUpdate.DirectorUpdateAnimationBegin", "Update.ScriptRunDelayedDynamicFrameRate", "PostLateUpdate.UpdateAudio", "EditorLoop" };
+            markerNames = markerNames.Concat(new[] { "Enemy.Separation", "Enemy.Ground", "Enemy.Move" }).ToArray();
             var markers = new ProfilerRecorder[markerNames.Length];
-            for (int i = 0; i < markers.Length; i++) markers[i] = ProfilerRecorder.StartNew(ProfilerCategory.Internal, markerNames[i]);
+            for (int i = 0; i < markers.Length; i++)
+                markers[i] = markerNames[i].StartsWith("Enemy.") ? ProfilerRecorder.StartNew(ProfilerCategory.Scripts, markerNames[i]) : ProfilerRecorder.StartNew(ProfilerCategory.Internal, markerNames[i]);
 
             foreach (var room in rooms)
             {
@@ -89,7 +94,7 @@ namespace RoomRun
                 foreach (var v in (variants != null && variants.Length > 0 ? variants : DefaultVariants))
                 {
                     var undo = Apply(v, run);
-                    yield return new WaitForSeconds(settle);
+                    yield return new WaitForSeconds(v.StartsWith("swarm:") ? settle + 3f : settle);
                     var ms = new List<float>(); double cpuM = 0, cpuR = 0, gpu = 0; int tn = 0;
                     long dc = 0, bt = 0, sp = 0, tr = 0; int sn = 0;
                     var mk = new double[markers.Length];
@@ -109,10 +114,10 @@ namespace RoomRun
                     float avg = ms.Average(), low = ms[Mathf.Clamp(Mathf.FloorToInt(ms.Count * 0.99f), 0, ms.Count - 1)];
                     int cams = All<Camera>(run).Count(c => c.isActiveAndEnabled);
                     int lights = All<Light>(run).Count(l => l.isActiveAndEnabled);
-                    string line = $"{room},{v},{1000f / avg:0},{avg:0.00},{low:0.00},{(tn > 0 ? cpuM / tn : 0):0.00},{(tn > 0 ? cpuR / tn : 0):0.00},{(tn > 0 ? gpu / tn : 0):0.00},{dc / Mathf.Max(sn, 1)},{bt / Mathf.Max(sn, 1)},{sp / Mathf.Max(sn, 1)},{tr / Mathf.Max(sn, 1) / 1000},{cams},{lights}";
+                    string line = $"{room},{v} [enemies {run.Enemies.Count} bullets {run.Bullets.LiveCount}],{1000f / avg:0},{avg:0.00},{low:0.00},{(tn > 0 ? cpuM / tn : 0):0.00},{(tn > 0 ? cpuR / tn : 0):0.00},{(tn > 0 ? gpu / tn : 0):0.00},{dc / Mathf.Max(sn, 1)},{bt / Mathf.Max(sn, 1)},{sp / Mathf.Max(sn, 1)},{tr / Mathf.Max(sn, 1) / 1000},{cams},{lights}";
                     sb.AppendLine(line);
                     Note?.Invoke(line);
-                    if (v == "base")
+                    if (v == "base" || v.StartsWith("swarm:"))
                     {
                         var parts = new List<string>();
                         for (int i = 0; i < markers.Length; i++) if (mk[i] / Mathf.Max(sn, 1) >= 0.05) parts.Add($"{markerNames[i]} {mk[i] / Mathf.Max(sn, 1):0.00}ms");
@@ -129,8 +134,123 @@ namespace RoomRun
         }
 
         // Switches one system off; returns how to switch it back.
+        // "gpu": same as base, plus the GPU time of every render marker (Sampler/Recorder), top 25 logged
+        static System.Action<string> noteStatic;
+        sealed class GpuMarkers : MonoBehaviour
+        {
+            readonly List<(string name, UnityEngine.Profiling.Recorder rec)> recs = new List<(string, UnityEngine.Profiling.Recorder)>();
+            readonly Dictionary<string, double> sum = new Dictionary<string, double>();
+            int frames;
+            void OnEnable()
+            {
+                var names = new List<string>();
+                UnityEngine.Profiling.Sampler.GetNames(names);
+                foreach (var n in names)
+                {
+                    var s = UnityEngine.Profiling.Sampler.Get(n);
+                    if (s == null || !s.isValid) continue;
+                    var r = s.GetRecorder(); if (r == null || !r.isValid) continue;
+                    r.enabled = true; recs.Add((n, r));
+                }
+            }
+            void LateUpdate()
+            {
+                frames++;
+                foreach (var (n, r) in recs) { long g = r.gpuElapsedNanoseconds; if (g > 0) sum[n] = (sum.TryGetValue(n, out var o) ? o : 0) + g * 1e-6; }
+            }
+            public void Report(System.Action<string> note)
+            {
+                foreach (var (_, r) in recs) r.enabled = false;
+                var top = sum.OrderByDescending(k => k.Value).Take(30).Select(k => $"{k.Key} {k.Value / Mathf.Max(frames, 1):0.00}");
+                note?.Invoke($"gpu markers ms ({frames} frames, nested markers overlap): " + string.Join(" | ", top));
+            }
+        }
+
         static System.Action Apply(string v, RunDirector run)
         {
+            // "a&b" applies both
+            if (v.Contains("&"))
+            {
+                var undos = v.Split('&').Select(p => Apply(p, run)).ToList();
+                return () => { for (int i = undos.Count - 1; i >= 0; i--) undos[i]?.Invoke(); };
+            }
+            // "hide:SP_Ground" switches off every renderer whose object name starts with that prefix (cost of one stage layer)
+            if (v.StartsWith("hide:"))
+            {
+                string pre = v.Substring(5);
+                var rs = All<Renderer>(run).Where(r => r.enabled && r.name.StartsWith(pre)).ToList();
+                foreach (var r in rs) r.enabled = false;
+                noteStatic?.Invoke($"hide:{pre} -> {rs.Count} renderers");
+                return () => { foreach (var r in rs) if (r) r.enabled = true; };
+            }
+            // "under:Border" switches off every renderer below an object of that name
+            if (v.StartsWith("under:"))
+            {
+                string nm = v.Substring(6);
+                var rs = All<Renderer>(run).Where(r => { if (!r.enabled) return false; for (var t = r.transform.parent; t; t = t.parent) if (t.name == nm) return true; return false; }).ToList();
+                foreach (var r in rs) r.enabled = false;
+                noteStatic?.Invoke($"under:{nm} -> {rs.Count} renderers");
+                return () => { foreach (var r in rs) if (r) r.enabled = true; };
+            }
+            // "orphans": renderers that belong to no scene (other fields' DontSave leftovers in a shared editor) off, listed by name
+            if (v == "orphans")
+            {
+                var rs = Resources.FindObjectsOfTypeAll<Renderer>().Where(r => r && r.enabled && r.gameObject.activeInHierarchy && !r.gameObject.scene.IsValid()).ToList();
+                var cam = run.Rig.Cam; var planes = GeometryUtility.CalculateFrustumPlanes(cam);
+                var groups = rs.GroupBy(r => new string(r.name.TakeWhile(ch => ch != '_' ).ToArray()) + "_" + (GeometryUtility.TestPlanesAABB(planes, r.bounds) ? "inview" : "out"))
+                    .Select(g => $"{g.Key} x{g.Count()}");
+                noteStatic?.Invoke($"orphans {rs.Count}: " + string.Join(", ", groups.Take(40)));
+                foreach (var r in rs) r.enabled = false;
+                return () => { foreach (var r in rs) if (r) r.enabled = true; };
+            }
+            // "scenes": loaded scenes with their visible renderer counts
+            if (v == "scenes")
+            {
+                var cam = run.Rig.Cam; var planes = GeometryUtility.CalculateFrustumPlanes(cam);
+                for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+                {
+                    var sc = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                    var rs = sc.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Renderer>()).Where(r => r.enabled && r.gameObject.activeInHierarchy).ToList();
+                    var vis = rs.Where(r => GeometryUtility.TestPlanesAABB(planes, r.bounds)).ToList();
+                    noteStatic?.Invoke($"scene {sc.name}: roots {string.Join(",", sc.GetRootGameObjects().Select(g => g.name).Take(20))}; renderers {rs.Count}, in view {vis.Count}: " +
+                        string.Join(", ", vis.GroupBy(r => (r.sharedMaterial ? r.sharedMaterial.shader.name : "-")).Select(g => $"{g.Key} x{g.Count()}").Take(25)));
+                }
+                return null;
+            }
+            // "nopack": LookStudyInstancer.packVisible off (A/B of the packed instanced draw)
+            if (v == "nopack")
+            {
+                var bs = All<MonoBehaviour>(run).Where(b => b.GetType().Name == "LookStudyInstancer").ToList();
+                var f = bs.Count > 0 ? bs[0].GetType().GetField("packVisible") : null;
+                var on = f == null ? new List<MonoBehaviour>() : bs.Where(b => (bool)f.GetValue(b)).ToList();
+                foreach (var b in on) f.SetValue(b, false);
+                return () => { foreach (var b in on) if (b) f.SetValue(b, true); };
+            }
+            if (v == "gpu")
+            {
+                var gm = run.gameObject.AddComponent<GpuMarkers>();
+                return () => { gm.Report(noteStatic); Destroy(gm); };
+            }
+            // "zoom:2.5" measures at that wheel zoom (1 = default, 3.5 = furthest out); "zoom:2.5+shadows" etc. combines.
+            if (v.StartsWith("zoom:"))
+            {
+                string rest = v.Substring(5);
+                int plus = rest.IndexOf('+');
+                float z = float.Parse(plus < 0 ? rest : rest.Substring(0, plus), System.Globalization.CultureInfo.InvariantCulture);
+                float keep = run.Rig.Zoom;
+                run.Rig.Zoom = z; run.Rig.Snap();
+                var inner = plus < 0 ? null : Apply(rest.Substring(plus + 1), run);
+                return () => { inner?.Invoke(); run.Rig.Zoom = keep; run.Rig.Snap(); };
+            }
+            // "swarm:200" adds 200 enemies (they shoot, so bullets pile up too) and leaves them for the later variants;
+            // "swarm:200@3" waits 3 s after spawning before sampling (inside the settle time it is ~1 s).
+            if (v.StartsWith("swarm:"))
+            {
+                var rest = v.Substring(6);
+                int plus = rest.IndexOf('+');
+                run.DevSwarm(int.Parse(plus < 0 ? rest : rest.Substring(0, plus)));
+                return plus < 0 ? null : Apply(rest.Substring(plus + 1), run);
+            }
             if (v.StartsWith("off:"))
             {
                 string type = v.Substring(4);

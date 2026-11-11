@@ -1,0 +1,2 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+snow,under:SnowPlague&foliage&gpu [enemies 0 bullets 0],76,13.23,16.95,10.70,1.57,10.01,514,514,98,609,1,24

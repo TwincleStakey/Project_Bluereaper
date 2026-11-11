@@ -29,6 +29,32 @@ Shader "SnowPlague/Ground"
         _RedLeaves("Red maple leaves", Range(0, 1)) = 0.35
         _Wet("Wet mud", Range(0, 1)) = 0.8
         _Footprints("Footprints in the snow", Range(0, 1)) = 0.8
+        _MaskA("Mask A (R snow, G wet, B gravel, A drift)", 2D) = "white" {}
+        _MaskB("Mask B (R path, G path dir, B drag, A ice)", 2D) = "black" {}
+        _MaskRect("Mask rect (min xz, size xz)", Vector) = (-105, -72, 210, 142)
+        _ShadeTint("Snow hollow tint", Color) = (0.72, 0.8, 0.92, 1)
+        _HexScale("Hex cells per tile", Range(0.5, 4)) = 1.4
+        _Sparkle("Sparkle", Range(0, 20)) = 6
+        _SnowFlatten("Snow detail contrast", Range(0, 1)) = 0.45
+        _Macro("Macro variation", Range(0, 2)) = 1
+        _IceSmooth("Ice smoothness", Range(0, 1)) = 0.88
+        _SnowSmooth("Snow smoothness", Range(0, 1)) = 0.38
+        _DirtTint("Dirty snow tint", Color) = (0.78, 0.7, 0.6, 1)
+        _DirtySnow("Dirty / trodden snow", Range(0, 1)) = 0.6
+        _ThinFrost("Thin snow and rime over the ground", Range(0, 1)) = 0.5
+        _HollowSnow("Snow left in the hollows of bare ground", Range(0, 1)) = 0.6
+        _SnowEdge("Snow edge width (cover)", Range(0.02, 0.6)) = 0.18
+        _BareNormal("Bare ground normal boost", Range(0, 3)) = 1.3
+        _MudAmount("Wet soil patches", Range(0, 1)) = 0.5
+        _GravelAmount("Gravel amount", Range(0, 2)) = 1
+        _GroundAO("Height cavity occlusion", Range(0, 1)) = 0.45
+        _SlushA("Slush / gritty snow albedo", 2D) = "grey" {}
+        _SlushN("Slush normal (GL)", 2D) = "grey" {}
+        _SlushH("Slush height", 2D) = "grey" {}
+        _Slush("Thin snow turns to gritty slush", Range(0, 1)) = 0.7
+        _SlushTile("Slush metres per tile", Float) = 2.5
+        _SnowRelief("Snow wind ripples / crust relief", Range(0, 3)) = 1
+        _MeltHoles("Melt holes in the snow", Range(0, 1)) = 0.5
     }
     SubShader
     {
@@ -74,6 +100,7 @@ Shader "SnowPlague/Ground"
             HLSLPROGRAM
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPPassPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
 
             #define SP_PASS_DEPTHNORMALS

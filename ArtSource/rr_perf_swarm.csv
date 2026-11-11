@@ -1,0 +1,6 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+grass,base [enemies 4 bullets 0],174,5.76,7.29,5.08,2.23,5.54,427,427,305,7678,1,2
+grass,swarm:50 [enemies 54 bullets 129],166,6.02,9.20,5.22,2.45,4.98,1140,1139,475,7931,1,2
+grass,swarm:100 [enemies 154 bullets 384],64,15.73,30.74,14.16,3.38,4.49,2530,2520,811,8422,1,2
+grass,off:EnemyController [enemies 154 bullets 96],185,5.41,7.44,4.64,3.09,4.88,2290,2286,809,8240,1,2
+grass,foliage [enemies 154 bullets 216],71,13.99,22.30,12.98,2.91,2.33,2236,2232,589,795,1,2

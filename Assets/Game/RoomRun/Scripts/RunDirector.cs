@@ -51,6 +51,8 @@ namespace RoomRun
 
             // light pools around players and bullets, enemy rim, in the dark fields (FieldLighting.DarkRooms)
             gameObject.AddComponent<FieldLighting>();
+            // one dark, desaturated look over every field (StageMood)
+            gameObject.AddComponent<StageMood>();
             // huge merged stage meshes are split into tiles so they can be culled (MeshChunker)
             gameObject.AddComponent<MeshChunkerRunner>();
 
@@ -109,7 +111,7 @@ namespace RoomRun
 
         // ---------- dev field keys: F1..F6 jump to a field in config order, F7 goes back to the previous one.
         // The field is played fresh: its waves and boss start again, a downed player stands back up.
-        static readonly Key[] FieldKeys = { Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F8, Key.F9 };
+        static readonly Key[] FieldKeys = { Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F8, Key.F9, Key.F11 };
         string previousRoomId;
 
         public string FieldKeyHelp()
@@ -468,6 +470,7 @@ namespace RoomRun
                     {
                         var pos = FindSpawn(room);
                         var mark = MeshLib.Part("SpawnMark", MeshLib.Ring, config.ringEnemy, roomRoot, Vector3.zero, Vector3.one);
+                        foreach (var mr in mark.GetComponentsInChildren<Renderer>()) mr.enabled = false;   // 11-12 Kido: no orange rings on the ground
                         mark.transform.position = pos + Vector3.up * 0.08f;
                         telegraphs.Add((pos, def, mark));
                     }
@@ -530,6 +533,18 @@ namespace RoomRun
             }
             best.y = Ground.Sample(best, room.center.y);
             return best;
+        }
+
+        // Perf stress (PerfProbe "swarm:N"): N more enemies of this room's kinds around the player, no telegraph.
+        public void DevSwarm(int n)
+        {
+            var room = Room;
+            var defs = new List<EnemyDef>();
+            if (room != null) foreach (var w in room.waves) foreach (var s in w.spawns) { var d = config.Enemy(s.enemyId); if (d != null) defs.Add(d); }
+            if (defs.Count == 0) foreach (var r in config.rooms) foreach (var w in r.waves) foreach (var s in w.spawns) { var d = config.Enemy(s.enemyId); if (d != null) defs.Add(d); }
+            if (defs.Count == 0 || room == null) return;
+            InCombat = true;
+            for (int i = 0; i < n; i++) SpawnEnemy(defs[i % defs.Count], FindSpawn(room), room);
         }
 
         void SpawnEnemy(EnemyDef def, Vector3 pos, RoomDef room)

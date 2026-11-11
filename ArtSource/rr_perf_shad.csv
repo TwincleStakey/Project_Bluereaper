@@ -1,0 +1,9 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+grass,base [enemies 4 bullets 0],218,4.59,6.98,3.93,2.14,4.38,429,429,303,7355,1,2
+grass,zoom:1.4 [enemies 4 bullets 0],189,5.29,7.04,4.62,1.78,5.10,520,520,372,9497,1,2
+grass,zoom:1.8 [enemies 4 bullets 0],191,5.24,7.23,4.59,2.16,5.04,685,684,513,8628,1,2
+grass,zoom:3.5 [enemies 4 bullets 0],210,4.77,6.81,4.03,1.86,4.39,547,546,232,8057,1,2
+abandoned,base [enemies 8 bullets 12],336,2.97,5.66,2.20,1.32,2.50,448,417,125,308,1,145
+abandoned,zoom:1.4 [enemies 8 bullets 12],299,3.35,8.03,2.45,1.46,2.65,644,516,123,1009,1,145
+abandoned,zoom:1.8 [enemies 8 bullets 18],300,3.33,6.81,2.52,1.42,2.79,881,689,130,1499,1,145
+abandoned,zoom:3.5 [enemies 8 bullets 12],252,3.97,6.87,3.20,1.49,3.76,3917,2035,175,6774,1,145

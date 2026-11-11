@@ -23,6 +23,12 @@ Shader "SnowPlague/Vegetation"
         _AOStrength("Vertex AO strength", Range(0, 1)) = 0.8
         _GroundMelt("Ground melt height (m)", Range(0, 1)) = 0.15
         _Cutoff("Alpha cutoff", Range(0, 1)) = 0.5
+        _SnowClump("Snow cushions (pines: world-up x noise)", Range(0, 1)) = 0
+        _SnowCover("Snow cushion cover", Range(0, 1)) = 0.45
+        _Desat("Desaturate albedo (winter needles)", Range(0, 1)) = 0
+        _SnowScale("Snow breakup scale (1 = pines, <1 = bigger drifts)", Range(0.1, 3)) = 1
+        _SnowLift("Snow lift (shadowed roofs)", Range(0, 1.5)) = 0
+        _RimScale("Rim light scale", Range(0, 1)) = 1
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 0
         [Toggle(_ALPHATEST_ON)] _AlphaClip("Alpha clip (cards)", Float) = 0
         [Toggle(SP_SEETHROUGH)] _SeeThrough("See-through near players", Float) = 0
@@ -42,6 +48,7 @@ Shader "SnowPlague/Vegetation"
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPForwardPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
+            #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
             #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
@@ -59,8 +66,8 @@ Shader "SnowPlague/Vegetation"
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPPassPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
-            #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
             #define SP_PASS_SHADOW
             #include "Assets/Game/SnowPlague/Shaders/SPLit.hlsl"
@@ -76,6 +83,7 @@ Shader "SnowPlague/Vegetation"
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPPassPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
+            #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
             #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
@@ -92,7 +100,9 @@ Shader "SnowPlague/Vegetation"
             HLSLPROGRAM
             #include_with_pragmas "Assets/Game/SnowPlague/Shaders/SPPassPragmas.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
+            #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
             #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
@@ -111,7 +121,6 @@ Shader "SnowPlague/Vegetation"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
             #pragma shader_feature EDITOR_VISUALIZATION
             #define SP_DEFORM
-            #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
             #define SP_PASS_META
             #include "Assets/Game/SnowPlague/Shaders/SPLit.hlsl"

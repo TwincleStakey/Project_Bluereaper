@@ -1,0 +1,12 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+snow,base [enemies 0 bullets 0],52,19.42,25.59,18.42,5.41,19.12,1065,1026,561,4776,1,24
+snow,under:Border [enemies 0 bullets 0],53,18.93,25.83,17.99,5.30,18.70,1062,1025,561,4762,1,24
+snow,under:Foreground [enemies 0 bullets 0],53,18.86,23.07,18.00,5.12,18.68,1064,1026,561,4774,1,24
+snow,under:VegetationFrame [enemies 0 bullets 0],53,18.80,26.74,17.82,5.50,18.51,1039,1012,557,4737,1,24
+snow,under:WestPlateau [enemies 0 bullets 0],53,18.82,22.13,17.86,5.37,18.62,1057,1020,561,4773,1,24
+snow,under:Architecture [enemies 0 bullets 0],53,19.01,25.21,18.03,5.26,18.78,1064,1026,561,4776,1,24
+snow,under:Vignettes [enemies 0 bullets 0],53,18.93,25.72,17.70,5.34,18.63,1048,1022,559,4771,1,24
+snow,under:MegascansProps [enemies 0 bullets 0],53,18.71,23.32,17.79,5.18,18.43,1035,1012,560,4436,1,24
+snow,under:FogVfx [enemies 0 bullets 0],53,18.90,23.90,17.87,5.16,18.59,1059,1021,559,4769,1,24
+snow,under:SnowPlague [enemies 0 bullets 0],61,16.41,21.58,15.49,5.21,16.11,953,952,541,4320,1,24
+snow,base [enemies 0 bullets 0],53,18.94,22.99,17.91,5.42,18.70,1064,1026,561,4776,1,24

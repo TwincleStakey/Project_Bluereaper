@@ -1,0 +1,5 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+snow,base [enemies 0 bullets 0],205,4.88,8.39,4.19,3.21,3.49,463,456,376,3075,1,53
+snow,swarm:200 [enemies 200 bullets 3404],64,15.57,35.06,14.58,13.45,5.22,3097,3090,1711,3552,1,65
+abandoned,base [enemies 8 bullets 12],312,3.20,6.47,2.50,1.24,2.99,1859,1537,168,4561,1,155
+abandoned,swarm:200 [enemies 208 bullets 3151],81,12.28,27.17,11.17,6.65,3.91,6565,6203,1587,5419,1,155

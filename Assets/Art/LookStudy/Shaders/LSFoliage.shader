@@ -76,25 +76,53 @@ Shader "LookStudy/Foliage"
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_instancing
-            struct Attr { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; float4 root : TEXCOORD1; float4 color : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            // LS_PROC: far plants drawn by LookStudyInstancer with RenderMeshPrimitives; matrix and tint come from
+            // buffers uploaded once, indexed by the instance id (11-11 perf).
+            #pragma multi_compile_local _ LS_PROC
+            #if defined(LS_PROC)
+            StructuredBuffer<float4x4> _LSProcMats;
+            StructuredBuffer<float4> _LSProcTints;
+            uint _LSProcBase;
+            #endif
+            struct Attr
+            {
+                float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; float4 root : TEXCOORD1; float4 color : COLOR;
+                #if defined(LS_PROC) && !defined(UNITY_INSTANCING_ENABLED)
+                uint procId : SV_InstanceID;
+                #endif
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
             struct V2F { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; float3 normalWS : TEXCOORD1; float2 uv : TEXCOORD2; float3 root : TEXCOORD3; float4 color : COLOR; };
 
             V2F vert(Attr a)
             {
                 V2F o;
-                UNITY_SETUP_INSTANCE_ID(a);
-                float3 root = LS_ROOT(a);
-                float3 ws = Sway(TransformObjectToWorld(a.positionOS.xyz), root);
+                #if defined(LS_PROC)
+                    #if defined(UNITY_INSTANCING_ENABLED)
+                    uint id = a.instanceID + _LSProcBase;
+                    #else
+                    uint id = a.procId + _LSProcBase;
+                    #endif
+                    float4x4 m = _LSProcMats[id];
+                    float3 root = float3(m._m03, m._m13, m._m23);
+                    float3 ws = Sway(mul(m, float4(a.positionOS.xyz, 1)).xyz, root);
+                    o.normalWS = normalize(mul((float3x3)m, a.normalOS));
+                    o.color = _LSProcTints[id];
+                #else
+                    UNITY_SETUP_INSTANCE_ID(a);
+                    float3 root = LS_ROOT(a);
+                    float3 ws = Sway(TransformObjectToWorld(a.positionOS.xyz), root);
+                    o.normalWS = TransformObjectToWorldNormal(a.normalOS);
+                    #if defined(UNITY_INSTANCING_ENABLED)
+                    o.color = UNITY_ACCESS_INSTANCED_PROP(LSProps, _Tint);
+                    #else
+                    o.color = a.color;
+                    #endif
+                #endif
                 o.positionWS = ws;
                 o.positionCS = TransformWorldToHClip(ws);
-                o.normalWS = TransformObjectToWorldNormal(a.normalOS);
                 o.uv = a.uv;
                 o.root = root;
-                #if defined(UNITY_INSTANCING_ENABLED)
-                o.color = UNITY_ACCESS_INSTANCED_PROP(LSProps, _Tint);
-                #else
-                o.color = a.color;
-                #endif
                 return o;
             }
 

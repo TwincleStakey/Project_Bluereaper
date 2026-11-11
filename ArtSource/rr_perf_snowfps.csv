@@ -1,0 +1,5 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+snow,base [enemies 0 bullets 0],64,15.51,18.78,14.58,2.95,13.73,804,801,255,1552,1,14
+snow,shadows [enemies 0 bullets 0],71,14.04,14.90,13.27,3.10,13.81,783,783,252,1549,1,14
+snow,post [enemies 0 bullets 0],68,14.68,15.10,13.92,3.07,14.46,779,777,230,1552,1,14
+snow,foliage [enemies 0 bullets 0],67,14.96,16.62,14.21,1.42,14.64,653,651,104,1028,1,14

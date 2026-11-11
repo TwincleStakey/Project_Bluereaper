@@ -1,0 +1,15 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+abandoned,orphans [enemies 8 bullets 12],158,6.33,23.05,5.10,2.03,4.52,1229,896,139,2555,1,145
+abandoned,orphans&gpu [enemies 8 bullets 12],158,6.34,18.27,3.65,1.89,3.18,1227,893,138,2554,1,145
+abandoned,orphans&foliage [enemies 8 bullets 15],176,5.68,11.27,4.67,1.80,4.79,1227,893,138,2552,1,145
+abandoned,orphans&shadows [enemies 8 bullets 17],145,6.89,10.34,5.84,1.94,6.13,803,630,124,988,1,145
+abandoned,orphans&post [enemies 8 bullets 12],207,4.83,8.36,3.93,1.68,3.87,1204,872,114,2544,1,145
+abandoned,orphans&swarm:200 [enemies 208 bullets 1447],50,19.98,45.38,18.23,13.33,7.26,6066,5736,1530,3421,1,145
+abandoned,orphans&gpu [enemies 208 bullets 2389],46,21.54,35.38,16.67,10.63,6.89,6103,5785,1542,3440,1,145
+snow,orphans [enemies 0 bullets 0],72,13.97,26.04,12.49,7.30,11.51,720,682,548,4289,1,24
+snow,orphans&gpu [enemies 0 bullets 0],94,10.65,19.78,7.34,6.28,6.64,720,682,548,4289,1,24
+snow,orphans&foliage [enemies 0 bullets 0],138,7.27,27.94,6.09,1.73,6.18,282,244,108,474,1,24
+snow,orphans&shadows [enemies 0 bullets 0],97,10.35,17.39,8.83,6.28,5.98,573,573,532,3881,1,24
+snow,orphans&post [enemies 0 bullets 0],91,11.02,38.92,9.45,7.11,6.16,695,657,523,4289,1,24
+snow,orphans&swarm:200 [enemies 200 bullets 1568],49,20.54,33.85,18.63,16.55,7.36,3538,3490,1886,4792,1,36
+snow,orphans&gpu [enemies 200 bullets 2786],36,27.67,48.43,22.60,15.63,8.00,3544,3496,1888,4795,1,36

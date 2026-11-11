@@ -1,0 +1,8 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+snow,base [enemies 0 bullets 0],52,19.41,27.90,18.01,5.76,18.28,1065,1026,561,4776,1,24
+snow,hide:SP_Ground [enemies 0 bullets 0],55,18.32,22.68,17.23,5.24,17.73,1049,1010,557,4744,1,24
+snow,hide:SP_River [enemies 0 bullets 0],55,18.18,28.42,17.15,5.29,17.71,1050,1012,558,4757,1,24
+snow,hide:SP_MX_ [enemies 0 bullets 0],52,19.15,24.33,18.22,5.33,18.31,1031,1008,560,4434,1,24
+snow,foliage [enemies 0 bullets 0],61,16.46,18.11,15.58,1.53,16.28,625,588,117,1066,1,24
+snow,shadows [enemies 0 bullets 0],56,17.97,22.27,16.37,5.11,17.11,918,917,545,4368,1,24
+snow,base [enemies 0 bullets 0],52,19.29,25.79,18.37,5.24,18.10,1064,1026,561,4775,1,24

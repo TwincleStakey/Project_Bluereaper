@@ -2,12 +2,21 @@
 // A shader defines, before including this file once per pass:
 //   SP_PASS_FORWARD | SP_PASS_SHADOW | SP_PASS_DEPTH | SP_PASS_DEPTHNORMALS | SP_PASS_META
 //   void SPSurface(SPInput i, inout SPOut o)          material logic (also used by meta, and for alpha clip in depth passes)
-//   optional: #define SP_DEFORM + float3 SPDeform(float3 ws, SPAttr a)   vertex wind / trample in world space
+//   optional: #define SP_DEFORM + float3 SPDeform(float3 ws, float3 root, SPAttr a)   vertex wind / trample in world space
 //   optional: #define SP_SEETHROUGH                   dither hole around the players
+//   optional: keyword LS_PROC                         procedural instancing (LookStudyInstancer / RenderMeshPrimitives):
+//             matrix from _LSProcMats[SV_InstanceID + _LSProcBase], tint from _LSProcTints (-> SPInput.tint)
 // Lighting goes through URP's UniversalFragmentPBR, so lightmaps, shadowmask, APV, light cookies, Forward+ and
 // light layers all work like URP Lit. Fog is the field fog (ReedCommon RFFog) plus the full-screen height fog pass.
 #ifndef SP_LIT_INCLUDED
 #define SP_LIT_INCLUDED
+
+// 11-12 perf: LS_PROC_IDX = LS_PROC, but the instance id goes through an index buffer of the visible instances
+// (LookStudyInstancer.packVisible: one draw per mesh + material instead of one per 8 m chunk)
+#if defined(LS_PROC_IDX) && !defined(LS_PROC)
+#define LS_PROC
+#define SP_PROC_IDX
+#endif
 
 #include "Assets/Game/SnowPlague/Shaders/SPCommon.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -16,6 +25,15 @@
 #endif
 #if defined(LOD_FADE_CROSSFADE)
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
+#endif
+
+#if defined(LS_PROC)
+StructuredBuffer<float4x4> _LSProcMats;
+StructuredBuffer<float4> _LSProcTints;
+uint _LSProcBase;
+#if defined(SP_PROC_IDX)
+StructuredBuffer<uint> _LSProcIdx;
+#endif
 #endif
 
 struct SPAttr
@@ -27,6 +45,9 @@ struct SPAttr
     float2 uv         : TEXCOORD0;
     float2 lmUV       : TEXCOORD1;
     float2 dynUV      : TEXCOORD2;
+#if defined(LS_PROC) && !defined(UNITY_INSTANCING_ENABLED)
+    uint procId       : SV_InstanceID;
+#endif
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -48,6 +69,9 @@ struct SPVary
     float4 probeOcclusion : TEXCOORD8;
     #endif
 #endif
+#if defined(LS_PROC)
+    float4 tint       : TEXCOORD9;
+#endif
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -59,6 +83,7 @@ struct SPInput
     float2 uv;
     float4 color;
     float4 extra;
+    float4 tint;      // procedural instancing tint (LS_PROC), else 1
     float4 positionCS;
     float3 viewWS;
     bool front;
@@ -75,15 +100,18 @@ struct SPOut
     float rim;        // rim light mask (0..1)
     float wrap;       // wrap lighting amount (thin vegetation)
     float specular;   // 0..1 spec scale
+    float sparkle;    // snow glints (lit by the moon and the lanterns)
 };
 
 void SPSurface(SPInput i, inout SPOut o);
 #if defined(SP_DEFORM)
-float3 SPDeform(float3 ws, SPAttr a);
+float3 SPDeform(float3 ws, float3 root, SPAttr a);
 #endif
 
+#if defined(SP_PASS_SHADOW)
 float3 _LightDirection;
 float3 _LightPosition;
+#endif
 
 SPVary SPVert(SPAttr a)
 {
@@ -91,23 +119,45 @@ SPVary SPVert(SPAttr a)
     UNITY_SETUP_INSTANCE_ID(a);
     UNITY_TRANSFER_INSTANCE_ID(a, o);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+#if defined(LS_PROC)
+    // Procedural instancing: unity_ObjectToWorld is identity, the matrix comes from the buffer (uniform scale assumed).
+    #if defined(UNITY_INSTANCING_ENABLED)
+    uint pid = a.instanceID + _LSProcBase;
+    #else
+    uint pid = a.procId + _LSProcBase;
+    #endif
+    #if defined(SP_PROC_IDX)
+    pid = _LSProcIdx[pid];
+    #endif
+    float4x4 pm = _LSProcMats[pid];
+    float3 ws = mul(pm, float4(a.positionOS.xyz, 1)).xyz;
+    float3 root = float3(pm._m03, pm._m13, pm._m23);
+    float3 nWS = normalize(mul((float3x3)pm, a.normalOS));
+    float3 tWS = normalize(mul((float3x3)pm, a.tangentOS.xyz));
+    float tw = a.tangentOS.w;
+    o.tint = _LSProcTints[pid];
+#else
     float3 ws = TransformObjectToWorld(a.positionOS.xyz);
-    VertexNormalInputs ni = GetVertexNormalInputs(a.normalOS, a.tangentOS);
-#if defined(SP_DEFORM)
-    ws = SPDeform(ws, a);
-#endif
-    o.ws = ws; o.nws = ni.normalWS;
-    o.tws = float4(ni.tangentWS, a.tangentOS.w * GetOddNegativeScale());
-    o.uv = a.uv; o.color = a.color;
     float3 root = TransformObjectToWorld(float3(0, 0, 0));
-    o.extra = float4(SPInstanceRand(), ws.y - root.y, 0, 0);
+    VertexNormalInputs ni = GetVertexNormalInputs(a.normalOS, a.tangentOS);
+    float3 nWS = ni.normalWS;
+    float3 tWS = ni.tangentWS;
+    float tw = a.tangentOS.w * GetOddNegativeScale();
+#endif
+#if defined(SP_DEFORM)
+    ws = SPDeform(ws, root, a);
+#endif
+    o.ws = ws; o.nws = nWS;
+    o.tws = float4(tWS, tw);
+    o.uv = a.uv; o.color = a.color;
+    o.extra = float4(SPInstanceRandAt(root), ws.y - root.y, 0, 0);
 #if defined(SP_PASS_SHADOW)
     #if _CASTING_PUNCTUAL_LIGHT_SHADOW
     float3 ld = normalize(_LightPosition - ws);
     #else
     float3 ld = _LightDirection;
     #endif
-    float4 cs = TransformWorldToHClip(ApplyShadowBias(ws, ni.normalWS, ld));
+    float4 cs = TransformWorldToHClip(ApplyShadowBias(ws, nWS, ld));
     #if UNITY_REVERSED_Z
     cs.z = min(cs.z, UNITY_NEAR_CLIP_VALUE);
     #else
@@ -133,6 +183,11 @@ SPInput SPMakeInput(SPVary v, bool front)
 {
     SPInput i;
     i.ws = v.ws; i.nws = normalize(v.nws) * (front ? 1 : -1); i.tws = v.tws; i.uv = v.uv; i.color = v.color; i.extra = v.extra;
+#if defined(LS_PROC)
+    i.tint = v.tint;
+#else
+    i.tint = float4(1, 1, 1, 1);
+#endif
     i.positionCS = v.positionCS; i.viewWS = GetWorldSpaceNormalizeViewDir(v.ws); i.front = front;
     return i;
 }
@@ -141,7 +196,7 @@ SPOut SPDefaultOut(SPInput i)
 {
     SPOut o;
     o.albedo = 0.5; o.normalWS = i.nws; o.alpha = 1; o.smoothness = 0.1; o.occlusion = 1; o.emission = 0;
-    o.rim = 1; o.wrap = 0; o.specular = 1;
+    o.rim = 1; o.wrap = 0; o.specular = 1; o.sparkle = 0;
     return o;
 }
 
@@ -155,7 +210,12 @@ float3 SPNormalTS(SPInput i, float2 nxy, float strength)
 }
 
 #if defined(SP_PASS_FORWARD)
-half4 SPFrag(SPVary v, bool front : SV_IsFrontFace) : SV_Target
+void SPFrag(SPVary v, bool front : SV_IsFrontFace
+    , out half4 outColor : SV_Target0
+#ifdef _WRITE_RENDERING_LAYERS
+    , out uint outRenderingLayers : SV_Target1
+#endif
+)
 {
     UNITY_SETUP_INSTANCE_ID(v);
     SPInput i = SPMakeInput(v, front);
@@ -178,6 +238,7 @@ half4 SPFrag(SPVary v, bool front : SV_IsFrontFace) : SV_Target
 #if defined(MAIN_LIGHT_CALCULATE_SHADOWS)
     d.shadowCoord = TransformWorldToShadowCoord(v.ws);
 #endif
+    // Forward+ (_CLUSTER_LIGHT_LOOP) picks its light cluster from this
     d.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(v.positionCS);
     d.shadowMask = half4(1, 1, 1, 1);
 #if defined(DYNAMICLIGHTMAP_ON)
@@ -201,9 +262,18 @@ half4 SPFrag(SPVary v, bool front : SV_IsFrontFace) : SV_Target
         float ndl = dot(d.normalWS, ml.direction);
         c.rgb += o.albedo * ml.color * ml.shadowAttenuation * (saturate(ndl * 0.5 + 0.5) - saturate(ndl)) * o.wrap;
     }
-    c.rgb += o.albedo * SPRim(d.normalWS, i.viewWS, v.ws, o.rim) + SPRim(d.normalWS, i.viewWS, v.ws, o.rim) * 0.15;
+    if (o.sparkle > 0)
+    {
+        Light sl = GetMainLight(d.shadowCoord, d.positionWS, d.shadowMask);
+        c.rgb += o.sparkle * (sl.color * sl.shadowAttenuation + _SP_RimWarm.rgb * SPLanternWarm(v.ws) * 3.0);
+    }
+    float3 rim = SPRim(d.normalWS, i.viewWS, v.ws, o.rim);
+    c.rgb += o.albedo * rim + rim * 0.15;
     c.rgb = RFFog(c.rgb, v.ws);
-    return half4(c.rgb, 1);
+    outColor = half4(c.rgb, 1);
+#ifdef _WRITE_RENDERING_LAYERS
+    outRenderingLayers = EncodeMeshRenderingLayer();
+#endif
 }
 #endif
 
@@ -225,19 +295,27 @@ half4 SPFrag(SPVary v, bool front : SV_IsFrontFace) : SV_Target
 #endif
 
 #if defined(SP_PASS_DEPTHNORMALS)
-half4 SPFrag(SPVary v, bool front : SV_IsFrontFace) : SV_Target
+void SPFrag(SPVary v, bool front : SV_IsFrontFace
+    , out half4 outNormal : SV_Target0
+#ifdef _WRITE_RENDERING_LAYERS
+    , out uint outRenderingLayers : SV_Target1
+#endif
+)
 {
     UNITY_SETUP_INSTANCE_ID(v);
 #if defined(SP_SEETHROUGH)
     SPSeeThroughClip(v.positionCS, v.ws);
 #endif
     SPInput i = SPMakeInput(v, front);
-    SPOut o = SPDefaultOut(i);
 #if defined(_ALPHATEST_ON)
+    SPOut o = SPDefaultOut(i);
     SPSurface(i, o);
     clip(o.alpha - 0.5);
 #endif
-    return half4(NormalizeNormalPerPixel(i.nws), 0);
+    outNormal = half4(NormalizeNormalPerPixel(i.nws), 0);
+#ifdef _WRITE_RENDERING_LAYERS
+    outRenderingLayers = EncodeMeshRenderingLayer();
+#endif
 }
 #endif
 

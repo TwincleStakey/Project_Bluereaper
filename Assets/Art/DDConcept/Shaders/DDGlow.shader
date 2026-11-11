@@ -39,8 +39,9 @@ Shader "DD/Glow"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            struct Attributes { float4 positionOS : POSITION; };
-            float4 vert(Attributes i) : SV_POSITION { return TransformObjectToHClip(i.positionOS.xyz); }
+            #pragma multi_compile_instancing
+            struct Attributes { float4 positionOS : POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            float4 vert(Attributes i) : SV_POSITION { UNITY_SETUP_INSTANCE_ID(i); return TransformObjectToHClip(i.positionOS.xyz); }
             half frag() : SV_Target { return 0; }
             ENDHLSL
         }

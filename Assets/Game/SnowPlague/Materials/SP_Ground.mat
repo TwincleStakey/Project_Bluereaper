@@ -1,0 +1,133 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SP_Ground
+  m_Shader: {fileID: 4800000, guid: 48ec7bbf5a7741647a3a331116d3e3ee, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _GravelA:
+        m_Texture: {fileID: 2800000, guid: a1f0f0058e0732e41a1b383318c1e4d8, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GravelH:
+        m_Texture: {fileID: 2800000, guid: b8ca1302b9ae3b6409d642ce90f439b4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GravelN:
+        m_Texture: {fileID: 2800000, guid: aa6918931656b3540924c24e5133320f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LeafA:
+        m_Texture: {fileID: 2800000, guid: 6a3fb7f7de779b14b9db8eba88507ecc, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LeafH:
+        m_Texture: {fileID: 2800000, guid: d705057f9bf368b4bb6bcbe8e604b238, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LeafN:
+        m_Texture: {fileID: 2800000, guid: 6af921cdbf2a44e4eb8d0db46ccbd0e8, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskA:
+        m_Texture: {fileID: 2800000, guid: 53a3489eba0d24a4391daf9a0ae03179, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskB:
+        m_Texture: {fileID: 2800000, guid: 584d2bd6565d90048a808050adbf902f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MudA:
+        m_Texture: {fileID: 2800000, guid: ddb13be1ff9fc584687983104b0f4243, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MudH:
+        m_Texture: {fileID: 2800000, guid: 2963ce9079f8dee4895c98b163a01e64, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MudN:
+        m_Texture: {fileID: 2800000, guid: a9089da0fff375348ad2746c5d02ad7a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SlushA:
+        m_Texture: {fileID: 2800000, guid: 66767ddd0278d994a8a382a15bb76636, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SlushH:
+        m_Texture: {fileID: 2800000, guid: 29ebe96ed348da446878db9116782512, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SlushN:
+        m_Texture: {fileID: 2800000, guid: c28526ff28f63664085ab04d392ce242, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowA:
+        m_Texture: {fileID: 2800000, guid: ed9244b77e8380340a592e33348eb716, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowH:
+        m_Texture: {fileID: 2800000, guid: c01fcbe967bf4e442b225dcfba6a9bfe, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowN:
+        m_Texture: {fileID: 2800000, guid: e1451b6b1ecb9b14b80cbe4b7fdf52bc, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BareNormal: 1.3
+    - _BlendDepth: 0.2
+    - _Calm: 0.7
+    - _DirtySnow: 0.85
+    - _Footprints: 0.8
+    - _GravelAmount: 1
+    - _GroundAO: 0.35
+    - _HexScale: 1.2
+    - _HollowSnow: 0
+    - _IceSmooth: 0.88
+    - _Macro: 1
+    - _MeltHoles: 0.8
+    - _MudAmount: 0.3
+    - _NormalStrength: 1.35
+    - _RedLeaves: 0.05
+    - _Slush: 0.7
+    - _SlushTile: 2.5
+    - _SnowBias: 0
+    - _SnowEdge: 0.06
+    - _SnowFill: 1
+    - _SnowFlatten: 1
+    - _SnowRelief: 1
+    - _SnowSmooth: 0.2
+    - _Sparkle: 8
+    - _ThinFrost: 0.35
+    - _Wet: 0.3
+    m_Colors:
+    - _DirtTint: {r: 0.88, g: 0.86, b: 0.82, a: 1}
+    - _GravelTint: {r: 1, g: 1, b: 0.98, a: 1}
+    - _LeafTint: {r: 1.35, g: 1.35, b: 1.33, a: 1}
+    - _MaskRect: {r: -105, g: -72, b: 210, a: 142}
+    - _RedLeaf: {r: 0.4, g: 0.07, b: 0.05, a: 1}
+    - _ShadeTint: {r: 0.86, g: 0.87, b: 0.9, a: 1}
+    - _SnowTint: {r: 0.952, g: 0.95, b: 0.948, a: 1}
+    - _SoilTint: {r: 1.55, g: 1.55, b: 1.52, a: 1}
+    - _Tiles: {r: 2.4, g: 2.6, b: 3, a: 2.6}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

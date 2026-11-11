@@ -23,6 +23,7 @@ namespace RoomRun
             "Assets/Game/AbandonedVillage/AbandonedVillage.unity",
             "Assets/Game/ReedField/ReedField.unity",
             "Assets/Game/BambooArena/BambooArena.unity",
+            "Assets/Game/SnowPlague/SnowPlague.unity",
         };
 
         public static string OutDir => Path.GetFullPath("Builds/PerfDev");

@@ -12,7 +12,7 @@ namespace RoomRun
 {
     public sealed class FieldLighting : MonoBehaviour
     {
-        public static readonly HashSet<string> DarkRooms = new HashSet<string> { "abandoned" };   // add more dark fields here
+        public static readonly HashSet<string> DarkRooms = new HashSet<string> { "grass", "valley", "village", "palace", "underworld", "abandoned", "reeds", "bamboo", "snow" };   // every field is dark since 11-11 (StageMood)
         public const int MaxBulletLights = 12;
 
         [Header("Player light pool")]

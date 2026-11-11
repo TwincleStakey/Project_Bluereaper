@@ -1,0 +1,6 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+grass,base,203,4.93,6.80,4.27,2.60,4.20,414,414,99,7207,1,2
+grass,zoom:1.4,176,5.68,7.22,4.94,2.64,4.99,472,472,97,9075,1,2
+grass,zoom:1.8,143,6.98,10.75,6.11,3.20,4.80,613,613,96,8232,1,2
+grass,zoom:2.6,83,12.06,18.83,11.02,6.97,4.29,912,912,86,4778,1,2
+grass,zoom:3.5,62,16.10,21.51,14.79,7.85,5.31,1336,1336,92,6947,1,2

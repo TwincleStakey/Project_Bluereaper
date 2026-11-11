@@ -84,11 +84,15 @@ float2 RFBend(float2 root, float rnd, float stiffness, out float gust, out float
     // Reeds hardly break (Kido 11-10): brushed past, they only part a little away from the player and spring straight
     // back. The trail map is shared with the LookStudy grass and fades over ~7 s, so the reeds use only its freshest
     // part (top 15%, gone in about a second), lean at most ~15 degrees and keep their wind sway on top.
+    // 11-11 (Kido: "너무 빨리 팍 꺾여"): the window used to be the top 15% of the trail, which the player's disc only
+    // reaches within ~15 cm of its centre, so a reed went from upright to full lean in one frame and back in a second.
+    // Now the top 45%: the lean grows with nearness over ~0.4 m as the player comes, eases in (squared), peaks lower
+    // (~10 degrees) and settles back over about 3 s.
     float4 tr = RFTrail(root);
-    trample = saturate((tr.r - 0.85) / 0.15);
-    trample = trample * trample * (3 - 2 * trample);
+    trample = saturate((tr.r - 0.55) / 0.45);
+    trample = trample * trample;
     float2 push = tr.ba * 2 - 1;
-    offs += normalize(push + 1e-4) * 0.3 * trample;
+    offs += normalize(push + 1e-4) * 0.2 * trample;
 
     // Something unseen moving through the reeds parts them.
     [unroll] for (int k = 0; k < 4; k++)

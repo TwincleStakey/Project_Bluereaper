@@ -113,7 +113,13 @@ public class LookStudyDevTools : MonoBehaviour
         // The underworld keeps the old behaviour: its look was tuned with the panel's values on top.
         foreignField = scenePath.StartsWith("Assets/Game/");
         if (sun) sunRot0 = sun.transform.rotation;
-        var vol = FindAnyObjectByType<Volume>();
+        // 11-11: the stage's own post volume only. FindAnyObjectByType used to pick whichever volume came first, and
+        // since RoomRun layers StageMood (priority 1000) and LookFX (1100) on top, it sometimes grabbed one of those,
+        // cloned its profile and forced exposure 0 / its own saturation there - the 저승 stayed dark whatever exposure
+        // was set. Overlay volumes (priority >= 1000) are left alone.
+        Volume vol = null;
+        foreach (var v in FindObjectsByType<Volume>(FindObjectsSortMode.None))
+            if (v.priority < 1000f && (!vol || v.priority < vol.priority)) vol = v;
         if (vol)
         {
             var p = vol.profile; // runtime clone, the asset is untouched

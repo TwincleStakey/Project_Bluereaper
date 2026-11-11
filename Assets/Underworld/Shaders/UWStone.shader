@@ -117,16 +117,27 @@ Shader "Underworld/Stone"
                 float3 emission = _Emission.rgb;
                 if (_CrackAmt > 0.001)
                 {
-                    float2 v = UWVoronoi(ws.xz * 0.95 + UWNoise(ws.xz * 2.3) * 0.25);
-                    float line_ = smoothstep(0.03, 0.0, v.y);
-                    float cluster = smoothstep(0.78 - _CrackAmt * 0.12, 0.86 - _CrackAmt * 0.12, UWFbm(ws.xz * 0.16 + 5.3)) * topMask;
-                    float darkCl = smoothstep(0.42, 0.6, UWFbm(ws.xz * 0.16 + 5.3)) * topMask;
-                    albedo *= 1.0 - line_ * darkCl * 0.75;
-                    float crack = line_ * cluster;
-                    float pulse = 0.65 + 0.35 * sin(_UWTime * 1.3 + v.x * 8.0 + ws.x * 0.3);
-                    emission += _CrackCol.rgb * crack * pulse;
-                    // faint violet glow bleeding around the cracks
-                    emission += _CrackCol.rgb * 0.03 * cluster * smoothstep(0.12, 0.0, v.y);
+                    // 11-11 (Kido: "줄로 찍찍 그어논거 같에, 은은하게"): the cracks were straight voronoi edges of one width
+                    // and one brightness. Now: the cell lattice is bent by a two-scale warp so edges wander, the width
+                    // swells and pinches along each crack and whole stretches fade out, the core is thin and dim and
+                    // most of the light is a wide soft halo, and the glow breathes slowly in patches instead of a wave.
+                    float2 cp = ws.xz * 0.8;
+                    float2 warp = float2(UWNoise(cp * 0.9 + 3.7), UWNoise(cp * 0.9 + 9.1)) - 0.5;
+                    warp += (float2(UWNoise(cp * 3.1 + 1.3), UWNoise(cp * 3.1 + 6.6)) - 0.5) * 0.35;
+                    float2 v = UWVoronoi(cp + warp * 0.9);
+                    float along = UWNoise(ws.xz * 1.7 + 21.0);
+                    float width = lerp(0.006, 0.03, along * along);
+                    float present = smoothstep(0.3, 0.55, UWNoise(ws.xz * 0.9 + 40.0));
+                    float core = smoothstep(width, width * 0.25, v.y) * present;
+                    float halo = exp(-v.y * 18.0) * lerp(0.35, 1.0, present);
+                    float clN = UWFbm(ws.xz * 0.16 + 5.3);
+                    float cluster = smoothstep(0.66 - _CrackAmt * 0.12, 0.9 - _CrackAmt * 0.12, clN) * topMask;
+                    float darkCl = smoothstep(0.42, 0.7, clN) * topMask;
+                    albedo *= 1.0 - core * darkCl * 0.6;
+                    float breathe = 0.6 + 0.4 * sin(_UWTime * 0.7 + UWNoise(ws.xz * 0.35) * 6.28);
+                    emission += _CrackCol.rgb * cluster * breathe * (core * 0.45 + halo * 0.12);
+                    // faint violet bloom over the whole cracked patch, so the cracks sit in a glow rather than on top
+                    emission += _CrackCol.rgb * 0.018 * cluster * cluster;
                 }
 
                 InputData d = (InputData)0;

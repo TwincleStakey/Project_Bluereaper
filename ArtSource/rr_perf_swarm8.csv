@@ -1,0 +1,4 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+abandoned,base [enemies 8 bullets 12],368,2.72,5.80,2.02,1.22,2.05,389,369,127,192,1,145
+abandoned,swarm:150 [enemies 158 bullets 2340],112,8.92,15.41,7.96,5.57,3.25,3960,3922,1131,3510,1,145
+abandoned,off:EnemyController [enemies 158 bullets 696],142,7.05,12.28,6.08,5.64,2.77,3931,3895,1119,2797,1,145

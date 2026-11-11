@@ -35,6 +35,6 @@ Material:
     - _Scale: 0.06
     - _Speed: 0.02
     m_Colors:
-    - _Col: {r: 0.47843128, g: 0.4235294, b: 0.5882353, a: 1}
+    - _Col: {r: 0.47843128, g: 0.4235294, b: 0.5882353, a: 0.992}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

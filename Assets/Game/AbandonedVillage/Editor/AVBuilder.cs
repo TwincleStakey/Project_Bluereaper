@@ -9,7 +9,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using AbandonedVillage;
 
-public static class AVBuilder
+public static partial class AVBuilder
 {
     public const string Root = "Assets/Game/AbandonedVillage";
     public const string ScenePath = Root + "/AbandonedVillage.unity";
@@ -17,6 +17,7 @@ public static class AVBuilder
     const string MatDir = Root + "/Materials";
     const string Models = Root + "/Models/";
     const string PH = Root + "/ThirdParty/PolyHaven/";
+    const string MS = Root + "/ThirdParty/Megascans/";
     public const float TerraceY = 2.56f;
     public const float TerraceZ = 46.5f;
     // Open combat arena: nearly square, flat ground only. Nothing that blocks or stops movement is placed inside;
@@ -131,10 +132,10 @@ public static class AVBuilder
         Lit("AV_Twig", T("bark_willow_diff_1k.jpg"), null, Hex("#8a7a66"), 2f, 0.05f, 1f, true);
         Lit("AV_Rope", T("ThatchedRoof001A_1K-JPG_Color.jpg"), null, Hex("#7a6e5a"), 3f, 0.05f);
         Lit("AV_Onggi", null, T("plastered_stone_wall_nor_gl_1k.jpg", true), Hex("#3a2219"), 1.5f, 0.62f, 0.25f);
-        Lit("AV_DryGrass", T("AV_DryGrassGrad.png"), null, Hex("#c9c0b0"), 1f, 0.05f, 1f, true);
+        Lit("AV_DryGrass", T("AV_DryGrassGrad.png"), null, Hex("#f2e8d4"), 1f, 0.02f, 1f, true);   // 11-11: bleached straw, was reading as black spikes
         Lit("AV_Reed", null, null, Hex("#4a453d"), 1f, 0.05f, 1f, true);
         Lit("AV_Crow", null, null, Hex("#0b0b0e"), 1f, 0.45f);
-        Lit("AV_Puddle", null, null, Hex("#0b0f14"), 1f, 0.93f);
+        Lit("AV_Puddle", null, null, Hex("#1d2125"), 1f, 0.9f);   // 11-12: near black read as holes, blue-grey read as blue blobs
         Particle("AV_FogMat", T("AV_FogPuff.png"), new Color(0.42f, 0.48f, 0.56f, 0.22f), false);
         Particle("AV_WispMat", T("AV_Glow.png"), new Color(0.45f, 0.95f, 1f, 1f), true);
         Particle("AV_EmberMat", T("AV_Glow.png"), new Color(1f, 0.6f, 0.25f, 1f), true);
@@ -197,21 +198,25 @@ public static class AVBuilder
     // ------------------------------------------------------------------ placement helpers
     static GameObject Place(string model, Vector3 pos, float yaw, float scale = 1f, Transform parent = null, string label = null)
     {
-        var path = model.StartsWith("PH:") ? PH + model.Substring(3) + "/" + model.Substring(3) + ".fbx" : Models + model + ".fbx";
+        var path = model.StartsWith("PH:") ? PH + model.Substring(3) + "/" + model.Substring(3) + ".fbx"
+                 : model.StartsWith("MS:") ? MS + model.Substring(3) + ".fbx" : model.StartsWith("P:") ? model.Substring(2) : Models + model + ".fbx";
         var src = AssetDatabase.LoadAssetAtPath<GameObject>(path);
         if (!src) { Debug.LogError("[AV] missing model " + path); return null; }
         var go = (GameObject)PrefabUtility.InstantiatePrefab(src, parent ? parent : root);
         go.name = label ?? src.name;
         go.transform.position = pos;
         // Blender kit FBXs come in turned 180° (Blender -Y front ends up on +Z); turn them so the front faces -Z.
-        go.transform.rotation = Quaternion.Euler(0, yaw + (model.StartsWith("PH:") ? 0f : 180f), 0);
+        go.transform.rotation = Quaternion.Euler(0, yaw + (model.StartsWith("PH:") || model.StartsWith("MS:") || model.StartsWith("P:") ? 0f : 180f), 0);
         go.transform.localScale = Vector3.one * scale;
+        NormalizeMS(go, model);   // 11-12: downloaded scans come in at 1/100 or odd scales -> real size x scale
         foreach (var r in go.GetComponentsInChildren<Renderer>())
         {
             r.shadowCastingMode = ShadowCastingMode.On;
-            if (model.StartsWith("AV_DryGrass") || model.Contains("grass") || model == "AV_HangingLantern" || model == "AV_StoneLantern") r.shadowCastingMode = ShadowCastingMode.Off;
+            if (model.StartsWith("MS:") || model.StartsWith("AV_DryGrass") || model.Contains("grass") || model.Contains("fern") || model == "AV_HangingLantern" || model == "AV_StoneLantern") r.shadowCastingMode = ShadowCastingMode.Off;
         }
-        GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+        // Megascans plants stay dynamic: per-object culling + SRP batcher/instancing; static batching merged ~5k plants into huge always-drawn meshes (11-12)
+        if (!(model.StartsWith("MS:") && (model.Contains("WildDry") || model.Contains("DryGrass") || model.Contains("shrubs")))) GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+        if (model.StartsWith("AV_DeadTree")) SeeThroughKitTree(go);   // 11-12: dither hole near the player
         return go;
     }
 
@@ -280,22 +285,94 @@ public static class AVBuilder
         // hills rising beyond the village edge (behind the back house rows)
         float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
         y += Mathf.Pow(Mathf.Clamp01((edge - 66f) / 18f), 1.6f) * (5f + 3f * Mathf.PerlinNoise(x * 0.05f, z * 0.05f));
+        y += IslandMound(x, z);   // 11-11: raised knolls under the big trees on the ruin ring
+        y += SouthBank(x, z);     // 11-12: raised bank on the camera side carrying the tall houses
+        // r7 (Kido: too flat, but nothing to trip on): long gentle swells and hollows, +-0.45 m over 15-30 m, slope < 5 deg
+        y += (Fbm(x, z, 0.03f, 51f, 19f) - 0.5f) * 0.9f * (1f - Mathf.Clamp01((Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) - 60f) / 10f));
         return y;
     }
 
+    static float Fbm(float x, float z, float f, float ox, float oz)
+    {
+        return Mathf.PerlinNoise(x * f + ox, z * f + oz) * 0.55f + Mathf.PerlinNoise(x * f * 2.3f + ox + 13f, z * f * 2.3f + oz + 7f) * 0.3f
+             + Mathf.PerlinNoise(x * f * 5.7f + ox + 31f, z * f * 5.7f + oz + 3f) * 0.15f;
+    }
+    static float Band(float v, float t, float soft) => Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(t - soft, t + soft, v));
+
+    // 11-11 redo: wet mud everywhere; cart ruts along the streets with ragged edges; leaf litter drifting against walls,
+    // ruins and the edge; gravel scattered in smaller broken patches. Thresholds sit on multi-octave noise with a fine
+    // jitter, so borders are broken and a few metres across instead of 10 m blobs with smooth outlines.
+    // 11-12 Kido preferred the previous ground: the 11-10 splat is back (SplatAtRedo kept for reference, unused)
+    // 11-12 r2 (Kido, with a crop of the dark pebble ground): one ground only, the dark small-pebble layer. The pale
+    // cracked-dirt and mud patches mixed in read as snow on mud. Only the north terrace keeps its paving.
+    // 11-12 r5: Kido's floor is the committed one -> the committed splat (SplatAtMixed, unchanged from git)
+    // r6 (Kido, crop of the dark forest mud with green sprouts: "원래는 이 바닥만 있었다고"): that one layer only
     public static void SplatAt(float x, float z, float[] w)
+    {
+        // r7: three dark muds in big uneven regions (8-25 m) with soft 1-2 m borders, a few small gravel patches.
+        float pave = z > TerraceZ - 0.5f ? Mathf.Clamp01(1.2f - Mathf.Abs(x) / 9f + (Mathf.PerlinNoise(x * 0.23f + 2f, z * 0.23f + 9f) - 0.5f) * 0.9f) : 0f;
+        float a = Fbm(x, z, 0.045f, 13f, 77f), b = Fbm(x, z, 0.06f, 91f, 5f);
+        float forest = Band(a, 0.56f, 0.05f) * 0.85f;                    // the green-sprout forest mud, ~35% of the ground
+        float ms = (1f - forest) * Band(b, 0.5f, 0.06f);                 // Megascans moist mud
+        float brown = (1f - forest) * (1f - Band(b, 0.5f, 0.06f));       // brown mud
+        float grav = Band(Fbm(x, z, 0.22f, 3f, 29f), 0.7f, 0.04f) * 0.6f;
+        float k = 1f - pave;
+        w[0] = forest * k; w[1] = ms * k; w[2] = brown * k; w[3] = grav * k; w[4] = pave;
+        float s = w[0] + w[1] + w[2] + w[3] + w[4]; for (int i = 0; i < 5; i++) w[i] /= s;
+    }
+
+    static void SplatAtMeadow(float x, float z, float[] w)
+    {
+        // 11-12 r3 (Kido's crop was the original forest mud with green bits + pebble/plank scraps): forest mud everywhere,
+        // the muddy-tracks layer only in soft broken patches and along the streets so the tiling doesn't read as one
+        // repeated pattern; no pale cracked dirt, no gravel layer
+        // r4 (Kido: the first board image): big green meadow regions and big brown mud regions (10-30 m, ragged edges),
+        // the streets worn to mud, leafy mud fringing the meadows and leaf-strewn gravel in small broken patches.
+        float sd = StreetDist(x, z);
+        float big = Fbm(x, z, 0.035f, 31f, 17f) + (Mathf.PerlinNoise(x * 0.5f + 3f, z * 0.5f + 8f) - 0.5f) * 0.08f;
+        float meadow = Band(big, 0.45f, 0.035f) * Mathf.Clamp01((sd - 1.5f) / 2.5f);
+        float fringe = Mathf.Clamp01(1f - Mathf.Abs(big - 0.45f) / 0.08f) * 0.8f + (1f - meadow) * Band(Fbm(x, z, 0.09f, 3f, 61f), 0.5f, 0.06f) * 0.9f;          // leafy mud along the meadow edge
+        float grav = Band(Fbm(x, z, 0.2f, 7f, 41f), 0.66f, 0.05f) * 0.8f * (1f - meadow);
+        float pave = z > TerraceZ - 0.5f ? Mathf.Clamp01(1.2f - Mathf.Abs(x) / 9f + (Mathf.PerlinNoise(x * 0.23f + 2f, z * 0.23f + 9f) - 0.5f) * 0.9f) : 0f;
+        float mud = 1f - meadow;
+        float k = 1f - pave;
+        w[0] = meadow * k; w[1] = mud * k; w[2] = fringe * k; w[3] = grav * k; w[4] = pave;
+        float s = w[0] + w[1] + w[2] + w[3] + w[4]; for (int i = 0; i < 5; i++) w[i] /= s;
+    }
+
+    static void SplatAtMixed(float x, float z, float[] w)
     {
         float sd = StreetDist(x, z);
         float n1 = Mathf.PerlinNoise(x * 0.09f + 11f, z * 0.09f + 5f), n2 = Mathf.PerlinNoise(x * 0.23f + 2f, z * 0.23f + 9f);
         float edge = Mathf.Max(Mathf.Abs(x) / 47f, Mathf.Abs(z + 3.5f) / 47f);
         float w0 = 1f;                                                    // mud
         float w1 = Mathf.Clamp01(1.8f - sd / 1.8f + (n2 - 0.5f) * 0.6f);  // street tracks
-        float w2 = Mathf.Clamp01((edge - 0.75f) * 1.2f + (n2 - 0.5f) * 1.1f) * (1f - w1) * 0.7f;   // soft, partial (11-10: hard pale patches)   // dead leaves: edges and drifts
+        float w2 = Mathf.Clamp01((edge - 0.75f) * 1.2f + (n2 - 0.5f) * 1.1f) * (1f - w1) * 0.7f;   // pebbles: edges and drifts
         float w3 = Mathf.Clamp01((n1 - 0.4f) * 1.6f) * (1f - w1) * 0.9f;   // cracked dry dirt, blended in softly
         float w4 = z > TerraceZ - 0.5f ? Mathf.Clamp01(1.2f - Mathf.Abs(x) / 9f + (n2 - 0.5f) * 0.9f) : 0f; // courtyard paving
         if (w4 > 0) { w1 *= 1f - w4; w2 *= 1f - w4; }
         float s = w0 * 0.35f + w1 + w2 + w3 + w4;
         w[0] = w0 * 0.35f / s; w[1] = w1 / s; w[2] = w2 / s; w[3] = w3 / s; w[4] = w4 / s;
+    }
+
+    static void SplatAtRedo(float x, float z, float[] w)
+    {
+        float sd = StreetDist(x, z);
+        float jit =(Mathf.PerlinNoise(x * 1.7f + 5f, z * 1.7f + 9f) - 0.5f) * 0.12f;
+        float edge = Mathf.Max(Mathf.Abs(x) / 47f, Mathf.Abs(z + 3.5f) / 47f);
+        float near = IslandNear(x, z);   // 1 at a ruin island, 0 beyond ~9 m
+        float w0 = 1f;                                                                                   // mud
+        float rut = Band(-sd + (Fbm(x, z, 0.35f, 4f, 2f) - 0.5f) * 2.2f, -2.1f, 0.5f);                    // street ruts, ragged
+        float w1 = rut;
+        float leafN = Fbm(x, z, 0.16f, 11f, 5f) + jit + Mathf.Clamp01((edge - 0.7f) * 1.5f) * 0.25f + near * 0.3f;
+        float w2 = Band(leafN, 0.6f, 0.06f) * (1f - rut * 0.85f);                                        // leaf litter
+        float grN = Fbm(x, z, 0.28f, 2f, 9f) + jit * 1.4f + near * 0.12f;
+        float w3 = Band(grN, 0.63f, 0.05f) * 0.85f * (1f - w2 * 0.6f);                                   // gravel
+        w1 += Band(-sd, -3.2f, 0.6f) * Band(grN, 0.5f, 0.08f) * 0.6f;                                   // gravel kerb along ruts
+        float w4 = z > TerraceZ - 0.5f ? Mathf.Clamp01(1.2f - Mathf.Abs(x) / 9f + (Fbm(x, z, 0.23f, 2f, 9f) - 0.5f) * 0.9f) : 0f; // courtyard paving
+        if (w4 > 0) { w1 *= 1f - w4; w2 *= 1f - w4; w3 *= 1f - w4; }
+        float s = w0 * 0.3f + w1 + w2 + w3 + w4;
+        w[0] = w0 * 0.3f / s; w[1] = w1 / s; w[2] = w2 / s; w[3] = w3 / s; w[4] = w4 / s;
     }
 
     // ------------------------------------------------------------------ look pass (11-10, Kido's references)
@@ -461,7 +538,7 @@ public static class AVBuilder
         {
             var pv = new List<Vector3>(); var pn = new List<Vector3>(); var pu = new List<Vector2>(); var pt = new List<int>();
             var kv = new List<Vector3>(); var kn = new List<Vector3>(); var ku = new List<Vector2>(); var kt = new List<int>();
-            for (int i = 0; i < 520; i++)
+            for (int i = 0; i < 0; i++)   // 11-12 r7 (Kido: floor objects must be downloaded, not made): procedural pebbles/plank scraps off
             {
                 float x = cx + R(0, DC), z = cz + R(0, DC);
                 float edge = Mathf.Max(Mathf.Abs(x) / ArenaHalfX, Mathf.Abs(z + 3.5f) / 45f);
@@ -568,12 +645,19 @@ public static class AVBuilder
         AssetDatabase.DeleteAsset(dataPath);
         var td = new TerrainData { heightmapResolution = 1025, alphamapResolution = 1024 };   // same ~0.23 m cells over 240 m
         td.size = new Vector3(size, hRange, size);
+        // 11-11 redo (refs board: trampled wet mud yard, cart ruts, leaf litter, gravel; no big flat colour patches)
         var layers = new[]
         {
+            // 11-12 Kido: the previous ground textures were better -> back to them (mud_forest / tracks / pebbles / cracked dirt)
+            // 11-12 r4 (Kido: the first image of the reference board): green mossy meadow and brown mud in big regions,
+            // leafy mud and leaf-strewn gravel breaking them up (same textures the bamboo arena and reed field use)
+            // 11-12 r5 (Kido: the floor he liked is the original 폐촌 terrain, not the green meadow): exactly the committed layers
             Layer("AV_L_Mud", "mud_forest_diff_2k.jpg", "mud_forest_nor_gl_2k.jpg", 6f, new Color(1.05f, 1.05f, 1.1f, 1)),
-            Layer("AV_L_Tracks", "muddy_tracks_diff_2k.jpg", "muddy_tracks_nor_gl_2k.jpg", 5f, new Color(1.25f, 1.25f, 1.32f, 1), 0.55f),
-            Layer("AV_L_Leaves", "river_small_rocks_diff_2k.jpg", "river_small_rocks_nor_gl_2k.jpg", 2.6f, new Color(0.52f, 0.52f, 0.56f, 1)),   // pebbles (11-10 refs)
-            Layer("AV_L_Stony", "dry_ground_01_diff_2k.jpg", "dry_ground_01_nor_gl_2k.jpg", 4.5f, new Color(0.72f, 0.72f, 0.78f, 1)),       // cracked dry dirt
+            // r7 (Kido: too repetitive, too much green): the forest mud is now one of three dark muds blended in big uneven
+            // regions (Megascans moist mud, brown mud), so neither its tiling nor its green sprouts dominate
+            Layer("AV_L_Tracks", MS + "mud/AV_MS_Mud_A.jpg", MS + "mud/AV_MS_Mud_N.jpg", 6.5f, new Color(0.46f, 0.43f, 0.43f, 1), 0.3f),
+            Layer("AV_L_Leaves", "brown_mud_02_diff_2k.jpg", "brown_mud_02_nor_gl_2k.jpg", 9f, new Color(0.7f, 0.64f, 0.6f, 1), 0.25f),
+            Layer("AV_L_Stony", "river_small_rocks_diff_2k.jpg", "river_small_rocks_nor_gl_2k.jpg", 2.6f, new Color(0.42f, 0.42f, 0.45f, 1)),
             Layer("AV_L_Paving", "stone_pathway_diff_2k.jpg", "stone_pathway_nor_gl_2k.jpg", 3.2f, new Color(1.3f, 1.32f, 1.38f, 1), 0.3f),
         };
         AssetDatabase.CreateAsset(td, dataPath);
@@ -598,6 +682,12 @@ public static class AVBuilder
                 for (int k = 0; k < 5; k++) a[j, i, k] = wk[k];
             }
         td.SetAlphamaps(0, 0, a);
+        // 11-12 Kido: "git에 남아있을거아니야" -> the painted ground is taken as-is from the committed terrain data
+        // (Generated/AV_TerrainData_Committed.asset = git HEAD AV_TerrainData.asset); only the heights are new
+        var committed = AssetDatabase.LoadAssetAtPath<TerrainData>(Root + "/Generated/AV_TerrainData_Committed.asset");
+        if (false && committed && committed.alphamapResolution == ar && committed.alphamapLayers == layers.Length)   // r6: off, forest mud only
+            td.SetAlphamaps(0, 0, committed.GetAlphamaps(0, 0, ar, ar));
+        else Debug.LogWarning("[AV] committed terrain data missing or different, using the generated splat");
         {
             int ci = Mathf.RoundToInt((3f + size / 2) / size * ar), cj = Mathf.RoundToInt((0.5f + size / 2) / size * ar);
             File.AppendAllText(Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource/AbandonedVillage/av_log.txt"),
@@ -617,6 +707,7 @@ public static class AVBuilder
         water.transform.position = new Vector3(0, -0.36f, -20); water.transform.localScale = new Vector3(18, 1, 14);
         Object.DestroyImmediate(water.GetComponent<Collider>());
         water.GetComponent<Renderer>().sharedMaterial = mats["AV_Puddle"];
+        water.SetActive(false);   // 11-12: read as blue holes on the single pebble ground (Kido); kept off
         return t;
     }
 
@@ -631,9 +722,12 @@ public static class AVBuilder
             foreach (var guid in AssetDatabase.FindAssets(unused, new[] { Root + "/Textures" })) AssetDatabase.DeleteAsset(AssetDatabase.GUIDToAssetPath(guid));
         BuildMaterials();
         RemapModels();
+        RemapMegascans();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         root = new GameObject("AbandonedVillage").transform;
+        root.gameObject.AddComponent<AVSeeThrough>();   // 11-12: see-through trees around the player
+        seeBark = seeTwig = null; treeMats.Clear();
         var terrain = BuildTerrain();
         System.Func<float, float, float> G = (x, z) => Ground(terrain, x, z);
 
@@ -673,12 +767,9 @@ public static class AVBuilder
             House(back[(i + 3) % back.Length], BackRowX + R(-0.6f, 0.6f), z + 2f, 90f + R(-6f, 6f));
         }
         // south row behind the low wall, fronts face north; the street to the jangseung gate runs out at x ~ -20
-        House("AV_Choga_C", -59f, SouthZ + 1.5f, 190f);
-        House("AV_Choga_A", -40f, SouthZ, 178f);
-        House("AV_Choga_B", 3f, SouthZ, 183f);
-        House("AV_ChogaCollapsed", 21f, SouthZ + 0.5f, 170f);
-        House("AV_Choga_A", 39f, SouthZ - 0.4f, 186f);
-        House("AV_Choga_B", 57f, SouthZ + 1f, 175f);
+        // 11-12 (Kido: volume like the Tarae/POE2 refs): the camera side gets tall 2-3 storey houses and hanok roofs on the
+        // raised south bank (see SouthBank), so their roofs and the big trees in front loom into the bottom of the frame
+        BuildSouthVolume(G, bld);
         // ---------------- terrace: retaining wall, steps and lanterns
         var ter = Group("Terrace");
         for (int k = 0; k < 16; k++)
@@ -795,9 +886,11 @@ public static class AVBuilder
         }
 
         // ---------------- dry grass: dense at the edges, sparse in the arena, none on the street
+        BuildRuins(G);   // 11-11 redo: ruin islands on the ring inside the arena edge + small things in the middle
+        BuildPines(G);   // 11-12: Japanese black pines and conifers from the snow thread's import (copied materials)
         var grass = Group("Grass");
-        int placed = 0;
-        for (int i = 0; i < 16000 && placed < 5200; i++)
+        int placed = BuildVegetation(G, grass);
+        for (int i = 0; i < 0; i++)   // 11-11: old even scatter replaced by BuildVegetation (clusters)
         {
             float x = R(-92f, 92f), z = R(-92f, 92f);
             float sd = StreetDist(x, z);
@@ -812,7 +905,7 @@ public static class AVBuilder
             Place(m, new Vector3(x, G(x, z) - 0.03f, z), R(0, 360), R(0.75f, 1.35f), grass);
             placed++;
         }
-        for (int i = 0; i < 280; i++)
+        for (int i = 0; i < 0; i++)
         {
             float x = R(-80f, 80f), z = R(-80f, 80f);
             if (StreetDist(x, z) < 3f || InArena(x, z, -1f)) continue;
@@ -924,6 +1017,8 @@ public static class AVBuilder
         // ================ 11-10 look pass (Kido's refs: burnt camp in cold fog, stone lanterns throwing warm pools with long
         // shadows over cracked dirt full of pebbles and plank scraps, a purple energy wall closing the arena edge).
         BuildLook(G);
+        { var veil = root.Find("Look/EdgeVeil"); if (veil) Object.DestroyImmediate(veil.gameObject); }   // 11-12 Kido: no purple border
+        BuildFloorDressing(G);   // 11-12: low Megascans pebbles, rocks, rubble, leaf and blood decals all over the arena
 
         // ---------------- fog
         var fog = Group("Fog");
@@ -1004,7 +1099,7 @@ public static class AVBuilder
         foreach (var r in root.GetComponentsInChildren<Renderer>())
         {
             var g = r.transform; while (g.parent && g.parent != root) g = g.parent;
-            if (g.name is "Grass" or "Fog" or "Wisps" or "Crows" or "Terrain" or "Puddles" || r is ParticleSystemRenderer) continue;
+            if (g.name is "Grass" or "Fog" or "Wisps" or "Crows" or "Terrain" or "Puddles" or "Ruins" || r is ParticleSystemRenderer) continue;
             if (r.name.Contains("HangingLantern") || (r.transform.parent && r.transform.parent.name == "HangingLantern")) continue;
             var b = r.bounds;
             if (b.min.y > 2.2f) continue;
@@ -1013,7 +1108,7 @@ public static class AVBuilder
             n++; File.AppendAllText(log, $"ARENA {g.name}/{r.transform.root.name}:{r.name} at {r.transform.position} overlap {ox:F1}x{oz:F1}\n");
         }
         foreach (var c in root.GetComponentsInChildren<Collider>())
-            if (!(c is TerrainCollider)) { n++; File.AppendAllText(log, $"COLLIDER {c.name} {c.GetType().Name}\n"); }
+            if (!(c is TerrainCollider) && !c.transform.IsChildOf(root.Find("Ruins"))) { n++; File.AppendAllText(log, $"COLLIDER {c.name} {c.GetType().Name}\n"); }
         File.AppendAllText(log, $"ARENA CHECK {n} ({ArenaHalfX * 2}x{ArenaMaxZ - ArenaMinZ} m)\n");
         return n;
     }

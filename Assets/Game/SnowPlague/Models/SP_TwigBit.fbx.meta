@@ -3,9 +3,99 @@ guid: 06191e0f52da8464387790a0ea805471
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Bark
+    second: {fileID: 2100000, guid: 5daad2c2f3d5dbe4384647e5b500af82, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Bone
+    second: {fileID: 2100000, guid: 4d5bb0992ea851242ae43a2e432e1b77, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Clay
+    second: {fileID: 2100000, guid: d54dd55df61dacf4da5566615e703c3f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Cloth
+    second: {fileID: 2100000, guid: 342a7e0e6675af34fa775dba237d9162, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Grass
+    second: {fileID: 2100000, guid: 12904f8eb53719e4d91d176af26eb283, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_GrassCard
+    second: {fileID: 2100000, guid: ba91f6bcac575864488d2484a2f7898b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Iron
+    second: {fileID: 2100000, guid: ec4da16477ab07547b5e39fb085589a1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_LanternGlow
+    second: {fileID: 2100000, guid: e28225ba5c002be4a9e4f7cd22833ef1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_LightCone
+    second: {fileID: 2100000, guid: 48106c5eec8fafd4ea8c76a31d342200, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Maple
+    second: {fileID: 2100000, guid: a6a92d1c6da8cfa4eb44bf52aa01531f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Needles
+    second: {fileID: 2100000, guid: 0f83339b8dcf24046a4549aa443a2a4f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_PineBark
+    second: {fileID: 2100000, guid: 3456a88eae437624cadbf116bbfdb5a2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Rope
+    second: {fileID: 2100000, guid: 2cba63c20a149894aa60a8844133a4f6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Snow
+    second: {fileID: 2100000, guid: c1f9d46eae87cd7429ae1c74068a759d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Stone
+    second: {fileID: 2100000, guid: 3c6a0efafb6f10d46ba2827109e7a54d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_StoneLantern
+    second: {fileID: 2100000, guid: 85caa863916a71544abe5a4ba193a9f8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Straw
+    second: {fileID: 2100000, guid: 3fa7fe4ffa5bc78439591ed04cdb931c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: SP_Wood
+    second: {fileID: 2100000, guid: 364006a3c9d8c6a4787b940055a2c4ee, type: 2}
   materials:
-    materialImportMode: 2
+    materialImportMode: 1
     materialName: 0
     materialSearch: 1
     materialLocation: 1
@@ -41,8 +131,8 @@ ModelImporter:
     importPhysicalCameras: 1
     importVisibility: 1
     importBlendShapes: 1
-    importCameras: 1
-    importLights: 1
+    importCameras: 0
+    importLights: 0
     nodeNameCollisionStrategy: 1
     fileIdsGeneration: 2
     swapUVChannels: 0
@@ -79,7 +169,7 @@ ModelImporter:
     blendShapeNormalImportMode: 1
     normalSmoothingSource: 0
   referencedClips: []
-  importAnimation: 1
+  importAnimation: 0
   humanDescription:
     serializedVersion: 3
     human: []

@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SP_HeightFog
+  m_Shader: {fileID: 4800000, guid: 1e4ce4d35955f7e439cd3e798bf53c2c, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: 88235b7f91bf23d469ed7ce1aea5f4c0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Base: 0
+    - _Density: 0.014
+    - _Falloff: 0.35
+    - _FarDist: 90
+    - _MaxFog: 0.6
+    - _NoiseAmount: 0.5
+    - _NoiseScale: 24
+    - _Start: 22
+    m_Colors:
+    - _FarCol: {r: 0.08, g: 0.075, b: 0.07, a: 1}
+    - _NearCol: {r: 0.227, g: 0.239, b: 0.259, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

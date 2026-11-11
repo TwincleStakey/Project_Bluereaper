@@ -1,15 +1,17 @@
 ﻿<Solution>
   <Project Path="Dokkaebi.Editor.csproj" />
+  <Project Path="RoomRun.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="ReedField.Runtime.csproj" />
   <Project Path="LookStudy.Stages.Editor.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="McpUnity.Editor.csproj" />
-  <Project Path="RoomRun.csproj" />
   <Project Path="LookStudy.Editor.csproj" />
   <Project Path="Dokkaebi.csproj" />
-  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="RoomRun.Editor.csproj" />
+  <Project Path="SnowPlague.Editor.csproj" />
   <Project Path="BambooArena.Runtime.csproj" />
+  <Project Path="SnowPlague.Runtime.csproj" />
   <Project Path="LookStudy.Runtime.csproj" />
   <Project Path="InkFilters.csproj" />
   <Project Path="LookStudy.Stages.csproj" />
