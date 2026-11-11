@@ -124,7 +124,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MeleeHitBox
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
 --- !u!1 &3304735332890362568
 GameObject:
   m_ObjectHideFlags: 0
@@ -249,7 +249,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MeleeHitBox
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
 --- !u!1 &4179467722401266599
 GameObject:
   m_ObjectHideFlags: 0
@@ -358,6 +358,7 @@ MonoBehaviour:
   rewardTable: {fileID: 11400000, guid: c8eaaddb662a0ef40b8bcda026d7e029, type: 2}
   phaseInfo: {fileID: 11400000, guid: 66a678cabeb7b8b48bff1238fbf06c20, type: 2}
   sightRange: 9999
+  outSightTrackingPercent: 0.5
 --- !u!114 &5246980696664095001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -545,7 +546,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MeleeHitBox
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
 --- !u!1 &5335999795195390300
 GameObject:
   m_ObjectHideFlags: 0

@@ -13,6 +13,12 @@ namespace BlueReaper.Player
 
         Vector3 velocity;
 
+        public void SetTarget(Transform player)
+        {
+            target = player;
+            velocity = Vector3.zero;
+        }
+
         void LateUpdate()
         {
             if (target == null) return;

@@ -23,7 +23,7 @@ namespace BlueReaper.BulletPatterns.Editor
         public static void Run()
         {
             var report = new Report { unityVersion = Application.unityVersion };
-            var pattern = ScriptableObject.CreateInstance<BulletPattern>();
+            var pattern = ScriptableObject.CreateInstance<BulletPatternData>();
             string savedPath = null;
             try
             {
@@ -96,7 +96,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "empty path list gets independent defaults", () =>
                 {
-                    var empty = ScriptableObject.CreateInstance<BulletPattern>();
+                    var empty = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         empty.Layout = BulletLayout.Manual;
@@ -165,7 +165,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "fan growth preserves screenshot curve and distributes the full circle", () =>
                 {
-                    var fan = ScriptableObject.CreateInstance<BulletPattern>();
+                    var fan = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         fan.Layout = BulletLayout.Fan; fan.FanAngle = 360f; fan.Radius = 2f; fan.TravelDistance = 1f;
@@ -200,7 +200,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "line growth rebalances while retaining edited 3D offsets", () =>
                 {
-                    var line = ScriptableObject.CreateInstance<BulletPattern>();
+                    var line = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         line.LayoutCenter = new Vector3(2f, 6f, 3f); line.Spacing = 2f;
@@ -224,7 +224,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "regeneration retains distinct curve and corner shapes and is idempotent", () =>
                 {
-                    var custom = ScriptableObject.CreateInstance<BulletPattern>();
+                    var custom = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         custom.Layout = BulletLayout.Manual; custom.Resize(2);
@@ -254,7 +254,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "vertical and stationary paths remain finite during placement", () =>
                 {
-                    var vertical = ScriptableObject.CreateInstance<BulletPattern>();
+                    var vertical = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         vertical.Layout = BulletLayout.Circle;
@@ -277,7 +277,7 @@ namespace BlueReaper.BulletPatterns.Editor
 
                 Check(report, "linear single bullet uses speed and expires without paths", () =>
                 {
-                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    var linear = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         linear.MovementType = BulletMovementType.Linear; linear.Paths = null;
@@ -296,7 +296,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "linear line fan and circle distribute directions", () =>
                 {
-                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    var linear = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         linear.MovementType = BulletMovementType.Linear; linear.LinearCount = 3; linear.Spacing = 2f;
@@ -319,7 +319,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "linear resize and placement preserve authored paths", () =>
                 {
-                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    var linear = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         var path = linear.Paths[0]; path.End = new Vector3(2f, 3f, 7f);
@@ -333,7 +333,7 @@ namespace BlueReaper.BulletPatterns.Editor
                 });
                 Check(report, "linear invalid settings and visual rotation", () =>
                 {
-                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    var linear = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         linear.MovementType = BulletMovementType.Linear; linear.Layout = BulletLayout.Manual;
@@ -421,7 +421,7 @@ namespace BlueReaper.BulletPatterns.Editor
                     pattern.StartTime = 0.5f;
                     savedPath = AssetDatabase.GenerateUniqueAssetPath("Assets/BulletPatternCheck.asset");
                     AssetDatabase.CreateAsset(pattern, savedPath); AssetDatabase.SaveAssetIfDirty(pattern);
-                    var copy = ScriptableObject.CreateInstance<BulletPattern>();
+                    var copy = ScriptableObject.CreateInstance<BulletPatternData>();
                     try
                     {
                         EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(pattern), copy);
