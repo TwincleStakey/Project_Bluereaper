@@ -9,12 +9,12 @@ namespace BlueReaper.Core
         /// <summary>죽은 플레이어를 전달 (협동이라 누가 죽었는지 필요).</summary>
         public static event Action<Transform> PlayerDied;
         public static event Action<Health> BossSpawned;
-        public static event Action BossDefeated;
+        public static event Action<Health> BossDefeated;
         public static event Action StageCleared;
 
         public static void RaisePlayerDied(Transform player) => PlayerDied?.Invoke(player);
         public static void RaiseBossSpawned(Health boss) => BossSpawned?.Invoke(boss);
-        public static void RaiseBossDefeated() => BossDefeated?.Invoke();
+        public static void RaiseBossDefeated(Health boss) => BossDefeated?.Invoke(boss);
         public static void RaiseStageCleared() => StageCleared?.Invoke();
 
         // Domain Reload를 끈 경우에도 이전 플레이의 구독자가 남지 않도록 초기화

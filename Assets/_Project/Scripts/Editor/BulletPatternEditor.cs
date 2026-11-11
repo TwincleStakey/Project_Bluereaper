@@ -14,6 +14,7 @@ namespace BlueReaper.BulletPatterns.Editor
         private readonly Vector3[] pathPoints = new Vector3[33];
         private readonly List<(int index, float distance)> pathHits = new List<(int, float)>();
         private BulletPattern pattern;
+        private float PreviewDuration => pattern.StartTime + pattern.TotalDuration;
         private int selected;
         private float previewTime;
         private bool playing;
@@ -55,16 +56,35 @@ namespace BlueReaper.BulletPatterns.Editor
             serializedObject.Update();
             EditorGUILayout.LabelField("탄막 패턴", EditorStyles.boldLabel);
             Field("BulletPrefab", "탄 프리팹 (Collider 포함)");
-            Field("TravelDuration", "이동 시간 (초)");
+            Field("MovementType", "이동 방식");
+            bool linear = serializedObject.FindProperty("MovementType").enumValueIndex == (int)BulletMovementType.Linear;
+            Field("AimAtTargetEachEmission", "매 발사 회차 타겟 재조준 (XZ)");
+            Field("StartTime", "공격 시작 후 발사 지연 (초)");
+            if (linear)
+            {
+                Field("LinearCount", "1회 생성량");
+                Field("LinearSpeed", "선형 이동 속도 (초당 거리)");
+                Field("LinearLifetime", "생성 후 유지 시간 (초)");
+            }
+            else
+            {
+                Field("TravelDuration", "이동 시간 (초)");
+                Field("DespawnAtEnd", "끝점 도착 시 디스폰");
+            }
             Field("RepeatCount", "총 발사 횟수 (최초 포함)");
             Field("RepeatInterval", "발사 시작 간격 (초)");
-            Field("DespawnAtEnd", "끝점 도착 시 디스폰");
             Field("AlignToPath", "진행 방향으로 회전");
             Field("DirectionOffset", "방향 보정 (로컬 Y도)");
             Field("DamageMultiplier", "데미지 배율");
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("배치", EditorStyles.boldLabel);
-            Field("Layout", "배치 형태");
+            if (linear)
+            {
+                SerializedProperty layoutProperty = serializedObject.FindProperty("Layout");
+                layoutProperty.intValue = EditorGUILayout.IntPopup("배치 형태", layoutProperty.intValue,
+                    new[] { "Line", "Circle", "Fan" }, new[] { 1, 2, 3 });
+            }
+            else Field("Layout", "배치 형태");
             Field("LayoutCenter", "배치 중심 (로컬 XYZ)");
             BulletLayout layout = (BulletLayout)serializedObject.FindProperty("Layout").enumValueIndex;
             if (layout == BulletLayout.Line) Field("Spacing", "탄 사이 간격");
@@ -72,39 +92,42 @@ namespace BlueReaper.BulletPatterns.Editor
             if (layout == BulletLayout.Fan) Field("FanAngle", "부채꼴 각도");
             ApplyInspectorChanges();
 
-            int requested = Mathf.Max(1, EditorGUILayout.DelayedIntField("최대 개수 (1회 발사량)", pattern.MaximumCount));
-            if (requested != pattern.MaximumCount
-                && (requested >= pattern.MaximumCount || EditorUtility.DisplayDialog("탄 개수 줄이기",
-                    "뒤쪽 탄의 개별 경로가 삭제됩니다. 계속할까요? (Undo로 복구 가능)", "줄이기", "취소")))
+            if (!linear)
             {
-                Change("Change bullet count", () => pattern.Resize(requested));
-                selected = Mathf.Clamp(selected, 0, pattern.MaximumCount - 1);
-                serializedObject.Update();
-            }
-            using (new EditorGUI.DisabledScope(layout == BulletLayout.Manual || pattern.GetValidationError() != null))
-            {
-                if (GUILayout.Button("현재 설정으로 배치 다시 생성") && EditorUtility.DisplayDialog("배치 다시 생성",
-                    "경로의 길이·곡률을 유지하며 전체 탄의 위치와 회전을 현재 배치 설정에 맞춥니다. 계속할까요?", "다시 생성", "취소"))
+                int requested = Mathf.Max(1, EditorGUILayout.DelayedIntField("최대 개수 (1회 발사량)", pattern.MaximumCount));
+                if (requested != pattern.MaximumCount
+                    && (requested >= pattern.MaximumCount || EditorUtility.DisplayDialog("탄 개수 줄이기",
+                        "뒤쪽 탄의 개별 경로가 삭제됩니다. 계속할까요? (Undo로 복구 가능)", "줄이기", "취소")))
                 {
-                    Change("Generate bullet layout", pattern.GenerateLayout);
+                    Change("Change bullet count", () => pattern.Resize(requested));
+                    selected = Mathf.Clamp(selected, 0, pattern.MaximumCount - 1);
                     serializedObject.Update();
                 }
-            }
-            EditorGUILayout.HelpBox("개수를 늘리면 마지막 경로를 독립 복사하고 전체를 균등 재배치합니다. Manual은 배치 없이 복사합니다.\n배치와 회전은 경로 전체에 적용하며, 길이·곡률·높이 차이는 유지합니다. 경로 길이는 S/E 좌표로 조정합니다.", MessageType.Info);
+                using (new EditorGUI.DisabledScope(layout == BulletLayout.Manual || pattern.GetValidationError() != null))
+                {
+                    if (GUILayout.Button("현재 설정으로 배치 다시 생성") && EditorUtility.DisplayDialog("배치 다시 생성",
+                        "경로의 길이·곡률을 유지하며 전체 탄의 위치와 회전을 현재 배치 설정에 맞춥니다. 계속할까요?", "다시 생성", "취소"))
+                    {
+                        Change("Generate bullet layout", pattern.GenerateLayout);
+                        serializedObject.Update();
+                    }
+                }
+                EditorGUILayout.HelpBox("개수를 늘리면 마지막 경로를 독립 복사하고 전체를 균등 재배치합니다. Manual은 배치 없이 복사합니다.\n배치와 회전은 경로 전체에 적용하며, 길이·곡률·높이 차이는 유지합니다. 경로 길이는 S/E 좌표로 조정합니다.", MessageType.Info);
 
-            if (pattern.MaximumCount > 0)
-            {
-                EditorGUILayout.Space();
-                int next = EditorGUILayout.IntSlider("편집할 탄", selected + 1, 1, pattern.MaximumCount) - 1;
-                if (next != selected) { selected = next; SceneView.RepaintAll(); }
-                selected = Mathf.Clamp(selected, 0, pattern.MaximumCount - 1);
-                SerializedProperty path = serializedObject.FindProperty("Paths").GetArrayElementAtIndex(selected);
-                EditorGUILayout.PropertyField(path.FindPropertyRelative("Preset"), new GUIContent("경로 프리셋"));
-                EditorGUILayout.PropertyField(path.FindPropertyRelative("Start"), new GUIContent("S 시작점 (XYZ)"));
-                if ((BulletPathPreset)path.FindPropertyRelative("Preset").enumValueIndex != BulletPathPreset.Straight)
-                    EditorGUILayout.PropertyField(path.FindPropertyRelative("Control"), new GUIContent("C 제어점 (XYZ)"));
-                EditorGUILayout.PropertyField(path.FindPropertyRelative("End"), new GUIContent("E 끝점 (XYZ)"));
-                ApplyInspectorChanges();
+                if (pattern.MaximumCount > 0)
+                {
+                    EditorGUILayout.Space();
+                    int next = EditorGUILayout.IntSlider("편집할 탄", selected + 1, 1, pattern.MaximumCount) - 1;
+                    if (next != selected) { selected = next; SceneView.RepaintAll(); }
+                    selected = Mathf.Clamp(selected, 0, pattern.MaximumCount - 1);
+                    SerializedProperty path = serializedObject.FindProperty("Paths").GetArrayElementAtIndex(selected);
+                    EditorGUILayout.PropertyField(path.FindPropertyRelative("Preset"), new GUIContent("경로 프리셋"));
+                    EditorGUILayout.PropertyField(path.FindPropertyRelative("Start"), new GUIContent("S 시작점 (XYZ)"));
+                    if ((BulletPathPreset)path.FindPropertyRelative("Preset").enumValueIndex != BulletPathPreset.Straight)
+                        EditorGUILayout.PropertyField(path.FindPropertyRelative("Control"), new GUIContent("C 제어점 (XYZ)"));
+                    EditorGUILayout.PropertyField(path.FindPropertyRelative("End"), new GUIContent("E 끝점 (XYZ)"));
+                    ApplyInspectorChanges();
+                }
             }
 
             DrawPreviewInspector();
@@ -145,14 +168,15 @@ namespace BlueReaper.BulletPatterns.Editor
             if (pattern.MaximumCount * (long)pattern.RepeatCount > PreviewLimit)
                 EditorGUILayout.HelpBox($"SceneView에는 최대 {PreviewLimit}개 경로·탄 인스턴스를 표시합니다. 에셋의 발사량은 유지됩니다.", MessageType.Info);
             EditorGUI.BeginChangeCheck();
-            heightHandles = EditorGUILayout.Toggle("Y 높이 포함 3D 핸들", heightHandles);
+            if (pattern.MovementType == BulletMovementType.Path)
+                heightHandles = EditorGUILayout.Toggle("Y 높이 포함 3D 핸들", heightHandles);
             showHitboxes = EditorGUILayout.Toggle("히트박스 표시", showHitboxes);
             previewOrigin = EditorGUILayout.Vector3Field("미리보기 원점", previewOrigin);
             previewYaw = EditorGUILayout.FloatField("미리보기 원점 회전 (Y도)", previewYaw);
             if (EditorGUI.EndChangeCheck()) SceneView.RepaintAll();
             using (new EditorGUI.DisabledScope(error != null || EditorApplication.isPlayingOrWillChangePlaymode))
             {
-                float duration = error == null ? pattern.TotalDuration : 1f;
+                float duration = error == null ? PreviewDuration : 1f;
                 EditorGUI.BeginChangeCheck();
                 previewTime = EditorGUILayout.Slider("전체 경과 시간 (초)", previewTime, 0f, duration);
                 if (EditorGUI.EndChangeCheck()) { playing = false; SceneView.RepaintAll(); }
@@ -168,7 +192,10 @@ namespace BlueReaper.BulletPatterns.Editor
                     if (GUILayout.Button("XZ 탑뷰")) FrameTopView();
                 }
             }
-            EditorGUILayout.HelpBox("경로 선을 클릭해 탄을 선택합니다. 겹친 경로는 반복 클릭으로 순환 선택합니다.\nS/C/E를 드래그하고 XYZ는 위에서 입력합니다. 미리보기 원점은 저장되지 않습니다.\n패턴 전체를 시작 간격마다 발사하며, 충돌·데미지·프리팹 스크립트는 실행하지 않습니다.", MessageType.Info);
+            EditorGUILayout.HelpBox(pattern.MovementType == BulletMovementType.Linear
+                ? "선형 탄막은 속도와 유지 시간으로 이동하며 만료 시 회수합니다. 선은 최대 이동 거리를 표시합니다."
+                : "경로 선을 클릭해 탄을 선택합니다. 겹친 경로는 반복 클릭으로 순환 선택합니다.\nS/C/E를 드래그하고 XYZ는 위에서 입력합니다.", MessageType.Info);
+            EditorGUILayout.HelpBox("미리보기 원점과 회전은 저장되지 않습니다. 타겟 재조준은 게임에서 적용하며 여기서는 원점 회전을 사용합니다.\n패턴 전체를 시작 간격마다 발사하며, 충돌·데미지·프리팹 스크립트는 실행하지 않습니다.", MessageType.Info);
         }
 
         private void Change(string undoName, Action change)
@@ -185,9 +212,9 @@ namespace BlueReaper.BulletPatterns.Editor
         {
             if (!playing || pattern == null) return;
             double now = EditorApplication.timeSinceStartup;
-            previewTime = Mathf.Min(pattern.TotalDuration, previewTime + (float)(now - previousUpdate));
+            previewTime = Mathf.Min(PreviewDuration, previewTime + (float)(now - previousUpdate));
             previousUpdate = now;
-            if (previewTime >= pattern.TotalDuration || pattern.GetValidationError() != null) playing = false;
+            if (previewTime >= PreviewDuration || pattern.GetValidationError() != null) playing = false;
             Repaint();
             SceneView.RepaintAll();
         }
@@ -210,6 +237,13 @@ namespace BlueReaper.BulletPatterns.Editor
             Bounds bounds = new Bounds(previewOrigin, Vector3.one);
             for (int i = 0; i < Mathf.Min(pattern.MaximumCount, PreviewLimit); i++)
             {
+                if (pattern.MovementType == BulletMovementType.Linear)
+                {
+                    if (!pattern.TryGetLinearLaunch(i, out Vector3 start, out Vector3 direction)) continue;
+                    bounds.Encapsulate(PreviewMatrix.MultiplyPoint3x4(start));
+                    bounds.Encapsulate(PreviewMatrix.MultiplyPoint3x4(start + direction * (pattern.LinearSpeed * pattern.LinearLifetime)));
+                    continue;
+                }
                 BulletPath path = pattern.Paths[i];
                 bounds.Encapsulate(PreviewMatrix.MultiplyPoint3x4(path.Start));
                 bounds.Encapsulate(PreviewMatrix.MultiplyPoint3x4(path.End));
@@ -229,13 +263,27 @@ namespace BlueReaper.BulletPatterns.Editor
             selected = Mathf.Clamp(selected, 0, pattern.MaximumCount - 1);
             using (new Handles.DrawingScope(PreviewMatrix))
             {
-                for (int i = 0; i < Mathf.Min(pattern.MaximumCount, PreviewLimit); i++) DrawPath(i);
-                if (selected >= PreviewLimit) DrawPath(selected);
-                HandlePathSelection();
-                BulletPath path = pattern.Paths[selected];
-                EditPoint("S", path.Start, value => path.Start = value);
-                if (path.Preset != BulletPathPreset.Straight) EditPoint("C", path.Control, value => path.Control = value);
-                EditPoint("E", path.End, value => path.End = value);
+                if (pattern.MovementType == BulletMovementType.Linear)
+                {
+                    for (int i = 0; i < Mathf.Min(pattern.MaximumCount, PreviewLimit); i++)
+                    {
+                        if (!pattern.TryGetLinearLaunch(i, out Vector3 start, out Vector3 direction)) continue;
+                        Handles.color = PathColor;
+                        Handles.DrawLine(start, start + direction * (pattern.LinearSpeed * pattern.LinearLifetime));
+                        Handles.ArrowHandleCap(0, start, Quaternion.LookRotation(direction),
+                            HandleUtility.GetHandleSize(start) * 0.5f, EventType.Repaint);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < Mathf.Min(pattern.MaximumCount, PreviewLimit); i++) DrawPath(i);
+                    if (selected >= PreviewLimit) DrawPath(selected);
+                    HandlePathSelection();
+                    BulletPath path = pattern.Paths[selected];
+                    EditPoint("S", path.Start, value => path.Start = value);
+                    if (path.Preset != BulletPathPreset.Straight) EditPoint("C", path.Control, value => path.Control = value);
+                    EditPoint("E", path.End, value => path.End = value);
+                }
             }
             if (Event.current.type == EventType.Repaint) DrawBullets();
         }
@@ -314,15 +362,17 @@ namespace BlueReaper.BulletPatterns.Editor
 
         private void DrawBullets()
         {
+            float elapsed = previewTime - pattern.StartTime;
+            if (elapsed < 0f) return;
             int last = pattern.RepeatInterval == 0f ? pattern.RepeatCount - 1
-                : (int)Math.Min(pattern.RepeatCount - 1d, Math.Floor((double)previewTime / pattern.RepeatInterval));
+                : (int)Math.Min(pattern.RepeatCount - 1d, Math.Floor((double)elapsed / pattern.RepeatInterval));
             int drawn = 0;
             for (int emission = last; emission >= 0 && drawn < PreviewLimit; emission--)
             {
-                if (!pattern.TryEvaluate(0, emission, previewTime, out _, out _)) break;
+                if (!pattern.TryEvaluate(0, emission, elapsed, out _, out _)) break;
                 for (int i = 0; i < pattern.MaximumCount && drawn < PreviewLimit; i++)
                 {
-                    if (!pattern.TryEvaluate(i, emission, previewTime, out Vector3 position, out Quaternion rotation)) continue;
+                    if (!pattern.TryEvaluate(i, emission, elapsed, out Vector3 position, out Quaternion rotation)) continue;
                     Matrix4x4 pose = PreviewMatrix * Matrix4x4.TRS(position, rotation *
                         (cachedPrefab == null ? Quaternion.identity : cachedPrefab.transform.localRotation),
                         cachedPrefab == null ? Vector3.one : cachedPrefab.transform.localScale);
