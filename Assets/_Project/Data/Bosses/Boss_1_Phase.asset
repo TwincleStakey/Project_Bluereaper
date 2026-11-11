@@ -11,5 +11,5 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c73502edbe52a9a4090dc0740f2e8e52, type: 3}
   m_Name: Boss_1_Phase
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyPhase
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.EnemyPhaseData
   PhaseTrigger_HPRatio_Permil: e8030000f4010000

@@ -179,7 +179,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MeleeHitBox
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
 --- !u!1 &4179467722401266599
 GameObject:
   m_ObjectHideFlags: 0
