@@ -107,6 +107,8 @@ GameObject:
   - component: {fileID: 1471942442957585587}
   - component: {fileID: 4250884013731307215}
   - component: {fileID: 1088931757704909158}
+  - component: {fileID: 3650432783886912464}
+  - component: {fileID: 838616606205560431}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -260,6 +262,37 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
   data: {fileID: 11400000, guid: 87cf4d45a8035f6478c5a14956a95e48, type: 2}
+--- !u!114 &3650432783886912464
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e4d9123ce08c7046bdac6c7e290dd87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Vfx.HitStop
+  duration: 0.06
+  slowScale: 0.05
+--- !u!114 &838616606205560431
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d91abbce938cc4a40b59230b3e114db0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerVfx
+  hitPrefab: {fileID: 6603266878691035562, guid: 400606ce2dbae914b8c33b5c511062a7, type: 3}
+  trailPrefab: {fileID: 6615134794881793510, guid: 02642a54b2cbd944a83f3f8bb262e367, type: 3}
+  hitHeight: 1
+  shakeStrength: 0.15
+  shakeDuration: 0.12
 --- !u!1 &8960930555137822400
 GameObject:
   m_ObjectHideFlags: 0
