@@ -166,7 +166,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7122ae458c8dcd45a0ebf90abbf6e78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Unit
-  data: {fileID: 11400000, guid: f4bc89ee5f2bfd2439874acd096f8f05, type: 2}
+  data: {fileID: 11400000, guid: 840e9f9ec5158a44cb27b593a920373c, type: 2}
 --- !u!114 &2540018805550638109
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -197,13 +197,13 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 1
+  m_Height: 2
   m_Radius: 0.5
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0.5, z: 0}
+  m_Center: {x: 0, y: 1, z: 0}
 --- !u!114 &7612043392014892968
 MonoBehaviour:
   m_ObjectHideFlags: 0

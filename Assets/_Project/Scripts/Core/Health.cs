@@ -35,5 +35,13 @@ namespace BlueReaper.Core
             // Capture this damage result before callbacks can apply further damage.
             if (died) Died?.Invoke();
         }
+
+        public void Kill()
+        {
+            if (IsDead) return;
+
+            Current = 0f;
+            Died?.Invoke();
+        }
     }
 }

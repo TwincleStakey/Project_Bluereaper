@@ -267,6 +267,12 @@ namespace BlueReaper.Boss
             if (pattern.RestTime > 0f)
                 yield return new WaitForSeconds(pattern.RestTime);
 
+            if(pattern.SelfDestructAfterPattern)
+            {
+                health.Kill();
+                yield break;
+            }
+
             currentPatternState = PatternState.Done;
         }
 
