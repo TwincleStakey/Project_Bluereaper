@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using BlueReaper.Core;
 using UnityEngine;
@@ -15,6 +16,14 @@ namespace BlueReaper.Player
         [SerializeField] float cooldown = 0.35f;
         [SerializeField] LayerMask targetLayers; // Monster, Boss
 
+        /// <summary>휘두를 때마다: (플레이어 위치, 휘두른 방향)</summary>
+        public event Action<Vector3, Vector3> Swung;
+        /// <summary>적을 맞힐 때마다: 맞은 지점. 한 번 휘두르기에 여러 번 올 수 있다.</summary>
+        public event Action<Vector3> HitLanded;
+
+        public float Range => range;
+        public float ArcAngle => arcAngle;
+
         readonly Collider[] hits = new Collider[32];
         // 콜라이더가 여러 개인 적을 한 번 휘두르기에 두 번 때리지 않도록
         readonly HashSet<IDamageable> hitThisSwing = new();
@@ -31,6 +40,7 @@ namespace BlueReaper.Player
             cooldownLeft = cooldown;
 
             Vector3 origin = transform.position;
+            Swung?.Invoke(origin, direction);
             int count = Physics.OverlapSphereNonAlloc(origin, range, hits, targetLayers);
             hitThisSwing.Clear();
             float damage = DamageFormula.Calculate(unit.Data.Attack, damageMultiplier);
@@ -44,6 +54,7 @@ namespace BlueReaper.Player
                 var target = hits[i].GetComponentInParent<IDamageable>();
                 if (target == null || !hitThisSwing.Add(target)) continue;
                 target.TakeDamage(damage);
+                HitLanded?.Invoke(hits[i].ClosestPoint(origin));
             }
             return true;
         }
