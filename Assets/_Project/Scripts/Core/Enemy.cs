@@ -14,9 +14,13 @@ namespace BlueReaper.Core
         [SerializeField] EnemyRank rank;
         [SerializeField] RewardTable rewardTable;
         [SerializeField] EnemyPhase phaseInfo;
+        [SerializeField] float sightRange = 5f;
+        [SerializeField, Range(0.01f, 1f)] float outSightTrackingPercent = 0.5f; // 시야 밖에서 플레이어를 추적할 때, 시야 안에서보다 얼마나 느리게 추적할지 비율
 
         public EnemyRank Rank => rank;
         public RewardTable RewardTable => rewardTable;
+        public float SightRange => sightRange;
+        public float OutSightTrackingPercent => outSightTrackingPercent;
 
         public uint Phase { get; private set; } = 1;
 

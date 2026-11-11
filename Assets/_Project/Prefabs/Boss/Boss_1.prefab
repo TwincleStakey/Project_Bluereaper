@@ -357,6 +357,7 @@ MonoBehaviour:
   rank: 2
   rewardTable: {fileID: 11400000, guid: c8eaaddb662a0ef40b8bcda026d7e029, type: 2}
   phaseInfo: {fileID: 11400000, guid: 66a678cabeb7b8b48bff1238fbf06c20, type: 2}
+  sightRange: 9999
 --- !u!114 &5246980696664095001
 MonoBehaviour:
   m_ObjectHideFlags: 0

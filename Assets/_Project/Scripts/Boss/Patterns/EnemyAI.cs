@@ -128,6 +128,17 @@ namespace BlueReaper.Boss
                 foreach (var player in Owner.Players)
                     if (player && player.gameObject.activeInHierarchy) { target = player; break; }
 
+                if(target && (target.position - transform.position).sqrMagnitude > Owner.SightRange * Owner.SightRange)
+                {
+                    agent.speed = unit.Data.MoveSpeed * Owner.OutSightTrackingPercent;
+                    agent.angularSpeed = 360f * Owner.OutSightTrackingPercent;
+                }
+                else
+                {
+                    agent.speed = unit.Data.MoveSpeed;
+                    agent.angularSpeed = 360f;
+                }
+
                 if (target && !selectedPattern) selectedPattern = SelectNextPattern();
 
                 if (!target || !selectedPattern)
