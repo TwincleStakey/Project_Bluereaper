@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 464f607179181bf44a435a37e18ba145, type: 3}
+  m_Name: BulletPattern_1
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.BulletPatterns.BulletPattern
+  BulletPrefab: {fileID: 747046017749657896, guid: c2b6ab7809c83a9478e399d65e144c96, type: 3}
+  StartTime: 0.45
+  Layout: 3
+  LayoutCenter: {x: 0, y: 0, z: 0}
+  Spacing: 1
+  Radius: 2
+  FanAngle: 360
+  TravelDistance: 8
+  TravelDuration: 1
+  RepeatCount: 10
+  RepeatInterval: 0.2
+  DespawnAtEnd: 1
+  AlignToPath: 1
+  DirectionOffset: 0
+  DamageMultiplier: 1
+  Paths:
+  - Preset: 2
+    Start: {x: 0.00000017484555, y: 1, z: -2}
+    Control: {x: 4.548754, y: 1, z: -8.857549}
+    End: {x: 0.0000008742278, y: 1, z: -10}
+  - Preset: 2
+    Start: {x: -1.4142135, y: 1, z: -1.4142134}
+    Control: {x: -3.1346107, y: 1, z: -9.666153}
+    End: {x: -7.071068, y: 1, z: -7.071067}
+  - Preset: 2
+    Start: {x: -1.9999999, y: 1, z: 0.00000011920929}
+    Control: {x: -9.499041, y: 1, z: -4.4904356}
+    End: {x: -9.999999, y: 1, z: 0.00000059604645}
+  - Preset: 2
+    Start: {x: -1.4142137, y: 1, z: 1.4142134}
+    Control: {x: -9.782789, y: 1, z: 3.0762935}
+    End: {x: -7.0710683, y: 1, z: 7.071067}
+  - Preset: 2
+    Start: {x: 0, y: 1, z: 2}
+    Control: {x: -4.5487533, y: 1, z: 8.157742}
+    End: {x: 0, y: 1, z: 10}
+  - Preset: 2
+    Start: {x: 1.4142137, y: 1, z: 1.4142134}
+    Control: {x: 2.49312, y: 1, z: 8.616442}
+    End: {x: 7.0710683, y: 1, z: 7.071067}
+  - Preset: 2
+    Start: {x: 1.9999999, y: 1, z: 0.00000011920929}
+    Control: {x: 8.974186, y: 1, z: 4.432119}
+    End: {x: 9.999999, y: 1, z: 0.00000059604645}
+  - Preset: 2
+    Start: {x: 1.4142135, y: 1, z: -1.4142134}
+    Control: {x: 9.374567, y: 1, z: -2.6097548}
+    End: {x: 7.071068, y: 1, z: -7.071067}

@@ -275,6 +275,82 @@ namespace BlueReaper.BulletPatterns.Editor
                     finally { UnityEngine.Object.DestroyImmediate(vertical); }
                 });
 
+                Check(report, "linear single bullet uses speed and expires without paths", () =>
+                {
+                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        linear.MovementType = BulletMovementType.Linear; linear.Paths = null;
+                        linear.LinearSpeed = 10f; linear.LinearLifetime = 2f; linear.DespawnAtEnd = false;
+                        linear.TravelDuration = float.NaN; linear.RepeatCount = 3; linear.RepeatInterval = 0.3f;
+                        Require(linear.GetValidationError() == null && linear.MaximumCount == 1, "Linear mode required a path");
+                        Require(linear.TryEvaluate(0, 0, 1f, out Vector3 p, out _), "Linear bullet missing");
+                        Near(p, Vector3.forward * 10f);
+                        Require(!linear.TryEvaluate(0, 1, 0.2f, out _, out _), "Linear emission started early");
+                        Require(linear.TryEvaluate(0, 1, 0.8f, out p, out _), "Repeated linear bullet missing");
+                        Near(p, Vector3.forward * 5f);
+                        Require(!linear.TryEvaluate(0, 0, 2f, out _, out _), "Linear lifetime did not expire");
+                        Close(linear.TotalDuration, 2.6f);
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(linear); }
+                });
+                Check(report, "linear line fan and circle distribute directions", () =>
+                {
+                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        linear.MovementType = BulletMovementType.Linear; linear.LinearCount = 3; linear.Spacing = 2f;
+                        linear.TryGetLinearLaunch(0, out Vector3 start, out Vector3 direction);
+                        Near(start, Vector3.left * 2f); Near(direction, Vector3.forward);
+                        linear.Layout = BulletLayout.Fan; linear.FanAngle = 90f;
+                        linear.TryGetLinearLaunch(0, out start, out direction);
+                        Near(direction, Quaternion.Euler(0f, -45f, 0f) * Vector3.forward); Near(start, direction * linear.Radius);
+                        linear.TryGetLinearLaunch(2, out _, out direction);
+                        Near(direction, Quaternion.Euler(0f, 45f, 0f) * Vector3.forward);
+                        linear.Layout = BulletLayout.Circle; linear.LinearCount = 4;
+                        linear.TryGetLinearLaunch(1, out start, out direction);
+                        Near(direction, Vector3.right); Near(start, Vector3.right * linear.Radius);
+                        linear.Layout = BulletLayout.Fan; linear.FanAngle = 360f;
+                        linear.TryGetLinearLaunch(0, out Vector3 first, out _);
+                        linear.TryGetLinearLaunch(3, out Vector3 last, out _);
+                        Require((first - last).sqrMagnitude > 0.1f, "Full fan duplicated endpoints");
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(linear); }
+                });
+                Check(report, "linear resize and placement preserve authored paths", () =>
+                {
+                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        var path = linear.Paths[0]; path.End = new Vector3(2f, 3f, 7f);
+                        linear.MovementType = BulletMovementType.Linear; linear.Resize(8); linear.GenerateLayout();
+                        Require(linear.MaximumCount == 8 && linear.Paths.Count == 1, "Linear count edited path storage");
+                        Near(path.End, new Vector3(2f, 3f, 7f));
+                        linear.MovementType = BulletMovementType.Path;
+                        Require(linear.MaximumCount == 1 && ReferenceEquals(linear.Paths[0], path), "Mode switch lost paths");
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(linear); }
+                });
+                Check(report, "linear invalid settings and visual rotation", () =>
+                {
+                    var linear = ScriptableObject.CreateInstance<BulletPattern>();
+                    try
+                    {
+                        linear.MovementType = BulletMovementType.Linear; linear.Layout = BulletLayout.Manual;
+                        Require(linear.GetValidationError() != null && !linear.TryEvaluate(0, 0, 0f, out _, out _), "Linear manual accepted");
+                        linear.Layout = BulletLayout.Line; linear.LinearLifetime = 0f;
+                        Require(linear.GetValidationError() != null && !linear.TryEvaluate(0, 0, 0f, out _, out _), "Zero lifetime accepted");
+                        linear.LinearLifetime = 2f; linear.LinearSpeed = float.NaN;
+                        Require(linear.GetValidationError() != null && !linear.TryEvaluate(0, 0, 0f, out _, out _), "NaN speed accepted");
+                        linear.LinearSpeed = 10f; linear.LinearCount = 0;
+                        Require(linear.GetValidationError() != null, "Zero count accepted");
+                        linear.LinearCount = 1; linear.DirectionOffset = 90f;
+                        Require(linear.TryEvaluate(0, 0, 1f, out Vector3 p, out Quaternion rotation), "Valid linear bullet rejected");
+                        Near(p, Vector3.forward * 10f); Near(rotation * Vector3.forward, Vector3.right);
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(linear); }
+                });
+
                 pattern.Resize(1); pattern.Paths[0] = new BulletPath();
                 pattern.TravelDuration = 2f; pattern.RepeatCount = 3; pattern.RepeatInterval = 0.8f;
                 Check(report, "not emitted before launch", () =>
@@ -332,11 +408,17 @@ namespace BlueReaper.BulletPatterns.Editor
                     pattern.RepeatInterval = 0.8f; pattern.Paths[0].Start = new Vector3(float.PositiveInfinity, 0f, 0f);
                     Require(pattern.GetValidationError() != null, "Infinite coordinate accepted");
                     pattern.Paths[0] = new BulletPath();
+                    pattern.StartTime = -0.1f;
+                    Require(pattern.GetValidationError() != null, "Negative start delay accepted");
+                    pattern.StartTime = float.NaN;
+                    Require(pattern.GetValidationError() != null, "NaN start delay accepted");
+                    pattern.StartTime = 0f;
                     Require(pattern.GetValidationError() == null, "Valid pattern rejected");
                 });
                 Check(report, "asset save and serialized data round trip", () =>
                 {
                     pattern.Paths[0].Control = new Vector3(3f, 4f, 5f);
+                    pattern.StartTime = 0.5f;
                     savedPath = AssetDatabase.GenerateUniqueAssetPath("Assets/BulletPatternCheck.asset");
                     AssetDatabase.CreateAsset(pattern, savedPath); AssetDatabase.SaveAssetIfDirty(pattern);
                     var copy = ScriptableObject.CreateInstance<BulletPattern>();
@@ -345,6 +427,7 @@ namespace BlueReaper.BulletPatterns.Editor
                         EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(pattern), copy);
                         Near(copy.Paths[0].Control, new Vector3(3f, 4f, 5f));
                         Require(copy.RepeatCount == 3 && copy.MaximumCount == 1, "Serialization lost settings");
+                        Close(copy.StartTime, 0.5f);
                         Require(File.Exists(savedPath), "Asset was not saved");
                     }
                     finally { UnityEngine.Object.DestroyImmediate(copy); }
