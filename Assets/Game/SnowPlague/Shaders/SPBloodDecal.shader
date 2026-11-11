@@ -53,7 +53,7 @@ Shader "SnowPlague/BloodDecal"
         }
         float2 CellUV(float2 p01, float cell) { return p01 * 0.5 + float2(fmod(cell, 2), 1 - floor(cell / 2)) * 0.5; }
 
-        struct BD { float3 ws, n, nb; float2 suv; float thick, cov, core, soak, drops, mottle, fade, rise, grain, fine; };
+        struct BD { float3 ws, n, nb; float2 suv; float thick, cov, core, soak, drops, mottle, fade, rise, grain, fine, rad, edgeN, spread; };
         float CellA(float2 p, float cell) { return SAMPLE_TEXTURE2D(_BloodTex, sampler_BloodTex, CellUV(frac(p), cell)).a; }
         float2 Rot(float2 p, float a) { float s, c; sincos(a, s, c); return float2(p.x * c - p.y * s, p.x * s + p.y * c); }
         BD Eval(V i)
@@ -90,33 +90,32 @@ Shader "SnowPlague/BloodDecal"
             if (_Debug < 0.5) clip(d.fade - 0.01);
 
             float cell = _Cell >= 0 ? _Cell : floor(SPInstanceRand() * 3.999);
-            float2 uv = CellUV(os.xz + 0.5, cell);
-            float4 b = SAMPLE_TEXTURE2D(_BloodTex, sampler_BloodTex, uv);
-            d.thick = b.r;
             float rnd = SPInstanceRand();
+            // look8 (Kido "핏자국 왜이래": stamped stickers): each decal turns and mirrors its atlas cell by its own hash, so
+            // two decals with the same cell never repeat; a round fade keeps the turned cell's corners from cutting a square
+            float2 q = Rot(os.xz, rnd * 6.283) * float2(frac(rnd * 7.13) > 0.5 ? -1 : 1, 1);
+            d.rad = 1 - smoothstep(0.36, 0.5, length(os.xz));
+            float2 uv = CellUV(clamp(q, -0.49, 0.49) + 0.5, cell);
+            float4 b = SAMPLE_TEXTURE2D(_BloodTex, sampler_BloodTex, uv);
+            d.thick = b.r * d.rad;
+            d.edgeN = SPFbmI(d.ws.xz * 2.4 + rnd * 37.0);   // world noise: the soak front is uneven, never the scan's crisp outline
             // bl5 (lead: "flat uniform blobs with crisp cut-out edges"): everything below is broken by scan-derived grain
             // at two scales (the pool and splatter cells tiled x5.3 and x11.1), the outline feathers into dots, the solid part is only the
             // small pooled cores, and a spray of scan droplets / streak flecks at three scales radiates around it
             float2 p = Rot(os.xz, rnd * 6.283);
             d.grain = smoothstep(0.08, 0.5, CellA(Rot(p, 0.9) * 5.3 + 0.21, 0));   // splatter cells: denser than the drip cell
             d.fine = smoothstep(0.08, 0.5, CellA(Rot(p, 2.3) * 11.1 + 0.63, 1));
-            float speck = max(d.grain, d.fine);
-            float edge = 1 - smoothstep(0.55, 0.95, b.a);           // outer part of the stain
-            float cov = smoothstep(0.02, 0.5, b.a);
-            d.cov = cov * lerp(1, lerp(1 - _Grain, 1, speck), max(edge, 1 - smoothstep(0.35, 0.7, d.thick)));
-            // bl6: thickness saturates over the whole pool, so the cores were the whole stain; break them into a few
-            // irregular patches with the scan's splatter cell at a large scale
-            float patch = smoothstep(0.25, 0.75, CellA(Rot(p, 5.2) * 2.1 + 0.44, 1));
-            d.core = smoothstep(0.85, 0.99, d.thick) * cov * patch;
-            d.soak = smoothstep(0.03, 0.35, b.r) * (1 - cov) * _Soak * lerp(0.5, 1, d.grain);
-            // spray: the scan's splatter cell (small copies), its drip cell, and drip cell stretched 1:3.5 into flecks
-            float r = length(os.xz) * 2;
-            float ring = smoothstep(0.15, 0.45, r) * (1 - smoothstep(0.62, 0.98, r));
-            float s1 = CellA(Rot(p, 1.7) * 1.6 + 0.5, 0);
-            float s2 = CellA(Rot(p, 4.1) * 2.6 + 0.13, 3);
-            float2 ps = Rot(p, 0.6); ps.x *= 0.3;
-            float s3 = CellA(ps * 4.4 + 0.71, 3);
-            d.drops = saturate(max(max(s1 * 0.9, s2), s3 * 0.8) * 1.4 - 0.15) * ring * (1 - cov) * _Drops;
+            // look8: blood soaked into snow, not a stamped sticker. The shape is the scan's blurred thickness (R), pushed in
+            // and out by world noise so the front is feathered and uneven; spread 0 = rim .. 1 = saturated middle.
+            // The scan's crisp opacity (A) only mottles the inside; no droplet / fleck spray any more (_Drops unused).
+            d.spread = saturate((d.thick - 0.05 + (d.edgeN - 0.5) * 0.34) / 0.55);
+            float cov = smoothstep(0.1, 0.7, b.a) * d.rad;
+            d.cov = cov;
+            // pooled clots: only where the scan is thickest AND opaque, broken into a few patches; soft edged
+            float patch = smoothstep(0.3, 0.7, CellA(Rot(p, 5.2) * 2.1 + 0.44, 1) * 0.6 + d.edgeN * 0.6);
+            d.core = smoothstep(0.84, 0.98, d.thick) * smoothstep(0.35, 0.85, b.a) * patch * d.rad;
+            d.soak = 1 - smoothstep(0.0, 0.35, d.spread);   // the pale-pink outer diffusion band
+            d.drops = 0;
             d.mottle = saturate(1 + (b.g - 0.33) * 4 + (b.b - 0.12) * 1.5);
 
             // wet meniscus normal from the thickness gradient
@@ -150,13 +149,14 @@ Shader "SnowPlague/BloodDecal"
                 UNITY_SETUP_INSTANCE_ID(i);
                 BD d = Eval(i);
                 if (_Debug > 0.5) return half4(saturate(d.rise * 5), d.n.y > 0.8 ? 1 : 0.3, saturate(-d.rise * 5), 1);
-                float body = saturate(d.cov + d.drops);
-                float m = saturate(body + d.soak) * d.fade;
-                // halo -> crimson film (ground texture shows through) -> dark only in the thick cores; specks darker
-                float3 film = _FilmMul.rgb * lerp(0.85, 1.1, d.mottle) * lerp(1, 0.78, d.fine * _Grain);
-                float3 stain = lerp(film, _StainMul.rgb, saturate(d.core * 1.4));
-                stain = lerp(_SoakMul.rgb, stain, body);
-                return half4(lerp(1, stain, m), 1);
+                // look8: snow -> pale pink diffusion at the uneven rim -> red soaked body (snow texture shows through the
+                // multiply, scan colour mottles it) -> dark maroon only in the pooled clots
+                float s = d.spread;
+                float3 mul = lerp(1, _SoakMul.rgb, smoothstep(0.0, 0.22, s) * _Soak);
+                float3 film = _FilmMul.rgb * lerp(0.85, 1.12, d.mottle) * lerp(1, 0.85, d.fine * _Grain * d.cov);
+                mul = lerp(mul, film, smoothstep(0.25, 0.85, s) * lerp(0.8, 1, d.cov));
+                mul = lerp(mul, _StainMul.rgb, saturate(d.core * 1.3));
+                return half4(lerp(1, mul, d.fade), 1);
             }
             ENDHLSL
         }

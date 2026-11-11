@@ -41,7 +41,8 @@ public static partial class SPBuilder
         m.SetColor("_SnowTint", new Color(0.952f, 0.95f, 0.948f));
         m.SetColor("_ShadeTint", new Color(0.86f, 0.87f, 0.9f));   // gnd1: was strongly blue (read lilac); the cool shadow comes from the lighting
         m.SetFloat("_SnowRelief", 1f);
-        m.SetFloat("_MeltHoles", 0.8f);
+        m.SetFloat("_MeltHoles", 0f);   // gnd11 (QA amateur #11): the round melt holes read as black holes punched in the snow
+        m.SetFloat("_Footprints", 0.35f);   // gnd11: the print lanes read as rows of dots at the game camera
         // gr1: gravel/pebbles is the bare base now (ss5: light warm grey-brown ground dense with pebbles), leaves in patches
         // gnd1: bare ground grey-olive ~#6e665a, no pink (the warm tints x tan scans read pink-tan under the lanterns)
         m.SetColor("_LeafTint", new Color(1.35f, 1.35f, 1.33f));
@@ -206,15 +207,16 @@ public static partial class SPBuilder
         //  points per clump, sink as a fraction of the size)
         var plan = new (string m, int n, float s0, float s1, float bare, float grav, int clump, float sink)[]
         {
-            ("SP_Pebble_A", 1400, 0.05f, 0.16f, 0.8f, 0.5f, 9, 0.2f), ("SP_Pebble_B", 1400, 0.05f, 0.16f, 0.8f, 0.5f, 9, 0.2f),
-            ("SP_Pebble_C", 1400, 0.05f, 0.16f, 0.8f, 0.5f, 9, 0.2f), ("SP_Pebble_D", 1400, 0.05f, 0.16f, 0.8f, 0.5f, 9, 0.2f),
-            ("SP_PebbleCluster", 900, 0.25f, 0.5f, 0.75f, 0.6f, 5, 0.15f),
+            // gnd11 (QA amateur #11/12): fewer pebbles, wider size range, bigger tighter clumps, half buried, toned stone material
+            ("SP_Pebble_A", 700, 0.04f, 0.14f, 0.8f, 0.5f, 14, 0.6f), ("SP_Pebble_B", 700, 0.04f, 0.14f, 0.8f, 0.5f, 14, 0.6f),
+            ("SP_Pebble_C", 700, 0.04f, 0.14f, 0.8f, 0.5f, 14, 0.6f), ("SP_Pebble_D", 700, 0.04f, 0.14f, 0.8f, 0.5f, 14, 0.6f),
+            ("SP_PebbleCluster", 450, 0.25f, 0.5f, 0.75f, 0.6f, 5, 0.3f),
             ("SP_StoneChip_A", 700, 0.08f, 0.22f, 0.7f, 0.4f, 6, 0.2f), ("SP_StoneChip_B", 700, 0.08f, 0.22f, 0.7f, 0.4f, 6, 0.2f),
             ("PH:stone_01", 500, 0.12f, 0.35f, 0.7f, 0.5f, 4, 0.25f),
             ("PH:namaqualand_stones_01", 1200, 0.06f, 0.25f, 0.75f, 0.6f, 7, 0.2f),
             ("PH:rock_07", 160, 0.35f, 0.8f, 0.5f, 0.3f, 2, 0.3f), ("PH:rock_09", 100, 0.4f, 0.9f, 0.5f, 0.3f, 2, 0.3f),
-            ("SP_TwigBit", 1500, -0.8f, -1.4f, 0.7f, 0f, 10, 0f), ("SP_Twigs", 500, -0.9f, -1.3f, 0.6f, 0f, 6, 0f),
-            ("PH:bark_debris_01", 500, 0.12f, 0.3f, 0.7f, 0f, 6, 0.1f),
+            ("SP_TwigBit", 700, -0.8f, -1.4f, 0.7f, 0f, 14, 0f), ("SP_Twigs", 300, -0.9f, -1.3f, 0.6f, 0f, 8, 0f),   // gnd11: clustered, not evenly sprinkled
+            ("PH:bark_debris_01", 250, 0.1f, 0.22f, 0.7f, 0f, 6, 0.3f),
             ("PH:dry_branches_medium_01", 220, 0.5f, 1.1f, 0.5f, 0f, 2, 0.05f),
             ("LEAF:0", 1800, -0.8f, -1.4f, 0.95f, -0.6f, 10, 0f), ("LEAF:1", 1400, -0.8f, -1.3f, 0.95f, -0.6f, 8, 0f),
             ("MS:snowy_rocks_pile_vcykbjsva_mid", 0, 0.7f, 1.6f, 0.2f, 0.3f, 2, 0.2f), ("MS:rocky_snow_pile_xfroec0qx_mid", 0, 0.7f, 1.6f, 0.2f, 0.3f, 2, 0.2f),
@@ -238,7 +240,15 @@ public static partial class SPBuilder
                 if (!s.mat) continue;
                 int n = Mathf.Max(1, p.n / srcs.Count);
                 if (s.tris * n > SetTriBudget) { int cap = Mathf.Max(20, SetTriBudget / Mathf.Max(1, s.tris)); Log($"CLUTTER {p.m}/{s.mesh.name}: {s.tris} tris, {n} -> {cap}"); n = Mathf.Min(n, cap); }
-                var set = new SPScatter.Set { mesh = s.mesh, mat = s.mat, pre = s.pre, preOffset = s.preOffset, preScale = s.preScale };
+                var gmat = s.mat;
+                // gnd11: stones as dark grey with a partial snow cap, not black discs or white eggs
+                if (gmat && (p.m.StartsWith("SP_Pebble") || p.m.StartsWith("SP_StoneChip") || p.m.StartsWith("PH:stone") || p.m.StartsWith("PH:namaqualand") || p.m.StartsWith("PH:bark_debris")))
+                {
+                    var src = gmat;
+                    gmat = Mat("SP_GC_Stone_" + src.name.Replace(" ", ""), src.shader.name, mm => { mm.CopyPropertiesFromMaterial(src); if (mm.HasProperty("_SnowBias")) mm.SetFloat("_SnowBias", -0.3f); if (mm.HasProperty("_Tint")) mm.SetColor("_Tint", mm.GetColor("_Tint") * (src.name.Contains("bark") ? 1.7f : 0.9f)); });   // gnd12: stones a little darker (white eggs), bark chips lifted (read as black holes)
+                    if (!gmat) gmat = src;
+                }
+                var set = new SPScatter.Set { mesh = s.mesh, mat = gmat, pre = s.pre, preOffset = s.preOffset, preScale = s.preScale };
                 int made = 0, left = 0; float cx = 0, cz = 0, spread = 1f;
                 for (int k = 0; k < n * 14 && made < n; k++)
                 {

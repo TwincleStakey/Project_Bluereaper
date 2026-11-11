@@ -1022,4 +1022,65 @@ public static partial class SPBuilder
             if (kv.Value >= 2 && bare && !hero && !InArena(r.bounds.center.x, r.bounds.center.z)) { r.enabled = false; Log($"VEG 14b: {r.name} switched off (white stick)"); }   // tr40: both overlapping copies (5/7 and 2/7)
         }
     }
+
+    // tr45 (QA #9, #10): onggi jars were plastic-grey identical copies standing upright side by side; the hand cart and its
+    // wheel untextured grey, the wheel floating flat
+    public static void VgPost45()
+    {
+        var stone = mats.TryGetValue("SP_Stone", out var st) && st ? st.GetTexture("_BaseMap") : null;
+        if (mats.TryGetValue("SP_Clay", out var clay) && clay)
+        {
+            if (stone) clay.SetTexture("_BaseMap", stone);
+            clay.SetColor("_Tint", Hex("#6a4632")); clay.SetFloat("_Smoothness", 0.35f); clay.SetFloat("_Desaturate", 0.1f);
+            clay.SetFloat("_SnowCap", 0.45f); clay.SetFloat("_SnowBias", 0.2f); EditorUtility.SetDirty(clay);
+        }
+        if (mats.TryGetValue("SP_Wood", out var wood) && wood)
+        {
+            wood.SetColor("_Tint", Hex("#7a6652")); wood.SetFloat("_Desaturate", 0.2f); wood.SetFloat("_SnowCap", 0.4f); EditorUtility.SetDirty(wood);
+        }
+        var jr = new System.Random(45); int jars = 0;
+        foreach (var t in root.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("SP_Jar") && t.parent && !t.parent.name.StartsWith("SP_Jar")).ToList())
+        {
+            float k = 0.75f + (float)jr.NextDouble() * 0.5f; t.localScale *= k;
+            bool lid = t.name.Contains("Lid"), already = t.name.Contains("Tipped") || t.name.Contains("Broken");
+            if (!lid && !already)
+            {
+                double roll = jr.NextDouble();
+                float tilt = roll < 0.5 ? (float)jr.NextDouble() * 8f : roll < 0.8 ? 20f + (float)jr.NextDouble() * 20f : 80f + (float)jr.NextDouble() * 12f;
+                t.rotation = Quaternion.AngleAxis(tilt, Quaternion.Euler(0, (float)jr.NextDouble() * 360f, 0) * Vector3.forward) * t.rotation;
+            }
+            var b = new Bounds(); bool first = true;
+            foreach (var r in t.GetComponentsInChildren<Renderer>()) { if (first) { b = r.bounds; first = false; } else b.Encapsulate(r.bounds); }
+            t.position += Vector3.up * (Height(t.position.x, t.position.z) - b.min.y - b.size.y * (lid ? 0.1f : 0.25f));   // half-bury
+            jars++;
+        }
+        foreach (var t in root.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("SP_CartWheel")))
+        {
+            t.rotation = Quaternion.AngleAxis(7f, Vector3.right) * t.rotation;
+            var b = new Bounds(); bool first = true;
+            foreach (var r in t.GetComponentsInChildren<Renderer>()) { if (first) { b = r.bounds; first = false; } else b.Encapsulate(r.bounds); }
+            t.position += Vector3.up * (Height(t.position.x, t.position.z) - b.min.y - 0.06f);
+        }
+        Log($"VEG post45: {jars} jars varied (scale, tilt, half-buried), clay/wood retextured, wheel sunk");
+    }
+
+    // tr45 (QA #19): the stray straight hairline in view 16 (px 1140,0 -> 1165,300) - rays from the capture camera, logged
+    public static void VgProbe16()
+    {
+        var focus = new Vector3(LMGatePos.x + 6f, 0, LMGatePos.y + 2f);
+        var off = new Vector3(0, 17f, -14.5f) * 1.35f; var cp = focus + off; var fwd = (-off).normalized;
+        var right = Vector3.Cross(Vector3.up, fwd).normalized; var up = Vector3.Cross(fwd, right);
+        float tv = Mathf.Tan(15f * Mathf.Deg2Rad), th = tv * 16f / 9f;
+        var all = root.GetComponentsInChildren<Renderer>().Where(r => r.enabled && !(r is ParticleSystemRenderer)).ToArray();
+        foreach (var (px, py) in new[] { (1142f, 30f), (1150f, 120f), (1158f, 220f), (1163f, 290f) })
+        {
+            float u = px / 1920f, v = 1f - py / 1080f;
+            var ray = new Ray(cp, (fwd + right * th * (2f * u - 1f) + up * tv * (2f * v - 1f)).normalized);
+            var hits = new List<(Renderer r, float d)>();
+            foreach (var r in all) { if (!r.bounds.IntersectRay(ray)) continue; if (VgRayMesh(r, ray, out float d)) hits.Add((r, d)); }
+            hits.Sort((a, c) => a.d.CompareTo(c.d));
+            Log($"VEG view16 line ({px:0}, {py:0}): " + string.Join(" | ", hits.Take(3).Select(h => $"{h.r.name} ({h.r.transform.parent?.name}) {(h.r.sharedMaterial ? h.r.sharedMaterial.name : "-")} size {h.r.bounds.size}")));
+        }
+        foreach (var lr in root.GetComponentsInChildren<LineRenderer>(true)) Log($"VEG LineRenderer: {lr.name} ({lr.transform.parent?.name}) points {lr.positionCount}");
+    }
 }

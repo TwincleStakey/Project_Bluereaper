@@ -224,8 +224,10 @@ public static partial class SPBuilder
             ("PH:stone_01", 18f, 3, 0.15f, 0.4f, -0.4f, 0.7f, 0.25f),
             ("SP_Pebble_A", 22f, 5, 0.06f, 0.16f, -0.5f, 0.6f, 0.2f), ("SP_Pebble_C", 22f, 5, 0.06f, 0.16f, -0.5f, 0.6f, 0.2f),
             ("SP_Twigs", 16f, 2, -0.9f, -1.3f, -0.3f, 0.9f, 0f), ("SP_TwigBit", 30f, 3, -0.9f, -1.4f, -0.5f, 0.8f, 0f),
-            ("SP_GrassTuft_A", 26f, 6, -0.8f, -1.3f, -0.1f, 1.0f, 0.03f), ("SP_GrassTuft_B", 26f, 6, -0.8f, -1.3f, -0.1f, 1.0f, 0.03f),
-            ("SP_GrassTuft_C", 20f, 5, -0.7f, -1.2f, 0.0f, 1.0f, 0.03f),
+            // gnd11 (QA amateur: an even grass fringe along the bank): fewer, bigger clumps; a few frozen-in tufts and twigs on the ice
+            ("SP_GrassTuft_A", 12f, 12, -0.6f, -1.4f, -0.4f, 1.2f, 0.03f), ("SP_GrassTuft_B", 12f, 12, -0.6f, -1.4f, -0.4f, 1.2f, 0.03f),
+            ("SP_GrassTuft_C", 10f, 10, -0.6f, -1.2f, -0.2f, 1.2f, 0.03f), ("SP_GrassTuft_B", 5f, 6, -0.6f, -1.0f, -1.6f, -0.3f, 0.05f),
+            ("SP_TwigBit", 9f, 4, -0.9f, -1.3f, -4.0f, -0.8f, 0f),
         };
         float shoreLen = ns * step;
         int total = 0;
@@ -238,6 +240,8 @@ public static partial class SPBuilder
             {
                 var m = s.mat;
                 if (p.m.StartsWith("SP_GrassTuft") && m) m = Brown(m) ?? m;
+                else if (m && (p.m.StartsWith("SP_Pebble") || p.m.StartsWith("PH:stone")))   // gnd11: same toned stone as the ground clutter
+                { var src = m; m = Mat("SP_GC_Stone_" + src.name.Replace(" ", ""), src.shader.name, mm => { mm.CopyPropertiesFromMaterial(src); if (mm.HasProperty("_SnowBias")) mm.SetFloat("_SnowBias", -0.3f); if (mm.HasProperty("_Tint")) mm.SetColor("_Tint", mm.GetColor("_Tint") * 0.9f); }) ?? src; }
                 var set = new SPScatter.Set { mesh = s.mesh, mat = m, pre = s.pre, preOffset = s.preOffset, preScale = s.preScale };
                 sets.Add(set); sc.sets.Add(set);
             }

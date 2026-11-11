@@ -97,14 +97,14 @@ Material:
     - _BlendDepth: 0.2
     - _Calm: 0.7
     - _DirtySnow: 0.85
-    - _Footprints: 0.8
+    - _Footprints: 0.35
     - _GravelAmount: 1
     - _GroundAO: 0.35
     - _HexScale: 1.2
     - _HollowSnow: 0
     - _IceSmooth: 0.88
     - _Macro: 1
-    - _MeltHoles: 0.8
+    - _MeltHoles: 0
     - _MudAmount: 0.3
     - _NormalStrength: 1.35
     - _RedLeaves: 0.05

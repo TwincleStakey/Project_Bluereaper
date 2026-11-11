@@ -153,7 +153,7 @@ float SPSnowH(float2 xz)
     float2 r1 = float2(xz.x * 0.8 - xz.y * 0.6, xz.x * 0.6 + xz.y * 0.8);
     float lump = SPNoiseI(xz * 4.7 + 7.7);               // ~20 cm crust lumps
     float crust = SPNoiseI(r1 * 11.0 + 2.1) * 0.6 + SPNoiseI(float2(r1.y, -r1.x) * 24.0 + 5.3) * 0.4;   // 4-9 cm granules
-    return rip * lerp(0.2, 0.5, sas) * 0.5 + sas * 0.13 + lump * 0.22 + crust * 0.18 + 0.12;   // gnd1: wind ripples/sastrugi at half strength (read as diagonal bands)
+    return rip * lerp(0.2, 0.5, sas) * 0.5 + sas * 0.13 + lump * 0.22 + crust * 0.09 + 0.16;   // gnd11: half the fine crust grain   // gnd1: wind ripples/sastrugi at half strength (read as diagonal bands)
 }
 
 // sn1: round melt holes (snow melts first round grass tufts and stones): at most one per 1.3 m cell, kept inside its
@@ -300,6 +300,8 @@ void SPSurface(SPInput i, inout SPOut o)
     snowCol = lerp(snowCol, snowCol * _ShadeTint.rgb, saturate(dip) * lerp(0.5, 1.0, thick) * 0.5);   // gnd1: half (diagonal wind bands)
     snowCol *= lerp(0.97, 1.04, saturate((hs - 0.55) * 3));
     snowCol = lerp(snowCol, snowCol * 1.04, drift);
+    // gnd11 (QA amateur: uniform "sandpaper" snow): soft 10-30 m drifts of value, like ss5, over the fine grain
+    snowCol *= lerp(0.9, 1.07, SPFbmI(xz * 0.045 + 7.3) * 0.7 + SPNoiseI(xz * 0.12 + 2.2) * 0.3);
     // dirty snow: thin, trodden, soiled by blown earth; takes the colour of the ground under it
     float soil = smoothstep(0.42, 0.78, SPFbmI(xz * 0.21 + 7.1) * 0.65 + m3 * 0.35);
     float thin = 1 - saturate(L * 1.1);                  // the whole broken zone, not only the grain edges

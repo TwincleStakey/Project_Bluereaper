@@ -34,17 +34,17 @@ Material:
     - _Cell: 0
     - _Clot: 0.55
     - _Debug: 0
-    - _Drops: 1
+    - _Drops: 0
     - _EdgeSharp: 0.5
     - _Emit: 0.04
     - _Glint: 0.35
     - _Gloss: 0.6
-    - _Grain: 0.75
+    - _Grain: 0.3
     - _MaxRise: 0.08
     - _Opacity: 0.96
     - _Pool: 0.85
     - _Sheen: 0.15
-    - _Soak: 0.6
+    - _Soak: 1
     - _Spec: 1.2
     - _SpecPow: 320
     - _Steep: 1
@@ -52,10 +52,10 @@ Material:
     - _Col: {r: 0.557, g: 0.102, b: 0.09, a: 1}
     - _Core: {r: 0.2, g: 0.025, b: 0.02, a: 1}
     - _Edge: {r: 0.78, g: 0.06, b: 0.04, a: 1}
-    - _FilmMul: {r: 0.52, g: 0.12, b: 0.11, a: 1}
+    - _FilmMul: {r: 0.62, g: 0.16, b: 0.15, a: 1}
     - _PoolCol: {r: 0.15, g: 0.02, b: 0.018, a: 1}
     - _SoakCol: {r: 0.7, g: 0.2, b: 0.17, a: 1}
-    - _SoakMul: {r: 0.8, g: 0.62, b: 0.6, a: 1}
+    - _SoakMul: {r: 0.95, g: 0.72, b: 0.74, a: 1}
     - _StainMul: {r: 0.3, g: 0.05, b: 0.045, a: 1}
     - _Tint: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

@@ -59,7 +59,7 @@ public static partial class SPBuilder
                 c.transform.SetParent(go.transform, true);
                 var cr = c.GetComponent<MeshRenderer>(); cr.sharedMaterial = coreBase; cr.shadowCastingMode = ShadowCastingMode.Off; cr.receiveShadows = false;
             }
-            Lantern(go, false); KLFill(go, b); KLRoofLight(go);
+            Lantern(go, false); KLFill(go, b); KLRoofLight(go); KLPlug(go, b);
             Log($"KL {nm} at ({at.x:0.0}, {at.y:0.0}), h {b.size.y:0.00} m");
         }
         foreach (var t in olds)
@@ -70,6 +70,9 @@ public static partial class SPBuilder
             var spot = inside ? KLEdge(p, placed) : (KLFree(p, placed) ? p : (Vector2?)null);
             if (spot == null) { dropped++; Log($"KL drop lantern at ({p.x:0.0}, {p.y:0.0}): no free spot past the boundary"); continue; }
             var at = spot.Value;
+            // tr45 (QA #1): the moved lanterns stood in ruler-straight evenly spaced rows - drop ~30 %, jitter the rest
+            if (klr.NextDouble() < 0.3) { dropped++; Log($"KL thin-out: drop lantern for ({p.x:0.0}, {p.y:0.0})"); continue; }
+            { var jit = new Vector2((float)klr.NextDouble() * 2f - 1f, (float)klr.NextDouble() * 2f - 1f) * 0.9f; var outw = Mathf.Abs(at.x) > HX ? new Vector2(Mathf.Sign(at.x), 0) : new Vector2(0, Mathf.Sign(at.y)); var q = at + jit + outw * (float)klr.NextDouble() * 1.4f; if (KLFree(q, placed, 6f)) at = q; }
             float yaw = (float)klr.NextDouble() * 360f;
             var go = LMPlace("KoreanLantern", at, yaw, Quaternion.Euler(0f, -yaw, 0f) * Vector3.back, KLHeight, g, true, false);   // round lantern: random turn, "front" kept to the camera for the check
             if (!go) continue;
@@ -87,7 +90,7 @@ public static partial class SPBuilder
                 c.transform.SetParent(go.transform, true);
                 var cr = c.GetComponent<MeshRenderer>(); cr.sharedMaterial = coreBase; cr.shadowCastingMode = ShadowCastingMode.Off; cr.receiveShadows = false;
             }
-            Lantern(go, false); KLFill(go, b); KLRoofLight(go);
+            Lantern(go, false); KLFill(go, b); KLRoofLight(go); KLPlug(go, b);
             Log($"KL {(inside ? "moved" : "swapped")} ({p.x:0.0}, {p.y:0.0}) -> ({at.x:0.0}, {at.y:0.0}), h {b.size.y:0.00} m");
         }
         Log($"KL swap: {olds.Count} old lanterns -> {moved} moved past the boundary, {inPlace} swapped in place, {dropped} dropped (spacing / river / landmarks)");
@@ -221,7 +224,7 @@ public static partial class SPBuilder
     public static readonly Vector3 HCView = new Vector3(-56f, 1.8f, -36f);   /* tr38 */   // (focus x, zoom, focus z) of view 20 - tr37: wider (x1.4 was all gate roof)
     static void HeroCornerVignette()
     {
-        var g = Group("HeroCorner");
+        var g = Group("HeroCorner"); hcDarkBark = null;
         int made = 0;
         void P(string m, float x, float z, float yaw)
         {
@@ -240,7 +243,7 @@ public static partial class SPBuilder
             Object.DestroyImmediate(go.GetComponent<Collider>());
             go.transform.SetParent(g, false);
             go.transform.SetPositionAndRotation(new Vector3(x, Height(x, z), z), Quaternion.Euler(0, yaw, 0));
-            size *= 1.9f; go.transform.localScale = new Vector3(size, 1.2f, size * (cell == 2 ? 2.2f : 1f));
+            size *= 1.9f; go.transform.localScale = new Vector3(size, 1.2f, size * (cell == 2 ? 1.4f : 1f));
             var mc = AssetDatabase.LoadAssetAtPath<Material>($"{MatDir}/SP_Blood_{cell}.mat");
             var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = mc ? mc : bm; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
             made++;
@@ -250,7 +253,7 @@ public static partial class SPBuilder
         P("SP_StrawMat_Two", -50.2f, -40.6f, 80f); P("SP_StrawMat_A", -47.4f, -38.6f, 115f); P("SP_StrawMat_Pulled", -51.8f, -38.0f, 35f);
         P("SP_Rags_A", -48.6f, -40.9f, 10f); P("SP_Rags_B", -52.6f, -39.8f, 200f); P("SP_Bone", -46.6f, -40.2f, 40f);
         Blood(-49.6f, -39.8f, 25f, 3.4f, 1); Blood(-47.2f, -39.4f, 70f, 2.4f, 3); Blood(-52.4f, -38.8f, 100f, 2.0f, 2);   // tr37: no cell 0 (pale centre); tr38: bigger (unreadable at view 20)
-        Blood(-45.6f, -37.6f, 160f, 1.6f, 1); Blood(-53.6f, -36.4f, 60f, 1.8f, 2);
+        // tr45 (look worker): the two extra pools dropped
         P("SP_StrawMat_B", -45.2f, -40.8f, 150f); P("SP_StrawMat_A", -53.2f, -41.4f, 20f); P("SP_Rags_A", -46.2f, -36.8f, 250f); P("SP_Bone", -51.0f, -42.0f, 300f);
         // tr38: clear the tall dark masses / trees standing between the camera and the corner (they hid the lanterns in 20)
         int cleared = 0;
@@ -268,13 +271,13 @@ public static partial class SPBuilder
             var fp = EdgeCrown(new Vector3(HCView.x, 0f, HCView.z), HCView.y, 0.07f, 0.3f, 10f);   // tr41: lower-left (z ~ -48), out of the gate's moon shadow
             if (InArena(fp.x, fp.y, -1f)) fp.x = -HX - 3f;
             var tg = Place("SK:Con_Coniferous_Dead_Tree_6", fp.x, fp.y, 35f, 1.3f, g, false, 0.15f);   // tr42: Dead_Object_* are short snags - a tall dead conifer (bark darkened by VgPost32)
-            if (tg) { foreach (var r in tg.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;   /* tr40: normal bark; tr42: VgPost32 gives it the darkened dead-conifer bark */ Log($"HC framing dead tree at ({fp.x:0.0}, {fp.y:0.0})"); made++; }
+            if (tg) { foreach (var r in tg.GetComponentsInChildren<Renderer>()) { r.shadowCastingMode = ShadowCastingMode.Off; r.sharedMaterials = r.sharedMaterials.Select(_ => HCDarkBark()).ToArray(); }   /* tr40: normal bark; tr42: VgPost32 gives it the darkened dead-conifer bark */ Log($"HC framing dead tree at ({fp.x:0.0}, {fp.y:0.0})"); made++; }
             else Log("HC framing dead tree: model missing");
             // tr43: a second dead conifer higher on the left edge for framing weight (ss5's left side)
             var fp2 = EdgeCrown(new Vector3(HCView.x, 0f, HCView.z), HCView.y, 0.03f, 0.58f, 11f);
             if (InArena(fp2.x, fp2.y, -1f)) fp2.x = -HX - 3f;
             var tg2 = Place("SK:Con_Coniferous_Dead_Tree_2_7", fp2.x, fp2.y, 200f, 1.25f, g, false, 0.15f);
-            if (tg2) { foreach (var r in tg2.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off; Log($"HC framing dead tree 2 at ({fp2.x:0.0}, {fp2.y:0.0})"); made++; }
+            if (tg2) { foreach (var r in tg2.GetComponentsInChildren<Renderer>()) { r.shadowCastingMode = ShadowCastingMode.Off; r.sharedMaterials = r.sharedMaterials.Select(_ => HCDarkBark()).ToArray(); } Log($"HC framing dead tree 2 at ({fp2.x:0.0}, {fp2.y:0.0})"); made++; }
         }
         // low dark shrubs / thicket round the lantern bases (outside the arena only) to break the clean snow
         var hr = new System.Random(39);
@@ -299,12 +302,17 @@ public static partial class SPBuilder
     static Material CorpseMat(string folder)
     {
         string dir = LMDir + folder + "/textures";
-        Texture2D nrm = null;
+        Texture2D nrm = null, alb = null;
         if (System.IO.Directory.Exists(ProjAbsVg(dir)))
+        {
             foreach (var p in System.IO.Directory.GetFiles(ProjAbsVg(dir), "*_normal.png")) nrm = Tex(dir + "/" + System.IO.Path.GetFileName(p), true, false, false, 1024);
-        Texture2D straw = mats.TryGetValue("SP_Straw", out var sm) && sm ? sm.GetTexture("_BaseMap") as Texture2D : null;
-        var m = Prop("SP_LM_" + folder, straw, nrm, Hex("#4a3c28"), 0.08f, 0.1f, false);   // tr43: warmer, darker straw-brown, little desaturation
-        if (m) { m.SetFloat("_VertexFrost", 0f); m.SetFloat("_SnowBias", -0.8f); m.SetFloat("_SnowCap", 0.06f);   /* tr42: tr41 read snow-grey */ m.SetFloat("_GroundMelt", 0.1f); m.SetFloat("_Wetness", 0.3f); m.SetFloat("_NormalStrength", 1.2f); }
+            foreach (var p in System.IO.Directory.GetFiles(ProjAbsVg(dir), "*_baseColor.png")) alb = Tex(dir + "/" + System.IO.Path.GetFileName(p), false, false, false, 1024);
+        }
+        // tr44: the models' own cloth texture (blood stains included) tinted toward dull straw / rag brown. tr41-43 read as grey
+        // blobs: at snow amount 0.95 even bias -0.8 left patchy snow on every up face, and the ground-melt band greyed the rest
+        var m = Prop("SP_LM_" + folder, alb, nrm, Hex("#6b5638"), 0.06f, 0f, false);   // tr45: the lighter tint still read grey-blue under the grade - warmer, darker, no desaturation
+        if (m) { m.SetFloat("_VertexFrost", 0f); m.SetFloat("_SnowBias", -3f); m.SetFloat("_SnowCap", 0f); m.SetFloat("_GroundMelt", 0f); m.SetFloat("_Wetness", 0.15f); m.SetFloat("_NormalStrength", 1.1f); }
+        Log($"CORPSE mat {m?.name}: albedo {(alb ? alb.name : "NONE")}, normal {(nrm ? nrm.name : "none")}, tint {m?.GetColor("_Tint")}");
         return m;
     }
     static void CorpseSwap()
@@ -337,5 +345,88 @@ public static partial class SPBuilder
             Object.DestroyImmediate(t.gameObject); n++;
         }
         Log($"CORPSE swap: {n} straw-mat lumps -> covered bodies");
+        // tr44: the flat grey rectangles beside the bodies - log every flat non-body prop within 3 m of a body; rags get the
+        // cloth body material (brown rag texture) instead of the plain grey SP_Cloth
+        var bodies = root.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("SKF_Corpse")).Select(t => new Vector2(t.position.x, t.position.z)).ToList();
+        var rag = mats0.TryGetValue("CorpseCloth", out var rc) ? rc : mats0.Values.First(); int ragged = 0;
+        foreach (var r in root.GetComponentsInChildren<Renderer>())
+        {
+            if (r is ParticleSystemRenderer) continue;
+            var c = new Vector2(r.bounds.center.x, r.bounds.center.z); bool near = bodies.Any(p => Vector2.Distance(p, c) < 3f);
+            bool isBody = false; for (var t = r.transform; t && t != root; t = t.parent) if (t.name.StartsWith("SKF_Corpse")) { isBody = true; break; }
+            if (!near || isBody || r.bounds.size.y > 0.5f || r.name == "Ground" || r.name.StartsWith("Blood") || r.name.StartsWith("FogSheet")) continue;
+            bool isRag = false; for (var t = r.transform; t && t != root; t = t.parent) if (t.name.StartsWith("SP_Rags")) { isRag = true; break; }
+            if (isRag) { r.sharedMaterials = r.sharedMaterials.Select(_ => rag).ToArray(); ragged++; }
+            if (r.bounds.size.x > 0.4f || r.bounds.size.z > 0.4f) Log($"CORPSE near-body flat prop: {r.name} ({r.transform.parent?.name}) mat {(r.sharedMaterial ? r.sharedMaterial.name : "-")} size {r.bounds.size}{(isRag ? " -> rag texture" : "")}");
+        }
+        Log($"CORPSE rags retextured: {ragged}");
+    }
+
+    // tr44 (Kido: "1자돌 이상해" - the straight, evenly spaced stone-wall rows along the boundary looked fake): irregular rock
+    // clusters instead - 2-5 boulders of mixed size per cluster, half sunk into the snow, uneven gaps, just outside all four
+    // edges (never on the river, the ledge, a landmark or a lantern)
+    static readonly string[] BorderRockModels = { "SK:Con_BoulderPlainLarge_13", "SK:Con_BoulderMossyLarge_8", "SK:Con_BoulderOutcropPlainMedium_12", "SK:Con_BoulderOutcropMossyMedium_10" };
+    static void BorderRocks()
+    {
+        var g = Group("BorderRocks");
+        var rr = new System.Random(44);
+        float Rr(float a, float b) => a + (float)rr.NextDouble() * (b - a);
+        var lanterns = root.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("KoreanLantern")).Select(t => new Vector2(t.position.x, t.position.z)).ToList();
+        bool Free(float x, float z) => !InArena(x, z, -0.6f) && DistanceToRiver(x, z) > 8f && LedgeH(x, z) < 0.3f
+            && !lmFootprints.Any(fp => Vector2.Distance(new Vector2(x, z), fp.c) < fp.r + 1f) && !lanterns.Any(l => Vector2.Distance(l, new Vector2(x, z)) < 3.5f);
+        int clusters = 0, rocks = 0;
+        void Cluster(float cx, float cz)
+        {
+            if (!Free(cx, cz)) return;
+            int n = rr.Next(2, 6); int put = 0;
+            for (int i = 0; i < n; i++)
+            {
+                float a = Rr(0, 6.283f), d = i == 0 ? 0f : Rr(0.8f, 2.6f), x = cx + Mathf.Cos(a) * d, z = cz + Mathf.Sin(a) * d;
+                if (!Free(x, z)) continue;
+                var go = Place(BorderRockModels[rr.Next(BorderRockModels.Length)], x, z, Rr(0, 360), 1f, g, true, 0f);
+                if (!go) continue;
+                var b = new Bounds(); bool first = true;
+                foreach (var r in go.GetComponentsInChildren<Renderer>()) { if (first) { b = r.bounds; first = false; } else b.Encapsulate(r.bounds); }
+                float want = i == 0 ? Rr(0.8f, 1.4f) : Rr(0.35f, 0.9f);   // one bigger stone, smaller ones round it
+                float k = want / Mathf.Max(0.05f, b.size.y);
+                go.transform.localScale *= k;
+                go.transform.position -= Vector3.up * want * Rr(0.5f, 0.65f);   // tr45: sunk deeper (the bubbly white blobs in 04)
+                put++; rocks++;
+            }
+            if (put > 0) clusters++;
+        }
+        // walk each edge with uneven gaps (6-20 m), clusters 2-6 m outside the line
+        for (float x = -HX + Rr(0, 6); x < HX; x += Rr(6f, 20f)) { Cluster(x, HZ + Rr(2f, 6f)); }
+        for (float x = -HX + Rr(0, 6); x < HX; x += Rr(7f, 22f)) { Cluster(x, -HZ - Rr(2f, 5f)); }
+        for (float z = -HZ + Rr(0, 6); z < HZ; z += Rr(6f, 20f)) { Cluster(-HX - Rr(2f, 6f), z); Cluster(HX + Rr(2f, 6f), z + Rr(-3f, 3f)); }
+        // tr45: the boulders read as white bubbly blobs (04) - dark rock, snow only as a thin top cap
+        foreach (var bn in new[] { "SP_SK_BoulderMossy", "SP_SK_BoulderPlain" })
+            if (mats.TryGetValue(bn, out var bm) && bm) { bm.SetColor("_Tint", new Color(0.42f, 0.41f, 0.4f)); bm.SetFloat("_SnowBias", -0.7f); bm.SetFloat("_SnowCap", 0.22f); bm.SetFloat("_VertexFrost", 0f); bm.SetFloat("_Desaturate", 0.4f); EditorUtility.SetDirty(bm); }
+        Log($"BORDER rocks: {clusters} irregular clusters, {rocks} boulders (straight wall runs removed)");
+    }
+
+    // tr45 (QA #2): the decimated scan has black jagged holes round the firebox base - a short stone core plugs them from
+    // inside (same granite material), just under the glow core
+    static void KLPlug(GameObject go, Bounds b)
+    {
+        var mr = go.GetComponentsInChildren<MeshRenderer>().FirstOrDefault(r => r.name != "GlowCore"); if (!mr) return;
+        var c = GameObject.CreatePrimitive(PrimitiveType.Cylinder); c.name = "FireboxPlug";
+        Object.DestroyImmediate(c.GetComponent<Collider>());
+        float h = b.size.y;
+        c.transform.position = new Vector3(b.center.x, b.min.y + h * 0.5f, b.center.z);
+        c.transform.localScale = new Vector3(h * 0.17f, h * 0.05f, h * 0.17f);   // cylinder primitive: 2 units tall
+        c.transform.SetParent(go.transform, true);
+        var r = c.GetComponent<MeshRenderer>(); r.sharedMaterial = mr.sharedMaterial; r.shadowCastingMode = ShadowCastingMode.On;
+    }
+
+    // tr45: the view-20 framing trunks read as long pale sticks - a dark dead bark of their own (low albedo, no snow, no rim)
+    static Material hcDarkBark;
+    static Material HCDarkBark()
+    {
+        if (hcDarkBark) return hcDarkBark;
+        var src = mats.TryGetValue("SP_SK_Bark", out var b) && b ? b : null;
+        hcDarkBark = Veg("SP_HC_DarkBark", src ? src.GetTexture("_BaseMap") as Texture2D : null, src ? src.GetTexture("_BumpMap") as Texture2D : null, Hex("#2b2622"), false, 0f, 0f);
+        if (hcDarkBark) { hcDarkBark.SetFloat("_SnowClump", 0f); hcDarkBark.SetFloat("_SnowCover", 0f); hcDarkBark.SetFloat("_SnowBias", -3f); hcDarkBark.SetFloat("_RimScale", 0f); hcDarkBark.SetFloat("_AOStrength", 0f); hcDarkBark.SetFloat("_GroundMelt", 0f); }
+        return hcDarkBark;
     }
 }

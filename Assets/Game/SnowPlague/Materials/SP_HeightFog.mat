@@ -33,12 +33,12 @@ Material:
     - _Density: 0.014
     - _Falloff: 0.35
     - _FarDist: 90
-    - _MaxFog: 0.6
-    - _NoiseAmount: 0.5
+    - _MaxFog: 0.45
+    - _NoiseAmount: 0.12
     - _NoiseScale: 24
-    - _Start: 22
+    - _Start: 30
     m_Colors:
     - _FarCol: {r: 0.08, g: 0.075, b: 0.07, a: 1}
-    - _NearCol: {r: 0.227, g: 0.239, b: 0.259, a: 1}
+    - _NearCol: {r: 0.36, g: 0.37, b: 0.39, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

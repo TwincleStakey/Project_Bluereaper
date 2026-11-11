@@ -180,12 +180,14 @@ public static partial class SPBuilder
         var g = Group("Landmarks");
         // flow: west bridge (x -66, over the river) -> 솟을삼문 on the south bank, door facing the camera -> jangseung pair and
         // a stone pagoda in front of it. Gate width runs along X (door through-axis = model X -> world -Z with yaw 90)
-        LMPlace("KoreanGate", LMGatePos, 90f, Vector3.right, 0f, g);
+        // tr44 (Kido, decision card): the hero corner gate is the small KCISA gate (House of Changwon) at the bridge end, front to the
+        // camera, roof snow; the 솟을삼문 is removed (its 16 m roof filled view 20) and the north-band small gate dropped (one copy)
+        LMPlace("SmallGate", LMGatePos, 90f, Vector3.right, 0f, g);
         foreach (float s in new[] { -1f, 1f })
             LMPlace("Jangseung", new Vector2(LMGatePos.x + s * 4.2f, LMGatePos.y - 6.5f), 180f, Vector3.forward, 2.5f, g, true, false);
         LMPlace("PagodaGame", new Vector2(LMGatePos.x + 7.5f, LMGatePos.y - 9f), 0f, Vector3.back, 5.5f, g, true, false);
         // north band past the end of the ledge: small gate + two hanok wall runs, fronts to the camera
-        LMPlace("SmallGate", new Vector2(2f, HZ + 4.5f), 90f, Vector3.right, 0f, g, false);
+        // tr44: north-band small gate dropped - the one copy now stands at the west bridge (hero corner)
         LMPlace("HanokWall", new Vector2(20f, HZ + 4.5f), 0f, Vector3.back, 0f, g, false);
         LMPlace("HanokWall", new Vector2(38f, HZ + 4.5f), 0f, Vector3.back, 0f, g, false);
         // thatched house on the east bank south of the river exit; Kido (tr15): its back faced the camera -> model -Z is the front
@@ -247,7 +249,7 @@ public static partial class SPBuilder
     // tr21: the gate's lower half sat black in the moon shadow; a low warm spot from above the approach lights its front
     static void LMGateFill()
     {
-        var gate = root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name.StartsWith("KCISA_SosamMun"));
+        var gate = root.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("KCISA_SosamMun") || t.name.StartsWith("SKF_SmallGate")).OrderBy(t => Vector2.Distance(new Vector2(t.position.x, t.position.z), LMGatePos)).FirstOrDefault();   // tr44: the small gate at the bridge
         if (!gate) { Log("LM fill: no gate"); return; }
         var go = new GameObject("GateFill"); go.transform.SetParent(gate.parent, false);
         var target = new Vector3(LMGatePos.x, 1.4f, LMGatePos.y);   // tr23: aimed at the door / pillar feet, not the roof

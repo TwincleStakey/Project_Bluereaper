@@ -147,7 +147,10 @@ void SPSurface(SPInput i, inout SPOut o)
     // noise along each shore and stretched into wind-blown tongues) the ice is clipped away in random grains whose
     // density falls off with distance, so the real ground snow shows through as powder and drift tongues and the ice
     // shows through the thin snow. Clipped in every pass (depth too), so it is exact.
-    float sn = SPIceNoise(float2(s * 0.28, side * 17.0 + 3.0)) * 0.6 + SPIceNoise(float2(s * 1.1, side * 17.0 + 9.0)) * 0.3 + SPIceNoise(xz * 2.6) * 0.1;
+    // gnd11 (QA amateur #3): the 1-D noise along the river gave regular scallops; the shoreline now comes from warped 2-D
+    // noise at three scales (bays, tongues, ragged bits), so the bank never repeats a rhythm
+    float2 swp = float2(SPIceNoise(xz * 0.07 + 3.0), SPIceNoise(xz * 0.07 + 8.0)) - 0.5;
+    float sn = SPIceNoise(float2(s * 0.17, side * 17.0 + 3.0)) * 0.45 + SPIceNoise(float2(s * 0.6 + swp.x * 2.0, side * 17.0 + 9.0)) * 0.2 + SPIceNoiseR(xz * 0.35 + swp * 2.0, 0.7) * 0.25 + SPIceNoise(xz * 2.6) * 0.1;   // gnd12: 2-D share 0.25 (0.65 left ice puddles out in the snow)
     float shore = lip - 0.4 + (sn - 0.5) * 2.0 * _ShoreNoise;
     float f = ao - shore;
     // r8 (lead: a constant pale ribbon along the cut, mid-size "leopard" blotches): about half of each shore is bare (no
@@ -177,6 +180,15 @@ void SPSurface(SPInput i, inout SPOut o)
     // ice8's soft frost clouds over the open ice (low frequency, faint, large)
     float cloud = smoothstep(0.55, 0.85, SPIceNoise(xz * 0.07 + 13.0) * 0.75 + SPIceNoise(xz * 0.2 + 2.0) * 0.25) * 0.18 * _Dust;
     dust = max(dust, cloud);
+    // gnd11 (QA amateur #3: "ice is a flat empty slab"): a few blown snow patches out on the ice (soft-crisp, ~8 %),
+    // thicker toward the banks, so the ice is not one empty slab
+    {
+        float2 pw2 = float2(SPIceNoise(xz * 0.1 + 31.0), SPIceNoise(xz * 0.1 + 47.0)) - 0.5;
+        float pn2 = SPIceNoiseR(xz * 0.32 + pw2 * 2.5, 1.3) * 0.7 + SPIceNoiseR(xz * 1.4, 0.4) * 0.3;
+        float paa2 = max(fwidth(pn2), 1e-4) * 2.0;
+        float isle = smoothstep(0.63 - paa2, 0.77 + paa2, pn2 + saturate(1 + f / 3.0) * 0.06);   // gnd12: soft thin powder, not opaque white cut-outs
+        dust = max(dust, isle * lerp(0.2, 0.4, powderN) * _Dust);
+    }
     // gnd7 (view 15): past the arena edge the river runs into rising ground and ends; there the ice showed as a hard dark
     // rectangle beside the west bridge. Outside the arena the ice is snow-covered (patchy at first, then full).
     // gnd9: the ice runs under both bridges (x -66 / +61) and ends ~10 m past them, snow-covered, then cut raggedly

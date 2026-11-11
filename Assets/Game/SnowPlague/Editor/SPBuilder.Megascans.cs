@@ -532,12 +532,12 @@ public static partial class SPBuilder
                 if (PlaceMX(wall, p.x + Rx(-0.08f, 0.08f), p.y + Rx(-0.08f, 0.08f), yaw + Rx(-2.5f, 2.5f) + (xr.NextDouble() < 0.5 ? 180f : 0f), Vector3.one * Rx(0.95f, 1.05f), true, 0.1f)) walls++;
             }
         }
-        WallRun(new Vector2(-3.5f, HZ + 1.3f), new Vector2(31.5f, HZ + 1.3f), 0f);
-        WallRun(new Vector2(-52f, -HZ - 1.5f), new Vector2(-31f, -HZ - 1.5f), 0f);
-        WallRun(new Vector2(-14f, -HZ - 1.5f), new Vector2(5f, -HZ - 1.5f), 0f);
-        WallRun(new Vector2(23f, -HZ - 1.5f), new Vector2(51f, -HZ - 1.5f), 0f);
-        WallRun(new Vector2(-HX - 1.6f, -HZ - 0.5f), new Vector2(-HX - 1.6f, -37.4f), 90f);
-        WallRun(new Vector2(HX + 1.6f, -HZ - 0.5f), new Vector2(HX + 1.6f, -33.4f), 90f);
+        // WallRun(new Vector2(-3.5f, HZ + 1.3f), new Vector2(31.5f, HZ + 1.3f), 0f);   // tr44 (Kido: 1자돌 이상해) - straight wall runs out, irregular rock clusters instead (BorderRocks)
+        // WallRun(new Vector2(-52f, -HZ - 1.5f), new Vector2(-31f, -HZ - 1.5f), 0f);   // tr44 (Kido: 1자돌 이상해) - straight wall runs out, irregular rock clusters instead (BorderRocks)
+        // WallRun(new Vector2(-14f, -HZ - 1.5f), new Vector2(5f, -HZ - 1.5f), 0f);   // tr44 (Kido: 1자돌 이상해) - straight wall runs out, irregular rock clusters instead (BorderRocks)
+        // WallRun(new Vector2(23f, -HZ - 1.5f), new Vector2(51f, -HZ - 1.5f), 0f);   // tr44 (Kido: 1자돌 이상해) - straight wall runs out, irregular rock clusters instead (BorderRocks)
+        // WallRun(new Vector2(-HX - 1.6f, -HZ - 0.5f), new Vector2(-HX - 1.6f, -37.4f), 90f);   // tr44 (Kido: 1자돌 이상해) - straight wall runs out, irregular rock clusters instead (BorderRocks)
+        // WallRun(new Vector2(HX + 1.6f, -HZ - 0.5f), new Vector2(HX + 1.6f, -33.4f), 90f);   // tr44 (Kido: 1자돌 이상해) - straight wall runs out, irregular rock clusters instead (BorderRocks)
 
         // stone lanterns next to vignettes: emissive core + the shared warm spot (unshadowed)
         var lanternSpots = new List<Vector2>();

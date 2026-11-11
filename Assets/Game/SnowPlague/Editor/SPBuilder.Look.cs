@@ -42,6 +42,7 @@ public static partial class SPBuilder
         LookLights(moon);
         LookCookie(moon);
         LookFog();
+        LookVegetation();
         LookBoundary();
         LookLanterns();
         int blood = LookBlood();
@@ -315,17 +316,42 @@ public static partial class SPBuilder
     {
         void C(string mat, string prop, Color c) { if (mats.TryGetValue(mat, out var m) && m) { m.SetColor(prop, c); EditorUtility.SetDirty(m); } }
         void F(string mat, string prop, float v) { if (mats.TryGetValue(mat, out var m) && m) { m.SetFloat(prop, v); EditorUtility.SetDirty(m); } }
-        // look1: near haze #3a3d42 (was a light warm grey 0.56: blended over the dark trees it was the lifted black),
-        // far stays umber-black; density 0.02 -> 0.014
-        C("SP_HeightFog", "_NearCol", new Color(0.227f, 0.239f, 0.259f));
+        // look1: near haze #3a3d42 (was a light warm grey 0.56 that lifted the blacks). look8 (QA amateur #7): that dark
+        // colour x the scrolling fog noise drew blurry dark smudges over the snow / ice in the far corner of 07 and 01
+        // ("dirt on the lens"). Now a mid grey near the snow shadow value, a much flatter noise, a later start and a
+        // lower cap, so the haze only greys the distance evenly.
+        C("SP_HeightFog", "_NearCol", new Color(0.36f, 0.37f, 0.39f));
         C("SP_HeightFog", "_FarCol", new Color(0.08f, 0.075f, 0.07f));
         F("SP_HeightFog", "_Density", 0.014f);
+        F("SP_HeightFog", "_NoiseAmount", 0.12f);
+        F("SP_HeightFog", "_Start", 30f);
+        F("SP_HeightFog", "_MaxFog", 0.45f);
         // low sheets: neutral mid grey and thinner over the arena (they hazed the brush and dirt to grey)
         C("SP_FogSheetLow", "_Col", new Color(0.46f, 0.47f, 0.48f));
         C("SP_FogSheetMid", "_Col", new Color(0.42f, 0.43f, 0.44f));
         C("SP_FogSheetHigh", "_Col", new Color(0.38f, 0.39f, 0.4f));
         F("SP_FogSheetLow", "_Density", 0.1f); F("SP_FogSheetMid", "_Density", 0.06f);
         C("SP_FogSea", "_Col", new Color(0.5f, 0.5f, 0.5f));
+    }
+
+    // ------------------------------------------------------------------ pine canopy cards (QA amateur #6)
+    // "Shattered glass": up-facing needle cards went fully white (snow cushion over the whole card, lit straight by the
+    // moon) with hard edges. Less and patchier snow on the needles, more wrap (soft, translucent-looking shading),
+    // no gloss, half the rim. Only the SP_* field materials; the shared ThirdParty/Trees TR_* copies are not touched.
+    static void LookVegetation()
+    {
+        int n = 0;
+        foreach (var name in new[] { "SP_SK_HeroNeedles", "SP_SK_Branch", "SP_SK_FG_HeroNeedles", "SP_SK_FG_Branch", "SP_V_Needles", "SP_V_FG_Needles", "SP_Needles" })
+        {
+            if (!mats.TryGetValue(name, out var m) || !m) continue;
+            if (m.HasProperty("_SnowCover")) m.SetFloat("_SnowCover", m.GetFloat("_SnowCover") * 0.6f);
+            if (m.HasProperty("_SnowBias")) m.SetFloat("_SnowBias", Mathf.Max(-1f, m.GetFloat("_SnowBias") - 0.2f));
+            if (m.HasProperty("_Wrap")) m.SetFloat("_Wrap", Mathf.Max(m.GetFloat("_Wrap"), 0.6f));
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", Mathf.Min(m.GetFloat("_Smoothness"), 0.05f));
+            if (m.HasProperty("_RimScale")) m.SetFloat("_RimScale", m.GetFloat("_RimScale") * 0.5f);
+            EditorUtility.SetDirty(m); n++;
+        }
+        Log($"LOOK canopy: {n} needle materials -> snow x0.6, bias -0.2, wrap >= 0.6, gloss <= 0.05, rim x0.5");
     }
 
     // ------------------------------------------------------------------ arena boundary (QA #9)
@@ -339,7 +365,7 @@ public static partial class SPBuilder
         EditorUtility.SetDirty(m);
     }
 
-    // ------------------------------------------------------------------ lanterns (QA #12)
+    // ------------------------------------------------------------------ lanterns (QA #12, amateur #2 / #18)
     static void LookLanterns()
     {
         if (mats.TryGetValue("SP_LanternGlow", out var g) && g)
@@ -348,20 +374,42 @@ public static partial class SPBuilder
             g.SetColor("_EmissionColor", new Color(1f, 0.6f, 0.32f) * 6f);
             EditorUtility.SetDirty(g);
         }
-        // look1: spots from Lantern() (SPBuilder.cs, 5 / 7-8 m, 3300 K) -> #ffb070, x0.6, range 2.8 m: a small soft
-        // pool at the foot instead of a 3-4 m saturated orange disc
-        int n = 0, shadowsOff = 0;
+        int n = 0;
+        foreach (var l in root.GetComponentsInChildren<Light>(true))
+            if (l.name.EndsWith("LanternSpot") && LookLanternSpot(l)) n++;
+        Log($"LOOK lanterns: {n} spots -> range 2.8, x0.6, #ffb070, soft cone, no shadows");
+    }
+
+    // look1: spots from Lantern() (SPBuilder.cs, 5 / 7-8 m, 3300 K) -> #ffb070, x0.6, range 2.8 m: a small soft pool at
+    // the foot instead of a 3-4 m saturated orange disc. look4: no shadows (the bridge-deck rectangle, extra shadow maps).
+    // look8 (amateur #18, hard straight pool edges): wide soft cone (outer 160, inner 20) so the pool fades out radially.
+    // Idempotent: a spot already done has useColorTemperature off.
+    static bool LookLanternSpot(Light l)
+    {
+        if (!l.useColorTemperature && l.range <= 2.81f) return false;
+        l.useColorTemperature = false; l.color = new Color(1f, 0.69f, 0.44f);
+        l.intensity *= 0.6f; l.range = 2.8f;
+        if (l.type == LightType.Spot) { l.spotAngle = 160f; l.innerSpotAngle = 20f; }
+        l.shadows = LightShadows.None;
+        return true;
+    }
+
+    // look8: the Korean lanterns (KLSwap, after BuildLightAndPost) make their own spots with Lantern() and add a
+    // LanternRoofLight 0.45 m over the cap (1.2) that blew the cap to a flat white disc (amateur #2) and a 7 m spot with
+    // the big flat orange wash (amateur #18). Call this right after KLSwap() / HeroCornerVignette in SPBuilder.Build.
+    public static void LookLanternsLate()
+    {
+        if (!root) return;
+        int spots = 0, roofs = 0;
         foreach (var l in root.GetComponentsInChildren<Light>(true))
         {
-            if (!l.name.EndsWith("LanternSpot")) continue;
-            l.useColorTemperature = false; l.color = new Color(1f, 0.69f, 0.44f);
-            l.intensity *= 0.6f; l.range = 2.8f;
-            // look4: no lantern shadows (the moon keeps its own). At 2.8 m they add little, and the shadowed spot next to the
-            // west bridge threw the deck + rails as a dark rectangle (view 15); also saves the extra shadow maps
-            if (l.shadows != LightShadows.None) { l.shadows = LightShadows.None; shadowsOff++; }
-            n++;
+            if (l.name.EndsWith("LanternSpot")) { if (LookLanternSpot(l)) spots++; }
+            else if (l.name == "LanternRoofLight" && l.intensity > 0.4f) { l.intensity = 0.35f; l.range *= 0.8f; roofs++; }
         }
-        Log($"LOOK lanterns: {n} spots -> range 2.8, x0.6, #ffb070, shadows off on {shadowsOff}");
+        var field = root.GetComponent<SnowPlague.SPField>();
+        if (field && field.lanterns != null)   // SPField flickers from the intensity it reads in OnEnable, so nothing to resync
+            Log($"LOOK lanterns late: {spots} spots, {roofs} roof lights 1.2 -> 0.35 (field lanterns {field.lanterns.Length})");
+        else Log($"LOOK lanterns late: {spots} spots, {roofs} roof lights 1.2 -> 0.35");
     }
 
     // ------------------------------------------------------------------ blood: decal colours + embers + red glow
@@ -393,9 +441,10 @@ public static partial class SPBuilder
         // bl5: crimson film multiply (~(120,40,35) on snow) over most of the stain, dark only in the small pooled cores
         // look1 (QA #13): maroon #5a0e0e..#7a1414 on snow (film ~(0.52,0.12,0.11) x snow ~180 = ~(94,22,20)), darker wet
         // centre (stain / pool), halo less pink
-        m.SetColor("_SoakMul", new Color(0.8f, 0.62f, 0.6f)); m.SetColor("_FilmMul", new Color(0.52f, 0.12f, 0.11f));
+        // look8 (Kido "핏자국 왜이래"): soaked into the snow - pale pink diffusion at the rim, red body, maroon clots only
+        m.SetColor("_SoakMul", new Color(0.95f, 0.72f, 0.74f)); m.SetColor("_FilmMul", new Color(0.62f, 0.16f, 0.15f));
         m.SetColor("_StainMul", new Color(0.3f, 0.05f, 0.045f));
-        m.SetFloat("_Soak", 0.6f); m.SetFloat("_Drops", 1f); m.SetFloat("_Grain", 0.75f);
+        m.SetFloat("_Soak", 1f); m.SetFloat("_Drops", 0f); m.SetFloat("_Grain", 0.3f);
         m.SetColor("_PoolCol", new Color(0.15f, 0.02f, 0.018f)); m.SetFloat("_Pool", 0.85f);
         // glint: bl4's pow 250 x 6 never showed at the game camera; broader lobe + a camera-mirrored key light
         // look7: the moon (25 deg up, north) sits near the mirror angle of the south game camera: pow 60 x2 lit every

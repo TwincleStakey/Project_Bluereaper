@@ -46,11 +46,11 @@ public static partial class SPBuilder
                 float yaw = 90f + (k == 'B' && ((int)z / 4) % 2 == 0 ? 180f : 0f);
                 float jx = R(-0.08f, 0.08f), jy = R(-1.5f, 1.5f);   // drawn first so the rng stream stays the same when a piece is skipped
                 if (DistanceToRiver(x, zz) < 8f) continue;          // the river (and its bridge) passes through the wall line
-                Place(k == 'B' ? "Arch/SP_Arch_Wall_Broken" : "Arch/SP_Arch_Wall_Straight", x + jx, zz, yaw + jy, 1f, g, true, 0.1f);
+                // tr44 (Kido: 1자돌 이상해): the evenly spaced side-wall run is gone (rng draws above kept); BorderRocks puts irregular rock clusters along the edges
             }
             // corner at the north end: one arm continues the side wall south, the other turns outward (away from the arena)
-            var c = Place("Arch/SP_Arch_Wall_Corner", x, 40.2f, 0f, 1f, g, true, 0.1f);
-            Orient(c, new Vector3(side, 0f, -1f));
+            var c = (GameObject)null;   // tr44: corner piece dropped with the runs
+            if (c) Orient(c, new Vector3(side, 0f, -1f));
         }
 
         // ---- tall lit lanterns: west edge, east edge, and one at the gate approach

@@ -43,19 +43,19 @@ Material:
     - _Desat: 0
     - _GroundMelt: 0.15
     - _NormalStrength: 1
-    - _RimScale: 1
+    - _RimScale: 0.0625
     - _SeeThrough: 0
-    - _Smoothness: 0.1
-    - _SnowBias: -0.5
+    - _Smoothness: 0.05
+    - _SnowBias: -0.7
     - _SnowClump: 1
-    - _SnowCover: 0.5
+    - _SnowCover: 0.3
     - _SnowLift: 0
     - _SnowScale: 1.8
     - _Trample: 0
     - _UseNormal: 0
     - _UseTex: 1
     - _Wither: 0
-    - _Wrap: 0.45
+    - _Wrap: 0.6
     m_Colors:
     - _Tint: {r: 0.22745098, g: 0.27450982, b: 0.23529412, a: 1}
     - _TipCol: {r: 0.75, g: 0.78, b: 0.8, a: 0}

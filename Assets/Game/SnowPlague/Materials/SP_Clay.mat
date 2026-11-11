@@ -25,7 +25,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 42cf312ed3bd37d468b7544bec98aa8a, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
@@ -36,14 +36,14 @@ Material:
     m_Floats:
     - _AOStrength: 0.8
     - _Cull: 2
-    - _Desaturate: 0.15
+    - _Desaturate: 0.1
     - _Flicker: 0
     - _GroundMelt: 0.25
     - _NormalStrength: 1
     - _SeeThrough: 0
-    - _Smoothness: 0.5
-    - _SnowBias: 0
-    - _SnowCap: 0
+    - _Smoothness: 0.35
+    - _SnowBias: 0.2
+    - _SnowCap: 0.45
     - _TriScale: 4
     - _Triplanar: 0
     - _VColAlbedo: 0
@@ -51,7 +51,7 @@ Material:
     - _Wetness: 0
     m_Colors:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _Tint: {r: 0.22745098, g: 0.14901961, b: 0.1254902, a: 1}
+    - _Tint: {r: 0.41568628, g: 0.27450982, b: 0.19607843, a: 1}
     - _TintVar: {r: 1, g: 1, b: 1, a: 0.1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

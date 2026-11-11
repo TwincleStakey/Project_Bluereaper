@@ -356,13 +356,17 @@ public static partial class SPBuilder
         VgThinShadows();   // tr15: tall thin poles drew the long straight line shadow across the lantern yard
         BuildLandmarks();   // 11-12 (Kido): big props outside the arena - 솟을삼문, jangseung, pagoda, hanok walls (SPBuilder.Landmarks.cs)
         KLSwap();           // tr28: Korean stone lanterns replace the Japanese ones, all moved past the boundary (SPBuilder.KoreanLantern.cs)
+        LookLanternsLate();   // look8: Korean-lantern spots/roof lights get the look values (SPBuilder.Look.cs)
         HeroCornerVignette(); // tr36: ss5-like corner - corpse vignette by the west gate (SPBuilder.KoreanLantern.cs)
         CorpseSwap();         // tr41: covered-body models in place of the flat straw-mat lumps
+        BorderRocks();        // tr44: irregular rock clusters along the edges instead of the straight wall rows (Kido)
         ArenaCheck();       // arena rule: no colliders inside, list anything tall that is not vegetation
         VgLineShadowProbe();   // tr20: finds and un-shadows the caster of the long line shadow in view 02
         LMGateFill();            // tr21: soft warm fill on the 솟을삼문 front (it stands in the moon shadow)
         VgPost32();              // tr32: dead-conifer bark without snow, dark wet straw mats, view-15 rectangle probe
         VgProbe14b();            // tr39: finds and removes the white stick in view 14
+        VgPost45();              // tr45: jars varied + half-buried, clay/wood textures, wheel sunk
+        VgProbe16();             // tr45: names the straight hairline in view 16 (logs only)
         // VgRectShadowProbe();  // tr23: exact moon-ray probe - Object_8 is hit but un-shadowing it does not change the rectangle (not a shadow); off so Object_8 keeps its shadow
 
         lanterns.RemoveAll(l => !l);
@@ -544,7 +548,9 @@ public static partial class SPBuilder
                     gravel *= 1f - ky * (1f - trod) * 0.85f; wet *= 1f - ky * 0.9f;
                     path *= 1f - ky * (1f - trod);   // tr23: the footpath band darkened the yard by itself - keep only its core
                     // melt rings: a ragged ~1.3 m damp bare ring at the foot of each yard lantern (2 vignette + the MX one)
-                    foreach (var lp in YardLanterns)
+                    // gnd10 (Kido: "저 두개의 구멍같은거 뭐야"): the lanterns now stand outside the arena (KLSwap, after this pass),
+                    // so the melt rings at the old yard positions read as holes - no rings here any more
+                    foreach (var lp in new Vector2[0])
                     {
                         float dl = Vector2.Distance(new Vector2(x, z), lp) + (fine - 0.5f) * 0.45f + (mid - 0.5f) * 0.3f;
                         float mr = 1f - Mathf.SmoothStep(0.75f, 1.45f, dl);
@@ -585,6 +591,9 @@ public static partial class SPBuilder
             foreach (var r in grp.GetComponentsInChildren<MeshRenderer>())
             {
                 if (r.sharedMaterial && r.sharedMaterial.shader.name.Contains("LightCone")) continue;
+                // gnd10: no drift mound / melt ring for lanterns - KLSwap moves them past the boundary after this pass, which left
+                // round snow mounds with dark melt-ring centres (holes) where they used to stand
+                { bool lant = false; for (var t = r.transform; t && t != grp; t = t.parent) if (t.name.Contains("Lantern")) { lant = true; break; } if (lant) continue; }
                 var b = r.bounds;
                 if (b.size.y < 0.3f) continue;
                 float rad = Mathf.Clamp(Mathf.Max(b.extents.x, b.extents.z), 0.3f, 3f);
@@ -646,7 +655,7 @@ public static partial class SPBuilder
             float d = mDrift[k];
             mSnow[k] = Mathf.Max(mSnow[k], d * 1.2f);
             mWet[k] *= 1f - d; mIce[k] *= 1f - d; mPath[k] *= 1f - d * 0.7f;
-            float me = onRiver[k] ? 0f : mMelt[k];   // sn1: melt ring at the prop base wins over the drift
+            float me = 0f;   // gnd11: no melt rings at all - props moved/removed after this pass left them as dark holes (view 17)
             if (me > 0f) { mSnow[k] *= 1f - me * 0.5f; mDrift[k] *= 1f - me; mWet[k] = Mathf.Max(mWet[k], me * 0.55f); }
         }
 
@@ -687,13 +696,27 @@ public static partial class SPBuilder
             }
             return best;
         }
+        // gnd11 (QA amateur #5): the ground's slope changes abruptly on the arena rectangle (flat inside, Height rising
+        // outside), which drew a ruler-straight lit seam along the edges. Ease it: a smooth quadratic over +-3 m.
+        float EdgeEasedHeight(float x, float z)
+        {
+            float h = Height(x, z);
+            float ox = Mathf.Max(0f, Mathf.Abs(x) - HX), oz = Mathf.Max(0f, Mathf.Abs(z) - HZ);
+            float os = (ox > 0f || oz > 0f) ? Mathf.Sqrt(ox * ox + oz * oz) : -Mathf.Min(HX - Mathf.Abs(x), HZ - Mathf.Abs(z));
+            if (os > -3f && os < 3f && z < CliffZ - 1f)
+            {
+                float kk = (0.6f + Mathf.PerlinNoise(x * 0.07f + 3f, z * 0.07f + 11f)) / 10f;
+                h += kk * ((os + 3f) * (os + 3f) / 12f - Mathf.Max(os, 0f));
+            }
+            return h;
+        }
         // raise the drifts into the ground mesh (up to ~0.5 m), smooth mounds
         var gm = AssetDatabase.LoadAssetAtPath<Mesh>(Gen + "/SP_Ground.asset");
         var v = gm.vertices;
         for (int k = 0; k < v.Length; k++)
         {
             float d = SampleMask(mDrift, v[k].x, v[k].z);
-            v[k].y = Height(v[k].x, v[k].z) + d * d * 0.55f;
+            v[k].y = EdgeEasedHeight(v[k].x, v[k].z) + d * d * 0.55f;
             var rp = new Vector2(v[k].x, v[k].z); var rn = RiverNearest(rp);
             float carve = 1f - Mathf.SmoothStep(0f, 1f, ((rp - rn).magnitude - 9f) / 4f);   // gnd9: wide enough that the ice shows fully under the bridges
             if (carve > 0f) { float bed = Height(rn.x, rn.y) - 0.02f; if (v[k].y > bed) v[k].y = Mathf.Lerp(v[k].y, bed, carve); }
@@ -835,7 +858,7 @@ public static partial class SPBuilder
             float x = g.position.x + dx, z = g.position.z + dz;
             go.transform.SetPositionAndRotation(new Vector3(x, Height(x, z), z), Quaternion.Euler(0, yaw, 0));
             size *= 1.9f;   // r9: ss5 kill splatters are 2-5 m, ours read as small stains
-            go.transform.localScale = new Vector3(size, 1.2f, size * (cell == 2 ? 2.2f : 1f));   // tr31: back to 1.2 (2.6 did not close the white hole in 04)
+            go.transform.localScale = new Vector3(size, 1.2f, size * (cell == 2 ? 1.4f : 1f));   // tr31: back to 1.2 (2.6 did not close the white hole in 04)
             var r = go.GetComponent<MeshRenderer>();
             var m = mats["SP_Blood"];
             if (cell >= 0)
