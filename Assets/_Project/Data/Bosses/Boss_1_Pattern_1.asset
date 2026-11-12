@@ -24,4 +24,3 @@ MonoBehaviour:
   ChasingDistance: 1
   Implementions:
   - {fileID: 11400000, guid: a60fc8bf05aa8944d8998da29ab97c67, type: 2}
-  - {fileID: 11400000, guid: 6d728bb05e2b4f84f882163c197e9c84, type: 2}
