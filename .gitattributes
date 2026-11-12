@@ -173,3 +173,7 @@ LightingData.asset     binary
 *TerrainData*.asset    binary
 # Generated debris meshes for the abandoned village (large, rebuilt by AVBuilder)
 Assets/Game/AbandonedVillage/Generated/*.asset lfs
+
+# 3D / data exports
+*.glb                   lfs
+*.npz                   lfs
