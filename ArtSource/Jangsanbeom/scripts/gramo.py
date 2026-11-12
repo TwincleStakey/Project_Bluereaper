@@ -188,7 +188,7 @@ for o in objs:
 print('CLEARANCE', round(worst, 4), worst_name)
 
 for o in objs:
-    mw = o.matrix_world.copy(); o.parent = arm; o.parent_type = 'BONE'; o.parent_bone = 'Spine2'
+    mw = o.matrix_world.copy(); o.parent = arm; o.parent_type = 'BONE'; o.parent_bone = 'Spine3'
     bpy.context.view_layer.update(); o.matrix_world = mw
 OUT = P + "werewolf_gramophone"
 bpy.ops.wm.save_as_mainfile(filepath=OUT + ".blend", copy=True)

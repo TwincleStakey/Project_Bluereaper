@@ -177,3 +177,4 @@ Assets/Game/AbandonedVillage/Generated/*.asset lfs
 # 3D / data exports
 *.glb                   lfs
 *.npz                   lfs
+*.wav                   lfs
