@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using BlueReaper.Boss;
 using BlueReaper.Core;
+using BlueReaper.Data;
 using BlueReaper.Player;
 using BlueReaper.UI;
 using UnityEngine;

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: df8180c16f4bafa4b8f697ebbeba8062, type: 3}
   m_Name: SummonPattern_1
-  m_EditorClassIdentifier: Assembly-CSharp::SummonPatternData
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.SummonPatternData
   SummonPositionType: 0
   SummonPrefab:
   - {fileID: 7612043392014892968, guid: 138680d54af36c84ab9e7d7eff7ddae5, type: 3}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BlueReaper.Data;
 using UnityEngine;
 
 namespace BlueReaper.BulletPatterns

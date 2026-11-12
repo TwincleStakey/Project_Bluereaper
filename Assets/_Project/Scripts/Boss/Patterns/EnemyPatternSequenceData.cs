@@ -1,8 +1,10 @@
-using BlueReaper.Data;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "EnemyPatternSequenceData", menuName = "BlueReaper/EnemyPatternSequenceData")]
-public class EnemyPatternSequenceData : EnemyActionData
+namespace BlueReaper.Data
 {
-    public EnemyPatternData[] Steps = null;
+    [CreateAssetMenu(fileName = "EnemyPatternSequenceData", menuName = "BlueReaper/EnemyPatternSequenceData")]
+    public class EnemyPatternSequenceData : EnemyActionData
+    {
+        public EnemyPatternData[] Steps = null;
+    }
 }

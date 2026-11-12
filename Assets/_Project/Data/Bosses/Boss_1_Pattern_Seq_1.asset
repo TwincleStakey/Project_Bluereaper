@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f65d34d20c5ad2d4baa1f83be03348fd, type: 3}
   m_Name: Boss_1_Pattern_Seq_1
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyPatternSequenceData
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.EnemyPatternSequenceData
   RequirePhase: 02000000
   CanForwardTracking: 1
   TrackingRotationRatio: 1
