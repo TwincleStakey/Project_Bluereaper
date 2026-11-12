@@ -1,0 +1,4 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+grass,base,123,8.12,10.97,6.77,3.50,6.79,390,390,98,6257,1,2
+grass,ssao,128,7.81,9.40,6.47,3.46,6.36,366,366,93,6247,1,2
+grass,foliage,261,3.83,5.53,2.57,1.51,2.48,210,210,84,107,1,2
