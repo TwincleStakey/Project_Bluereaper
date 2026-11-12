@@ -25,6 +25,7 @@ namespace BlueReaper.Boss
         private Unit unit;
         private Enemy Owner;
         private Health health;
+        private Posture posture;
         private NavMeshAgent agent;
         private Animator animator;
         private Coroutine coAIUpdate = null;
@@ -50,6 +51,7 @@ namespace BlueReaper.Boss
             unit = GetComponent<Unit>();
             Owner = GetComponent<Enemy>();
             health = GetComponent<Health>();
+            posture = GetComponent<Posture>();
             agent = GetComponent<NavMeshAgent>();
             animator = GetComponent<Animator>();
             meleeHitBoxes = GetComponentsInChildren<MeleeHitBox>(true);
@@ -71,6 +73,7 @@ namespace BlueReaper.Boss
         {
             rewardHandled = false;
             health.Died += OnHealthDied;
+            if (posture) posture.GroggyStarted += OnGroggyStarted;
 
             if(Owner.Rank == EnemyRank.Boss)
                 GameEvents.BossDefeated += OnBossDefeated;
@@ -102,6 +105,7 @@ namespace BlueReaper.Boss
         private void OnDisable()
         {
             health.Died -= OnHealthDied;
+            if (posture) posture.GroggyStarted -= OnGroggyStarted;
 
             if (Owner.Rank == EnemyRank.Boss)
                 GameEvents.BossDefeated -= OnBossDefeated;
@@ -109,20 +113,35 @@ namespace BlueReaper.Boss
             Release();
         }
 
+        private void OnGroggyStarted()
+        {
+            if (health.IsDead) return;
+
+            if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.ResetPath();
+            StopActions();
+            motionUntil = 0f;
+            PlayLocomotion(false);
+            coAIUpdate = StartCoroutine(AIUpdate());
+        }
+
         public void Release()
+        {
+            StopActions();
+            foreach (var projectile in new List<ProjectileHitBox>(projectiles))
+                if (projectile) projectile.ReturnToPool();
+            projectiles.Clear();
+        }
+
+        private void StopActions()
         {
             StopMeleeHitWindow();
             StopForwardTracking();
             StopAllCoroutines();
             coAIUpdate = null;
-            foreach (var projectile in new List<ProjectileHitBox>(projectiles))
-                if (projectile) projectile.ReturnToPool();
-            projectiles.Clear();
             trackingDirection = Vector3.zero;
             hasChaseDestination = false;
             if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
             currentPatternState = PatternState.None;
-
         }
 
         private IEnumerator AIUpdate()
@@ -135,6 +154,12 @@ namespace BlueReaper.Boss
 
             while (!health.IsDead)
             {
+                if (posture && posture.IsGroggy)
+                {
+                    yield return null;
+                    continue;
+                }
+
                 Transform target = null;
                 foreach (var player in Owner.Players)
                     if (player && player.gameObject.activeInHierarchy) { target = player; break; }
