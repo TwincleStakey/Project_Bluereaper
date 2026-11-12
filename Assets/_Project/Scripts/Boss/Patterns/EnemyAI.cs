@@ -1,11 +1,12 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
 using BlueReaper.Data;
 using BlueReaper.HitBox;
+using BlueReaper.Stage;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -16,7 +17,7 @@ namespace BlueReaper.Boss
     [RequireComponent(typeof(Unit), typeof(Enemy), typeof(NavMeshAgent))]
     public class EnemyAI : MonoBehaviour
     {
-        [SerializeField] EnemyPatternData[] patterns;
+        [SerializeField] EnemyActionData[] patterns;
         [SerializeField] float aiTick = 0.1f;
         [SerializeField] float stopChasingDistance = 3f;
 
@@ -36,7 +37,12 @@ namespace BlueReaper.Boss
         private Vector3 chaseDestination;
         private bool hasChaseDestination;
         private bool rewardHandled;
+        private Coroutine coForwardTracking;
+        private float speedBeforeTracking;
+        private float angularSpeedBeforeTracking;
+        private Vector3 trackingDirection;
 
+        internal StageController Stage { private get; set; }
         public event Action DeathPresentationFinished;
 
         private void Awake()
@@ -106,11 +112,13 @@ namespace BlueReaper.Boss
         public void Release()
         {
             StopMeleeHitWindow();
+            StopForwardTracking();
             StopAllCoroutines();
             coAIUpdate = null;
             foreach (var projectile in new List<ProjectileHitBox>(projectiles))
                 if (projectile) projectile.ReturnToPool();
             projectiles.Clear();
+            trackingDirection = Vector3.zero;
             hasChaseDestination = false;
             if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
             currentPatternState = PatternState.None;
@@ -123,7 +131,7 @@ namespace BlueReaper.Boss
             yield return null;
             var wait = new WaitForSeconds(Mathf.Max(0.01f, aiTick));
 
-            EnemyPatternData selectedPattern = null;
+            EnemyActionData selectedAction = null;
 
             while (!health.IsDead)
             {
@@ -142,10 +150,17 @@ namespace BlueReaper.Boss
                     agent.angularSpeed = 360f;
                 }
 
-                if (target && !selectedPattern) selectedPattern = SelectNextPattern();
+                if (target && !selectedAction) selectedAction = SelectNextPattern();
 
-                if (!target || !selectedPattern)
+                EnemyPatternData firstPattern = selectedAction switch
                 {
+                    EnemyPatternData pattern => pattern,
+                    EnemyPatternSequenceData { Steps: { Length: > 0 } steps } => steps[0],
+                    _ => null
+                };
+                if (!target || !firstPattern)
+                {
+                    if (!firstPattern) selectedAction = null;
                     if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
                     PlayLocomotion(false);
                     yield return wait;
@@ -154,7 +169,7 @@ namespace BlueReaper.Boss
 
                 Vector3 direction = target.position - transform.position;
                 direction.y = 0f;
-                Vector3 destination = target.position - direction.normalized * selectedPattern.ChasingDistance;
+                Vector3 destination = target.position - direction.normalized * firstPattern.ChasingDistance;
                 if (!MoveTo(destination) || !IsCompleteDestination())
                 {
                     PlayLocomotion(agent.isActiveAndEnabled && agent.isOnNavMesh && agent.hasPath);
@@ -163,10 +178,13 @@ namespace BlueReaper.Boss
                 }
 
                 agent.isStopped = true;
-                if (direction.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(direction);
+                trackingDirection = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.zero;
+                if (trackingDirection != Vector3.zero)
+                    transform.rotation = Quaternion.LookRotation(trackingDirection);
 
-                yield return ExecutePattern(selectedPattern, target);
-                selectedPattern = null;
+                yield return ExecuteAction(selectedAction, target);
+                trackingDirection = Vector3.zero;
+                selectedAction = null;
 
                 PlayLocomotion(false);
                 yield return wait;
@@ -174,14 +192,85 @@ namespace BlueReaper.Boss
             coAIUpdate = null;
         }
 
-        private EnemyPatternData SelectNextPattern()
+        private void StartForwardTracking(EnemyActionData settings)
+        {
+            float duration = settings.TrackingDuration;
+            if (!(duration > 0f) || float.IsInfinity(duration) || trackingDirection == Vector3.zero
+                || !agent || !agent.isActiveAndEnabled || !agent.isOnNavMesh) return;
+
+            speedBeforeTracking = agent.speed;
+            angularSpeedBeforeTracking = agent.angularSpeed;
+            coForwardTracking = StartCoroutine(IEForwardTracking(settings, duration));
+        }
+
+        private IEnumerator IEForwardTracking(EnemyActionData settings, float duration)
+        {
+            agent.ResetPath();
+            hasChaseDestination = false;
+            agent.speed = speedBeforeTracking * settings.TrackingMoveRatio;
+            agent.angularSpeed = angularSpeedBeforeTracking * settings.TrackingRotationRatio;
+            agent.isStopped = false;
+
+            float elapsed = 0f;
+            while (elapsed < duration && agent && agent.isActiveAndEnabled && agent.isOnNavMesh)
+            {
+                float stepTime = Mathf.Min(Time.deltaTime, duration - elapsed);
+                if (stepTime > 0f && agent.speed > 0f)
+                    agent.Move(trackingDirection * (agent.speed * stepTime));
+
+                elapsed += stepTime;
+                yield return null;
+            }
+
+            ClearForwardTracking();
+        }
+
+        private void StopForwardTracking()
+        {
+            if (coForwardTracking == null) return;
+            StopCoroutine(coForwardTracking);
+            ClearForwardTracking();
+        }
+
+        private void ClearForwardTracking()
+        {
+            coForwardTracking = null;
+            if (!agent) return;
+            agent.speed = speedBeforeTracking;
+            agent.angularSpeed = angularSpeedBeforeTracking;
+            if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
+        }
+
+        private EnemyActionData SelectNextPattern()
         {
             Owner.CalcPhase();
             if (patterns == null) return null;
 
-            var candidates = patterns.Where(p => p && p.RequirePhase != null
-                && p.RequirePhase.Contains(Owner.Phase)).ToArray();
+            var candidates = patterns.Where(action => action && action.RequirePhase != null
+                && action.RequirePhase.Contains(Owner.Phase)
+                && (action is EnemyPatternData
+                    || (action is EnemyPatternSequenceData { Steps: { Length: > 0 } steps }
+                        && steps.All(step => step)))).ToArray();
             return candidates.Length > 0 ? candidates[UnityEngine.Random.Range(0, candidates.Length)] : null;
+        }
+
+        private IEnumerator ExecuteAction(EnemyActionData action, Transform target)
+        {
+            if (action is EnemyPatternData pattern)
+            {
+                yield return ExecutePattern(pattern, target, action.CanForwardTracking);
+                yield break;
+            }
+
+            if (action is EnemyPatternSequenceData sequence)
+            {
+                foreach (EnemyPatternData step in sequence.Steps)
+                {
+                    if (health.IsDead || !step) yield break;
+
+                    yield return ExecutePattern(step, target, action.CanForwardTracking);
+                }
+            }
         }
 
         private bool MoveTo(Vector3 position)
@@ -221,62 +310,55 @@ namespace BlueReaper.Boss
             if (!animator.GetCurrentAnimatorStateInfo(0).IsName(state)) animator.Play(state, 0, 0f);
         }
 
-        private IEnumerator ExecutePattern(EnemyPatternData pattern, Transform target)
+        private IEnumerator ExecutePattern(EnemyPatternData pattern, Transform target, bool canForwardTracking)
         {
             StopMeleeHitWindow();
+            StopForwardTracking();
             if (!pattern || !unit.Data || health.IsDead) yield break;
             currentPatternState = PatternState.Executing;
             PlayMotion(pattern.MotionClip);
-            StartMeleeHitWindow(pattern.MeleeAttack);
+            if (canForwardTracking) StartForwardTracking(pattern);
 
-            if (pattern.BulletAttack != null)
+            int pendingBulletEffects = 0;
+            Action onBulletFinished = () => pendingBulletEffects--;
+            bool meleeRegistered = false;
+            foreach (PatternImplData effect in pattern.Implementions ?? Array.Empty<PatternImplData>())
             {
-                if (pattern.BulletAttack.BulletPrefab == null)
+                if (health.IsDead || !isActiveAndEnabled) yield break;
+                switch (effect)
                 {
-                    StopMeleeHitWindow();
-                    currentPatternState = PatternState.Done;
-                    yield break;
-                }
-
-                if (pattern.BulletAttack.StartTime > 0f)
-                    yield return new WaitForSeconds(pattern.BulletAttack.StartTime);
-
-                float startedAt = Time.time;
-                Vector3 origin = transform.position;
-                Quaternion facing = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
-                for (int emission = 0; emission < pattern.BulletAttack.RepeatCount; emission++)
-                {
-                    while (Time.time - startedAt < emission * pattern.BulletAttack.RepeatInterval) yield return null;
-                    if (health.IsDead) yield break;
-                    if (pattern.BulletAttack.AimAtTargetEachEmission)
-                    {
-                        if (!target || !target.gameObject.activeInHierarchy || !Owner.Players.Contains(target)) break;
-                        origin = transform.position;
-                        Vector3 aim = target.position - origin;
-                        aim.y = 0f;
-                        if (aim.sqrMagnitude > 0.0001f) facing = Quaternion.LookRotation(aim);
-                    }
-                    for (int path = 0; path < pattern.BulletAttack.MaximumCount; path++)
-                    {
-                        if (!pattern.BulletAttack.TryEvaluate(path, emission, emission * pattern.BulletAttack.RepeatInterval,
-                            out var position, out var rotation)) continue;
-                        var instance = ObjectPool.Spawn(pattern.BulletAttack.BulletPrefab, origin + facing * position, facing * rotation);
-                        var projectile = instance.GetComponent<ProjectileHitBox>();
-                        if (!projectile)
+                    case MeleeAttackPatternData meleeAttack when meleeAttack:
+                        if (meleeRegistered)
                         {
-                            ObjectPool.Despawn(instance);
-                            Debug.LogWarning("Bullet prefab requires ProjectileHitBox.", pattern);
-                            continue;
+                            Debug.LogWarning("A pattern can only have one melee effect.", pattern);
+                            break;
                         }
-                        projectiles.Add(projectile);
-                        projectile.Init(unit, pattern.BulletAttack, path, emission, origin, facing, OnProjectileReturned);
-                    }
+
+                        meleeRegistered = true;
+                        StartMeleeHitWindow(meleeAttack);
+                        break;
+
+                    case BulletPatternData bulletAttack when bulletAttack:
+                        if (!bulletAttack.BulletPrefab)
+                        {
+                            Debug.LogWarning("Bullet effect requires a bullet prefab.", bulletAttack);
+                            break;
+                        }
+
+                        pendingBulletEffects++;
+                        StartCoroutine(ExecuteBulletEffect(bulletAttack, target, onBulletFinished));
+                        break;
+
+                    case SummonPatternData summonAttack when summonAttack:
+                        if (Stage) Stage.SummonEnemies(unit, target, summonAttack);
+                        else Debug.LogWarning("Summoning requires a StageController.", summonAttack);
+                        break;
                 }
-                // Projectile travel remains independent of pattern completion.
             }
 
-            // Finish active hit windows and motion before resting.
-            while (coMeleeHitWindow != null || Time.time < motionUntil) yield return null;
+            while (pendingBulletEffects > 0 || coMeleeHitWindow != null || Time.time < motionUntil)
+                yield return null;
+            StopForwardTracking();
 
             if (pattern.RestTime > 0f)
                 yield return new WaitForSeconds(pattern.RestTime);
@@ -288,6 +370,52 @@ namespace BlueReaper.Boss
             }
 
             currentPatternState = PatternState.Done;
+        }
+
+        private IEnumerator ExecuteBulletEffect(BulletPatternData bulletAttack, Transform target, Action onFinished)
+        {
+            try
+            {
+                if (bulletAttack.StartTime > 0f)
+                    yield return new WaitForSeconds(bulletAttack.StartTime);
+
+                float startedAt = Time.time;
+                Vector3 origin = transform.position;
+                Quaternion facing = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+                for (int emission = 0; emission < bulletAttack.RepeatCount; emission++)
+                {
+                    while (Time.time - startedAt < emission * bulletAttack.RepeatInterval) yield return null;
+                    if (health.IsDead) yield break;
+                    if (bulletAttack.AimAtTargetEachEmission)
+                    {
+                        if (!target || !target.gameObject.activeInHierarchy || !Owner.Players.Contains(target)) break;
+                        origin = transform.position;
+                        Vector3 aim = target.position - origin;
+                        aim.y = 0f;
+                        if (aim.sqrMagnitude > 0.0001f) facing = Quaternion.LookRotation(aim);
+                    }
+                    for (int path = 0; path < bulletAttack.MaximumCount; path++)
+                    {
+                        if (!bulletAttack.TryEvaluate(path, emission, emission * bulletAttack.RepeatInterval,
+                            out var position, out var rotation)) continue;
+                        var instance = ObjectPool.Spawn(bulletAttack.BulletPrefab, origin + facing * position, facing * rotation);
+                        var projectile = instance.GetComponent<ProjectileHitBox>();
+                        if (!projectile)
+                        {
+                            ObjectPool.Despawn(instance);
+                            Debug.LogWarning("Bullet prefab requires ProjectileHitBox.", bulletAttack);
+                            continue;
+                        }
+                        projectiles.Add(projectile);
+                        projectile.Init(unit, bulletAttack, path, emission, origin, facing, OnProjectileReturned);
+                    }
+                }
+                // Projectile travel remains independent of pattern completion.
+            }
+            finally
+            {
+                onFinished();
+            }
         }
 
         private void StartMeleeHitWindow(MeleeAttackPatternData pattern)

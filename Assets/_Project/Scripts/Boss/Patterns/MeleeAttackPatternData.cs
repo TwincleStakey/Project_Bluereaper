@@ -5,7 +5,7 @@ namespace BlueReaper.Data
     [CreateAssetMenu(
         fileName = "MeleeAttackPatternData",
         menuName = "BlueReaper/Melee Attack Pattern")]
-    public sealed class MeleeAttackPatternData : ScriptableObject
+    public sealed class MeleeAttackPatternData : PatternImplData
     {
         // 공격 시작 후 판정 시작까지의 지연 시간(초)
         public float HitStartSeconds = 0.2f;

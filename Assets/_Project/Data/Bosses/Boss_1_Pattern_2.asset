@@ -13,9 +13,14 @@ MonoBehaviour:
   m_Name: Boss_1_Pattern_2
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.EnemyPatternData
   RequirePhase: 01000000
+  CanForwardTracking: 0
+  TrackingRotationRatio: 1
+  TrackingMoveRatio: 1
+  TrackingDuration: 0.5
+  SelfDestructAfterPattern: 0
   MotionClip: {fileID: 7400000, guid: 76a9f540b4bc3524abe160af7730c743, type: 2}
   TelegraphType: 0
   RestTime: 0.15
   ChasingDistance: 1
-  MeleeAttack: {fileID: 11400000, guid: ff8329f6a23ed714fa867a58eafc487c, type: 2}
-  BulletAttack: {fileID: 0}
+  Implementions:
+  - {fileID: 11400000, guid: ff8329f6a23ed714fa867a58eafc487c, type: 2}

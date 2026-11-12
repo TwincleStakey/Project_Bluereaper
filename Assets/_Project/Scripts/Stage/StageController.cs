@@ -26,6 +26,7 @@ namespace BlueReaper.Stage
             public Enemy Enemy;
             public EnemyAI AI;
             public StageField Field;
+            public bool CountsForClear;
             public bool Dead;
             public Action OnDied;
             public Action OnPresentationFinished;
@@ -171,38 +172,88 @@ namespace BlueReaper.Stage
                         Vector2 offset = Random.insideUnitCircle * entry.SpawnRadius;
                         Transform marker = entry.transform;
                         Vector3 position = marker.position + new Vector3(offset.x, 0f, offset.y);
-                        var agent = prefab.GetComponent<NavMeshAgent>();
-                        if (agent)
-                        {
-                            var filter = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
-                            if (!NavMesh.SamplePosition(position, out NavMeshHit hit, 1f, filter)
-                                && !NavMesh.SamplePosition(marker.position, out hit, 1f, filter))
-                                return false;
-                            position = hit.position;
-                        }
-                        SpawnEnemy(prefab, position, marker.rotation);
+                        if (!TryGetSpawnPosition(prefab, position, marker.position, out Vector3 spawnPosition))
+                            return false;
+                        SpawnEnemy(prefab, spawnPosition, marker.rotation);
                     }
                 }
             }
             return true;
         }
 
-        public Enemy SpawnEnemy(Enemy prefab, Vector3 position, Quaternion rotation)
+        private static bool TryGetSpawnPosition(Enemy prefab, Vector3 position, Vector3 fallback, out Vector3 spawnPosition)
+        {
+            spawnPosition = position;
+            var agent = prefab.GetComponent<NavMeshAgent>();
+            if (!agent) return true;
+
+            var filter = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+            if (!NavMesh.SamplePosition(position, out NavMeshHit hit, 1f, filter)
+                && !NavMesh.SamplePosition(fallback, out hit, 1f, filter))
+                return false;
+
+            spawnPosition = hit.position;
+            return true;
+        }
+
+        internal void SummonEnemies(Unit summoner, Transform target, SummonPatternData pattern)
+        {
+            if (!isActiveAndEnabled || !currentField || fieldComplete
+                || !units.TryGetValue(summoner, out StageUnitRecord owner) || owner.Dead
+                || !ReferenceEquals(owner.Field, currentField)) return;
+
+            string error = pattern.GetValidationError();
+            if (error != null)
+            {
+                Debug.LogWarning(error, pattern);
+                return;
+            }
+
+            if (pattern.SummonPositionType == SummonPositionType.Target
+                && (!target || !target.gameObject.activeInHierarchy || !alivePlayers.Contains(target))) return;
+
+            Vector3 center = pattern.SummonPositionType switch
+            {
+                SummonPositionType.Target => target.position,
+                SummonPositionType.FieldCenter => currentField.Center,
+                _ => summoner.transform.position
+            };
+
+            bool skippedSpawn = false;
+            for (int i = 0; i < pattern.SummonPrefab.Length; i++)
+            {
+                Enemy prefab = pattern.SummonPrefab[i];
+                for (uint count = 0; count < pattern.SummonCount[i]; count++)
+                {
+                    if (!isActiveAndEnabled || fieldComplete || !IsRegistered(owner) || owner.Dead) return;
+                    Vector2 offset = Random.insideUnitCircle * pattern.SummonRadius;
+                    Vector3 position = center + new Vector3(offset.x, 0f, offset.y);
+                    if (TryGetSpawnPosition(prefab, position, center, out Vector3 spawnPosition))
+                        SpawnEnemy(prefab, spawnPosition, Quaternion.identity, countsForClear: false);
+                    else
+                        skippedSpawn = true;
+                }
+            }
+
+            if (skippedSpawn) Debug.LogWarning("Skipped summon positions outside the NavMesh.", pattern);
+        }
+
+        public Enemy SpawnEnemy(Enemy prefab, Vector3 position, Quaternion rotation, bool countsForClear = true)
         {
             var enemy = ObjectPool.Spawn(prefab.gameObject, position, rotation).GetComponent<Enemy>();
-            InitEnemy(enemy);
+            InitEnemy(enemy, countsForClear);
             return enemy;
         }
 
-        private void InitEnemy(Enemy enemy)
+        private void InitEnemy(Enemy enemy, bool countsForClear = true)
         {
             enemy.Init(alivePlayers);
-            RegisterUnit(enemy.GetComponent<Unit>(), currentField);
-            if (enemy.Rank == EnemyRank.Boss)
+            RegisterUnit(enemy.GetComponent<Unit>(), currentField, countsForClear);
+            if (countsForClear && enemy.Rank == EnemyRank.Boss)
                 GameEvents.RaiseBossSpawned(enemy.GetComponent<Health>());
         }
 
-        private void RegisterUnit(Unit unit, StageField field)
+        private void RegisterUnit(Unit unit, StageField field, bool countsForClear = true)
         {
             if (units.ContainsKey(unit)) return;
 
@@ -213,6 +264,7 @@ namespace BlueReaper.Stage
                 Enemy = unit.GetComponent<Enemy>(),
                 AI = unit.GetComponent<EnemyAI>(),
                 Field = field,
+                CountsForClear = countsForClear,
             };
             units.Add(unit, record);
             if (record.Health)
@@ -222,6 +274,7 @@ namespace BlueReaper.Stage
             }
             if (record.AI)
             {
+                record.AI.Stage = this;
                 record.OnPresentationFinished = () =>
                 {
                     if (record.Dead) ReleaseUnit(record);
@@ -240,7 +293,7 @@ namespace BlueReaper.Stage
                 return;
             }
 
-            if (record.Enemy && currentField && ReferenceEquals(record.Field, currentField)
+            if (record.CountsForClear && record.Enemy && currentField && ReferenceEquals(record.Field, currentField)
                 && (!bossesOnly || record.Enemy.Rank == EnemyRank.Boss))
             {
                 fieldKills++;
@@ -258,7 +311,11 @@ namespace BlueReaper.Stage
             if (!IsRegistered(record)) return;
             units.Remove(record.Unit);
             if (record.Health) record.Health.Died -= record.OnDied;
-            if (record.AI) record.AI.DeathPresentationFinished -= record.OnPresentationFinished;
+            if (record.AI)
+            {
+                record.AI.DeathPresentationFinished -= record.OnPresentationFinished;
+                record.AI.Stage = null;
+            }
             if (record.Field is null && !record.Enemy) return;
             if (hudBoss == record.Health) HideBossHUD();
             if (!record.Unit) return;

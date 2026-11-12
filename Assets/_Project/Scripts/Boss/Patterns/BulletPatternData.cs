@@ -53,7 +53,7 @@ namespace BlueReaper.BulletPatterns
     }
 
     [CreateAssetMenu(fileName = "BulletPatternData", menuName = "BlueReaper/Bullet Pattern")]
-    public sealed class BulletPatternData : ScriptableObject
+    public sealed class BulletPatternData : PatternImplData
     {
         public GameObject BulletPrefab;
         public BulletMovementType MovementType = BulletMovementType.Path;

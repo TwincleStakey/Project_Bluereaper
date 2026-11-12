@@ -14,6 +14,7 @@ namespace BlueReaper.Stage
         internal EnemySpawnEntry[] SpawnEntries { get; private set; }
         internal PlayerSpawnEntry Entrance { get; private set; }
         internal Unit[] PlacedUnits { get; private set; }
+        internal Vector3 Center => fieldObject ? fieldObject.transform.position : transform.position;
 
         private void Awake()
         {
