@@ -18,6 +18,8 @@ namespace BlueReaper.Boss
     public class EnemyAI : MonoBehaviour
     {
         [SerializeField] EnemyActionData[] patterns;
+        [SerializeField] EnemyActionData spawnPattern;
+        [SerializeField] EnemyPatternData deathPattern;
         [SerializeField] float aiTick = 0.1f;
         [SerializeField] float stopChasingDistance = 3f;
 
@@ -34,10 +36,12 @@ namespace BlueReaper.Boss
         private readonly Dictionary<IDamageable, float> nextMeleeHits = new();
         private readonly HashSet<ProjectileHitBox> projectiles = new();
         private MeleeAttackPatternData activeMelee;
+        private bool meleeAfterDeath;
         private float meleeStartedAt, meleeDamage, motionUntil;
         private Vector3 chaseDestination;
         private bool hasChaseDestination;
         private bool rewardHandled;
+        private bool spawnPatternPending;
         private Coroutine coForwardTracking;
         private float speedBeforeTracking;
         private float angularSpeedBeforeTracking;
@@ -72,6 +76,7 @@ namespace BlueReaper.Boss
         private void OnEnable()
         {
             rewardHandled = false;
+            spawnPatternPending = false;
             health.Died += OnHealthDied;
             if (posture) posture.GroggyStarted += OnGroggyStarted;
 
@@ -83,11 +88,13 @@ namespace BlueReaper.Boss
             if (coAIUpdate == null) coAIUpdate = StartCoroutine(AIUpdate());
         }
 
+        internal void NotifySpawned() => spawnPatternPending = true;
+
         private void OnHealthDied()
         {
             //TODO : 유닛이 죽으면 died 이벤트를 발생 시키고, 각자 애니메이션과 기타 후처리를 수행하도록 변경. 현재는 ai가 죽음 처리까지 담당하고 있음
             Release();
-            StartCoroutine(IEDied());
+            StartCoroutine(IEDied(deathPattern));
         }
 
         private void OnBossDefeated(Health boss)
@@ -173,6 +180,22 @@ namespace BlueReaper.Boss
                 {
                     agent.speed = unit.Data.MoveSpeed;
                     agent.angularSpeed = 360f;
+                }
+
+                if (spawnPatternPending && spawnPattern)
+                {
+                    spawnPatternPending = false;
+                    Vector3 directionToTarget = target ? target.position - transform.position : transform.forward;
+                    directionToTarget.y = 0f;
+                    trackingDirection = directionToTarget.normalized;
+                    if (trackingDirection != Vector3.zero)
+                        transform.rotation = Quaternion.LookRotation(trackingDirection);
+
+                    yield return ExecuteAction(spawnPattern, target);
+                    trackingDirection = Vector3.zero;
+                    PlayLocomotion(false);
+                    yield return wait;
+                    continue;
                 }
 
                 if (target && !selectedAction) selectedAction = SelectNextPattern();
@@ -287,9 +310,9 @@ namespace BlueReaper.Boss
                 yield break;
             }
 
-            if (action is EnemyPatternSequenceData sequence)
+            if (action is EnemyPatternSequenceData { Steps: { Length: > 0 } steps })
             {
-                foreach (EnemyPatternData step in sequence.Steps)
+                foreach (EnemyPatternData step in steps)
                 {
                     if (health.IsDead || !step) yield break;
 
@@ -421,16 +444,8 @@ namespace BlueReaper.Boss
                     }
                     for (int path = 0; path < bulletAttack.MaximumCount; path++)
                     {
-                        if (!bulletAttack.TryEvaluate(path, emission, emission * bulletAttack.RepeatInterval,
-                            out var position, out var rotation)) continue;
-                        var instance = ObjectPool.Spawn(bulletAttack.BulletPrefab, origin + facing * position, facing * rotation);
-                        var projectile = instance.GetComponent<ProjectileHitBox>();
-                        if (!projectile)
-                        {
-                            ObjectPool.Despawn(instance);
-                            Debug.LogWarning("Bullet prefab requires ProjectileHitBox.", bulletAttack);
-                            continue;
-                        }
+                        var projectile = ProjectileHitBox.Spawn(bulletAttack, path, emission, origin, facing);
+                        if (!projectile) continue;
                         projectiles.Add(projectile);
                         projectile.Init(unit, bulletAttack, path, emission, origin, facing, OnProjectileReturned);
                     }
@@ -443,13 +458,15 @@ namespace BlueReaper.Boss
             }
         }
 
-        private void StartMeleeHitWindow(MeleeAttackPatternData pattern)
+        private void StartMeleeHitWindow(MeleeAttackPatternData pattern, float? diedAt = null)
         {
             StopMeleeHitWindow();
+            float startedAt = diedAt ?? Time.time;
             if (!pattern || !unit.Data || !(pattern.HitDurationSeconds > 0f)
-                || !(pattern.HitStartSeconds + pattern.HitDurationSeconds > 0f)) return;
+                || !(pattern.HitStartSeconds + pattern.HitDurationSeconds > Time.time - startedAt)) return;
             activeMelee = pattern;
-            meleeStartedAt = Time.time;
+            meleeAfterDeath = diedAt.HasValue;
+            meleeStartedAt = startedAt;
             meleeDamage = DamageFormula.Calculate(unit.Data.Attack, pattern.DamageMultiplier);
             coMeleeHitWindow = StartCoroutine(IEMeleeHitWindow(pattern));
         }
@@ -477,6 +494,7 @@ namespace BlueReaper.Boss
             coMeleeHitWindow = null;
             SetMeleeArmed(false);
             activeMelee = null;
+            meleeAfterDeath = false;
             nextMeleeHits.Clear();
         }
 
@@ -488,7 +506,8 @@ namespace BlueReaper.Boss
 
         private void OnMeleeContact(IDamageable target)
         {
-            if (!activeMelee || health.IsDead) return;
+            if (!activeMelee || health.IsDead != meleeAfterDeath) return;
+            if (meleeAfterDeath && (!Stage || !Stage.CanRunDeathPattern(unit))) return;
             float elapsed = Time.time - meleeStartedAt;
             if (elapsed < activeMelee.HitStartSeconds
                 || elapsed >= activeMelee.HitStartSeconds + activeMelee.HitDurationSeconds) return;
@@ -501,27 +520,86 @@ namespace BlueReaper.Boss
 
         private void OnProjectileReturned(ProjectileHitBox projectile) => projectiles.Remove(projectile);
 
-        private IEnumerator IEDied()
+        private int PlayDeathMotion(AnimationClip clip)
         {
-            bool canPlay = animator && animator.isActiveAndEnabled && animator.runtimeAnimatorController
-                && animator.layerCount > 0;
-            int stateId = canPlay ? Animator.StringToHash(animator.GetLayerName(0) + ".Died") : 0;
-            if (canPlay) canPlay = animator.HasState(0, stateId);
-            if (canPlay) animator.Play(stateId, 0, 0f);
+            if (!animator || !animator.isActiveAndEnabled || !animator.runtimeAnimatorController
+                || animator.layerCount == 0) return 0;
 
-            // Let the death subscribers record the kill before the stage can return this unit.
+            string layer = animator.GetLayerName(0);
+            int stateId = Animator.StringToHash(layer + (clip ? "." + clip.name : ".Died"));
+            if (!animator.HasState(0, stateId)) stateId = Animator.StringToHash(layer + ".Died");
+            if (!animator.HasState(0, stateId)) return 0;
+            animator.Play(stateId, 0, 0f);
+            return stateId;
+        }
+
+        private void RunDeathEffects(EnemyPatternData pattern, float diedAt, Vector3 origin, Quaternion facing, float attack)
+        {
+            bool meleeRegistered = false;
+            foreach (PatternImplData effect in pattern.Implementions ?? Array.Empty<PatternImplData>())
+            {
+                if (!Stage || !Stage.CanRunDeathPattern(unit)) return;
+                switch (effect)
+                {
+                    case MeleeAttackPatternData melee when melee:
+                        if (meleeRegistered)
+                        {
+                            Debug.LogWarning("A pattern can only have one melee effect.", pattern);
+                            break;
+                        }
+                        meleeRegistered = true;
+                        StartMeleeHitWindow(melee, diedAt);
+                        break;
+
+                    case BulletPatternData bullet when bullet:
+                        Stage.StartDeathBullets(unit, bullet, diedAt, origin, facing, attack);
+                        break;
+
+                    case SummonPatternData summon when summon:
+                        Transform target = Owner.Players.FirstOrDefault(player => player && player.gameObject.activeInHierarchy);
+                        Stage.SummonEnemies(unit, target, summon, deathOrigin: origin);
+                        break;
+                }
+            }
+        }
+
+        private IEnumerator IEDied(EnemyPatternData pattern)
+        {
+            float diedAt = Time.time;
+            Vector3 origin = transform.position;
+            Quaternion facing = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+            float attack = unit.Data ? unit.Data.Attack : 0f;
+            int stateId = PlayDeathMotion(pattern ? pattern.MotionClip : null);
+
+            // Resolve the field's kill count before running any death effects.
             yield return null;
-            if (canPlay && animator && animator.isActiveAndEnabled)
+            float motionEndsAt = Time.time;
+            if (stateId != 0 && animator && animator.isActiveAndEnabled)
             {
                 var state = animator.GetCurrentAnimatorStateInfo(0);
                 float speed = animator.speed * state.speed * state.speedMultiplier;
                 if (state.fullPathHash == stateId && speed > 0f && state.normalizedTime < 1f)
                 {
                     float remaining = state.length * (1f - state.normalizedTime) / speed;
-                    if (remaining > 0f && !float.IsInfinity(remaining))
-                        yield return new WaitForSeconds(remaining);
+                    if (remaining > 0f && !float.IsInfinity(remaining)) motionEndsAt += remaining;
                 }
             }
+
+            if (pattern && Stage && Stage.CanRunDeathPattern(unit))
+                RunDeathEffects(pattern, diedAt, origin, facing, attack);
+
+            while (coMeleeHitWindow != null)
+            {
+                if (!Stage || !Stage.CanRunDeathPattern(unit))
+                {
+                    StopMeleeHitWindow();
+                    break;
+                }
+                yield return null;
+            }
+
+            float motionRemaining = motionEndsAt - Time.time;
+            if (motionRemaining > 0f) yield return new WaitForSeconds(motionRemaining);
 
             try
             {
