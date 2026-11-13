@@ -167,7 +167,10 @@ void SPSurface(SPInput i, inout SPOut o)
     float grain = SPIceNoiseR(xz * 9.0 + 11.0, 0.61) * 0.5 + SPIceNoiseR(xz * 19.0 + 3.0, 1.97) * 0.2 + SPIceNoiseR(xz * 4.1 + 7.0, 2.83) * 0.3;
     // r7b: clipping over the whole width showed the ground under the river (blocky soil mask) through the holes, so the
     // clip only roughens the last ~12 cm; the thinning-out itself is our snow layer over the ice (below)
-    o.alpha = (f < 0 && !(f > -0.12 && grain > -f / 0.12)) ? 1 : 0;
+    // q14 (QA: "stair-stepped bank edges"): the 5-11 cm grain clip cut regular teeth along the shore at the game camera;
+    // now the cut line is only bent by smooth 30-80 cm noise (no teeth), the powder below does the soft transition
+    float bend = (SPIceGNoise(xz * 1.3 + 5.0) - 0.5) * 0.18 + (SPIceGNoise(xz * 3.1 + 2.0) - 0.5) * 0.06;
+    o.alpha = (f + bend < 0) ? 1 : 0;
 
     // ---- thin powder left on the ice itself next to the grains (soft, never a band: noise-gated, fades with r)
     float2 st = xz / max(_SnowTile, 0.1);
@@ -187,7 +190,7 @@ void SPSurface(SPInput i, inout SPOut o)
         float2 pw2 = float2(SPIceNoise(xz * 0.1 + 31.0), SPIceNoise(xz * 0.1 + 47.0)) - 0.5;
         float pn2 = SPIceNoiseR(xz * 0.32 + pw2 * 2.5, 1.3) * 0.7 + SPIceNoiseR(xz * 1.4, 0.4) * 0.3;
         float paa2 = max(fwidth(pn2), 1e-4) * 2.0;
-        float isle = smoothstep(0.63 - paa2, 0.77 + paa2, pn2 + saturate(1 + f / 3.0) * 0.06);   // gnd12: soft thin powder, not opaque white cut-outs
+        float isle = smoothstep(0.6 - paa2, 0.9 + paa2, pn2 + saturate(1 + f / 3.0) * 0.06);   // q14: softer   // gnd12: soft thin powder, not opaque white cut-outs
         dust = max(dust, isle * lerp(0.2, 0.4, powderN) * _Dust);
     }
     // gnd7 (view 15): past the arena edge the river runs into rising ground and ends; there the ice showed as a hard dark
@@ -240,8 +243,8 @@ void SPSurface(SPInput i, inout SPOut o)
     ice = lerp(ice, skimCol, skim * lerp(0.45, 0.8, fe));             // translucent: the dark ice shows between the feathers
     // gnd1 (QA #5): frosted patches, 20-30 % of the ice, large and soft (#b4b1b4-#cad3e3 as frosted ice, not snow)
     float2 fw = float2(SPIceNoise(xz * 0.05 + 2.0), SPIceNoise(xz * 0.05 + 9.0)) - 0.5;
-    float frostP = smoothstep(0.63, 0.69, SPIceNoise(xz * 0.09 + fw * 1.6 + 21.0) * 0.75 + SPIceNoiseR(xz * 0.4 + 4.0, 0.7) * 0.25);
-    ice = lerp(ice, float3(0.42, 0.43, 0.47) * (0.45 + 1.1 * lum), frostP * 0.4);   // gnd2: crisper, smaller, the scan cracks still show through
+    float frostP = smoothstep(0.58, 0.8, SPIceNoise(xz * 0.09 + fw * 1.6 + 21.0) * 0.75 + SPIceNoiseR(xz * 0.4 + 4.0, 0.7) * 0.25);
+    ice = lerp(ice, float3(0.42, 0.43, 0.47) * (0.45 + 1.1 * lum), frostP * 0.22);   // q14 (QA "ice pieces overlap"): the crisp pale patches read as separate slabs laid over each other; now a faint soft frost, one continuous sheet   // gnd2: crisper, smaller, the scan cracks still show through
     float iceSmooth = saturate(_Smooth * lerp(1.0, 0.75, saturate(ir * _RoughScale)) * (1 - frost * 0.3) * (1 - crack * 0.25) * (1 - skim * 0.35) * (1 - frostP * 0.4));
     float3 iceN = normalize(float3(inrm.x * _IceNormal, 1, inrm.y * _IceNormal));
 
@@ -284,7 +287,8 @@ void SPSurface(SPInput i, inout SPOut o)
                 float4 gp = _SPIce_Glow[k];
                 float2 dd = gp.xz - xz;
                 if (dot(dd, dd) > r2) continue;
-                g += _SPIce_GlowCol[k].rgb * SPIceGlowTerm(i.ws, gp.xyz, gp.w, rough, _GlowStretch);
+                float gt = SPIceGlowTerm(i.ws, gp.xyz, gp.w, rough, _GlowStretch);
+                g += _SPIce_GlowCol[k].rgb * gt + gt * gt * gt * 0.5;   // c14: a hot white core so it reads as the mirrored bullet
             }
             em += g * _GlowStrength;
         }

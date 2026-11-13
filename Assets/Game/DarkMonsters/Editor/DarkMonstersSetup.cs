@@ -20,15 +20,15 @@ namespace DarkMonsters
         struct Monster
         {
             public string name, move, run, attack;
-            public float height;     // model height in metres before EnemyDef.scale
+            public float height;     // model height in metres before EnemyDef.scale (11-13 Kido: x1.6, they were too small next to the player)
         }
 
         static readonly Monster[] Monsters =
         {
-            new Monster { name = "DM_Goblin", move = "DM_Run", run = "DM_Run", attack = "DM_Swipe", height = 1.7f },
-            new Monster { name = "DM_Maw", move = "DM_Walk", run = "DM_Run", attack = "DM_Roar", height = 2.1f },
-            new Monster { name = "DM_Ganfaul", move = "DM_Walk", run = "DM_Run", attack = "DM_Cast", height = 1.85f },
-            new Monster { name = "DM_Warrok", move = "DM_Walk", run = "DM_Run", attack = "DM_Swipe", height = 2.0f },
+            new Monster { name = "DM_Goblin", move = "DM_Run", run = "DM_Run", attack = "DM_Swipe", height = 2.7f },
+            new Monster { name = "DM_Maw", move = "DM_Walk", run = "DM_Run", attack = "DM_Roar", height = 3.3f },
+            new Monster { name = "DM_Ganfaul", move = "DM_Walk", run = "DM_Run", attack = "DM_Cast", height = 3.0f },
+            new Monster { name = "DM_Warrok", move = "DM_Walk", run = "DM_Run", attack = "DM_Swipe", height = 3.2f },
         };
 
         // RoomRun enemy id -> monster, and the prefab it used before (for Restore)
@@ -160,10 +160,11 @@ namespace DarkMonsters
             AssetDatabase.DeleteAsset(ctrlPath);
             var ctrl = AnimatorController.CreateAnimatorControllerAtPath(ctrlPath);
             ctrl.AddParameter("MoveMul", AnimatorControllerParameterType.Float);
-            var p = ctrl.parameters; p[0].defaultFloat = 1f; ctrl.parameters = p;
+            ctrl.AddParameter("RunMul", AnimatorControllerParameterType.Float);
+            var p = ctrl.parameters; p[0].defaultFloat = 1f; p[1].defaultFloat = 1f; ctrl.parameters = p;
             var sm = ctrl.layers[0].stateMachine;
             var move = sm.AddState("Move"); move.motion = Clip(m.move); move.speedParameter = "MoveMul"; move.speedParameterActive = true;
-            var run = sm.AddState("Run"); run.motion = Clip(m.run);
+            var run = sm.AddState("Run"); run.motion = Clip(m.run); run.speedParameter = "RunMul"; run.speedParameterActive = true;
             var atk = sm.AddState("Attack"); atk.motion = Clip(m.attack);
             var die = sm.AddState("Die"); die.motion = Clip("DM_Die");
             sm.defaultState = move;
@@ -196,11 +197,19 @@ namespace DarkMonsters
             anim.applyRootMotion = false;
             anim.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
 
+            // stride of the clips, so EnemyController plays them at the speed the body moves (no foot sliding)
+            var gait = root.AddComponent<RoomRun.EnemyGait>();
+            gait.moveStride = Stride(m.move);
+            gait.runStride = Stride(m.run);
+
             int tris = CountTris(smrs);
             PrefabUtility.SaveAsPrefabAsset(root, $"{Root}/Prefabs/{m.name}.prefab");
             Object.DestroyImmediate(root);
             Debug.Log($"[DarkMonsters] {m.name}: bounds {b.size} scale {k:0.###} tris {tris}");
         }
+
+        // In-place clip ground speed in hip heights per second, from the planted foot (ArtSource/DarkMonsters/stride.py, 11-13)
+        static float Stride(string clip) => clip == "DM_Run" ? 2.51f : 1.352f;
 
         static int CountTris(SkinnedMeshRenderer[] smrs)
         {

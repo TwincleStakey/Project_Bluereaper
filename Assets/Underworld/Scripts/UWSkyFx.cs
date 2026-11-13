@@ -10,8 +10,10 @@ namespace Underworld
     {
         public Vector3 arenaCenter = new(-2f, 0f, -1f);
         public Vector2 arenaSize = new(50f, 34f);
-        public float moteRate = 22f;
-        public int shaftCount = 7;
+        // 11-13b: off. The motes (~350 HDR additive violet dots over the whole arena) read as a starfield through the
+        // underworld grade (+2.2 EV), and the violet shaft cards as milky haze. UWLook emits a few lantern embers instead.
+        public float moteRate = 0f;
+        public int shaftCount = 0;
         public int seed = 17;
 
         readonly List<GameObject> made = new();
@@ -21,8 +23,8 @@ namespace Underworld
             if (!Application.isPlaying) return;
             var moteMat = Resources.Load<Material>("UW_SkyMote");
             var shaftMat = Resources.Load<Material>("UW_LightShaft");
-            if (moteMat) made.Add(MakeMotes(moteMat).gameObject);
-            if (shaftMat) MakeShafts(shaftMat);
+            if (moteMat && moteRate > 0f) made.Add(MakeMotes(moteMat).gameObject);
+            if (shaftMat && shaftCount > 0) MakeShafts(shaftMat);
         }
 
         void OnDisable()

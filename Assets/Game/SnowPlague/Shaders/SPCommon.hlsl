@@ -8,6 +8,7 @@
 #define SP_COMMON_INCLUDED
 
 #include "Assets/Game/ReedField/Shaders/ReedCommon.hlsl"
+#include "Assets/Game/RoomRun/Shaders/RRSeeThrough.hlsl"   // 11-13: soft see-through (declares _PlayerScreenPos)
 
 float  _SP_SnowAmount;      // 0..1, whole field
 float4 _SP_SnowParams;      // x: noise scale (1/m), y: noise amount, z: up threshold, w: softness
@@ -18,7 +19,6 @@ float4 _SP_GroundRect;      // xy: min xz, zw: size of the baked ground albedo
 float  _SP_GroundY;         // ground height of the arena (m)
 float  _SP_GroundOn;
 TEXTURE2D(_SP_GroundTex); SAMPLER(sampler_SP_GroundTex);
-float4 _PlayerScreenPos[3]; // xy: viewport 0..1 (y up, Camera.WorldToViewportPoint), z: linear eye depth, w: 1 = active
 float4 _SP_SeeThrough;      // x: hole radius (fraction of screen height), y: soft edge, z: depth margin (m), w: 1 = on
 float  _SP_Flicker;         // 0..1 lantern flicker, same for every lantern core and light shaft
 
@@ -102,6 +102,10 @@ float SPBayer4(float2 pix)
 // 0 = keep, 1 = fully cut. positionCS.xy are pixel coordinates in the fragment stage.
 float SPSeeThroughCut(float4 positionCS, float3 ws)
 {
+    // 11-13 (Kido: hard circle -> soft): in RoomRun the shared soft falloff (RRSeeThrough.hlsl, set by SeeThroughFX), in
+    // every field (the arena-edge trees/houses of other fields use SP materials too); the hard hole below stays only for
+    // the builders' editor captures, where SeeThroughFX does not run
+    if (RRSeeThroughActive()) return RRSeeThroughCut(positionCS, ws);
     if (_SP_SeeThrough.w < 0.5) return 0;
     // 0..1 viewport, y up, same convention as Camera.WorldToViewportPoint. URP's own mapping handles the render
     // scale (_ScaledScreenParams) and the RT / back buffer flip, which the old _ScreenParams version did not.
@@ -125,7 +129,7 @@ float SPSeeThroughCut(float4 positionCS, float3 ws)
 void SPSeeThroughClip(float4 positionCS, float3 ws)
 {
     float c = SPSeeThroughCut(positionCS, ws);
-    if (c > 0) clip(SPBayer4(positionCS.xy) - c);
+    if (c > 0) clip((RRSeeThroughActive() ? RRSeeDither(positionCS.xy) : SPBayer4(positionCS.xy)) - c);
 }
 
 // ---- ground melt ---------------------------------------------------------------------------------------------

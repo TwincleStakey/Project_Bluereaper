@@ -92,7 +92,7 @@ public static class JangsanbeomGlowSetup
         RenderSettings.fog = true; RenderSettings.fogColor = new Color(0.01f, 0.012f, 0.02f); RenderSettings.fogMode = FogMode.Exponential; RenderSettings.fogDensity = 0.012f;
 
         var sun = new GameObject("Moonlight").AddComponent<Light>();
-        sun.type = LightType.Directional; sun.intensity = 0.08f; sun.color = new Color(0.55f, 0.65f, 1f);
+        sun.type = LightType.Directional; sun.intensity = 0.35f; sun.color = new Color(0.55f, 0.65f, 1f);
         sun.shadows = LightShadows.Soft; sun.transform.rotation = Quaternion.Euler(40, -30, 0);
 
         var ground = GameObject.CreatePrimitive(PrimitiveType.Plane); ground.name = "Ground"; ground.transform.localScale = Vector3.one * 12;
@@ -114,7 +114,9 @@ public static class JangsanbeomGlowSetup
                     else r.sharedMaterial = mat;
                     Debug.Log($"[JSB] body renderer {r.name} ({r.GetType().Name}) -> {r.sharedMaterial.shader.name}, mats={r.sharedMaterials.Length}");
                 }
-                else Debug.Log($"[JSB] other renderer {r.name} -> {(r.sharedMaterial ? r.sharedMaterial.shader.name : "none")}");
+                else if (r.name.StartsWith("HornInside")) r.sharedMaterial = Emissive("JSB_HornMouth", new Color(0.05f, 0.08f, 0.08f), new Color(0.2f, 1.6f, 1.5f));
+                else if (r.name.StartsWith("GoldBand")) r.sharedMaterial = Emissive("JSB_ChainGold", new Color(0.75f, 0.52f, 0.18f), new Color(0.6f, 0.38f, 0.08f));
+                else if (r.name.StartsWith("Link")) r.sharedMaterial = Emissive("JSB_ChainIron", new Color(0.16f, 0.16f, 0.18f), new Color(0.02f, 0.03f, 0.05f));
             var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/{c}.fbx");
             AnimationClip ac = null; foreach (var o in clip) if (o is AnimationClip a && !a.name.StartsWith("__preview")) ac = a;
             if (ac != null)
@@ -126,7 +128,7 @@ public static class JangsanbeomGlowSetup
 
         var camGo = new GameObject("JSB_Camera");
         var cam = camGo.AddComponent<Camera>(); cam.allowHDR = true; cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.005f, 0.006f, 0.01f);
-        cam.transform.position = new Vector3(0, 15f, -27f); cam.transform.rotation = Quaternion.Euler(24, 0, 0); cam.fieldOfView = 40; cam.farClipPlane = 300;
+        cam.transform.position = new Vector3(17f, 15f, -21f); cam.transform.LookAt(new Vector3(0f, 4.5f, 0f)); cam.fieldOfView = 40; cam.farClipPlane = 300;
         var cd = camGo.AddComponent<UniversalAdditionalCameraData>(); cd.renderPostProcessing = true;
 
         var volGo = new GameObject("Glow Volume"); var vol = volGo.AddComponent<Volume>(); vol.isGlobal = true;
@@ -161,6 +163,16 @@ public static class JangsanbeomGlowSetup
         }
     }
 
+    static Material Emissive(string name, Color baseCol, Color emit)
+    {
+        var path = $"{Root}/Materials/{name}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
+        m.SetColor("_BaseColor", baseCol); m.SetFloat("_Metallic", 0.8f); m.SetFloat("_Smoothness", 0.55f);
+        m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", emit); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        EditorUtility.SetDirty(m); return m;
+    }
+
     public static void Capture(Camera cam)
     {
         // the editor draws a cyan placeholder while a shader variant compiles in the background; compile synchronously for the stills
@@ -175,6 +187,7 @@ public static class JangsanbeomGlowSetup
         var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.DefaultHDR);
         var ldr = new RenderTexture(1600, 900, 0, RenderTextureFormat.ARGB32);
         var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
+        { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
         float[] ts = { 0.3f, 1.6f, 2.6f, 3.5f };
         var anims = cam.gameObject.scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Animator>()).ToArray();
         foreach (var only in anims)

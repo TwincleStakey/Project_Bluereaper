@@ -53,6 +53,8 @@ namespace SnowPlague
         public Material heightFog;
         [Header("Occluded player silhouette")]
         public Material silhouette;
+        [Tooltip("e14: only occluders this high above the player's feet trigger the silhouette (enemies do not).")]
+        public float silhouetteMinHeight = 2.6f;
         [Header("Monster blob shadows")]
         public Material blobShadow;     // round blob under the feet (_Stretch 0)
         public Material blobStretch;    // stretched away from a lantern (_Stretch 1)
@@ -105,6 +107,7 @@ namespace SnowPlague
                 playerRenderers = player ? player.GetComponentsInChildren<Renderer>() : new Renderer[0];
                 FindMonsters();
             }
+            Shader.SetGlobalFloat("_SP_SilMinY", player ? player.position.y + silhouetteMinHeight : 0f);
             // lantern flicker: one shared value (shader cores and light shafts use the same global)
             float t = Application.isPlaying ? Time.time : 0f;
             float f = Mathf.PerlinNoise(t * flickerSpeed, 0.37f);
@@ -296,7 +299,7 @@ namespace SnowPlague
         {
             public Material mat;
             public Renderer[] renderers;
-            class PassData { public Material mat; public Renderer[] rs; }
+            class PassData { public Material mat; public Renderer[] rs; public TextureHandle depth; }
 
             public override void RecordRenderGraph(RenderGraph rg, ContextContainer frameData)
             {
@@ -304,12 +307,14 @@ namespace SnowPlague
                 if (mat == null || renderers == null) return;
                 using (var b = rg.AddRasterRenderPass<PassData>("SP Occluded Player", out var d))
                 {
-                    d.mat = mat; d.rs = renderers;
+                    d.mat = mat; d.rs = renderers; d.depth = res.cameraDepthTexture;
+                    if (d.depth.IsValid()) b.UseTexture(d.depth, AccessFlags.Read);
                     b.SetRenderAttachment(res.activeColorTexture, 0, AccessFlags.Write);
                     b.SetRenderAttachmentDepth(res.activeDepthTexture, AccessFlags.Read);
                     b.AllowPassCulling(false);
                     b.SetRenderFunc((PassData p, RasterGraphContext c) =>
                     {
+                        if (p.depth.IsValid()) p.mat.SetTexture("_CameraDepthTexture", p.depth);
                         foreach (var r in p.rs)
                         {
                             if (!r || !r.enabled || !r.gameObject.activeInHierarchy || r is ParticleSystemRenderer) continue;

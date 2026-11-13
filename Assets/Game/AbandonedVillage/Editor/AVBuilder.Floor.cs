@@ -94,9 +94,11 @@ public static partial class AVBuilder
         string[] bn = { null, "AV_WW_BloodSplatter_N.png", "AV_WW_BloodPoolFootprints_N.png", "AV_WW_BloodSplatter_N.png" };
         for (int q = 0; q < 4; q++)
         {
-            bloods[q] = DecalMat("AV_BloodDecal_" + q, MS + "Decals/" + bt[q], q == 0 ? new Color(0.45f, 0.12f, 0.1f, 1f) : new Color(0.85f, 0.8f, 0.8f, 1f), 0.88f, true);
+            bloods[q] = DecalMat("AV_BloodDecal_" + q, MS + "Decals/" + bt[q], q == 0 ? new Color(0.3f, 0.07f, 0.06f, 1f) : new Color(0.74f, 0.5f, 0.47f, 1f), 0.9f, true);
             bloods[q].SetTextureScale("_BaseMap", Vector2.one); bloods[q].SetTextureOffset("_BaseMap", Vector2.zero);
-            Emissive(bloods[q], new Color(0.12f, 0.008f, 0.006f));   // just enough red to read on the near-black floor (refs: red only on blood)
+            // 11-13 QA (blood read as flat red paint): the emissive red lit every decal evenly regardless of light; now
+            // almost none, darker brown-red albedo and a wet gloss, so the pools only show red where light catches them
+            Emissive(bloods[q], new Color(0.035f, 0.003f, 0.002f));   // r2: 0.012 left the pools as black holes in the dark
             if (bn[q] != null) { bloods[q].SetTexture("_BumpMap", TP(MS + "Decals/" + bn[q], true)); bloods[q].SetFloat("_BumpScale", 0.8f); bloods[q].EnableKeyword("_NORMALMAP"); }
         }
         var leaves = DecalMat("AV_LeafDecal", MS + "Decals/AV_MS_Leaves_RGBA.png", new Color(0.72f, 0.64f, 0.56f, 1f), 0.08f, false);
@@ -110,22 +112,24 @@ public static partial class AVBuilder
             float near = IslandNear(x, z);
             float rich = Mathf.Clamp01(0.45f + 0.5f * Mathf.Clamp01((edge - 0.55f) * 2.5f) + 0.4f * near) * (0.55f + 0.9f * Mathf.PerlinNoise(x * 0.11f + 70f, z * 0.11f + 30f));
             // pebble cluster: a few stones of very different size huddled together
-            if (rng.NextDouble() < 0.75f * rich)
+            if (rng.NextDouble() < 0.1f * rich)   // 11-13 r5 (Kido: riverbed gravel): was 0.75 x 2-8 stones, ~1700 in all
             {
-                int n = rng.Next(2, 8);
+                int n = rng.Next(1, 4);
                 for (int i = 0; i < n; i++)
                 {
                     float px = x + R(-1.1f, 1.1f), pz = z + R(-1.1f, 1.1f);
-                    float s = R(2.6f, 5.2f) * (rng.NextDouble() < 0.15 ? 1.8f : 1f);   // pack stones are 5-10 cm at scale 1
+                    // 11-13 (Kido: "that stone looks weird"): scaled 4-7x the 5-10 cm scans smeared into crumpled-plastic
+                    // blobs; now at most ~2.5x, so they stay real-looking pebbles and small stones
+                    float s = R(1.3f, 2.4f) * (rng.NextDouble() < 0.15 ? 1.3f : 1f);   // pack stones are 5-10 cm at scale 1
                     if (PlacePart(rng.NextDouble() < 0.6 ? "MS:Pebbles/AV_MS_Pebbles" : "MS:SmallRocks/AV_MS_SmallRocks", new Vector3(px, G(px, pz) - 0.03f, pz), R(0, 360), s, floor)) nPeb++;
                 }
             }
-            if (rng.NextDouble() < 0.18f * rich)
+            if (false && rng.NextDouble() < 0.18f * rich)   // 11-13: big upscaled single rocks off (read as grey plastic bags)
             {
                 float px = x + R(-1.5f, 1.5f), pz = z + R(-1.5f, 1.5f);
                 if (PlacePart("MS:SmallRocks/AV_MS_SmallRocks", new Vector3(px, G(px, pz) - 0.06f, pz), R(0, 360), R(4f, 7f), floor)) { nRock++; }
             }
-            if (rng.NextDouble() < 0.5f * rich) { Decal(floor, leaves, x + R(-1, 1), z + R(-1, 1), R(2f, 4f), G, 0.015f); nLeaf++; }
+            if (rng.NextDouble() < 0.4f * rich) /* 11-13 fill pass: 0.18 -> 0.4 */ { Decal(floor, leaves, x + R(-1, 1), z + R(-1, 1), R(2f, 4f), G, 0.015f); nLeaf++; }
             if (rng.NextDouble() < 0.05f + 0.06f * near)
             {
                 var p = Place("MS:RubblePatch/AV_MS_RubblePatch", new Vector3(x, G(x, z) - 0.12f, z), R(0, 360), R(0.6f, 1f), floor);
@@ -137,11 +141,11 @@ public static partial class AVBuilder
                 double k = rng.NextDouble();
                 if (k < 0.4) { var m = Place("MS:KStrawMat/AV_MS_KStrawMat", new Vector3(x, G(x, z) + 0.01f, z), R(0, 360), R(0.8f, 1.1f), floor); if (m && nKhs++ == 0) Debug.Log($"[AV] straw mat {ModelBounds(m).size}"); }
                 else if (k < 0.8)
-                    for (int i = rng.Next(1, 4); i > 0; i--)
+                    for (int i = 1; i > 0; i--)   /* 11-13: single jars only, no heaps */
                     {
                         float px = x + R(-1.2f, 1.2f), pz = z + R(-1.2f, 1.2f);
                         var j = Place("MS:KJar/AV_MS_KJar", new Vector3(px, G(px, pz) - 0.05f, pz), R(0, 360), R(0.8f, 1.1f), floor);
-                        if (j && rng.NextDouble() < 0.6) j.transform.rotation = Quaternion.Euler(R(75, 100), R(0, 360), 0);   // knocked over
+                        if (j && rng.NextDouble() < 0.85) j.transform.rotation = Quaternion.Euler(R(75, 100), R(0, 360), 0);   // knocked over
                         nKhs++;
                     }
                 else { Place("MS:KStrawJar/AV_MS_KStrawJar", new Vector3(x, G(x, z) - 0.02f, z), R(0, 360), R(0.9f, 1.2f), floor); nKhs++; }

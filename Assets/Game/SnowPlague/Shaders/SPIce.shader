@@ -58,6 +58,7 @@ Shader "SnowPlague/Ice"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
             #define _ALPHATEST_ON
             #define SP_PASS_FORWARD
+            #define SP_SHADOW_JITTER 0.35
             // ice8: no probe reflections and no URP direct specular on the mirror ice; the shader reflects the sky
             // colour, moon, lanterns and bullets itself (soft short streaks)
             #define _ENVIRONMENTREFLECTIONS_OFF

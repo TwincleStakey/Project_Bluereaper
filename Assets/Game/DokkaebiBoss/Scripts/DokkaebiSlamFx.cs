@@ -396,7 +396,7 @@ namespace Dokkaebi
             m.gravityModifier = -0.05f;
             var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Circle; sh.radius = 0.6f; sh.rotation = new Vector3(90, 0, 0); sh.radiusThickness = 1;
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.Local;
-            vel.x = new ParticleSystem.MinMaxCurve(0f); vel.y = new ParticleSystem.MinMaxCurve(0f); vel.z = new ParticleSystem.MinMaxCurve(0.6f, 1.6f);   // local z = world up after shape rotation? keep small lift
+            vel.x = new ParticleSystem.MinMaxCurve(0f, 0f); vel.y = new ParticleSystem.MinMaxCurve(0f, 0f);  vel.z = new ParticleSystem.MinMaxCurve(0.6f, 1.6f);   // local z = world up after shape rotation? keep small lift  (all three axes share TwoConstants mode, or Emit logs an error per particle)
             var lim = ps.limitVelocityOverLifetime; lim.enabled = true; lim.limit = 0.6f; lim.dampen = 0.12f;
             var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0, 0.5f), new Keyframe(0.3f, 1.1f), new Keyframe(1, 1.5f)));
             var col = ps.colorOverLifetime; col.enabled = true;

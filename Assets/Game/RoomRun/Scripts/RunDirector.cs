@@ -209,7 +209,7 @@ namespace RoomRun
             if (!room.bossPrefab) return;
             var pos = AreaCenter + room.bossOffset;
             pos.y = room.center.y;
-            if (Physics.Raycast(pos + Vector3.up * 30f, Vector3.down, out var hit, 80f, ~0, QueryTriggerInteraction.Ignore)) pos.y = hit.point.y;
+            pos.y = Ground.Sample(pos, room.center.y);   // same ground as the player (was ~0: could land on wall/actor colliders)
             var face = Player.transform.position - pos; face.y = 0;
             var rot = face.sqrMagnitude > 0.01f ? Quaternion.LookRotation(face) : Quaternion.identity;
             var go = Instantiate(room.bossPrefab, pos, rot, roomRoot);

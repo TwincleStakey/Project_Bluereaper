@@ -237,6 +237,17 @@ void SPFrag(SPVary v, bool front : SV_IsFrontFace
     d.viewDirectionWS = i.viewWS;
 #if defined(MAIN_LIGHT_CALCULATE_SHADOWS)
     d.shadowCoord = TransformWorldToShadowCoord(v.ws);
+    #if defined(SP_SHADOW_JITTER)
+    // v14 (Kido "눈위엥가면 너무 깨지는데 밑에"): on the dark glossy ice the shadow-map texels of the player / branches read as
+    // hard stair-steps; each pixel looks the shadow up a few cm off in a random direction (interleaved gradient noise),
+    // so the edge becomes a soft dithered falloff (the film grain hides the dither)
+    {
+        float n1 = frac(52.9829189 * frac(dot(v.positionCS.xy, float2(0.06711056, 0.00583715))));
+        float n2 = frac(52.9829189 * frac(dot(v.positionCS.yx + 17.0, float2(0.06711056, 0.00583715))));
+        float ang = n1 * 6.2831853, rad = SP_SHADOW_JITTER * sqrt(n2);
+        d.shadowCoord = TransformWorldToShadowCoord(v.ws + float3(cos(ang), 0, sin(ang)) * rad);
+    }
+    #endif
 #endif
     // Forward+ (_CLUSTER_LIGHT_LOOP) picks its light cluster from this
     d.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(v.positionCS);

@@ -46,3 +46,7 @@ Downloads and Blender work files stay local in `ArtSource/AbandonedVillage/` (gi
   (`ThirdParty/Megascans/K*`).
 - Sketchfab: "CC0 - Planks broken" by plaggy; "Animal skulls" by FFeller (CC BY); "Sandbag broken" by vicente betoret
   ferrero / deathcow (CC BY) (`Planks`, `Skulls`, `Sack`).
+
+## 11-13 ground (Fab only, Kido)
+- Quixel Megascans via Fab (Standard License, free): Forest Floor, Ground Roots, Moist Fallen Leaves, Gravel on Soil (`ThirdParty/Megascans/Ground/`; normals flipped to GL, mask maps from AO + displacement + gloss). Terrain height-blends them (`Editor/AVBuilder.Ground.cs`); `Shaders/AVMacro.shader` adds big light/colour patches over the tiling.
+

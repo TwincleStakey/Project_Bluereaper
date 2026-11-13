@@ -17,7 +17,11 @@ namespace Reeds
         float seed, fade = 1f, outTimer, waitOut;
         MaterialPropertyBlock mpb;
 
-        void Start()
+        // Start does not run again after a domain reload in Play mode (a script recompile or a forced asset refresh
+        // while playing), and the non-serialized fields come back empty; Update re-initialises when that happened.
+        void Start() { Init(); }
+
+        void Init()
         {
             home = transform.position;
             seed = Random.value * 100f;
@@ -34,6 +38,7 @@ namespace Reeds
 
         void Update()
         {
+            if (mpb == null) Init();
             float t = Time.time + seed;
             var field = FindField();
             float h = field ? field.height : baseHeight;
@@ -57,7 +62,7 @@ namespace Reeds
 
             float flick = 0.75f + 0.25f * Mathf.PerlinNoise(t * 4f, seed);
             if (glowLight) glowLight.intensity = lightIntensity * flick * fade;
-            if (glow)
+            if (glow && glow.sharedMaterial)
             {
                 glow.GetPropertyBlock(mpb);
                 mpb.SetColor("_Color", glow.sharedMaterial.GetColor("_Color") * (flick * fade));

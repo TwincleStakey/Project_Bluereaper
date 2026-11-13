@@ -96,7 +96,7 @@ public static partial class SPBuilder
         // cluster centres: random, kept only in the "growing" patches of a low-frequency noise -> big empty snow fields
         // tr29 (QA #6): fewer, fuller clumps - 1.5-3.5 m, 4-12 members, >= 3 meshes, 0.6-2.2 scale - about half the floor
         // left as open snow, clumps pulled to bare/dirt patches and the river bank edges
-        const int ClusterTarget = 1100;   // vg1: 1150 read as bare snow (4.5k instances); tr29: bigger clumps, more open snow
+        const int ClusterTarget = 1800;   // v14b (ss5 has ~2x our small detail): was 1100   // vg1: 1150 read as bare snow (4.5k instances); tr29: bigger clumps, more open snow
         int clusters = 0, blocked = 0, total = 0;
         var made = new Dictionary<string, int>();
         for (int tries = 0; tries < ClusterTarget * 12 && clusters < ClusterTarget; tries++)
@@ -116,7 +116,7 @@ public static partial class SPBuilder
             {   // tr29: dirt patches (snow broken) and the bank edge (7-11 m from the river centre line) grow, whole snow less
                 float dirt = Mathf.Clamp01(1.15f - SampleMask(mSnow, cx, cz));
                 float bank = Mathf.Clamp01(1f - Mathf.Abs(DistanceToRiver(cx, cz) - 9f) / 2.5f);
-                grow *= 0.35f + 0.65f * Mathf.Max(dirt, bank);
+                grow *= 0.7f + 0.3f * Mathf.Max(dirt, bank);   // v14b: g14 left the snow mask near 1 everywhere (the breakup is in the shader now), so 0.35 starved the brush
             }
             if (Rn2(vr) > grow * Mathf.Lerp(0.75f, 1f, edge)) continue;
             if (Blocked(cx, cz)) { blocked++; continue; }

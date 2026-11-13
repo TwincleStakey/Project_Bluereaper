@@ -6,7 +6,8 @@
         "UnityEngine.UI",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Core.Runtime",
-        "Dokkaebi"
+        "Dokkaebi",
+        "LookStudy.Runtime"
     ],
     "autoReferenced": true
 }

@@ -1,4 +1,4 @@
-// Builds Assets/Game/AbandonedVillage/AbandonedVillage.unity: materials, FBX material remaps, terrain, layout,
+﻿// Builds Assets/Game/AbandonedVillage/AbandonedVillage.unity: materials, FBX material remaps, terrain, layout,
 // lights, fog and post-processing for the abandoned Joseon village (폐촌) art test. Re-running rebuilds the scene.
 using System.Collections.Generic;
 using System.IO;
@@ -289,6 +289,13 @@ public static partial class AVBuilder
         y += SouthBank(x, z);     // 11-12: raised bank on the camera side carrying the tall houses
         // r7 (Kido: too flat, but nothing to trip on): long gentle swells and hollows, +-0.45 m over 15-30 m, slope < 5 deg
         y += (Fbm(x, z, 0.03f, 51f, 19f) - 0.5f) * 0.9f * (1f - Mathf.Clamp01((Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) - 60f) / 10f));
+        // 11-13 (Kido: hard straight cuts in the light pools and decals, "too many"): flat quads (player/shot light
+        // pools, blood and leaf decals, the macro overlay) sank into the +-0.45 m swells and puddle dips and were cut
+        // off along a line. Inside the arena (plus 3 m) the ground is flat now, only a 2 cm ripple; the relief there
+        // comes from the height-blended textures. The swells fade back in over 6 m outside.
+        float ox = Mathf.Max(0f, Mathf.Abs(x) - ArenaHalfX), oz = Mathf.Max(0f, Mathf.Max(ArenaMinZ - z, z - ArenaMaxZ));
+        float flat = 1f - Mathf.Clamp01((Mathf.Max(ox, oz) - 3f) / 6f);
+        y = Mathf.Lerp(y, (Mathf.PerlinNoise(x * 0.3f + 1f, z * 0.3f + 2f) - 0.5f) * 0.02f, flat);
         return y;
     }
 
@@ -581,7 +588,7 @@ public static partial class AVBuilder
             float L = Vector3.Distance(a, b); var dir = (b - a).normalized; var outward = Vector3.Cross(Vector3.up, dir);
             for (float t = R(2, 6); t < L - 2f; t += R(5f, 9f))
             {
-                var p = Vector3.Lerp(a, b, t / L) + outward * R(1.4f, 2.6f);
+                var p = Vector3.Lerp(a, b, t / L) + outward * R(3.6f, 4.8f);   // 11-13 QA: was 1.4-2.6 m, the 5 m piles reached into the arena
                 if (StreetDist(p.x, p.z) < 3f) continue;
                 double k = rng.NextDouble();
                 string m = k < 0.35 ? "AV_PlankPile" : k < 0.55 ? "AV_TileRubble" : k < 0.7 ? "PH:dead_tree_trunk" : k < 0.82 ? "PH:tree_stump_01" : k < 0.92 ? "AV_FenceSsariBroken" : "AV_Cart";
@@ -660,6 +667,9 @@ public static partial class AVBuilder
             Layer("AV_L_Stony", "river_small_rocks_diff_2k.jpg", "river_small_rocks_nor_gl_2k.jpg", 2.6f, new Color(0.42f, 0.42f, 0.45f, 1)),
             Layer("AV_L_Paving", "stone_pathway_diff_2k.jpg", "stone_pathway_nor_gl_2k.jpg", 3.2f, new Color(1.3f, 1.32f, 1.38f, 1), 0.3f),
         };
+        // 11-13 (Kido: "the one before the gravel field was much better"): back to the morning ground (these five layers,
+        // SplatAt, the package TerrainLit, no macro overlay). The Fab ground (AVBuilder.Ground.cs) stays behind UseFabGround.
+        if (UseFabGround) layers = GroundLayers();
         AssetDatabase.CreateAsset(td, dataPath);
         td.terrainLayers = layers;
         int hr = td.heightmapResolution;
@@ -673,13 +683,13 @@ public static partial class AVBuilder
         td.SetHeights(0, 0, h);
         int ar = td.alphamapResolution;
         var a = new float[ar, ar, layers.Length];
-        var wk = new float[5];
+        var wk = new float[layers.Length];
         for (int j = 0; j < ar; j++)
             for (int i = 0; i < ar; i++)
             {
                 float x = -size / 2 + size * (i + 0.5f) / ar, z = -size / 2 + size * (j + 0.5f) / ar;
-                SplatAt(x, z, wk);
-                for (int k = 0; k < 5; k++) a[j, i, k] = wk[k];
+                if (UseFabGround) SplatGround(x, z, wk); else SplatAt(x, z, wk);
+                for (int k = 0; k < wk.Length; k++) a[j, i, k] = wk[k];
             }
         td.SetAlphamaps(0, 0, a);
         // 11-12 Kido: "git에 남아있을거아니야" -> the painted ground is taken as-is from the committed terrain data
@@ -691,14 +701,15 @@ public static partial class AVBuilder
         {
             int ci = Mathf.RoundToInt((3f + size / 2) / size * ar), cj = Mathf.RoundToInt((0.5f + size / 2) / size * ar);
             File.AppendAllText(Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource/AbandonedVillage/av_log.txt"),
-                $"DEBUG street weights at (3,0.5): {a[cj, ci, 0]:F2} {a[cj, ci, 1]:F2} {a[cj, ci, 2]:F2} {a[cj, ci, 3]:F2} {a[cj, ci, 4]:F2} sd={StreetDist(3f, 0.5f):F2} layers={td.terrainLayers.Length} tex1={(layers[1].diffuseTexture ? layers[1].diffuseTexture.name : "null")}\n");
+                $"DEBUG street weights at (3,0.5): {a[cj, ci, 0]:F2} {a[cj, ci, 1]:F2} sd={StreetDist(3f, 0.5f):F2} layers={td.terrainLayers.Length} tex1={(layers[1].diffuseTexture ? layers[1].diffuseTexture.name : "null")}\n");
         }
         EditorUtility.SetDirty(td); AssetDatabase.SaveAssets();
         var go = Terrain.CreateTerrainGameObject(td);
         go.name = "Terrain"; go.transform.SetParent(root, false);
         go.transform.position = new Vector3(-size / 2, baseY, -size / 2);
         var t = go.GetComponent<Terrain>();
-        t.materialTemplate = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat");
+        t.materialTemplate = GroundMaterial();
+        if (UseFabGround) BuildMacro(root);   // 11-13 r3: big light/colour patches over the tiling (AVBuilder.Ground.cs)
         t.heightmapPixelError = 3; t.basemapDistance = 200; t.drawInstanced = true;
         t.shadowCastingMode = ShadowCastingMode.On;
         // puddle water just under the street dips

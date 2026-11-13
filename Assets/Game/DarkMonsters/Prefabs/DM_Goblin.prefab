@@ -135,6 +135,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3676330992955217228}
+  - component: {fileID: 6249495940514269309}
   m_Layer: 0
   m_Name: DM_Goblin
   m_TagString: Untagged
@@ -158,6 +159,20 @@ Transform:
   - {fileID: 9096629183899267637}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6249495940514269309
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 141494584402590501}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 605e5880789637d4c9c54bcbccf8e441, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RoomRun::RoomRun.EnemyGait
+  moveStride: 2.51
+  runStride: 2.51
 --- !u!1 &202092401012111411
 GameObject:
   m_ObjectHideFlags: 0
@@ -2234,8 +2249,8 @@ Transform:
   m_GameObject: {fileID: 7754217849428751945}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.16674589, z: 0}
-  m_LocalScale: {x: 0.7141873, y: 0.7141873, z: 0.7141873}
+  m_LocalPosition: {x: 0, y: 0.2648317, z: 0}
+  m_LocalScale: {x: 1.1342975, y: 1.1342975, z: 1.1342975}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1831706945527584068}

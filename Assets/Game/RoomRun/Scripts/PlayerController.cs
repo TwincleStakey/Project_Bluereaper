@@ -134,38 +134,8 @@ namespace RoomRun
             cc.height = 1.7f; cc.center = new Vector3(0, 0.9f, 0); cc.radius = 0.38f;
             cc.skinWidth = 0.03f; cc.stepOffset = 0.3f; cc.minMoveDistance = 0f;
 
-            visual = new GameObject("Visual").transform;
-            visual.SetParent(transform, false);
-            if (cfg.playerPrefab)
-            {
-                var m = Instantiate(cfg.playerPrefab, visual);
-                m.transform.localScale = Vector3.one * cfg.playerScale;
-                // The character model carries its own glowing foot ring (DD_RingPlayer); hidden unless the switch is on.
-                // (11-10: a runtime blank material from Shader.Find broke builds, where that shader is stripped.)
-                if (!cfg.playerFootRing)
-                    foreach (var r in m.GetComponentsInChildren<Renderer>(true))
-                    {
-                        var mats = r.sharedMaterials;
-                        int ring = 0;
-                        foreach (var mt in mats) if (mt && mt.name.Contains("RingPlayer")) ring++;
-                        if (ring == 0) continue;
-                        if (ring == mats.Length) { r.enabled = false; hiddenRing.Add(r); }
-                        else
-                        {
-                            // the ring is one slot of a shared mesh: draw that slot with a shader that draws nothing
-                            var blank = Shader.Find("RoomRun/Invisible");
-                            if (!blank) { Debug.LogWarning("[RoomRun] RoomRun/Invisible shader missing; foot ring left visible"); continue; }
-                            var none = new Material(blank) { name = "RR_Invisible" };
-                            for (int i = 0; i < mats.Length; i++) if (mats[i] && mats[i].name.Contains("RingPlayer")) mats[i] = none;
-                            r.sharedMaterials = mats;
-                        }
-                    }
-            }
-            else
-            {
-                MeshLib.Part("Stand-in", MeshLib.Capsule, cfg.ringPlayer, visual, Vector3.up * 0.9f, new Vector3(0.7f, 0.9f, 0.7f));
-            }
-            renderers = visual.GetComponentsInChildren<Renderer>();
+            this.cfg = cfg;
+            BuildVisual();
             // Kido 11-10: no ring under the player. Kept behind the config switch (off) for co-op identification later.
             if (cfg.playerFootRing) MeshLib.Part("FootRing", MeshLib.Ring, cfg.ringPlayer, transform, Vector3.up * 0.06f, Vector3.one * 0.75f);
 
@@ -201,6 +171,70 @@ namespace RoomRun
             cc.enabled = true;
             vel = Vector3.zero;
             rollLeft = 0f;
+        }
+
+        // ---- temporary greatsword look test (11-13). Dev panel 양손검 캐릭터 flips RR.Greatsword; default on. ----
+        public const string GreatswordKey = "RR.Greatsword";
+        public static bool UseGreatsword => PlayerPrefs.GetInt(GreatswordKey, 1) != 0;
+        RoomRunConfig cfg;
+        bool usingGreatsword;
+        Animator gsAnim;
+        GreatswordCombat gs;
+        float gsCheck;
+        public bool GreatswordActive => usingGreatsword && gs;
+
+        void BuildVisual()
+        {
+            if (visual) { visual.gameObject.SetActive(false); Destroy(visual.gameObject); }
+            hiddenRing.Clear();
+            gsAnim = null;
+            if (gs) { gs.Cancel(); Destroy(gs); gs = null; }
+            visual = new GameObject("Visual").transform;
+            visual.SetParent(transform, false);
+            usingGreatsword = UseGreatsword && cfg.greatswordPrefab;
+            var prefab = usingGreatsword ? cfg.greatswordPrefab : cfg.playerPrefab;
+            if (prefab)
+            {
+                var m = Instantiate(prefab, visual);
+                m.transform.localScale = Vector3.one * (usingGreatsword ? cfg.greatswordScale : cfg.playerScale);
+                if (usingGreatsword)
+                {
+                    gsAnim = m.GetComponentInChildren<Animator>();
+                    if (gsAnim)
+                    {
+                        gs = gameObject.AddComponent<GreatswordCombat>();
+                        gs.Setup(this, cfg, m.transform, gsAnim);
+                        // each swing faces the cursor at once (Kido: slashes go where the mouse points)
+                        gs.SwingStarted += () => { if (visual) visual.rotation = Quaternion.LookRotation(AimDir); };
+                    }
+                    if (!GetComponent<VegetationCut>()) gameObject.AddComponent<VegetationCut>();
+                }
+                // The character model carries its own glowing foot ring (DD_RingPlayer); hidden unless the switch is on.
+                // (11-10: a runtime blank material from Shader.Find broke builds, where that shader is stripped.)
+                if (!cfg.playerFootRing)
+                    foreach (var r in m.GetComponentsInChildren<Renderer>(true))
+                    {
+                        var mats = r.sharedMaterials;
+                        int ring = 0;
+                        foreach (var mt in mats) if (mt && mt.name.Contains("RingPlayer")) ring++;
+                        if (ring == 0) continue;
+                        if (ring == mats.Length) { r.enabled = false; hiddenRing.Add(r); }
+                        else
+                        {
+                            // the ring is one slot of a shared mesh: draw that slot with a shader that draws nothing
+                            var blank = Shader.Find("RoomRun/Invisible");
+                            if (!blank) { Debug.LogWarning("[RoomRun] RoomRun/Invisible shader missing; foot ring left visible"); continue; }
+                            var none = new Material(blank) { name = "RR_Invisible" };
+                            for (int i = 0; i < mats.Length; i++) if (mats[i] && mats[i].name.Contains("RingPlayer")) mats[i] = none;
+                            r.sharedMaterials = mats;
+                        }
+                    }
+            }
+            else
+            {
+                MeshLib.Part("Stand-in", MeshLib.Capsule, cfg.ringPlayer, visual, Vector3.up * 0.9f, new Vector3(0.7f, 0.9f, 0.7f));
+            }
+            renderers = visual.GetComponentsInChildren<Renderer>();
         }
 
         void OnDamaged(int amount)
@@ -243,6 +277,12 @@ namespace RoomRun
             else
             {
                 want = canAct ? new Vector3(cmd.move.x, 0, cmd.move.y) * moveSpeed : Vector3.zero;
+                if (GreatswordActive && gs.Attacking)
+                {
+                    // swinging: barely steer, and a short ground lunge just before each hit
+                    want *= gs.moveWhileSwing;
+                    if (gs.LungeVelocity.sqrMagnitude > 0.01f) { vel = gs.LungeVelocity + want; want = vel; }
+                }
                 vel = Vector3.MoveTowards(vel, want, acceleration * dt);
             }
 
@@ -259,7 +299,14 @@ namespace RoomRun
                 reloadLeft -= dt;
                 if (reloadLeft <= 0f) { reloadLeft = 0f; Ammo = magazine; }
             }
-            if (canAct && !Rolling && RunDirector.Instance.config.combat) UpdateGun(cmd);
+            // the greatsword replaces the gun: no bullets while it is on
+            if (canAct && !Rolling && RunDirector.Instance.config.combat && !GreatswordActive) UpdateGun(cmd);
+            if ((gsCheck -= dt) <= 0f)
+            {
+                gsCheck = 0.5f;
+                if (cfg && UseGreatsword != usingGreatsword && cfg.greatswordPrefab) { BuildVisual(); visual.localRotation = Quaternion.LookRotation(AimDir); }
+            }
+            if (GreatswordActive) gs.Tick(dt, cmd.fire, canAct && RunDirector.Instance.config.combat, AimDir, vel, moveSpeed, Rolling);
             UpdateVisual(dt);
             Shader.SetGlobalVector("_LSPush", new Vector4(transform.position.x, transform.position.y, transform.position.z, 1.6f));
         }
@@ -296,6 +343,13 @@ namespace RoomRun
             // Blink while invulnerable after a hit.
             SetVisible(hitLeft <= 0f || Mathf.Repeat(Time.time * 14f, 1f) > 0.45f);
 
+            if (Rolling && usingGreatsword)
+            {
+                // ground dash: face the dash, feet stay down
+                visual.localPosition = Vector3.zero;
+                visual.rotation = Quaternion.RotateTowards(visual.rotation, Quaternion.LookRotation(rollDir), 1440f * dt);
+                return;
+            }
             if (Rolling)
             {
                 float t = 1f - rollLeft / rollTime;
@@ -305,6 +359,14 @@ namespace RoomRun
                 return;
             }
 
+            if (usingGreatsword)
+            {
+                // the clips carry the body motion; just face the aim (locked to it while swinging)
+                visual.localPosition = Vector3.zero;
+                visual.rotation = gs && gs.Attacking ? Quaternion.LookRotation(AimDir)
+                    : Quaternion.RotateTowards(visual.rotation, Quaternion.LookRotation(AimDir), 1080f * dt);
+                return;
+            }
             float speed01 = Mathf.Clamp01(new Vector2(vel.x, vel.z).magnitude / moveSpeed);
             walkPhase += speed01 * dt * 13f;
             float bob = Mathf.Abs(Mathf.Sin(walkPhase)) * 0.09f * speed01;

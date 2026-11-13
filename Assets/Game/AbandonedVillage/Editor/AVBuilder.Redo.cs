@@ -29,8 +29,23 @@ public static partial class AVBuilder
         new Island(-38.5f, 9f, Isl.Tree, 0f),
     };
 
+    // 11-13 QA (Kido's arena rule: nothing inside the arena blocks movement, projectiles or changes height): the knolls,
+    // fallen trunks, stumps, moss rocks and solid rubble walls of the islands moved out to the arena edge; inside, the
+    // islands keep only flat dressing (rubble patches without colliders, jars, mats, litter).
+    static Vector2 EdgeOut(float x, float z, float outM = 2.5f)
+    {
+        float dl = x + ArenaHalfX, dr = ArenaHalfX - x, db = z - ArenaMinZ, dt = ArenaMaxZ - z;
+        float m = Mathf.Min(Mathf.Min(dl, dr), Mathf.Min(db, dt));
+        if (m == dl) return new Vector2(-ArenaHalfX - outM, z);
+        if (m == dr) return new Vector2(ArenaHalfX + outM, z);
+        if (m == db) return new Vector2(x, ArenaMinZ - outM);
+        return new Vector2(x, ArenaMaxZ + outM);
+    }
+
     static float IslandMound(float x, float z)
     {
+        return 0f;   // 11-13 QA: no knolls inside the arena
+#pragma warning disable CS0162
         float y = 0f;
         foreach (var s in Islands)
         {
@@ -39,6 +54,7 @@ public static partial class AVBuilder
             y += 1.1f * Mathf.SmoothStep(1f, 0f, Mathf.Clamp01((d - 1.5f) / 4.5f));
         }
         return y;
+#pragma warning restore CS0162
     }
 
     static float IslandNear(float x, float z)
@@ -56,7 +72,7 @@ public static partial class AVBuilder
     {
         // one material per Megascans folder: plants = AV_MS_<f>_RGBA.png (alpha clip, two-sided), props = AV_MS_<f>_A.jpg
         var tints = new Dictionary<string, string> { { "shrubs", "#8d8478" }, { "WildGreen", "#9c9a86" }, { "Clumps", "#a29e8a" }, { "WildDry", "#e6dcc8" },
-                                                     { "DryGrass", "#e6dcc8" }, { "Pot", "#6a5a50" }, { "Pebbles", "#6e6a64" }, { "KJar", "#8a7a70" }, { "KStrawJar", "#9a9080" }, { "KStrawMat", "#9a9080" }, { "SmallRocks", "#6e6a64" }, { "RubblePatch", "#7a746c" }, { "Tile", "#5a5a5e" }, { "Debris", "#8a8580" }, { "Sticks", "#8a8078" }, { "stonewall", "#8f8c86" } };
+                                                     { "DryGrass", "#e6dcc8" }, { "Pot", "#6a5a50" }, { "Pebbles", "#968f86" }, { "KJar", "#d8c4b0" }, { "KStrawJar", "#9a9080" }, { "KStrawMat", "#9a9080" }, { "SmallRocks", "#968f86" }, { "RubblePatch", "#7a746c" }, { "Tile", "#5a5a5e" }, { "Debris", "#8a8580" }, { "Sticks", "#8a8078" }, { "stonewall", "#8f8c86" } };
         var byFolder = new Dictionary<string, Material>();
         foreach (var dir in System.IO.Directory.GetDirectories(MS))
         {
@@ -119,7 +135,9 @@ public static partial class AVBuilder
             foreach (var p in System.IO.Directory.GetFiles(MS + f, "*.fbx")) l.Add("MS:" + f + "/" + System.IO.Path.GetFileNameWithoutExtension(p));
         return l.ToArray();
     }
-    static string[] GrassKinds => grassKinds ??= Concat(Kinds("WildDry", "WildDry", "DryGrass"), new string[0]);   // 11-12 Kido: green grasses dropped (too green)   // kit cattail grass dropped (read as black spikes)
+    // 11-13 (Kido: "the grass looks low quality"): the black spiky dead shrubs carried half the clumps; now the grass
+    // clumps (Megascans Clumps, dry-tinted) join the wild/dry grasses and shrubs are a rare accent (see Clump)
+    static string[] GrassKinds => grassKinds ??= Concat(Kinds("WildDry", "WildDry", "DryGrass"), Kinds("Clumps"));   // 11-12 Kido: green grasses dropped (too green)   // kit cattail grass dropped (read as black spikes)
     static string[] ShrubKinds => shrubKinds ??= Kinds("shrubs");
     static string[] Concat(string[] a, string[] b) { var r = new string[a.Length + b.Length]; a.CopyTo(r, 0); b.CopyTo(r, a.Length); return r; }
     // Megascans grasses are real-size (0.3-0.6 m clumps) and vanish from the top-down camera; exaggerated ~2x like the refs
@@ -128,10 +146,10 @@ public static partial class AVBuilder
     // One natural clump: a dominant kind plus 1-3 others, sizes spread 2-3x, denser and taller in the middle.
     static int Clump(System.Func<float, float, float> G, Transform parent, Vector2 c, float radius, int count, float sizeMul)
     {
-        string main = rng.NextDouble() < 0.55 ? GrassKinds[rng.Next(GrassKinds.Length)] : ShrubKinds[rng.Next(ShrubKinds.Length)];
+        string main = rng.NextDouble() < 0.9 ? GrassKinds[rng.Next(GrassKinds.Length)] : ShrubKinds[rng.Next(ShrubKinds.Length)];
         var others = new List<string>();
         int k = 1 + rng.Next(3);
-        for (int i = 0; i < k; i++) others.Add(rng.NextDouble() < 0.6 ? GrassKinds[rng.Next(GrassKinds.Length)] : ShrubKinds[rng.Next(ShrubKinds.Length)]);
+        for (int i = 0; i < k; i++) others.Add(rng.NextDouble() < 0.9 ? GrassKinds[rng.Next(GrassKinds.Length)] : ShrubKinds[rng.Next(ShrubKinds.Length)]);
         int n = 0;
         for (int i = 0; i < count; i++)
         {
@@ -169,7 +187,7 @@ public static partial class AVBuilder
             }
         // 2) clumps over the whole field; how many and how big depends on distance to the edge (dense rank growth in the
         //    outer ring and outside, small sparse tufts in the open middle) and a coarse noise so there are bare stretches
-        for (int i = 0; i < 3000 && placed < 4800; i++)
+        for (int i = 0; i < 4500 && placed < 6800; i++)   // 11-13 (Kido: "too empty, fill it in"): was 3000 / 4800
         {
             float x = R(-62f, 62f), z = R(-64f, 60f);
             if (StreetDist(x, z) < 2.4f) continue;
@@ -177,7 +195,7 @@ public static partial class AVBuilder
             float edge = Mathf.Max(Mathf.Abs(x) / 46f, Mathf.Abs(z + 3.5f) / 45f);
             float ring = Mathf.Clamp01((edge - 0.6f) * 2.5f);
             float patch = Mathf.PerlinNoise(x * 0.07f + 50f, z * 0.07f + 20f);
-            float dens = (0.24f + 0.6f * ring) * Mathf.Clamp01((patch - 0.28f) * 2.2f);
+            float dens = (0.42f + 0.5f * ring) * Mathf.Clamp01((patch - 0.2f) * 2.2f);   // 11-13: middle 0.24 -> 0.42, fewer bare stretches
             if (rng.NextDouble() > dens) continue;
             bool big = rng.NextDouble() < 0.18 + 0.3f * ring;
             placed += Clump(G, grass, new Vector2(x, z), big ? R(1.5f, 3.5f) : R(0.4f, 1.2f), big ? rng.Next(8, 20) : rng.Next(2, 6),
@@ -210,8 +228,10 @@ public static partial class AVBuilder
                     log.Append($"ruin bounds {ModelBounds(h).size} ");
                     var p1 = Off(s, R(3.5f, 5f), R(-3, 3)); Place("MS:RubblePatch/AV_MS_RubblePatch", At(p1.x, p1.y), R(0, 360), R(0.9f, 1.3f), g);
                     var p2 = Off(s, R(-5f, -3.5f), R(-2, 2)); Place("MS:Debris/AV_MS_Debris", At(p2.x, p2.y, 0.02f), R(0, 360), R(0.9f, 1.2f), g);
-                    for (int i = 0; i < 3; i++) { var p = Off(s, R(-4, 4), R(-5.5f, -3.5f)); Place(i == 0 ? "MS:KJar/AV_MS_KJar" : "MS:KJar/AV_MS_KJar", At(p.x, p.y, 0f), R(0, 360), R(0.7f, 1.05f), g); }
-                    var t = Off(s, R(3f, 5f), R(3f, 5f)); Place("PH:tree_stump_01", At(t.x, t.y, 0.05f), R(0, 360), R(0.9f, 1.2f), g);   // 11-12 Kido: no standing trees in the field
+                    // 11-13 (Kido: don't heap the jars, they'd be broken): one jar knocked over, one smashed, apart
+                    { var p = Off(s, R(-4, -2), R(-5.5f, -3.5f)); var jj = Place("MS:KJar/AV_MS_KJar", At(p.x, p.y, 0.04f), R(0, 360), R(0.7f, 1f), g); if (jj) jj.transform.rotation = Quaternion.Euler(R(78, 98), R(0, 360), 0); }
+                    { var p = Off(s, R(2, 4), R(-5.5f, -3.5f)); Place("AV_OnggiBroken", At(p.x, p.y, 0.02f), R(0, 360), R(0.8f, 1f), g); }
+                    var t = EdgeOut(s.x + R(-3f, 3f), s.z + R(-3f, 3f)); Place("PH:tree_stump_01", At(t.x, t.y, 0.05f), R(0, 360), R(0.9f, 1.2f), g);   // 11-12 Kido: no standing trees in the field
                     var sw = Off(s, R(-6f, -4.5f), R(2f, 4f)); Solid(Place("MS:RubblePatch/AV_MS_RubblePatch", At(sw.x, sw.y), s.yaw + 90f + R(-10, 10), 1f, g), 0.9f);
                     break;
                 }
@@ -219,11 +239,19 @@ public static partial class AVBuilder
                 {
                     var j = Place("MS:RubblePatch/AV_MS_RubblePatch", At(s.x, s.z, 0.02f), s.yaw, 1.2f, g);
                     Solid(j, 0.85f);
-                    for (int i = 0; i < 9; i++)
+                    // 11-13 (Kido: "don't heap the jangdok in one place, they break easily"): was 9 whole jars in a heap;
+                    // now three single pieces well apart (5 m+), two of them smashed, one knocked over
+                    var jp = new List<Vector2>();
+                    for (int tries = 0; tries < 60 && jp.Count < 3; tries++)
                     {
-                        var p = Off(s, R(-4.5f, 4.5f), R(-4.5f, 4.5f));
-                        if (Vector2.Distance(p, new Vector2(s.x, s.z)) < 2.2f) continue;
-                        Place(rng.NextDouble() < 0.65 ? "MS:KJar/AV_MS_KJar" : "MS:KJar/AV_MS_KJar", At(p.x, p.y, 0.02f), R(0, 360), R(0.55f, 1.15f), g);
+                        var p = Off(s, R(-7f, 7f), R(-7f, 7f));
+                        bool ok = Vector2.Distance(p, new Vector2(s.x, s.z)) > 2.5f;
+                        foreach (var q in jp) if (Vector2.Distance(p, q) < 5f) ok = false;
+                        if (!ok) continue;
+                        jp.Add(p);
+                        if (jp.Count == 1) { var jj = Place("MS:KJar/AV_MS_KJar", At(p.x, p.y, 0.04f), R(0, 360), R(0.7f, 1f), g); if (jj) jj.transform.rotation = Quaternion.Euler(R(78, 98), R(0, 360), 0); }
+                        else Place("AV_OnggiBroken", At(p.x, p.y, 0.02f), R(0, 360), R(0.8f, 1.1f), g);
+                        for (int k = 0; k < 3; k++) Place("MS:Tile/AV_MS_Tile", At(p.x + R(-1.2f, 1.2f), p.y + R(-1.2f, 1.2f)), R(0, 360), R(0.8f, 1.1f), g);   // shards
                     }
                     var sh = Off(s, R(2.5f, 4f), R(-1, 1)); Place("MS:KStrawMat/AV_MS_KStrawMat", At(sh.x, sh.y, 0.12f), R(0, 360), R(0.5f, 0.7f), g);
                     for (int i = -1; i <= 1; i++) { var w = Off(s, i * 3.6f, 4.2f); Solid(Place("MS:RubblePatch/AV_MS_RubblePatch", At(w.x, w.y), s.yaw + R(-6, 6), 1f, g), 0.9f); }
@@ -234,21 +262,20 @@ public static partial class AVBuilder
                     // an L of dry-stone wall, one end tumbled into a heap, a dead tree in the corner
                     for (int i = 0; i < 3; i++) { var w = Off(s, i * 3.7f - 3.7f, 0f); Solid(Place("MS:RubblePatch/AV_MS_RubblePatch", At(w.x, w.y), s.yaw + R(-5, 5), 1f, g), 0.9f); }
                     for (int i = 1; i < 3; i++) { var w = Off(s, -5.6f, i * 3.7f - 1.8f); Solid(Place("MS:RubblePatch/AV_MS_RubblePatch", At(w.x, w.y), s.yaw + 90f + R(-5, 5), 1f, g), 0.9f); }
-                    var t = Off(s, -3.5f, 2.8f); Place("PH:tree_stump_01", At(t.x, t.y, 0.05f), R(0, 360), R(1f, 1.3f), g);
-                    var r = Off(s, 4f, -1.6f); Place(rng.NextDouble() < 0.5 ? "PH:rock_moss_set_01" : "PH:rock_moss_set_02", At(r.x, r.y, 0.25f), R(0, 360), R(0.5f, 0.7f), g);
+                    var t = EdgeOut(s.x - 3f, s.z + 2f); Place("PH:tree_stump_01", At(t.x, t.y, 0.05f), R(0, 360), R(1f, 1.3f), g);
+                    var r = EdgeOut(s.x + 4f, s.z - 1.6f, 3.5f); Place(rng.NextDouble() < 0.5 ? "PH:rock_moss_set_01" : "PH:rock_moss_set_02", At(r.x, r.y, 0.25f), R(0, 360), R(0.5f, 0.7f), g);
                     var pp = Off(s, 2f, 2.5f); Place("MS:Debris/AV_MS_Debris", At(pp.x, pp.y, 0.02f), R(0, 360), R(0.8f, 1.1f), g);
                     break;
                 }
                 case Isl.Tree:
                 {
                     // a big old dead tree on a low knoll, roots and a fallen trunk, a jangseung or a stump beside it
-                    var tr = Place("PH:dead_tree_trunk", At(s.x, s.z, 0.1f), R(0, 360), R(1.1f, 1.4f), g);   // fallen trunk on the knoll (no standing tree in the field)
+                    var e = EdgeOut(s.x, s.z, 3f); var tr = Place("PH:dead_tree_trunk", At(e.x, e.y, 0.1f), R(0, 360), R(1.1f, 1.4f), g);   // fallen trunk on the knoll (no standing tree in the field)
                     Solid(tr, 0.7f, 1.2f);
                     log.Append($"tree bounds {ModelBounds(tr).size} ");
-                    var f = Off(s, R(2.5f, 3.5f), R(-2, 2)); Place("PH:dead_tree_trunk", At(f.x, f.y, 0.1f), R(0, 360), R(0.9f, 1.2f), g);
-                    var st = Off(s, R(-3.5f, -2.5f), R(-1.5f, 1.5f)); Place("PH:tree_stump_01", At(st.x, st.y, 0.05f), R(0, 360), R(0.9f, 1.3f), g);
+                    // 11-13 (Kido: "why are two stumps sitting together"): the second trunk and the stump beside it are gone
                     // (11-12 Kido: nothing tall inside the arena; no jangseung here)
-                    var rk = Off(s, R(-2, 2), R(2.5f, 3.5f)); Place(rng.NextDouble() < 0.5 ? "PH:rock_moss_set_01" : "PH:rock_moss_set_02", At(rk.x, rk.y, 0.3f), R(0, 360), R(0.5f, 0.8f), g);
+                    var rk = EdgeOut(s.x + R(-3, 3), s.z + R(-3, 3), 4f); Place(rng.NextDouble() < 0.5 ? "PH:rock_moss_set_01" : "PH:rock_moss_set_02", At(rk.x, rk.y, 0.3f), R(0, 360), R(0.5f, 0.8f), g);
                     break;
                 }
             }
@@ -258,12 +285,12 @@ public static partial class AVBuilder
         // blocks movement.
         var mid = new GameObject("Middle").transform; mid.SetParent(ruins, false);
         var spots = new List<Vector2>();
-        for (int tries = 0; tries < 400 && spots.Count < 16; tries++)
+        for (int tries = 0; tries < 900 && spots.Count < 30; tries++)   // 11-13 (Kido: "too empty"): 16 spots 12 m apart -> 30, 8.5 m
         {
-            var p = new Vector2(R(-28f, 28f), R(-32f, 25f));
-            if (StreetDist(p.x, p.y) < 3.5f) continue;
+            var p = new Vector2(R(-36f, 36f), R(-38f, 30f));
+            if (StreetDist(p.x, p.y) < 3f) continue;
             bool ok = true;
-            foreach (var q in spots) if (Vector2.Distance(p, q) < 12f) { ok = false; break; }
+            foreach (var q in spots) if (Vector2.Distance(p, q) < 8.5f) { ok = false; break; }
             foreach (var s in Islands) if (Vector2.Distance(p, new Vector2(s.x, s.z)) < 11f) { ok = false; break; }
             if (ok) spots.Add(p);
         }
@@ -272,16 +299,40 @@ public static partial class AVBuilder
         {
             switch (kk++ % 4)
             {
-                case 0: Place("PH:dead_tree_trunk_02", At(p.x, p.y, 0.08f), R(0, 360), R(0.8f, 1.1f), mid); break;
-                case 1: Place("PH:dead_tree_trunk_02", At(p.x, p.y, 0.08f), R(0, 360), R(0.8f, 1.1f), mid); break;
+                // 11-13 QA: no fallen trunks or stumps in the middle any more; flat debris and sticks instead
+                case 0:
+                case 1: for (int i = 0; i < 3; i++) Place(i == 0 ? "MS:Debris/AV_MS_Debris" : "MS:Sticks/AV_MS_Sticks", At(p.x + R(-1.5f, 1.5f), p.y + R(-1.5f, 1.5f), 0.02f), R(0, 360), i == 0 ? R(0.8f, 1.1f) : R(3f, 4.5f), mid); break;
                 case 2:
-                    for (int i = 0; i < 4; i++) Place(rng.NextDouble() < 0.7 ? "MS:KJar/AV_MS_KJar" : "MS:KJar/AV_MS_KJar", At(p.x + R(-1.5f, 1.5f), p.y + R(-1.5f, 1.5f), 0.02f), R(0, 360), R(0.5f, 0.9f), mid);
+                    // 11-13: one smashed jar with its shards instead of a heap of four whole ones
+                    Place("AV_OnggiBroken", At(p.x, p.y, 0.02f), R(0, 360), R(0.8f, 1.1f), mid);
+                    for (int i = 0; i < 4; i++) Place("MS:Tile/AV_MS_Tile", At(p.x + R(-1.5f, 1.5f), p.y + R(-1.5f, 1.5f)), R(0, 360), R(0.8f, 1.1f), mid);
                     Place("MS:RubblePatch/AV_MS_RubblePatch", At(p.x + R(-2, 2), p.y + R(-2, 2)), R(0, 360), R(0.5f, 0.8f), mid);
                     break;
-                default: Place(rng.NextDouble() < 0.5 ? "MS:Debris/AV_MS_Debris" : "PH:tree_stump_01", At(p.x, p.y, 0.03f), R(0, 360), R(0.7f, 1f), mid); break;
+                default:
+                    Place("MS:Debris/AV_MS_Debris", At(p.x, p.y, 0.03f), R(0, 360), R(0.7f, 1f), mid);
+                    // a flattened straw mat and loose straw beside the timber (11-13 fill pass)
+                    Place("MS:KStrawMat/AV_MS_KStrawMat", At(p.x + R(-2f, 2f), p.y + R(-2f, 2f), -0.01f), R(0, 360), R(0.8f, 1f), mid);
+                    for (int i = 0; i < 3; i++) KeepLow(Place("MS:KStraw/AV_MS_KStraw", At(p.x + R(-2.5f, 2.5f), p.y + R(-2.5f, 2.5f), 0f), R(0, 360), 1f, mid), 0.15f);
+                    break;
             }
         }
         midSpots = spots;
+
+        // 11-13 (Kido: "a few pillars or trees are fine now, a little landmark, not too much"): six landmarks spread over
+        // the arena on every fifth middle spot: two dead trees, a jangseung, a sotdae, a stone lantern, a lantern post.
+        // Each gets a thin trunk collider so the player walks round it; no shadows from the trees (perf).
+        string[] marks = { "AV_DeadTree_A", "AV_Jangseung", "AV_StoneLantern", "AV_DeadTree_B", "AV_Sotdae", "AV_LanternPost" };
+        int mk = 0;
+        for (int i = 2; i < spots.Count && mk < marks.Length; i += 5)
+        {
+            var p = spots[i] + new Vector2(R(-2.5f, 2.5f), R(-2.5f, 2.5f));
+            var m = marks[mk++];
+            var go = Place(m, At(p.x, p.y, 0.05f), R(0, 360), m.StartsWith("AV_DeadTree") ? R(1.0f, 1.3f) : 1f, mid);
+            if (!go) continue;
+            if (m.StartsWith("AV_DeadTree")) foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var col = go.AddComponent<CapsuleCollider>(); col.radius = 0.35f; col.height = 3f; col.center = new Vector3(0, 1.5f, 0);
+            log.Append($"landmark {m} at {p.x:F0},{p.y:F0} ");
+        }
 
         // Megascans litter (Fab): sticks, weathered timber, roof tiles and clay pots strewn around every island and every
         // small thing in the middle, plus a thin random scatter over the yard. Low, no colliders.
@@ -289,7 +340,7 @@ public static partial class AVBuilder
         var centres = new List<(Vector2 p, float r, int n)>();
         foreach (var s in Islands) centres.Add((new Vector2(s.x, s.z), 7f, 22));
         foreach (var p in spots) centres.Add((p, 3.5f, 7));
-        for (int i = 0; i < 70; i++) centres.Add((new Vector2(R(-44f, 44f), R(-46f, 39f)), 1.5f, 2));
+        for (int i = 0; i < 60; i++) centres.Add((new Vector2(R(-44f, 44f), R(-46f, 39f)), 1.5f, 2));   // 11-13 r5: was 70, the shards and pots read as gravel
         string[] litter = { "MS:Sticks/AV_MS_Sticks", "MS:Debris/AV_MS_Debris", "MS:Tile/AV_MS_Tile", "MS:Sticks/AV_MS_Sticks", "MS:Debris/AV_MS_Debris", "MS:Pot/AV_MS_Pot" };
         int litN = 0;
         foreach (var (p, r, n) in centres)

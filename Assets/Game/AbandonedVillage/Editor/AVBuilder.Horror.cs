@@ -29,6 +29,8 @@ public static partial class AVBuilder
         if (!MSSize.TryGetValue(folder, out var target)) return;
         var b = ModelBounds(go); float m = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
         if (m > 1e-5f) go.transform.localScale *= target / m * (folder.StartsWith("K") && folder != "KStrawMat" ? 2.5f : 1.2f);   // household scans read as dots from the game camera: x1.8
+        // 11-13 QA: the rolled straw mat read as a log lying in the arena; pressed flat to a mat ~12 cm high
+        if (folder == "KStrawMat") { var bb = ModelBounds(go); if (bb.size.y > 0.12f) { var s = go.transform.localScale; go.transform.localScale = new Vector3(s.x, s.y * 0.12f / bb.size.y, s.z); } }
     }
     static readonly System.Collections.Generic.HashSet<string> loggedK = new System.Collections.Generic.HashSet<string>();
     static void KeepLow(GameObject go, float maxH = 0.5f)

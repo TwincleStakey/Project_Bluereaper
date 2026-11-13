@@ -221,7 +221,7 @@ public static partial class SPBuilder
         Mat("SP_BlobShadow", "SnowPlague/BlobShadow", m => m.SetFloat("_Stretch", 0f));
         Mat("SP_BlobStretch", "SnowPlague/BlobShadow", m => { m.SetFloat("_Stretch", 1f); m.EnableKeyword("_STRETCH_ON"); });
         var sil = Shader.Find("SnowPlague/OccludedSilhouette");
-        if (sil) Mat("SP_Silhouette", "SnowPlague/OccludedSilhouette");
+        if (sil) { var sm = Mat("SP_Silhouette", "SnowPlague/OccludedSilhouette"); sm.SetFloat("_Push", 0.9f); sm.SetColor("_Color", new Color(0.2f, 0.27f, 0.38f)); sm.SetFloat("_Alpha", 0.5f); sm.SetFloat("_Base", 0.35f); }   // e14: dark cool, half alpha (was beige 0.95/0.62/0.25 at 0.85)   // c14 (Kido "설원만 가면 캐릭터 왜저렇게"): at 0.06 m the body's own parts behind its cape/hat passed ZTest Greater, so the whole character turned flat orange-beige; only scenery ~1 m+ in front of the player counts now
         else Log("NOTE no SnowPlague/OccludedSilhouette shader: occluded-player silhouette off");
         Mat("SP_SnowFlake", "Universal Render Pipeline/Particles/Unlit", m =>
         {
@@ -495,15 +495,15 @@ public static partial class SPBuilder
         float BareN(float x, float z)
         {
             float wx = x + (Fbm(x + 3f, z - 8f, 0.03f, 3) - 0.5f) * 16f, wz = z + (Fbm(x - 40f, z + 40f, 0.03f, 3) - 0.5f) * 16f;
-            return Fbm(wx, wz, 0.075f, 4) * 0.8f + (Fbm(x + 13f, z + 77f, 0.35f, 3) - 0.5f) * 0.25f + (Mathf.PerlinNoise(x * 1.7f + 3f, z * 1.7f + 41f) - 0.5f) * 0.05f;
+            return Fbm(wx, wz, 0.13f, 4) * 0.8f   /* g14 (Kido "설원에 누가 이딴거 넣으래": half-screen brown patches): ~6 m features, was 0.075 (~13 m) */ + (Fbm(x + 13f, z + 77f, 0.35f, 3) - 0.5f) * 0.25f + (Mathf.PerlinNoise(x * 1.7f + 3f, z * 1.7f + 41f) - 0.5f) * 0.05f;
         }
         var samples = new List<float>();
         for (float sz = -HZ; sz < HZ; sz += 0.8f) for (float sx = -HX; sx < HX; sx += 0.8f) samples.Add(BareN(sx, sz));
         samples.Sort();
         // tr12 (ss5: ~60-70 % snow): bare only in the top ~13 % of the noise, thin snow ~7 % (was 36 % / 8 %)
         // gnd1 (QA #7: snow 60-70 %): bare ~30 %, thin ~8 %
-        float qBare = samples[(int)(samples.Count * 0.70f)];   // above: bare (~30%)
-        float qThin = samples[(int)(samples.Count * 0.62f)];   // between: broken, thin snow (~8%)
+        float qBare = samples[(int)(samples.Count * 0.94f)];   // g14: above: mostly bare (~6 %), was 0.70 (~30 %)
+        float qThin = samples[(int)(samples.Count * 0.82f)];   // g14: a wide broken band (~12 %) so every edge fades over metres, not a cut line
         float bareW = Mathf.Max(0.01f, qBare - qThin);
         var onRiver = new bool[n];   // frozen river band (SPBuilder.Ice.cs): full snow cover, no drifts, no bare patches (the ice mesh covers it)
         for (int j = 0; j < MH; j++)
@@ -513,7 +513,7 @@ public static partial class SPBuilder
             float x = MaskRect.xMin + (i + 0.5f) * px, z = MaskRect.yMin + (j + 0.5f) * pz;
             float mid = Fbm(x + 50f, z - 20f, 0.12f, 3), fine = Mathf.PerlinNoise(x * 0.6f + 7f, z * 0.6f + 3f);
             float bareN = BareN(x, z);
-            float cover = Mathf.Clamp01(1f - Mathf.SmoothStep(0f, 1f, (bareN - qThin) / bareW) * 0.97f);
+            float cover = Mathf.Clamp01(1f - Mathf.SmoothStep(0f, 1f, (bareN - qThin) / bareW) * 0.72f);   // g14: even the barest spot keeps partial snow (was 0.97)
             float wet = Mathf.Clamp01((bareN - qBare - bareW) / (bareW * 2f)) * 0.5f;
             float gravel = Mathf.Max(Mathf.Clamp01((Fbm(x - 40f, z + 2f, 0.07f, 3) - 0.5f) * 3f),
                 (1f - cover) * Mathf.Clamp01(0.3f + (Fbm(x + 7f, z - 9f, 0.22f, 3) - 0.5f) * 3.5f));   // gravel in patches of the bare ground, leaf litter between
@@ -576,7 +576,7 @@ public static partial class SPBuilder
             if (dRiv < 11f)
             {
                 float bank = 1f - Mathf.SmoothStep(0f, 1f, (dRiv - 6.5f + (fine - 0.5f) * 1.5f) / 4.5f);
-                bank *= Mathf.Lerp(0.15f, 1f, Mathf.SmoothStep(0.3f, 0.7f, Mathf.PerlinNoise(x * 0.06f + 3f, z * 0.06f + 11f)));   // gnd1 (QA #4): the bank snow comes and goes along the river
+                bank *= Mathf.Lerp(0.9f, 1f,   /* g14: the bank is snow all along the river (was 0.15: dirt bands) */ Mathf.SmoothStep(0.3f, 0.7f, Mathf.PerlinNoise(x * 0.06f + 3f, z * 0.06f + 11f)));   // gnd1 (QA #4): the bank snow comes and goes along the river
                 cover = Mathf.Max(cover, bank * 0.95f); wet *= 1f - bank; path *= 1f - bank * 0.6f;
             }
             if (dRiv < 6.5f) { onRiver[k] = true; cover = 1f; wet = 0f; gravel = 0f; path = 0f; drag = 0f; ice = 0f; }

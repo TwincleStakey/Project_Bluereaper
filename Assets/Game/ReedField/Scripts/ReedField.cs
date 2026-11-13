@@ -582,7 +582,7 @@ namespace Reeds
             }
             // The river along the south edge: one wide strip across the whole scene.
             var full = FullSize;
-            float z0 = -arena.y * 0.5f + 7f, z1 = -arena.y * 0.5f - 2.5f;   // the deep river has its own surface (BuildRiverMesh)
+            float z0 = -arena.y * 0.5f + 7f, z1 = -arena.y * 0.5f + 1.0f;   // ends where the deep river surface starts (BuildRiverMesh); 11-13 QA: they overlapped 3.5 m, 1 cm apart
             int b0 = v.Count;
             v.Add(new Vector3(-full.x * 0.5f, waterLevel, z0)); v.Add(new Vector3(full.x * 0.5f, waterLevel, z0));
             v.Add(new Vector3(-full.x * 0.5f, waterLevel, z1)); v.Add(new Vector3(full.x * 0.5f, waterLevel, z1));

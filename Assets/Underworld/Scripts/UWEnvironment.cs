@@ -36,6 +36,8 @@ namespace Underworld
         {
             // falling sky motes + occasional light shafts, created at play time only
             if (Application.isPlaying && !GetComponent<UWSkyFx>()) gameObject.AddComponent<UWSkyFx>();
+            // quality pass 11-13: dark POE2-style grade, lantern pools and height fog (UWLook)
+            if (Application.isPlaying && !GetComponent<UWLook>()) gameObject.AddComponent<UWLook>();
             if (Application.isPlaying)
             {
                 playReadable = PlayerPrefs.GetFloat(ReadKey, playReadable);

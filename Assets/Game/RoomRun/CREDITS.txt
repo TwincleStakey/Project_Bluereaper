@@ -1,0 +1,14 @@
+RoomRun arena-edge features (Resources/EdgeFeatures, baked by Editor/EdgeFeaturesBake.cs, placed by Scripts/EdgeFeatures.cs)
+All models below: Creative Commons Attribution 4.0 (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/).
+Attribution is required wherever the game is shipped (credits screen). Commercial use allowed.
+Modified for this game: recoloured materials (the snow field's copies with snow off), rescaled; the house without its yard ground tiles.
+
+- "Japanese Black Pine" by matt z chan (https://sketchfab.com/mattzch)
+  https://sketchfab.com/3d-models/japanese-black-pine-f0cb4705f1c446c7bc393fdbfcdf024a
+  EF_PineA / EF_PineB (from SnowPlague/ThirdParty/Trees TR_HeroPine_A/B)
+- "Korean Totem Pole- Jangseung" by ththqkf (https://sketchfab.com/ththqkf)
+  https://sketchfab.com/3d-models/korean-totem-pole-jangseung-27663a8ef05f4ab4a81abc78d522d652
+  EF_Jangseung (from SnowPlague/ThirdParty/Landmarks/Jangseung)
+- "KCISA-수내동가옥_초가집02" by Korea Culture Information Service Agency (KCISA)
+  https://sketchfab.com/3d-models/12f1375cfa8e4b22b1f07735cd4cd1a8
+  EF_ThatchHouse (from SnowPlague/ThirdParty/Landmarks/ThatchHouse2)

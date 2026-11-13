@@ -25,6 +25,8 @@ float4 _LSPush;
 float _LSTrailOn;
 float4 _LSTrailRect;
 TEXTURE2D(_LSTrail); SAMPLER(sampler_LSTrail);
+#include "RRCut.hlsl"
+#include "../../../Game/RoomRun/Shaders/RRSeeThrough.hlsl"   // 11-13: soft see-through near the player
 
 // R = grass flattened, G = footprint, BA = push direction (0..1 encoded).
 float4 LSTrail(float2 xz)

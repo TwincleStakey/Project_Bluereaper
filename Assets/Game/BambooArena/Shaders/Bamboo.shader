@@ -25,6 +25,7 @@ Shader "BambooArena/Bamboo"
 
         HLSLINCLUDE
         #include "Assets/Game/ReedField/Shaders/ReedCommon.hlsl"
+        #include "Assets/Game/RoomRun/Shaders/RRSeeThrough.hlsl"   // 11-13: shared soft falloff
         CBUFFER_START(UnityPerMaterial)
             float4 _CulmCol, _CulmTop, _NodeCol, _LeafCol, _LeafTip, _RootCol, _Ambient;
             float _Translucency, _Bend, _Nodes;
@@ -88,6 +89,14 @@ Shader "BambooArena/Bamboo"
             float viewDepth = -TransformWorldToView(ws).z;
             float2 dlt = (uv - _BA_SeeThrough.xy) * float2(_ScreenParams.x / _ScreenParams.y, 1);
             float r = length(dlt);
+            if (RRSeeThroughActive())
+            {
+                // 11-13 (Kido: soft like other top-down games): RoomRun's shared radial falloff (RRSeeThrough.hlsl)
+                float c = RRSeeFadeOne(uv, viewDepth, float4(_BA_SeeThrough.xy, _BA_SeeThrough.w, 1), _ScreenParams.x / _ScreenParams.y)
+                    * RRSeeHeight(ws.y) * (1 - _RR_SeeShape.z);
+                if (c > 0.001) clip(RRSeeDither(positionCS.xy) - c);
+                return;
+            }
             float fade = 1 - smoothstep(_BA_SeeThrough.z * 0.55, _BA_SeeThrough.z, r);
             fade *= step(viewDepth, _BA_SeeThrough.w - 0.6);   // only bamboo in front of the player
             clip(Bayer4(positionCS.xy) - fade * 0.92 - 0.001);

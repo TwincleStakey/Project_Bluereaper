@@ -37,18 +37,15 @@ public static partial class AVBuilder
                 var lp = c + new Vector2(R(-1.5f, 1.5f), R(-1.5f, 1.5f));
                 PointLight(new Vector3(lp.x, G(lp.x, lp.y) + 0.5f, lp.y), kind == 1 || kind == 4 ? Hex("#ff7a3a") : Hex("#ffa060"), 2.0f, 5f, root, false, true);
             }
-            if (kind >= 4) { HorrorVignette(kind, c, yaw, G, bloods, leaves, root); continue; }
+            if (kind >= 4) { HorrorVignette(kind, kind == 7 ? EdgeOut(c.x, c.y, 3f) : c, yaw, G, bloods, leaves, root); continue; }   // 11-13 QA: bone piles out at the edge
             switch (kind)
             {
                 case 0:   // spill
                 {
                     Place("MS:KStrawMat/AV_MS_KStrawMat", At(c.x, c.y, -0.01f), yaw + R(-20, 20), R(0.9f, 1.1f), root);
-                    for (int i = 0; i < rng.Next(2, 5); i++)
-                    {
-                        var p = Off(R(-2.2f, 2.2f), R(0.8f, 2.4f));
-                        var j = Place("MS:KJar/AV_MS_KJar", At(p.x, p.y, 0.04f), R(0, 360), R(0.75f, 1.05f), root);
-                        if (j && rng.NextDouble() < 0.55) j.transform.rotation = Quaternion.Euler(R(78, 98), R(0, 360), 0);
-                    }
+                    // 11-13 (Kido: no jar heaps): one jar knocked over and one smashed, a few metres apart
+                    { var p = Off(R(-2.5f, -1.5f), R(1f, 2.5f)); var j = Place("MS:KJar/AV_MS_KJar", At(p.x, p.y, 0.04f), R(0, 360), R(0.75f, 1.05f), root); if (j) j.transform.rotation = Quaternion.Euler(R(78, 98), R(0, 360), 0); }
+                    { var p = Off(R(1.5f, 3f), R(1.5f, 3f)); Place("AV_OnggiBroken", At(p.x, p.y, 0.02f), R(0, 360), R(0.8f, 1f), root); }
                     var b = Off(R(-2.5f, -1.2f), R(-1.5f, 0f)); Place(rng.NextDouble() < 0.5 ? "PH:wooden_bucket_01" : "PH:wooden_bucket_02", At(b.x, b.y), R(0, 360), 1f, root).transform.rotation = Quaternion.Euler(R(80, 95), R(0, 360), 0);
                     var k = Off(R(1.5f, 2.8f), R(-1.8f, -0.4f)); Place("PH:wicker_basket_01", At(k.x, k.y), R(0, 360), 1f, root);
                     var br = Off(R(-0.5f, 0.5f), R(-2.4f, -1.6f)); Place("PH:wooden_broom", At(br.x, br.y, -0.03f), R(0, 360), 1f, root).transform.rotation = Quaternion.Euler(R(84, 92), R(0, 360), 0);
@@ -83,7 +80,7 @@ public static partial class AVBuilder
                 {
                     Place("MS:KStrawMat/AV_MS_KStrawMat", At(c.x, c.y, -0.01f), yaw, R(0.9f, 1.1f), root);
                     for (int i = 0; i < 3; i++) { var p = Off(R(-1.8f, 1.8f), R(-1.8f, 1.8f)); Place("MS:KStrawJar/AV_MS_KStrawJar", At(p.x, p.y), R(0, 360), R(0.9f, 1.2f), root); }
-                    for (int i = 0; i < 4; i++) { var p = Off(R(-2.6f, 2.6f), R(-2.6f, 2.6f)); Place("MS:KJar/AV_MS_KJar", At(p.x, p.y, 0f), R(0, 360), R(0.5f, 0.8f), root); }
+                    { var p = Off(R(-2.6f, 2.6f), R(-2.6f, 2.6f)); Place("AV_OnggiBroken", At(p.x, p.y, 0.02f), R(0, 360), R(0.7f, 0.9f), root); }   // 11-13: one smashed jar, not four whole
                     Decal(root, leaves, c.x, c.y, R(3f, 4f), G, 0.015f);
                     for (int i = 0; i < 3; i++) { var p = Off(R(-2.5f, 2.5f), R(-2.5f, 2.5f)); Blood(1, p.x, p.y, R(0.9f, 1.5f), 0.033f); }
                     break;

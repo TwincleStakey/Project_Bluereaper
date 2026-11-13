@@ -5,3 +5,5 @@
 - Stylized Bush by danielpetrov (Sketchfab, 9d9ce79d3ae040619e96d5b22c7de1a6): bush
 
 Credit these authors in the shipped game if any of these assets stay.
+
+- Quixel Megascans via Fab, Standard License, free: "Mossy Tree Log" (rdkeg), https://www.fab.com/listings/a0514804-5e08-428f-94be-4f725ed07157 - `Stages/Resources/QAValley/` (valley pool bank, ValleyMossyLog.cs).

@@ -30,15 +30,15 @@ Material:
     m_Ints: []
     m_Floats:
     - _Base: 0
-    - _Density: 0.014
+    - _Density: 0.022
     - _Falloff: 0.35
     - _FarDist: 90
-    - _MaxFog: 0.45
+    - _MaxFog: 0.6
     - _NoiseAmount: 0.12
     - _NoiseScale: 24
-    - _Start: 30
+    - _Start: 8
     m_Colors:
     - _FarCol: {r: 0.08, g: 0.075, b: 0.07, a: 1}
-    - _NearCol: {r: 0.36, g: 0.37, b: 0.39, a: 1}
+    - _NearCol: {r: 0.34, g: 0.36, b: 0.4, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

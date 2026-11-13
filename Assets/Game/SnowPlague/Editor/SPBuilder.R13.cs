@@ -25,6 +25,7 @@ public static partial class SPBuilder
         try { R13Bridges(); } catch (System.Exception e) { Log("R13 bridges EXCEPTION " + e); }
         try { R13Blood(); } catch (System.Exception e) { Log("R13 blood EXCEPTION " + e); }
         try { R13Buildings(); } catch (System.Exception e) { Log("R13 buildings EXCEPTION " + e); }
+        try { R14Edges(); } catch (System.Exception e) { Log("R14 edges EXCEPTION " + e); }
     }
 
     // ground height from the ground mesh collider (carved river banks, drifts); falls back to Height()
@@ -165,12 +166,12 @@ public static partial class SPBuilder
         m.shader = b.shader; m.CopyPropertiesFromMaterial(b);
         m.SetFloat("_Cell", cell);
         // soaked into snow: pinkish-grey diffusion at the rim, dark desaturated body, near-black wet clots (TARAE ss5 kill)
-        m.SetColor("_SoakMul", new Color(0.88f, 0.74f, 0.75f)); m.SetFloat("_Soak", 1f);
-        m.SetColor("_FilmMul", new Color(0.46f, 0.25f, 0.25f));   // r13b: less red at the soaked body
-        m.SetColor("_StainMul", new Color(0.16f, 0.055f, 0.05f));
-        m.SetColor("_PoolCol", new Color(0.07f, 0.016f, 0.015f)); m.SetFloat("_Pool", 0.7f);
+        m.SetColor("_SoakMul", new Color(0.86f, 0.62f, 0.58f)); m.SetFloat("_Soak", 1f);   // r14: ss5 measured - red, not pink-grey
+        m.SetColor("_FilmMul", new Color(0.62f, 0.29f, 0.24f));   // r14: ss5 fleck red ~[125,66,55] on snow ~[204,203,198]
+        m.SetColor("_StainMul", new Color(0.28f, 0.09f, 0.075f));   // r14: ss5 core ~[58,25,21]
+        m.SetColor("_PoolCol", new Color(0.16f, 0.025f, 0.02f)); m.SetFloat("_Pool", 0.7f);
         m.SetFloat("_Spec", 0.8f); m.SetFloat("_SpecPow", 360f); m.SetFloat("_Glint", 0.25f); m.SetFloat("_Sheen", 0.1f);
-        m.SetFloat("_Emit", 0.015f); m.SetFloat("_MaxRise", 0.05f); m.SetFloat("_Grain", 0.45f); m.SetFloat("_Drops", 0f);
+        m.SetFloat("_Emit", 0.015f); m.SetFloat("_MaxRise", 0.05f); m.SetFloat("_Grain", 0.9f); m.SetFloat("_Drops", 0f);
         set?.Invoke(m);
         EditorUtility.SetDirty(m);
         return m;
@@ -186,10 +187,11 @@ public static partial class SPBuilder
         var pool3 = R13BloodMat("SP_Blood_R13_3", 3, null);
         var drag = R13BloodMat("SP_Blood_R13_Drag", 1, m =>
         {   // smeared: thin film, lighter, almost no wet clots
-            m.SetColor("_FilmMul", new Color(0.6f, 0.44f, 0.44f)); m.SetColor("_StainMul", new Color(0.36f, 0.2f, 0.2f));
+            m.SetColor("_FilmMul", new Color(0.70f, 0.40f, 0.36f)); m.SetColor("_StainMul", new Color(0.40f, 0.15f, 0.12f));
             m.SetFloat("_Pool", 0.12f); m.SetFloat("_Grain", 0.8f);
         });
         if (!pool1 || !drag) return;
+        var spray = R13SprayMat();
         var g = root.Find("BloodR13") ?? Group("BloodR13");
         var rnd = new System.Random(1313);
         float R(float a, float b) => a + (float)rnd.NextDouble() * (b - a);
@@ -233,7 +235,7 @@ public static partial class SPBuilder
                 var side = new Vector2(-bd.axis.y, bd.axis.x) * (rnd.NextDouble() < 0.5 ? -1f : 1f);
                 // main soak beside the body (not under it), uneven oval
                 var pp = bd.p + side * (bd.wid * 0.5f + R(0.35f, 0.7f)) + bd.axis * R(-0.4f, 0.4f) * bd.len * 0.5f;
-                float big = R(3.4f, 4.4f);   // r13b: the visible stain is ~45 % of the box
+                float big = R(3.2f, 4.2f);   // r14: ss5 kill stains are ~3-4 m across (the visible stain is ~45 % of the box)
                 Decal("BloodR13_Pool", rnd.NextDouble() < 0.5 ? pool1 : (pool3 ?? pool1), pp, R(0, 360), big, big * R(0.6f, 0.85f));
                 // a small satellite spatter now and then
                 if (rnd.NextDouble() < 0.6)
@@ -242,23 +244,97 @@ public static partial class SPBuilder
                     float sm = R(1.1f, 1.6f);
                     Decal("BloodR13_Spat", pool3 ?? pool1, sp, R(0, 360), sm, sm * R(0.6f, 1f));
                 }
-                // drag mark: from the body outward (away from the site centre, bent a little), 2-3 overlapping smears
-                var away = (bd.p - centre).sqrMagnitude > 0.2f ? (bd.p - centre).normalized : -side;
-                away = (Vector2)(Quaternion.Euler(0, 0, R(-25f, 25f)) * (Vector3)away);
-                float len = R(2.6f, 4.2f); int pieces = len > 3.4f ? 3 : 2;
-                var start = bd.p + away * (bd.len * 0.45f + 0.3f);
-                float bend = R(-12f, 12f);
-                for (int k = 0; k < pieces; k++)
+                // r14 (ss5): the kill spray - a fan of droplets thrown from the body, a second smaller one at the bigger sites
+                if (spray)
                 {
-                    float t0 = (k + 0.5f) / pieces;
-                    var dk = (Vector2)(Quaternion.Euler(0, 0, bend * t0) * (Vector3)away);
-                    var pc = start + dk * len * t0;
-                    float yawk = Mathf.Atan2(dk.x, dk.y) * Mathf.Rad2Deg;   // local Z along the drag
-                    Decal("BloodR13_Drag", drag, pc, yawk, R(1.0f, 1.3f) * (1f - 0.3f * t0), len / pieces * 2.0f);   // r13b: 0.5 m wide read as thin red brush strokes
+                    int fans = site.Count >= 3 ? 3 : 2;
+                    float prevCompass = 0;
+                    for (int f = 0; f < fans; f++)
+                    {
+                        float size = f == 0 ? R(6.5f, 8.0f) : R(4.5f, 6.0f);   // ss5: the spray reaches ~4-5 m from the body
+                        float compass = f == 0 ? R(0, 360) : prevCompass + R(110f, 250f); prevCompass = compass;   // fans thrown different ways overlap over the pool
+                        var o = bd.p + side * (bd.wid * 0.3f) + bd.axis * R(-0.3f, 0.3f) * bd.len * 0.5f;
+                        SprayDecal(g, spray, o, compass, size); made++;
+                    }
                 }
+                // r14: no drag marks any more - flat brush strokes with cut ends; ss5 has none (the sprays carry the read)
             }
         }
         Log($"R13 blood: removed {removed} old decals/particles, {made} new decals at {sites.Count} body sites ({bodies.Count} bodies)");
+    }
+
+    // r14: kill spray decal material + placement. The splatter texture's dense root sits at uv (0.21, 0.31) and the droplets
+    // fly toward uv (0.85, 0.75) (compass 55 deg in the decal's local XZ); the decal is turned so the fan points along
+    // 'compass' and moved so the root lands on 'origin'.
+    const string SprayTexPath = Root + "/ThirdParty/WeaselWhistleBlood/SP_WW_BloodSplatter_RGBA.png";
+    static Material R13SprayMat()
+    {
+        var sh = Shader.Find("SnowPlague/BloodSpray");
+        var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(SprayTexPath);
+        if (!sh || !tex) { Log("R13 blood: spray shader/texture missing"); return null; }
+        var imp = AssetImporter.GetAtPath(SprayTexPath) as TextureImporter;
+        if (imp && (imp.wrapMode != TextureWrapMode.Clamp || !imp.mipmapEnabled || imp.maxTextureSize != 2048))
+        { imp.wrapMode = TextureWrapMode.Clamp; imp.mipmapEnabled = true; imp.maxTextureSize = 2048; imp.alphaIsTransparency = true; imp.SaveAndReimport(); tex = AssetDatabase.LoadAssetAtPath<Texture2D>(SprayTexPath); }
+        var path = $"{MatDir}/SP_Blood_R14_Spray.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (!m) { m = new Material(sh); AssetDatabase.CreateAsset(m, path); }
+        m.shader = sh; m.SetTexture("_SprayTex", tex); m.enableInstancing = true; m.SetFloat("_Haze", 0.85f);
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+    static void SprayDecal(Transform g, Material m, Vector2 origin, float compass, float size)
+    {
+        float yaw = compass - 55f;
+        var rot = Quaternion.Euler(0, yaw, 0);
+        var rootLocal = new Vector3((0.21f - 0.5f) * size, 0, (0.31f - 0.5f) * size);
+        var c3 = new Vector3(origin.x, 0, origin.y) - rot * rootLocal;
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube); go.name = "BloodR14_Spray";
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.SetParent(g, false);
+        go.transform.SetPositionAndRotation(new Vector3(c3.x, R13GroundY(origin.x, origin.y), c3.z), rot);
+        go.transform.localScale = new Vector3(size, 1.2f, size);
+        var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = m; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+    }
+
+    // ------------------------------------------------------------------ r14: dark masses at the arena edge (ss5)
+    // ss5 frames pagodas, stone lanterns and big pines intruding from the sides and corners. Placed on a band 1.5-4.5 m
+    // outside the arena (never inside: arena rule), east, west and north edges plus the two south corners, every ~13 m
+    // with jitter, skipping the river, the border architecture and anything within 7 m of an existing landmark.
+    static void R14Edges()
+    {
+        var g = root.Find("EdgeMasses") ?? Group("EdgeMasses");
+        var lm = root.Find("Landmarks");
+        var taken = new List<Vector2>();
+        if (lm) foreach (Transform t in lm) taken.Add(new Vector2(t.position.x, t.position.z));
+        var rnd = new System.Random(1414);
+        float R(float a, float b) => a + (float)rnd.NextDouble() * (b - a);
+        bool Free(Vector2 p, float gap) => DistanceToRiver(p.x, p.y) > 10f && !BorderBlocked(p.x, p.y) && taken.All(q => Vector2.Distance(q, p) > gap);
+        var spots = new List<(Vector2 p, float yaw)>();
+        for (float z = -HZ + 6f; z < HZ - 2f; z += R(11f, 15f)) { spots.Add((new Vector2(HX + R(1.5f, 4.5f), z), 270f)); spots.Add((new Vector2(-HX - R(1.5f, 4.5f), z + R(-3f, 3f)), 90f)); }
+        for (float x = -HX + 6f; x < HX - 2f; x += R(11f, 15f)) spots.Add((new Vector2(x, HZ + R(1.5f, 4.5f)), 180f));
+        spots.Add((new Vector2(HX + 2.5f, -HZ - 2.5f), 315f)); spots.Add((new Vector2(-HX - 2.5f, -HZ - 2.5f), 45f));
+        int made = 0, k = 0;
+        foreach (var (p, yaw) in spots.OrderBy(_ => rnd.Next()))
+        {
+            if (!Free(p, 7f)) continue;
+            GameObject go = null;
+            switch (k++ % 5)
+            {
+                case 0: go = LMPlace("PagodaGame", p, yaw, Vector3.back, R(4.2f, 5.8f), g, true, false); break;
+                case 1:
+                case 3:
+                    {   // a pair of stone lanterns 2.5 m apart along the edge
+                        var along = new Vector2(Mathf.Cos(yaw * Mathf.Deg2Rad), -Mathf.Sin(yaw * Mathf.Deg2Rad));
+                        go = LMPlace("KoreanLantern", p - along * 1.3f, yaw, Vector3.back, R(1.5f, 1.9f), g, true, false);
+                        LMPlace("KoreanLantern", p + along * 1.3f, yaw + R(-8f, 8f), Vector3.back, R(1.5f, 1.9f), g, true, false);
+                        break;
+                    }
+                case 2: go = Place(SkHero, p.x, p.y, R(0, 360), R(0.9f, 1.15f), g); break;
+                case 4: go = LMPlace("Jangseung", p, yaw, Vector3.forward, R(2.3f, 2.7f), g, true, false); break;
+            }
+            if (go) { taken.Add(p); made++; }
+        }
+        Log($"R14 edges: {made} edge masses ({spots.Count} candidate spots)");
     }
 
     // ------------------------------------------------------------------ 3. buildings

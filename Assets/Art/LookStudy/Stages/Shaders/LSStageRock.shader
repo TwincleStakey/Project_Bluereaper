@@ -63,6 +63,7 @@ Shader "LookStudy/StageRock"
 
             half4 frag(V2F i, bool front : SV_IsFrontFace) : SV_Target
             {
+                RRSeeThroughClip(i.positionCS, i.positionWS);   // 11-13: walls/roofs/rocks between camera and player thin out softly
                 float3 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).rgb;
                 float3 tn = UnpackNormal(SAMPLE_TEXTURE2D(_NormalTex, sampler_NormalTex, i.uv));
                 float3 N = normalize(i.normalWS) * (front ? 1.0 : -1.0);
@@ -81,9 +82,9 @@ Shader "LookStudy/StageRock"
                 albedo = lerp(albedo, mossCol, moss);
 
                 // Dark wet band above the waterline.
-                float wet = 1.0 - smoothstep(_LSWaterY + _Wet * 0.3, _LSWaterY + _Wet, i.positionWS.y + (noise - 0.5) * 0.25);
+                float wet = 1.0 - smoothstep(_LSWaterY + _Wet * 0.3, _LSWaterY + max(_Wet, 0.01), i.positionWS.y + (noise - 0.5) * 0.25);
                 albedo *= lerp(1.0, 0.36, wet);
-                float gloss = lerp(0.12, 0.72, wet) * (1.0 - moss * 0.7);
+                float gloss = lerp(0.12, 0.34, wet) * (1.0 - moss * 0.7);   // 11-13 QA: 0.72 read as plastic under the wisp lights
 
                 // Fire damage: char spreads through noise as vertex alpha rises, cracks glow at the worst parts.
                 float burn = i.color.a * _BurnOn;
@@ -111,9 +112,9 @@ Shader "LookStudy/StageRock"
             #pragma vertex vert
             #pragma fragment frag
             struct DA { float4 p : POSITION; float3 n : NORMAL; };
-            struct DV { float4 cs : SV_POSITION; float3 n : TEXCOORD0; };
-            DV vert(DA a) { DV o; o.cs = TransformObjectToHClip(a.p.xyz); o.n = TransformObjectToWorldNormal(a.n); return o; }
-            half4 frag(DV i) : SV_Target { return half4(normalize(i.n), 0); }
+            struct DV { float4 cs : SV_POSITION; float3 n : TEXCOORD0; float3 ws : TEXCOORD1; };
+            DV vert(DA a) { DV o; o.ws = TransformObjectToWorld(a.p.xyz); o.cs = TransformWorldToHClip(o.ws); o.n = TransformObjectToWorldNormal(a.n); return o; }
+            half4 frag(DV i) : SV_Target { RRSeeThroughClip(i.cs, i.ws); return half4(normalize(i.n), 0); }
             ENDHLSL
         }
         Pass
@@ -124,8 +125,9 @@ Shader "LookStudy/StageRock"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            float4 vert(float4 p : POSITION) : SV_POSITION { return TransformObjectToHClip(p.xyz); }
-            half frag() : SV_Target { return 0; }
+            struct OV { float4 cs : SV_POSITION; float3 ws : TEXCOORD0; };
+            OV vert(float4 p : POSITION) { OV o; o.ws = TransformObjectToWorld(p.xyz); o.cs = TransformWorldToHClip(o.ws); return o; }
+            half frag(OV i) : SV_Target { RRSeeThroughClip(i.cs, i.ws); return 0; }
             ENDHLSL
         }
         Pass

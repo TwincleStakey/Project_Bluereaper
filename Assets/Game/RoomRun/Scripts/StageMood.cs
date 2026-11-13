@@ -27,7 +27,7 @@ namespace RoomRun
             public float ambientGrey = 0.6f;
             public Color fog = new Color(0.10f, 0.11f, 0.12f);
             public float fogDensity = 0.018f;  // 0 or less: keep the stage's own fog
-            public int firePools = 16;         // metres between braziers; 0 = none
+            public int firePools = 16;         // >0: eight stone lanterns lit just outside the arena edge (11-13; was metres between block braziers); 0 = none
             public Color fire = new Color(1f, 0.55f, 0.24f);
         }
 
@@ -39,15 +39,17 @@ namespace RoomRun
             { "village",    new Mood { exposure = -0.3f, saturation = -50f } },
             { "palace",     new Mood { exposure = -0.3f, saturation = -50f } },
             // the underworld drives its own fog every frame (UWEnvironment), so it keeps it; ghost-fire pools are cold blue
-            { "underworld", new Mood { exposure = 0.5f, sun = 1.0f, ambient = 1.0f, saturation = -50f, filter = new Color(0.80f, 0.80f, 0.86f), fogDensity = 0f, fire = new Color(0.45f, 0.75f, 1f) } },
+            { "underworld", new Mood { exposure = 0.5f, sun = 1.0f, ambient = 1.0f, saturation = -50f, filter = new Color(0.80f, 0.80f, 0.86f), fogDensity = 0f, firePools = 0, fire = new Color(0.45f, 0.75f, 1f) } },   // 11-13 quality pass: no block lanterns, the stage lights its own 26 lanterns (Underworld/UWLook grades above this)
             // 11-11 폐촌 redo: ground was near black (refs: mid-grey readable mud, Tarae ss1); a bit more moon and ambient, less fog
             // 11-12 Kido: much more contrast, darks very dark -> high contrast, low ambient (shade goes near black), moon keeps lit ground readable
-            { "abandoned",  new Mood { exposure = 0.5f, saturation = -40f, contrast = 45f, sun = 1.2f, ambient = 0.55f, firePools = 0, fog = new Color(0.16f, 0.18f, 0.21f), fogDensity = 0.009f } },
+            // 11-13 (Kido: "nothing like POE2"): the grey filter and greyed moon flattened the new Megascans ground to one
+            // grey; neutral-warm filter, the moon keeps its cold colour against the warm lantern pools
+            { "abandoned",  new Mood { exposure = 0.5f, saturation = -40f, contrast = 40f, filter = new Color(1f, 0.97f, 0.92f), sun = 1.2f, sunGrey = 0.2f, ambient = 0.55f, ambientGrey = 0.3f, firePools = 0, fog = new Color(0.16f, 0.18f, 0.21f), fogDensity = 0.009f } },
             { "reeds",      new Mood { exposure = -1.05f, saturation = -66f, filter = new Color(0.84f, 0.83f, 0.82f) } },
             { "bamboo",     new Mood { exposure = -0.6f, saturation = -58f, filter = new Color(0.80f, 0.84f, 0.84f) } },
             // snow plague: has its own stone lanterns and full-screen height fog (SPField), so no fire pools, own fog kept
             // 11-11 redo: the default dim moon (x0.45) and -0.5 EV crushed the snow to dark grey; snow must stay the brightest thing on screen
-            { "snow",       new Mood { exposure = 1.3f, saturation = -22f, contrast = 50f, filter = new Color(1.0f, 0.95f, 0.87f), sun = 1f, sunGrey = 0.15f, ambient = 0.55f, ambientGrey = 0.25f, firePools = 0, fogDensity = 0f } },   // look6 (11-12): 1.3 (look2: 0.7 -> 1.0, look4 1.15, look5 1.25), contrast 50 had sunk the snow peaks to ~145 (ss5 ~190). r10 (ss5): lighter sepia filter (0.92/0.8 turned the snow beige; the warmth now comes from SP_PostFX split toning on the darks), red kept by SP_PostFX curves
+            { "snow",       new Mood { exposure = 1.35f, saturation = -40f, contrast = 24f, filter = new Color(0.96f, 0.955f, 0.925f), sun = 1f, sunGrey = 0.15f, ambient = 0.55f, ambientGrey = 0.25f, firePools = 0, fogDensity = 0f } },   // d14 (Kido "설원 너무 밝아졌는데 ... 다크 판타지 색감", match TARAE ss5: p50 95, p95 200, snow grey-neutral [187,186,179]; ours read p50 115-140, p95 236-252, warm [231,219,209]): exposure 1.3 -> 0.75, warm filter -> neutral grey, saturation -22 -> -32, contrast 50 -> 42 (ss5 low-mids p25 55, ours 30), filter a touch warm (ours read lilac). v14 (Kido "타래는 눌려있고 안개 낀 느낌, 우리는 너무 쨍해"): contrast 42 -> 24, saturation -40, exposure 0.75 -> 1.35 (the lower contrast and the dirty grey snow albedo; v14b: 1.15 left no bright snow, ss5 ~15 %).   // look6 (11-12): 1.3 (look2: 0.7 -> 1.0, look4 1.15, look5 1.25), contrast 50 had sunk the snow peaks to ~145 (ss5 ~190). r10 (ss5): lighter sepia filter (0.92/0.8 turned the snow beige; the warmth now comes from SP_PostFX split toning on the darks), red kept by SP_PostFX curves
         };
         static readonly Mood Default = new Mood();
 
@@ -170,42 +172,75 @@ namespace RoomRun
                     sl.renderMode = LightRenderMode.ForcePixel; sl.enabled = false;
                     spots[s] = sl;
                 }
+                // 11-13 QA (Kido's arena rule: nothing inside the arena stands up or blocks): the block-built lanterns on a grid
+                // inside the arena are gone. Eight real stone lanterns (Sketchfab scan "Oriental_stone_lantern" by kebijini,
+                // CC BY 4.0, Resources/StageLantern) stand 1.2 m outside the arena edge, two per side at the quarter points
+                // (the door gaps sit at the side centres), each with its warm light leaning into the arena. 8 realtime lights.
                 var c0 = run.AreaCenter; var size = run.AreaSize;
-                float step = m.firePools;
                 var rnd = new System.Random(id.GetHashCode());
-                var cfg = run.config;
-                for (float x = -size.x * 0.5f + step * 0.5f; x < size.x * 0.5f; x += step)
-                    for (float z = -size.y * 0.5f + step * 0.5f; z < size.y * 0.5f; z += step)
+                var lanternMesh = LanternMesh();
+                var lanternMat = LanternMaterial();
+                float hx = size.x * 0.5f + 1.2f, hz = size.y * 0.5f + 1.2f;
+                var spotsAt = new List<(Vector3 p, Vector3 inward)>();
+                foreach (float t in new[] { -0.5f, 0.5f })
+                {
+                    spotsAt.Add((new Vector3(t * size.x * 0.5f, 0, hz), Vector3.back));
+                    spotsAt.Add((new Vector3(t * size.x * 0.5f, 0, -hz), Vector3.forward));
+                    spotsAt.Add((new Vector3(hx, 0, t * size.y * 0.5f), Vector3.left));
+                    spotsAt.Add((new Vector3(-hx, 0, t * size.y * 0.5f), Vector3.right));
+                }
+                foreach (var (off, inward) in spotsAt)
+                {
+                    var pos = c0 + off;
+                    pos.y = Ground.Sample(pos, c0.y);
+                    var root = new GameObject("StoneLantern").transform;
+                    root.SetParent(go.transform, false);
+                    root.position = pos;
+                    root.rotation = Quaternion.LookRotation(inward) * Quaternion.Euler(0, ((float)rnd.NextDouble() - 0.5f) * 20f, 0);
+                    float lightY = 1.15f;
+                    if (lanternMesh && lanternMat)
                     {
-                        var pos = c0 + new Vector3(x + ((float)rnd.NextDouble() - 0.5f) * step * 0.5f, 0, z + ((float)rnd.NextDouble() - 0.5f) * step * 0.5f);
-                        if ((pos - c0).sqrMagnitude < 36f) continue;   // keep the spawn point clear
-                        pos.y = Physics.Raycast(pos + Vector3.up * 40f, Vector3.down, out var hit, 80f) ? hit.point.y : c0.y;
-                        var root = new GameObject("FirePool").transform;
-                        root.SetParent(go.transform, false);
-                        root.position = pos;
-                        root.rotation = Quaternion.Euler(0, (float)rnd.NextDouble() * 90f, 0);
-                        // a stone lantern (석등) out of blocks: base slab, post, the lit firebox, a wide cap and a knob
-                        if (cfg && cfg.stone)
-                        {
-                            MeshLib.Part("Base", MeshLib.Cube, cfg.stone, root, new Vector3(0, 0.1f, 0), new Vector3(0.8f, 0.2f, 0.8f));
-                            MeshLib.Part("Post", MeshLib.Cube, cfg.stone, root, new Vector3(0, 0.62f, 0), new Vector3(0.3f, 0.86f, 0.3f));
-                            MeshLib.Part("Ledge", MeshLib.Cube, cfg.stone, root, new Vector3(0, 1.08f, 0), new Vector3(0.62f, 0.1f, 0.62f));
-                            for (int k = 0; k < 4; k++)   // corner posts around the firebox
-                                MeshLib.Part("Bar", MeshLib.Cube, cfg.stone, root, new Vector3((k & 1) == 0 ? -0.24f : 0.24f, 1.31f, (k & 2) == 0 ? -0.24f : 0.24f), new Vector3(0.08f, 0.36f, 0.08f));
-                            MeshLib.Part("Cap", MeshLib.Cube, cfg.stone, root, new Vector3(0, 1.55f, 0), new Vector3(0.9f, 0.13f, 0.9f));
-                            MeshLib.Part("Knob", MeshLib.Cube, cfg.stone, root, new Vector3(0, 1.68f, 0), new Vector3(0.24f, 0.14f, 0.24f));
-                        }
-                        if (cfg && cfg.lampFire) MeshLib.Part("Fire", MeshLib.Cube, cfg.lampFire, root, new Vector3(0, 1.3f, 0), Vector3.one * 0.3f);
-                        var lg = new GameObject("Light");
-                        lg.transform.SetParent(root, false);
-                        lg.transform.localPosition = new Vector3(0, 1.3f, 0);
-                        var l = lg.AddComponent<Light>();
-                        l.type = LightType.Point; l.shadows = LightShadows.None; l.renderMode = LightRenderMode.ForcePixel;
-                        l.shadowStrength = 0.9f; l.shadowBias = 0.05f; l.shadowNearPlane = 0.3f;
-                        l.color = m.fire; l.range = 10f; l.intensity = 14f;
-                        fires.Add((l, l.intensity, (float)rnd.NextDouble() * 10f));
+                        var b = lanternMesh.bounds;
+                        float sc = LanternHeight / Mathf.Max(0.01f, b.size.y);
+                        var mg = new GameObject("Mesh", typeof(MeshFilter), typeof(MeshRenderer));
+                        mg.transform.SetParent(root, false);
+                        mg.transform.localScale = Vector3.one * sc;
+                        mg.transform.localPosition = new Vector3(-b.center.x * sc, -b.min.y * sc - 0.06f, -b.center.z * sc);   // slab a little into the ground
+                        mg.GetComponent<MeshFilter>().sharedMesh = lanternMesh;
+                        var mr = mg.GetComponent<MeshRenderer>();
+                        mr.sharedMaterial = lanternMat;
+                        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                        lightY = LanternHeight * 0.62f;   // the firebox
                     }
+                    var lg = new GameObject("Light");
+                    lg.transform.SetParent(root, false);
+                    lg.transform.localPosition = new Vector3(0, lightY, 0.9f);   // a little inward so the pool falls on the arena floor
+                    var l = lg.AddComponent<Light>();
+                    l.type = LightType.Point; l.shadows = LightShadows.None; l.renderMode = LightRenderMode.ForcePixel;
+                    l.shadowStrength = 0.9f; l.shadowBias = 0.05f; l.shadowNearPlane = 0.3f;
+                    l.color = m.fire; l.range = 14f; l.intensity = 16f;
+                    fires.Add((l, l.intensity, (float)rnd.NextDouble() * 10f));
+                }
             }
+        }
+
+        const float LanternHeight = 1.75f;
+        static Mesh lanternMeshCache; static Material lanternMatCache;
+        static Mesh LanternMesh()
+        {
+            if (lanternMeshCache) return lanternMeshCache;
+            var go = Resources.Load<GameObject>("StageLantern/KoreanStoneLantern");
+            var mf = go ? go.GetComponentInChildren<MeshFilter>() : null;
+            return lanternMeshCache = mf ? mf.sharedMesh : null;
+        }
+        static Material LanternMaterial()
+        {
+            if (lanternMatCache) return lanternMatCache;
+            var sh = Shader.Find("RoomRun/VColLit");
+            if (!sh) return null;
+            lanternMatCache = new Material(sh) { name = "StageLantern (runtime)" };
+            lanternMatCache.SetColor("_Tint", new Color(0.9f, 0.88f, 0.85f));
+            return lanternMatCache;
         }
 
         // the two fires nearest the player get shadows, re-checked a few times a second

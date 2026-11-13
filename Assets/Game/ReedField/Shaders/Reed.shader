@@ -27,6 +27,7 @@ Shader "ReedField/Reed"
 
         HLSLINCLUDE
         #include "ReedCommon.hlsl"
+        #include "Assets/Game/RoomRun/Shaders/RRSeeThrough.hlsl"   // 11-13: tall reeds in front of the player thin out softly
         CBUFFER_START(UnityPerMaterial)
             float4 _RootCol, _LeafCol, _LeafTip, _StemCol, _PlumeCol, _PlumeTip, _ReedPlumeCol, _Ambient;
             float _Variation, _Translucency, _Wrap, _GustSheen, _IsReed;
@@ -77,6 +78,7 @@ Shader "ReedField/Reed"
             float lag = sin(_RF_Time * 1.3 + rnd * 6.28 + dot(root.xz, float2(0.6, 0.4)) - 0.9);
             // Sideways only: no vertical motion from wind.
             ws.xz += _RF_Wind.xy * lag * 0.025 * H * a.uv.y * plume * _RF_Wind.z;
+            ws = RRCutApply(ws, root, 0.1);   // greatsword cuts
             o.ws = ws;
             o.nws = nws;
             o.rnd = rnd;
@@ -119,6 +121,7 @@ Shader "ReedField/Reed"
 
             half4 frag(V2F i, bool front : SV_IsFrontFace) : SV_Target
             {
+                RRSeeThroughClip(i.positionCS, i.ws);
                 float hf = i.d.x, part = i.d.y, along = i.d.z, tip = i.d.w;
                 float rnd = i.e.x, gust = i.e.y, trample = i.e.z;
                 float isPlume = step(0.75, part), isStem = step(0.25, part) * (1 - isPlume);
@@ -180,8 +183,9 @@ Shader "ReedField/Reed"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
-            float4 vert(Attr a) : SV_POSITION { UNITY_SETUP_INSTANCE_ID(a); return TransformWorldToHClip(BendVertex(a).ws); }
-            half frag() : SV_Target { return 0; }
+            struct OV { float4 cs : SV_POSITION; float3 ws : TEXCOORD0; };
+            OV vert(Attr a) { UNITY_SETUP_INSTANCE_ID(a); OV o; o.ws = BendVertex(a).ws; o.cs = TransformWorldToHClip(o.ws); return o; }
+            half frag(OV i) : SV_Target { RRSeeThroughClip(i.cs, i.ws); return 0; }
             ENDHLSL
         }
 
@@ -193,9 +197,9 @@ Shader "ReedField/Reed"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
-            struct V { float4 pos : SV_POSITION; float3 n : TEXCOORD0; };
-            V vert(Attr a) { UNITY_SETUP_INSTANCE_ID(a); Bent b = BendVertex(a); V o; o.pos = TransformWorldToHClip(b.ws); o.n = b.nws; return o; }
-            half4 frag(V i, bool front : SV_IsFrontFace) : SV_Target { float3 n = normalize(i.n) * (front ? 1 : -1); return half4(n, 0); }
+            struct V { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 ws : TEXCOORD1; };
+            V vert(Attr a) { UNITY_SETUP_INSTANCE_ID(a); Bent b = BendVertex(a); V o; o.ws = b.ws; o.pos = TransformWorldToHClip(b.ws); o.n = b.nws; return o; }
+            half4 frag(V i, bool front : SV_IsFrontFace) : SV_Target { RRSeeThroughClip(i.pos, i.ws); float3 n = normalize(i.n) * (front ? 1 : -1); return half4(n, 0); }
             ENDHLSL
         }
     }

@@ -376,11 +376,8 @@ public class LookStudyValley : MonoBehaviour
             }
         }
 
-        // Fallen pine bridge over the gourd pool, and a dead tree snagged in the lower run.
-        if (pineTrunk != null && pineTrunk.mesh)
-        {
-            Stamp(pineTrunk, new Vector3(-5.6f, 0.95f, 1.2f), Quaternion.Euler(88, 58, 0), new Vector3(2.0f, 1.25f, 2.0f), new Color(0.72f, 0.62f, 0.54f, 0));
-        }
+        // A dead tree snagged in the lower run. (The fallen pine bridge over the gourd pool is gone, 11-13 Kido: a pine
+        // trunk laid flat read as a fake flat board.)
         if (pineDead != null && pineDead.mesh)
         {
             Stamp(pineDead, new Vector3(-29, 0.2f, -22), Quaternion.Euler(80, 150, 12), new Vector3(0.8f, 0.8f, 0.8f), new Color(0.6f, 0.58f, 0.54f, 0));

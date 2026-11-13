@@ -63,7 +63,7 @@ Shader "LookStudy/Foliage"
                 ws.xz += pd * rise * flat * 0.95;
                 ws.y -= rise * flat * 0.72;
             }
-            return ws;
+            return RRCutApply(ws, root, 0.15);   // greatsword cuts
         }
         ENDHLSL
         Pass
@@ -119,6 +119,8 @@ Shader "LookStudy/Foliage"
                     o.color = a.color;
                     #endif
                 #endif
+                // greatsword cut: the stubble left behind reads straw-coloured from the top-down camera
+                o.color.rgb *= lerp(float3(1, 1, 1), float3(1.25, 1.05, 0.45), RRCut(root.xz));
                 o.positionWS = ws;
                 o.positionCS = TransformWorldToHClip(ws);
                 o.uv = a.uv;
@@ -130,6 +132,7 @@ Shader "LookStudy/Foliage"
             {
                 float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 clip(tex.a - _Cutoff);
+                RRSeeThroughClip(i.positionCS, i.positionWS);   // 11-13: soft see-through near the player
                 float lum = dot(tex.rgb, float3(0.3, 0.59, 0.11));
                 float3 remap = lerp(_Dark.rgb, _Light.rgb, saturate(lum * _LumScale));
                 float petal = smoothstep(0.22, 0.42, lum);
@@ -154,9 +157,9 @@ Shader "LookStudy/Foliage"
             #pragma fragment frag
             #pragma multi_compile_instancing
             struct DA { float4 p : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; float4 root : TEXCOORD1; UNITY_VERTEX_INPUT_INSTANCE_ID };
-            struct DV { float4 cs : SV_POSITION; float3 n : TEXCOORD0; float2 uv : TEXCOORD1; };
-            DV vert(DA a) { DV o; UNITY_SETUP_INSTANCE_ID(a); o.cs = TransformWorldToHClip(Sway(TransformObjectToWorld(a.p.xyz), LS_ROOT(a))); o.n = TransformObjectToWorldNormal(a.n); o.uv = a.uv; return o; }
-            half4 frag(DV i) : SV_Target { clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a - _Cutoff); return half4(normalize(i.n), 0); }
+            struct DV { float4 cs : SV_POSITION; float3 n : TEXCOORD0; float2 uv : TEXCOORD1; float3 ws : TEXCOORD2; };
+            DV vert(DA a) { DV o; UNITY_SETUP_INSTANCE_ID(a); o.ws = Sway(TransformObjectToWorld(a.p.xyz), LS_ROOT(a)); o.cs = TransformWorldToHClip(o.ws); o.n = TransformObjectToWorldNormal(a.n); o.uv = a.uv; return o; }
+            half4 frag(DV i) : SV_Target { clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a - _Cutoff); RRSeeThroughClip(i.cs, i.ws); return half4(normalize(i.n), 0); }
             ENDHLSL
         }
         Pass

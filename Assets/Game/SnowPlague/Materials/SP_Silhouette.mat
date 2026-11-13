@@ -25,11 +25,11 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Alpha: 0.85
-    - _Base: 0.25
+    - _Alpha: 0.5
+    - _Base: 0.35
     - _Fresnel: 2.5
-    - _Push: 0.06
+    - _Push: 0.9
     m_Colors:
-    - _Color: {r: 0.95, g: 0.62, b: 0.25, a: 1}
+    - _Color: {r: 0.2, g: 0.27, b: 0.38, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

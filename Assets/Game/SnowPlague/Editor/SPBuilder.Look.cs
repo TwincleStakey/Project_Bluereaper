@@ -58,8 +58,8 @@ public static partial class SPBuilder
     }
     // ------------------------------------------------------------------ volume grade
     // look1: = StageMood "snow" contrast / filter (keep the two in step; Play uses StageMood's, captures use these)
-    static readonly float LookContrast = 50f;
-    static readonly Color LookFilter = new Color(1.0f, 0.95f, 0.87f);
+    static readonly float LookContrast = 24f;   // v14 (Kido "타래는 눌려있고 안개 낀 느낌, 우리는 너무 쨍해"): compressed (was 50)
+    static readonly Color LookFilter = new Color(0.96f, 0.955f, 0.925f);   // v14: = StageMood snow
 
     static void LookGrade(VolumeProfile p)
     {
@@ -72,17 +72,17 @@ public static partial class SPBuilder
         ca.postExposure.Override(-0.1f);
         ca.contrast.Override(LookContrast);
         ca.colorFilter.Override(LookFilter);
-        ca.saturation.Override(-30f);
+        ca.saturation.Override(-40f);   // v14 = LookFX snow
         ca.hueShift.overrideState = false;
 
         // look1: 8 -> 3 (QA #2: warm light on tan dirt read pink; ss5 snow is neutral grey)
         var wb = LookComp<WhiteBalance>(p);
-        wb.temperature.Override(3f);
+        wb.temperature.Override(14f); wb.tint.Override(-3f);   // v14 (ss5 mids are sepia R>G>B; ours read magenta, B>G): warmer, tint toward green
 
         // r10 (ss5): sepia lives in the darks and mids (dirt, wood, brush = warm brown-grey), the brightest tones (snow)
         // stay a neutral off-white. look1: darks less sepia (0.56/0.5/0.43): the shadow colour carries a little blue now
         var st = LookComp<SplitToning>(p);
-        st.shadows.Override(new Color(0.53f, 0.5f, 0.47f));
+        st.shadows.Override(new Color(0.56f, 0.51f, 0.45f));   // v14: sepia darks
         st.highlights.Override(new Color(0.5f, 0.5f, 0.5f));
         st.balance.Override(10f);
 
@@ -107,6 +107,13 @@ public static partial class SPBuilder
         vg.color.Override(new Color(0.043f, 0.047f, 0.055f)); vg.intensity.Override(0.42f); vg.smoothness.Override(0.5f);
         vg.center.Override(new Vector2(0.5f, 0.48f)); vg.rounded.Override(false);
 
+        // v14: film-like compressed range: blacks lifted into a cool grey, whites rolled off, so the frame reads
+        // "pressed down" under a veil like ss5 instead of crisp
+        var lgg = LookComp<LiftGammaGain>(p);
+        lgg.lift.Override(new Vector4(0.99f, 1.0f, 1.03f, 0.045f));
+        lgg.gain.Override(new Vector4(1f, 0.995f, 0.98f, -0.03f));   // v14b: -0.08 pressed every highlight down
+        vg.intensity.Override(0.5f); vg.smoothness.Override(0.6f);
+
         var fg = LookComp<FilmGrain>(p);
         fg.type.Override(FilmGrainLookup.Medium2); fg.intensity.Override(0.18f);
     }
@@ -118,12 +125,12 @@ public static partial class SPBuilder
         {
             // look1: neutral moon (QA #2: lit snow neutral grey, the blue goes in the shadow / ambient)
             moon.color = new Color(0.82f, 0.82f, 0.83f);
-            moon.shadowStrength = 0.92f;   // tr13 (Kido: ss5 has stronger shadows)
+            moon.shadowStrength = 0.8f;   // q14 (QA: tree shadows pure black; ss5 strong but not crushed): was 0.92   // tr13 (Kido: ss5 has stronger shadows)
             moon.intensity *= 1.12f;       // tr14: lit snow brighter (ambient is lowered in StageMood "snow")
         }
         // trilight. look1: up = slate blue (#5a6170 hue: shadowed snow is where the blue lives), sides = neutral grey
         // (was warm grey-brown: with the warm light it made the dirt pink), down = neutral snow bounce
-        RenderSettings.ambientSkyColor = new Color(0.235f, 0.255f, 0.3f);
+        RenderSettings.ambientSkyColor = new Color(0.25f, 0.285f, 0.36f);   // q14: cooler, a little more fill so shadows go blue-grey (was 0.235/0.255/0.3)
         RenderSettings.ambientEquatorColor = new Color(0.33f, 0.33f, 0.335f);
         RenderSettings.ambientGroundColor = new Color(0.47f, 0.47f, 0.48f);
         var field = root.GetComponent<SnowPlague.SPField>();
@@ -140,7 +147,7 @@ public static partial class SPBuilder
     // tree prefabs (ThirdParty/Trees: Japanese black pine, Sketchfab pines / firs / dead conifers) as black cut-out
     // silhouettes seen from the moon (orthographic, so the image is their shadow), wrapped so it tiles.
     // Bump CookieVer to re-render (the PNG is kept so builds are stable).
-    const int CookieVer = 5;   // look2: layer-isolated render, coverage-driven; look3: clumps spread, ~25 %; look4: crowns only; look6: ~22 %
+    const int CookieVer = 6;  // q14: softer, lighter canopy shadow   // look2: layer-isolated render, coverage-driven; look3: clumps spread, ~25 %; look4: crowns only; look6: ~22 %
     static readonly Vector2 CookieSize = new Vector2(40f, 20f);   // light-space metres; on the ground ~40 x 47 m (moon 25 deg up)
     static string CookiePath => Root + "/Textures/SP_CanopyCookie_v" + CookieVer + ".png";
 
@@ -290,11 +297,11 @@ public static partial class SPBuilder
                         dst[y * W + x] = sum / (2 * rad + 1);
                     }
             }
-            for (int pass = 0; pass < 2; pass++) { Box(a, b, 3, true); Box(b, a, 3, false); }
+            for (int pass = 0; pass < 2; pass++) { Box(a, b, 5, true); Box(b, a, 5, false); }   // q14: softer penumbra (was 3 px)
             var outPx = new Color32[W * H];
             for (int i = 0; i < a.Length; i++)
             {
-                byte bv = (byte)Mathf.RoundToInt(Mathf.Clamp01(Mathf.Lerp(0.08f, 1f, a[i])) * 255f);
+                byte bv = (byte)Mathf.RoundToInt(Mathf.Clamp01(Mathf.Lerp(0.22f, 1f, a[i])   /* q14: cookie floor 0.08 -> 0.22, the canopy shadow is no longer black */) * 255f);
                 outPx[i] = new Color32(bv, bv, bv, 255);
             }
             var outTex = new Texture2D(W, H, TextureFormat.RGBA32, false, true); tmp.Add(outTex);
@@ -320,17 +327,17 @@ public static partial class SPBuilder
         // colour x the scrolling fog noise drew blurry dark smudges over the snow / ice in the far corner of 07 and 01
         // ("dirt on the lens"). Now a mid grey near the snow shadow value, a much flatter noise, a later start and a
         // lower cap, so the haze only greys the distance evenly.
-        C("SP_HeightFog", "_NearCol", new Color(0.36f, 0.37f, 0.39f));
+        C("SP_HeightFog", "_NearCol", new Color(0.34f, 0.36f, 0.4f));   // v14: cool grey-blue veil
         C("SP_HeightFog", "_FarCol", new Color(0.08f, 0.075f, 0.07f));
-        F("SP_HeightFog", "_Density", 0.014f);
+        F("SP_HeightFog", "_Density", 0.022f);   // v14 (was 0.014)
         F("SP_HeightFog", "_NoiseAmount", 0.12f);
-        F("SP_HeightFog", "_Start", 30f);
-        F("SP_HeightFog", "_MaxFog", 0.45f);
+        F("SP_HeightFog", "_Start", 8f);   // v14: the veil starts in front of the player (was 30: only the distance)
+        F("SP_HeightFog", "_MaxFog", 0.6f);   // v14 (was 0.45)
         // low sheets: neutral mid grey and thinner over the arena (they hazed the brush and dirt to grey)
         C("SP_FogSheetLow", "_Col", new Color(0.46f, 0.47f, 0.48f));
         C("SP_FogSheetMid", "_Col", new Color(0.42f, 0.43f, 0.44f));
         C("SP_FogSheetHigh", "_Col", new Color(0.38f, 0.39f, 0.4f));
-        F("SP_FogSheetLow", "_Density", 0.1f); F("SP_FogSheetMid", "_Density", 0.06f);
+        F("SP_FogSheetLow", "_Density", 0.18f); F("SP_FogSheetMid", "_Density", 0.1f);   // v14 (was 0.1 / 0.06)
         C("SP_FogSea", "_Col", new Color(0.5f, 0.5f, 0.5f));
     }
 

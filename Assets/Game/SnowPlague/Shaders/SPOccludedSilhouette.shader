@@ -30,6 +30,8 @@ Shader "SnowPlague/OccludedSilhouette"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            float _SP_SilMinY;   // e14: occluders below this world height (enemies, ground clutter) do not count (SPField)
             CBUFFER_START(UnityPerMaterial)
                 float4 _Color;
                 float _Base, _Fresnel, _Alpha, _Push;
@@ -47,6 +49,18 @@ Shader "SnowPlague/OccludedSilhouette"
             half4 frag(V i) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(i);
+                // e14 (Kido/QA: beige blob when enemies crowd the player): only tall static scenery (canopies, eaves, roofs)
+                // triggers the silhouette; whatever covers the player lower than _SP_SilMinY (enemies ~2 m) is ignored
+                if (_SP_SilMinY != 0)
+                {
+                    float2 suv = i.positionCS.xy / _ScreenParams.xy;
+                    float raw = SampleSceneDepth(suv);
+                    #if !UNITY_REVERSED_Z
+                    raw = lerp(UNITY_NEAR_CLIP_VALUE, 1, raw);
+                    #endif
+                    float3 occ = ComputeWorldSpacePosition(suv, raw, UNITY_MATRIX_I_VP);
+                    clip(occ.y - _SP_SilMinY);
+                }
                 float f = pow(1 - saturate(dot(normalize(i.n), GetWorldSpaceNormalizeViewDir(i.ws))), _Fresnel);
                 return half4(_Color.rgb * (_Base + f * (1 - _Base)), saturate(_Alpha * _Color.a));
             }

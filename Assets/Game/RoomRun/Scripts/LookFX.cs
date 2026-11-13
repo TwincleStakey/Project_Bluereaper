@@ -128,6 +128,14 @@ namespace RoomRun
             adj = p.Add<ColorAdjustments>(true);
             adj.postExposure.overrideState = adj.contrast.overrideState = adj.colorFilter.overrideState = adj.hueShift.overrideState = false;
             adj.saturation.Override(saturation);
+            // pressed grade (11-13): split toning per field, off unless the field's RoomPost asks for it
+            split = p.Add<SplitToning>(true);
+            split.shadows.overrideState = split.highlights.overrideState = split.balance.overrideState = false;
+            smh = p.Add<ShadowsMidtonesHighlights>(true);
+            smh.shadows.overrideState = smh.midtones.overrideState = smh.highlights.overrideState = false;
+            var vsh = Shader.Find("SnowPlague/HeightFog");   // the snow field's veil shader, kept in builds by SP_HeightFog
+            if (vsh) veilMat = new Material(vsh) { hideFlags = HideFlags.DontSave };
+            veilPass = new VeilPass { renderPassEvent = RenderPassEvent.AfterRenderingSkybox };
         }
 
         // Per-field exposure (absolute EV) set here, above every other volume. 11-11 (Kido: "저승은 좀 만 poe2수준으로
@@ -139,11 +147,68 @@ namespace RoomRun
 
         // Per-field saturation / bloom. Snow (snow thread, 11-11): -18 made the snow too colourful and a 0.8 threshold
         // smeared bloom over the bright snow, so it keeps more grey and only real light sources bloom.
-        struct RoomPost { public float saturation, bloomThreshold, bloomIntensity; public float flashScale; }   // flashScale: death flash intensity x (0 = 1)
+        // Pressed grade (11-13, Kido: "설원 같은경우 엄청 쨍한거를 잘 잡았는데 다른 맵들도 좀 눌러봐"): the snow field reads
+        // pressed and foggy (low contrast, grey, a veil from the player outward, only real lights bloom); the other fields
+        // were dark but hard and loud (crushed blacks, -18 saturation from LookFX over StageMood's -50..-66, bloom 0.8/1.3).
+        // press = true takes over StageMood's contrast/filter and adds split toning plus a veil in the field's own hue
+        // (the snow HeightFog shader, after opaques so shots and VFX stay crisp). veil is the colour it reads as on
+        // screen after exposure (sRGB); exposureAdd is on top of StageMood's exposure.
+        struct RoomPost
+        {
+            public float saturation, bloomThreshold, bloomIntensity; public float flashScale;   // flashScale: death flash intensity x (0 = 1)
+            public bool press; public float contrast, exposureAdd;
+            public Color filter, splitShadows, splitHighlights; public float splitBalance;
+            public Color veil, veilFar; public float veilDensity, veilMax;
+            public float highlightPull;   // ShadowsMidtonesHighlights highlights offset (<0 pulls glare down)
+        }
         static readonly System.Collections.Generic.Dictionary<string, RoomPost> RoomPosts = new System.Collections.Generic.Dictionary<string, RoomPost>
         {
             { "snow", new RoomPost { saturation = -40f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.35f } },   // 11-13 (Kido: snow too bright, glow blob round the player): 1.15 / 0.9 -> 1.4 / 0.6
+            // 11-13 pressed pass, before: saturation -18, bloom 0.8 / 1.3, StageMood contrast 24 (abandoned 40), no veil
+            { "palace", new RoomPost { saturation = -42f, bloomThreshold = 1.35f, bloomIntensity = 0.7f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.35f,
+                filter = new Color(0.97f, 0.95f, 0.92f), splitShadows = new Color(0.38f, 0.42f, 0.5f), splitHighlights = new Color(0.82f, 0.72f, 0.6f), splitBalance = 10f,
+                veil = new Color(0.29f, 0.28f, 0.29f), veilFar = new Color(0.12f, 0.115f, 0.12f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.15f } },
+            { "valley", new RoomPost { saturation = -45f, bloomThreshold = 1.5f, bloomIntensity = 0.55f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.25f,
+                filter = new Color(0.93f, 0.95f, 0.94f), splitShadows = new Color(0.38f, 0.45f, 0.48f), splitHighlights = new Color(0.78f, 0.74f, 0.66f), splitBalance = 15f,
+                veil = new Color(0.27f, 0.3f, 0.3f), veilFar = new Color(0.1f, 0.12f, 0.12f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.5f } },
+            { "village", new RoomPost { saturation = -40f, bloomThreshold = 1.4f, bloomIntensity = 0.65f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.45f,
+                filter = new Color(0.97f, 0.95f, 0.92f), splitShadows = new Color(0.4f, 0.42f, 0.46f), splitHighlights = new Color(0.8f, 0.7f, 0.58f), splitBalance = 10f,
+                veil = new Color(0.29f, 0.28f, 0.26f), veilFar = new Color(0.12f, 0.11f, 0.1f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.15f } },
+            { "reeds", new RoomPost { saturation = -46f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 6f, exposureAdd = 0.3f,
+                filter = new Color(0.95f, 0.94f, 0.95f), splitShadows = new Color(0.36f, 0.4f, 0.48f), splitHighlights = new Color(0.86f, 0.68f, 0.5f), splitBalance = 10f,
+                veil = new Color(0.33f, 0.31f, 0.3f), veilFar = new Color(0.13f, 0.11f, 0.11f), veilDensity = 0.03f, veilMax = 0.7f, highlightPull = -0.15f } },
+            { "bamboo", new RoomPost { saturation = -45f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.15f,
+                filter = new Color(0.9f, 0.95f, 0.95f), splitShadows = new Color(0.38f, 0.45f, 0.45f), splitHighlights = new Color(0.74f, 0.74f, 0.66f), splitBalance = 10f,
+                veil = new Color(0.27f, 0.3f, 0.29f), veilFar = new Color(0.1f, 0.12f, 0.11f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.15f } },
+            { "grass", new RoomPost { saturation = -45f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.2f,
+                filter = new Color(0.94f, 0.95f, 0.94f), splitShadows = new Color(0.38f, 0.44f, 0.46f), splitHighlights = new Color(0.78f, 0.74f, 0.64f), splitBalance = 10f,
+                veil = new Color(0.27f, 0.3f, 0.29f), veilFar = new Color(0.1f, 0.12f, 0.11f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.15f } },
+            // 폐촌 (the 폐촌 thread owns the scene; only this entry): StageMood keeps its warm filter and moon; ACES fire pools were blowing out
+            { "abandoned", new RoomPost { saturation = -38f, bloomThreshold = 1.35f, bloomIntensity = 0.7f, flashScale = 0.5f, press = true, contrast = 20f, exposureAdd = 0f,
+                filter = new Color(1f, 0.97f, 0.92f), splitShadows = new Color(0.36f, 0.4f, 0.48f), splitHighlights = new Color(0.8f, 0.7f, 0.58f), splitBalance = 0f,
+                veil = new Color(0.25f, 0.26f, 0.29f), veilFar = new Color(0.1f, 0.1f, 0.12f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.3f } },
+            // 저승: UWLook grades it at priority 1200 (above this volume) with its own fog, so no entry here
         };
+        SplitToning split;
+        ShadowsMidtonesHighlights smh;
+        Material veilMat;
+        VeilPass veilPass;
+        bool veilOn;
+        // StageMood's exposure for the current scene, for exposureAdd (its volume appears a few frames after the load)
+        int moodScene = -1; float moodExposure; bool moodFound; float nextMoodScan;
+        float MoodExposure()
+        {
+            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            if (scene != moodScene) { moodScene = scene; moodFound = false; nextMoodScan = 0f; }
+            if (!moodFound && Time.unscaledTime >= nextMoodScan)
+            {
+                nextMoodScan = Time.unscaledTime + 0.25f;
+                foreach (var v in FindObjectsByType<Volume>(FindObjectsSortMode.None))
+                    if (v.name == "StageMood" && v.sharedProfile && v.sharedProfile.TryGet<ColorAdjustments>(out var ca) && ca.postExposure.overrideState)
+                    { moodExposure = ca.postExposure.value; moodFound = true; break; }
+            }
+            return moodExposure;
+        }
 
         void OnEnable()
         {
@@ -178,6 +243,39 @@ namespace RoomRun
                 adj.saturation.value = post.saturation;
                 if (bloom) { bloom.threshold.value = post.bloomThreshold; bloom.intensity.value = post.bloomIntensity; }
                 deathFlash = post.flashScale > 0f ? post.flashScale : 1f;
+                bool press = custom && post.press;
+                adj.contrast.overrideState = adj.colorFilter.overrideState = press;
+                if (press) { adj.contrast.value = post.contrast; adj.colorFilter.value = post.filter; }
+                if (press && !has && post.exposureAdd != 0f) { float me = MoodExposure(); adj.postExposure.overrideState = moodFound; adj.postExposure.value = me + post.exposureAdd; }
+                if (split)
+                {
+                    split.shadows.overrideState = split.highlights.overrideState = split.balance.overrideState = press;
+                    if (press) { split.shadows.value = post.splitShadows; split.highlights.value = post.splitHighlights; split.balance.value = post.splitBalance; }
+                }
+                if (smh)
+                {
+                    // StageMood's tones (blue-black shadows, warm highlights) with softer blacks and the glare pulled down
+                    smh.shadows.overrideState = smh.midtones.overrideState = smh.highlights.overrideState = press;
+                    if (press)
+                    {
+                        smh.shadows.value = new Vector4(0.9f, 0.94f, 1.05f, -0.05f);
+                        smh.midtones.value = new Vector4(0.98f, 0.98f, 1f, 0f);
+                        smh.highlights.value = new Vector4(1.03f, 1f, 0.95f, post.highlightPull);
+                    }
+                }
+                veilOn = press && veilMat && post.veilMax > 0f;
+                if (veilOn)
+                {
+                    // the veil is blended before exposure: divide by it so the colour reads as given on screen
+                    float veilEv = adj.postExposure.overrideState ? adj.postExposure.value : MoodExposure();
+                    float k = 1f / Mathf.Pow(2f, veilEv);
+                    veilMat.SetVector("_NearCol", (Vector4)(post.veil.linear * k));
+                    veilMat.SetVector("_FarCol", (Vector4)(post.veilFar.linear * k));
+                    veilMat.SetFloat("_Density", post.veilDensity); veilMat.SetFloat("_MaxFog", post.veilMax);
+                    veilMat.SetFloat("_Start", 8f); veilMat.SetFloat("_FarDist", 90f); veilMat.SetFloat("_Falloff", 0.35f);
+                    veilMat.SetFloat("_NoiseAmount", 0f);
+                    veilMat.SetFloat("_Base", run.AreaCenter.y);
+                }
             }
             if (live && run.Player)
             {
@@ -193,7 +291,18 @@ namespace RoomRun
         void Draw(ScriptableRenderContext ctx, Camera cam)
         {
             var run = RunDirector.Instance;
-            if (!On || !run || !poolEnemy || cam != run.Rig.Cam) return;
+            if (!On || !run || !run.Rig || cam != run.Rig.Cam) return;
+            if (veilOn && veilPass != null)
+            {
+                var vd = cam.GetUniversalAdditionalCameraData();
+                if (vd != null && vd.scriptableRenderer != null)
+                {
+                    veilPass.mat = veilMat;
+                    veilPass.ConfigureInput(ScriptableRenderPassInput.Depth | ScriptableRenderPassInput.Color);
+                    vd.scriptableRenderer.EnqueuePass(veilPass);
+                }
+            }
+            if (!poolEnemy) return;
             var bs = run.Bullets;
             int ne = 0, np = 0;
             if (corePass != null) corePass.Clear();
@@ -309,6 +418,38 @@ namespace RoomRun
             {
                 if (!m) return;
                 for (int c = 0; c * 1023 < n; c++) cmd.DrawMeshInstanced(mesh, 0, m, 0, chunks[c], Mathf.Min(1023, n - c * 1023));
+            }
+        }
+
+        // ---------------------------------------------------------------- pressed-grade veil (same as SPField's height fog)
+        sealed class VeilPass : ScriptableRenderPass
+        {
+            public Material mat;
+            public VeilPass() { requiresIntermediateTexture = true; }
+            class PassData { public TextureHandle src, depth; public Material mat; }
+
+            public override void RecordRenderGraph(RenderGraph rg, ContextContainer frameData)
+            {
+                var res = frameData.Get<UniversalResourceData>();
+                if (res.isActiveTargetBackBuffer || mat == null) return;
+                var src = res.activeColorTexture;
+                var desc = rg.GetTextureDesc(src);
+                desc.name = "LookFX_Veil"; desc.clearBuffer = false; desc.depthBufferBits = 0;
+                var dst = rg.CreateTexture(desc);
+                using (var b = rg.AddRasterRenderPass<PassData>("LookFX Veil", out var d))
+                {
+                    d.src = src; d.mat = mat; d.depth = res.cameraDepthTexture;
+                    b.UseTexture(src, AccessFlags.Read);
+                    if (d.depth.IsValid()) b.UseTexture(d.depth, AccessFlags.Read);
+                    b.SetRenderAttachment(dst, 0, AccessFlags.Write);
+                    b.AllowGlobalStateModification(true);
+                    b.SetRenderFunc((PassData p, RasterGraphContext c) =>
+                    {
+                        if (p.depth.IsValid()) p.mat.SetTexture("_CameraDepthTexture", p.depth);
+                        Blitter.BlitTexture(c.cmd, p.src, new Vector4(1, 1, 0, 0), p.mat, 0);
+                    });
+                }
+                res.cameraColor = dst;
             }
         }
 

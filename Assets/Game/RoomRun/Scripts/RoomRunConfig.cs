@@ -114,6 +114,15 @@ namespace RoomRun
         public int playerHp = 6;
         [Tooltip("Light ring under the player's feet. Off by default; meant for telling co-op players apart.")]
         public bool playerFootRing = false;
+        [Tooltip("Temporary look test (11-13): the LocoSplit greatsword 착호갑사 (animated). Used instead of playerPrefab while the " +
+                 "dev panel switch 양손검 캐릭터 (PlayerPrefs RR.Greatsword, default on) is on. Built by ls_cmd 'rrplayer'.")]
+        public GameObject greatswordPrefab;
+        public float greatswordScale = 1.15f;
+        [Tooltip("Free Slash VFX (MaykerStudio) prefab played on each greatsword swing, and a bigger one on the spin finisher.")]
+        public GameObject slashVfx;
+        public GameObject slashVfxFinisher;
+        [Tooltip("Grass texture for the cut-blade bits thrown up by a swing.")]
+        public Texture2D cutBitsTexture;
 
         [Header("Materials")]
         public Material playerBullet;

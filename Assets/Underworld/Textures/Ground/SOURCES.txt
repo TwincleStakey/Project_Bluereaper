@@ -1,0 +1,17 @@
+Underworld ground scans (packed: *_AH = BaseColor RGB + Displacement A, *_NRA = Normal GL RG + Roughness B + AO A).
+Source: Fab / Quixel Megascans (free listings, Fab Standard License), 2K texture sets, downloaded 2026-11-13.
+  Flag   = Flagstone Floor     https://www.fab.com/listings/0eaa27af-6f3f-41d9-a939-a3b2c27a4b50
+  Ash    = Burnt Forest Floor  https://www.fab.com/listings/f8b3641c-4e6d-4525-8a5d-f32fc9bdcc78
+  Rubble = Gravel on Soil      https://www.fab.com/listings/6fe7b621-ea13-4218-b2e4-ec70ddfda3b4
+Packed by ArtSource/uw_quality/packfab.py.
+Added 2026-11-13 (second pass):
+  Slab   = Historic Medieval Church Ruin Floor Stone 03 (1K set, 1 m)  https://www.fab.com/listings/726a9e4d-1ec6-45c1-9b5d-23bda6eb0744
+  Soil   = Dark Soil (0.36 m)     https://www.fab.com/listings/e173b3ae-6467-410d-9e1d-f525f627996a
+  Rocky  = Rocky Ground (3 m)     https://www.fab.com/listings/c51a0766-b5e6-4a6e-aa5a-55c30596c87f
+Packed by ArtSource/uw_quality/packfab2.py.
+Added 2026-11-13 (third pass, "underworld, not a field"):
+  Crack   = Icelandic Cracked Rock (1 m)  https://www.fab.com/listings/5689cbf1-32e1-4262-b203-5d10f2f0c9e8
+  CoalAsh = Coal Ash (0.36 m)             https://www.fab.com/listings/83550d6e-50a8-4493-ba20-09dbaa30ac4d
+  Coal    = Coal Debris (1 m)             https://www.fab.com/listings/6d4f763b-35c6-41be-9568-97923358950d
+  Bones (3D, Assets/Underworld/Models/Bones): Animal Jaw Bone https://www.fab.com/listings/6342cc06-f514-4a1c-bd7f-98eb40d23464
+                                              Animal Leg Bone https://www.fab.com/listings/59a5f8d3-6381-4a0c-82eb-7e61952d85db

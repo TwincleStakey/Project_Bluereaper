@@ -267,6 +267,32 @@ namespace RoomRun
         }
 
         // Stands still and keeps firing at the nearest enemy (captures of glowing shots).
+        // "room~": aim fixed up-screen, walk 8 directions (0.9 s each, a stop between), then a held combo; traced to gs_trace.csv
+        sealed class Dirs8 : ICommandSource
+        {
+            readonly float t0 = Time.time;
+            public PlayerCommand Read(PlayerController p, Camera cam)
+            {
+                float t = Time.time - t0;
+                int i = (int)(t / 1.2f);
+                float local = t - i * 1.2f;
+                var c = new PlayerCommand { aimDir = Vector3.forward };
+                if (i < 8 && local < 0.9f)
+                {
+                    float a = i * 45f * Mathf.Deg2Rad;
+                    c.move = new Vector2(Mathf.Sin(a), Mathf.Cos(a));
+                }
+                else if (i >= 8)
+                {
+                    // combo aimed up, right, down-left, left (1.6 s each): the sweeps must follow the cursor
+                    var aims = new[] { Vector3.forward, Vector3.right, new Vector3(-1, 0, -1).normalized, Vector3.left };
+                    c.aimDir = aims[Mathf.Min(3, (int)((t - 9.6f) / 1.6f))];
+                    c.fire = true;
+                }
+                return c;
+            }
+        }
+
         sealed class Firer : ICommandSource
         {
             readonly RunDirector run;
@@ -370,9 +396,16 @@ namespace RoomRun
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32) { antiAliasing = 2 };
             var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
             float[] zooms = ShotZooms;
+            int seq = 0;
+            string seeTag = "";
             foreach (var token in rooms)
             {
                 if (string.IsNullOrEmpty(token)) continue;
+                // "seq=90": after the stills, that many consecutive frames at the first zoom to rr_clip/<tag>_NNN.jpg (short video)
+                if (token.StartsWith("seq=")) { int.TryParse(token.Substring(4), out seq); continue; }
+                // "see=0" / "see=1": soft see-through off (previous behaviour) / on for the rooms after it (SeeThroughFX);
+                // the file names get _see0 / _see1, the setting goes back to on after the shots
+                if (token.StartsWith("see=")) { PlayerPrefs.SetInt(SeeThroughFX.ModeKey, token.Substring(4) == "0" ? 0 : 1); seeTag = "_see" + token.Substring(4); continue; }
                 // "z=1,1.2,1.4" sets the zoom levels for the rooms after it
                 if (token.StartsWith("z="))
                 {
@@ -381,6 +414,8 @@ namespace RoomRun
                 }
                 string id = token, tag = token;
                 Vector3? at = null;
+                bool dirs8 = id.EndsWith("~");
+                if (dirs8) { id = id.TrimEnd('~'); tag = id + "_dirs8"; }
                 bool firing = id.EndsWith("!");
                 if (firing) { id = id.TrimEnd('!'); tag = id + "_fire"; }
                 // "grass+12*" : the extra enemies hold still where they spawned (looks check: they do not pile onto the player)
@@ -421,6 +456,11 @@ namespace RoomRun
                 else if (swarm > 0) { run.DevSwarm(swarm); yield return new WaitForSeconds(4f); }
                 var keepSource = run.Player.Source;
                 if (firing) { run.Player.Source = new Firer(run); yield return new WaitForSeconds(1.2f); }
+                if (dirs8)
+                {
+                    GreatswordCombat.TracePath = Path.Combine(Dir, "gs_trace.csv");
+                    run.Player.Source = new Dirs8();
+                }
                 var rig = run.Rig;
                 // other fields' stale DontSave renderers (no scene) draw over every stage in the shared editor; hide them
                 var orphans = new List<Renderer>();
@@ -435,11 +475,29 @@ namespace RoomRun
                     cam.targetTexture = rt; cam.Render();
                     RenderTexture.active = rt; tex.ReadPixels(new Rect(0, 0, W, H), 0, 0); RenderTexture.active = null;
                     cam.targetTexture = null;
-                    File.WriteAllBytes(Path.Combine(dir, $"{tag}_z{z:0.0}.jpg"), tex.EncodeToJPG(90));
+                    File.WriteAllBytes(Path.Combine(dir, $"{tag}{seeTag}_z{z:0.0}.jpg"), tex.EncodeToJPG(90));
+                }
+                if (seq > 0)
+                {
+                    string clipDir = Path.Combine(Dir, "rr_clip");
+                    Directory.CreateDirectory(clipDir);
+                    rig.Zoom = zooms[0]; rig.Snap();
+                    Time.captureFramerate = 30;   // fixed game time per saved frame, however slow the encode is
+                    for (int f = 0; f < seq; f++)
+                    {
+                        yield return new WaitForEndOfFrame();
+                        var cam = rig.Cam;
+                        cam.targetTexture = rt; cam.Render();
+                        RenderTexture.active = rt; tex.ReadPixels(new Rect(0, 0, W, H), 0, 0); RenderTexture.active = null;
+                        cam.targetTexture = null;
+                        File.WriteAllBytes(Path.Combine(clipDir, $"{tag}_{f:000}.jpg"), tex.EncodeToJPG(88));
+                    }
+                    Time.captureFramerate = 0;
+                    GreatswordCombat.TracePath = null;
                 }
                 foreach (var r in orphans) if (r) r.enabled = true;
                 rig.Zoom = CameraRig.FixedZoom;
-                if (firing) run.Player.Source = keepSource;
+                if (firing || dirs8) run.Player.Source = keepSource;
                 // what the post stack actually resolves to for the game camera (diagnosing the dark underworld)
                 var stack = UnityEngine.Rendering.VolumeManager.instance.stack;
                 var cadj = stack.GetComponent<UnityEngine.Rendering.Universal.ColorAdjustments>();
@@ -452,6 +510,7 @@ namespace RoomRun
                 Note($"shots {tag} done (fps {1f / Mathf.Max(Time.smoothDeltaTime, 1e-4f):0})");
             }
             Object.Destroy(rt); Object.Destroy(tex);
+            if (seeTag != "") PlayerPrefs.SetInt(SeeThroughFX.ModeKey, 1);
             SessionState.SetString(KeyState, "stopping");
         }
 

@@ -4,6 +4,7 @@
 #define REED_COMMON_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "../../../Art/LookStudy/Shaders/RRCut.hlsl"
 
 float  _RF_Time;
 float4 _RF_Wind;        // xy: wind direction (normalized), z: strength, w: gust speed

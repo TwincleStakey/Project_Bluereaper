@@ -38,7 +38,7 @@ public static partial class SPBuilder
         m.SetVector("_Tiles", new Vector4(2.4f, 2.6f, 3.0f, 2.6f));
         m.SetFloat("_HexScale", 1.2f);
         // gnd1 (QA vs ss5): neutral snow albedo ~#d4d6d8 (scan 224 x 0.95 sRGB tint), B never above R/G; blue only in light
-        m.SetColor("_SnowTint", new Color(0.952f, 0.95f, 0.948f));
+        m.SetColor("_SnowTint", new Color(0.86f, 0.855f, 0.84f));   /* v14b: 0.8 left no bright snow at all */   // v14 (ss5 snow is dirty grey, not white): was 0.952
         m.SetColor("_ShadeTint", new Color(0.86f, 0.87f, 0.9f));   // gnd1: was strongly blue (read lilac); the cool shadow comes from the lighting
         m.SetFloat("_SnowRelief", 1f);
         m.SetFloat("_MeltHoles", 0f);   // gnd11 (QA amateur #11): the round melt holes read as black holes punched in the snow
@@ -47,27 +47,27 @@ public static partial class SPBuilder
         // gnd1: bare ground grey-olive ~#6e665a, no pink (the warm tints x tan scans read pink-tan under the lanterns)
         m.SetColor("_LeafTint", new Color(1.35f, 1.35f, 1.33f));
         m.SetColor("_SoilTint", new Color(1.55f, 1.55f, 1.52f));   // gr3: churned soil round the vignettes read near-black
-        m.SetColor("_GravelTint", new Color(1.0f, 1.0f, 0.98f));   // gnd2: dirt ~0.65 x the lit snow value (gnd1 measured 70 vs snow 136)
+        m.SetColor("_GravelTint", new Color(0.8f, 0.81f, 0.83f));   // g14: dark grey-brown frozen gravel, no warm brown (was 1.0/1.0/0.98)   // gnd2: dirt ~0.65 x the lit snow value (gnd1 measured 70 vs snow 136)
         m.SetColor("_RedLeaf", new Color(0.4f, 0.07f, 0.05f));
-        m.SetFloat("_RedLeaves", 0.05f);
-        m.SetFloat("_Calm", 0.7f);
+        m.SetFloat("_RedLeaves", 0f);   // g14
+        m.SetFloat("_Calm", 0.92f);   // g14: low saturation (was 0.7)
         m.SetFloat("_Wet", 0.3f);
-        m.SetFloat("_SnowBias", 0f);
+        m.SetFloat("_SnowBias", -0.36f);   // v14 (ss5: a patchy dirty dusting, ground through it everywhere in fine grains): the level sits in the granular band
         m.SetFloat("_SnowFill", 1.0f);   // gr1: weight of the ground's own height in the snow threshold (x0.6)
         m.SetFloat("_BlendDepth", 0.2f);
-        m.SetFloat("_NormalStrength", 1.35f);
+        m.SetFloat("_NormalStrength", 1.0f);   // v14: lower micro-contrast
         m.SetFloat("_SnowFlatten", ms ? 1f : 0.6f);   // the Megascans snow is near-flat white already: keep all its detail
-        m.SetFloat("_Sparkle", 8f);
-        m.SetFloat("_SnowSmooth", 0.2f);   // gr2: the snow read as glossy wet plaster; ss5 powder is matte
+        m.SetFloat("_Sparkle", 2f);   // v14: was 8 (kept the frame "쨍")
+        m.SetFloat("_SnowSmooth", 0.12f);   // v14   // gr2: the snow read as glossy wet plaster; ss5 powder is matte
         // redo 2
         m.SetColor("_DirtTint", new Color(0.88f, 0.86f, 0.82f));
-        m.SetFloat("_DirtySnow", 0.85f);
+        m.SetFloat("_DirtySnow", 1.0f);   // v14
         m.SetFloat("_ThinFrost", 0.35f);
         m.SetFloat("_HollowSnow", 0f);   // gr1: unused (the level/height threshold leaves the specks in the gaps itself)
-        m.SetFloat("_SnowEdge", 0.06f);   // gr1: per-pixel softness against the local height (the gradient comes from the level)
+        m.SetFloat("_SnowEdge", 0.12f);   // g14: softer snow/ground edge (was 0.06)   // gr1: per-pixel softness against the local height (the gradient comes from the level)
         m.SetFloat("_BareNormal", 1.3f);
-        m.SetFloat("_MudAmount", 0.3f);
-        m.SetFloat("_GravelAmount", 1f);
+        m.SetFloat("_MudAmount", 0.1f);   // g14 (was 0.3)
+        m.SetFloat("_GravelAmount", 1.3f);   // v14: some dark leaf litter back between the gravel   // g14: little brown leaf litter (it scales by 2 - this)
         m.SetFloat("_GroundAO", 0.35f);
     }
 
@@ -221,7 +221,13 @@ public static partial class SPBuilder
             ("LEAF:0", 1800, -0.8f, -1.4f, 0.95f, -0.6f, 10, 0f), ("LEAF:1", 1400, -0.8f, -1.3f, 0.95f, -0.6f, 8, 0f),
             ("MS:snowy_rocks_pile_vcykbjsva_mid", 0, 0.7f, 1.6f, 0.2f, 0.3f, 2, 0.2f), ("MS:rocky_snow_pile_xfroec0qx_mid", 0, 0.7f, 1.6f, 0.2f, 0.3f, 2, 0.2f),
             ("LEAF:2", 1800, -0.8f, -1.5f, 0.9f, -0.6f, 12, 0f), ("LEAFRED:0", 300, -0.7f, -1.1f, 0.9f, -0.6f, 4, 0f),
+            // v14c (ss5 density in the arena middle; arena rule: only flat / low, no colliders - SPScatter instances have none):
+            // straw mats, rags, smashed pot shards, bones, a few toppled lantern pieces, fallen pine branches, in clusters
+            // (straw mats / rags dropped: their snow-capped flat cards read as grey rectangles at the game camera)
+            // (pot shards, bones and lantern pieces dropped too: Kido "바닥에 이 이상한것들 뭐야" - dark bowls / squares read as fake)
+            ("MS:fallen_pine_branches_rfecm_mid", 80, 1.0f, 1.8f, 0.3f, 0f, 3, 0.1f),
         };
+        const float ClutterScale = 1.8f;   // v14b (ss5 has ~2x our small detail)
         const int SetTriBudget = 450000;   // per set (all instances, before culling)
         int total = 0; long tris = 0;
         foreach (var p in plan)
@@ -238,7 +244,7 @@ public static partial class SPBuilder
             foreach (var s in srcs)
             {
                 if (!s.mat) continue;
-                int n = Mathf.Max(1, p.n / srcs.Count);
+                int n = Mathf.Max(1, (int)(p.n * ClutterScale) / srcs.Count);
                 if (s.tris * n > SetTriBudget) { int cap = Mathf.Max(20, SetTriBudget / Mathf.Max(1, s.tris)); Log($"CLUTTER {p.m}/{s.mesh.name}: {s.tris} tris, {n} -> {cap}"); n = Mathf.Min(n, cap); }
                 var gmat = s.mat;
                 // gnd11: stones as dark grey with a partial snow cap, not black discs or white eggs
@@ -256,7 +262,7 @@ public static partial class SPBuilder
                     {
                         cx = Rc(-HX - 4f, HX + 4f); cz = Rc(-HZ - 4f, HZ + 4f);
                         float snow = SampleMask(mSnow, cx, cz) - SampleMask(mPath, cx, cz) * 0.3f, grav = SampleMask(mGravel, cx, cz);
-                        float dens = Mathf.Lerp(1f, Mathf.Clamp01(1.2f - snow), p.bare);
+                        float dens = Mathf.Lerp(1f, Mathf.Clamp01(1.2f - snow), p.bare * 0.4f);   // v14b: the snow mask is near 1 since g14, so the bare preference counts less
                         dens *= p.grav >= 0 ? Mathf.Lerp(1f, 0.35f + grav, p.grav) : Mathf.Lerp(1f, 1.2f - grav, -p.grav);
                         dens *= 0.35f + 0.9f * Mathf.PerlinNoise(cx * 0.17f + p.m.Length * 3.1f, cz * 0.17f + p.n * 0.01f);
                         if ((float)crng.NextDouble() > dens) continue;

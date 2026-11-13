@@ -299,7 +299,7 @@ void SPSurface(SPInput i, inout SPOut o)
     float3 snowCol = sa * _SnowTint.rgb * (0.94 + 0.1 * m1 * _Macro + 0.04 * m3);
     float dip = saturate((0.6 - hs) * 3.0) * 0.85 + saturate((0.6 - sn.h) * 1.6) * 0.25;
     snowCol = lerp(snowCol, snowCol * _ShadeTint.rgb, saturate(dip) * lerp(0.5, 1.0, thick) * 0.5);   // gnd1: half (diagonal wind bands)
-    snowCol *= lerp(0.97, 1.04, saturate((hs - 0.55) * 3));
+    snowCol *= lerp(0.95, 1.14, saturate((hs - 0.55) * 3)) * lerp(1.0, 1.08, thick);   // v14b (ss5: bright snow on the raised, lit crests, grey in the hollows): was 0.97 .. 1.04
     snowCol = lerp(snowCol, snowCol * 1.04, drift);
     // gnd11 (QA amateur: uniform "sandpaper" snow): soft 10-30 m drifts of value, like ss5, over the fine grain
     snowCol *= lerp(0.9, 1.07, SPFbmI(xz * 0.045 + 7.3) * 0.7 + SPNoiseI(xz * 0.12 + 2.2) * 0.3);

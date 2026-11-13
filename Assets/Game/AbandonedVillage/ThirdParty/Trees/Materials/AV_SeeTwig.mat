@@ -43,6 +43,7 @@ Material:
     - _Desat: 0.5
     - _GroundMelt: 0.15
     - _NormalStrength: 1
+    - _RimScale: 1
     - _SeeThrough: 1
     - _Smoothness: 0.1
     - _SnowBias: -1

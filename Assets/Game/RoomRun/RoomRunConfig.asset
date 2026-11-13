@@ -289,6 +289,11 @@ MonoBehaviour:
   playerScale: 1.15
   playerHp: 6
   playerFootRing: 0
+  greatswordPrefab: {fileID: 6101391765074587218, guid: 9967533142d7da04db2b45b491b02a42, type: 3}
+  greatswordScale: 1.15
+  slashVfx: {fileID: 856368647163548680, guid: bdbe9690fbb5db44eac8e5e09587c7ed, type: 3}
+  slashVfxFinisher: {fileID: 856368647163548680, guid: bdbe9690fbb5db44eac8e5e09587c7ed, type: 3}
+  cutBitsTexture: {fileID: 2800000, guid: 22a99e946e8d95340a87f9b50fc513cc, type: 3}
   playerBullet: {fileID: 2100000, guid: 9288e6b1091fb4f43a92a27c9472dd04, type: 2}
   enemyBullet: {fileID: 2100000, guid: b45eb05edec9dd04c9082098df1ac5c4, type: 2}
   enemyBulletCore: {fileID: 2100000, guid: e66f004d8097e524297c7b89711b32fa, type: 2}

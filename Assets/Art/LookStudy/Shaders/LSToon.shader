@@ -53,6 +53,7 @@ Shader "LookStudy/Toon"
 
             half4 frag(V2F i) : SV_Target
             {
+                RRSeeThroughClip(i.positionCS, i.positionWS);   // 11-13: soft see-through near the player
                 float3 n = normalize(i.normalWS);
                 float3 l = _MainLightPosition.xyz;
                 float3 v = normalize(_WorldSpaceCameraPos - i.positionWS);

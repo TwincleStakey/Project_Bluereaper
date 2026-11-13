@@ -67,11 +67,15 @@ Shader "LookStudy/Grass"
                 ws.xz += offs * k * max(blade / max(h, 0.05), 0.25);
                 ws.y -= saturate(length(offs)) * k * blade * 0.55;
 
+                ws = RRCutApply(ws, root, 0.15);   // greatsword cuts
                 o.positionWS = ws;
                 o.positionCS = TransformWorldToHClip(ws);
                 o.root = root;
                 o.data = float4(h, rnd, lane, a.uv.x);
                 o.color = a.color;
+                // greatsword cut: straw-coloured stubble (vertex alpha drives the colour override in frag)
+                float cut = RRCut(root.xz);
+                o.color = lerp(o.color, float4(0.62, 0.55, 0.26, 0.8), cut);
                 return o;
             }
 

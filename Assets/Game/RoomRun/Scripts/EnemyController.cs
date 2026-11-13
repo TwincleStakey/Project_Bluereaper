@@ -8,6 +8,9 @@ namespace RoomRun
     public sealed class EnemyController : MonoBehaviour
     {
         const float MuzzleHeight = 1.05f;
+        const float DashMul = 3.4f;
+        const float CastRecover = 0.7f; // seconds an animated shooter stays planted after its volley
+        float castHold;
 
         EnemyDef def;
         RunDirector run;
@@ -19,12 +22,15 @@ namespace RoomRun
         public const string ClassicKey = "RR.ClassicEnemies";
         GameObject model, modelPrefab;
         Animator anim;
+        EnemyGait gait;
+        float hipWorld;
+        static readonly int PRunMul = Animator.StringToHash("RunMul");
         bool dead;
         static readonly int StMove = Animator.StringToHash("Move"), StRun = Animator.StringToHash("Run"),
             StAttack = Animator.StringToHash("Attack"), StDie = Animator.StringToHash("Die"), PMoveMul = Animator.StringToHash("MoveMul");
         int animState;
         Material flash;
-        float fallbackY, fireTimer, telegraph, flashLeft, contactCool, phase, ringAngle;
+        float fallbackY, fireTimer, telegraph, flashLeft, flashCool, contactCool, phase, ringAngle;
         float dashWait, dashLeft;
         Vector3 dashDir;
         int strafeSign;
@@ -40,7 +46,9 @@ namespace RoomRun
 
             health = GetComponent<Health>();
             health.Init(Team.Enemy, d.hp);
-            health.Damaged += _ => { flashLeft = 0.08f; ApplyFlash(true); };
+            // QA 11-13: under steady fire the full-white material swap kept enemies white most of the time and read as a
+            // pale silhouette over the player; now a short blink at most ~3 times a second
+            health.Damaged += _ => { if (flashCool > 0f) return; flashLeft = 0.05f; flashCool = 0.3f; ApplyFlash(true); };
             health.Died += Die;
 
             cc = GetComponent<CharacterController>();
@@ -62,6 +70,9 @@ namespace RoomRun
                 model.transform.localScale = Vector3.one * s;
                 anim = model.GetComponentInChildren<Animator>();
                 if (anim) { anim.Rebind(); anim.Play(StMove, 0, Random.value); animState = StMove; }
+                // 11-13 Kido: feet slid. Walk/run clips play at the rate the body moves: stride (hip heights per second) x hip height in the world
+                gait = model.GetComponentInChildren<EnemyGait>();
+                if (anim && gait && anim.isHuman) hipWorld = anim.humanScale * anim.transform.lossyScale.y;
             }
             else
             {
@@ -123,12 +134,19 @@ namespace RoomRun
                     move = dirTo * def.moveSpeed;
                     TickFire(dt, dirTo, Ring);
                     break;
+            }
+            // 11-13 Kido: casters slid while shooting. Animated shooters plant their feet from the wind-up until the cast
+            // has played out, then walk on; the separation push is weakened meanwhile so the crowd does not shove them.
+            bool planted = anim && castHold > 0f;
+            if (planted) { castHold -= dt; move = Vector3.zero; }
+            switch (def.behaviour)
+            {
                 case EnemyBehaviour.Dasher:
                     move = TickDash(dt, dirTo);
                     break;
             }
 
-            using (mSep.Auto()) move += Separation() * 2.5f;
+            using (mSep.Auto()) move += Separation() * (planted ? 0.6f : 2.5f);
             Vector3 delta;
             using (mGround.Auto())
             {
@@ -141,9 +159,14 @@ namespace RoomRun
             if (dist < 1.0f + cc.radius && contactCool <= 0f && player.Health.Hit(1)) { contactCool = 0.8f; PlayAnim(StAttack, true); }
             contactCool -= dt;
 
-            Face(dirTo, dt);
+            // an animated shooter walks the way it goes (it has no sidestep clip, so strafing while facing the player slid);
+            // it turns to the player when it plants to cast
+            var flat = new Vector3(move.x, 0f, move.z);
+            bool walkFacing = anim && def.behaviour == EnemyBehaviour.Shooter && !planted && telegraph <= 0f && flat.sqrMagnitude > 0.25f;
+            Face(walkFacing ? flat.normalized : dirTo, dt);
             Animate(move);
 
+            if (flashCool > 0f) flashCool -= dt;
             if (flashLeft > 0f)
             {
                 flashLeft -= dt;
@@ -195,6 +218,7 @@ namespace RoomRun
             {
                 telegraph = 0.32f; // Swell before firing, so the volley can be read.
                 PlayAnim(StAttack, true);
+                castHold = telegraph + CastRecover;
             }
         }
 
@@ -209,7 +233,7 @@ namespace RoomRun
                     dashWait = Random.Range(1.1f, 1.8f);
                     PlayAnim(StMove, false);
                 }
-                return dashDir * def.moveSpeed * 3.4f;
+                return dashDir * def.moveSpeed * DashMul;
             }
             if (telegraph > 0f)
             {
@@ -334,7 +358,13 @@ namespace RoomRun
             {
                 // Attack hands back to Move by itself (controller transition)
                 if (animState == StAttack && !anim.IsInTransition(0) && anim.GetCurrentAnimatorStateInfo(0).shortNameHash == StMove) animState = StMove;
-                anim.SetFloat(PMoveMul, Mathf.Clamp(move.magnitude / Mathf.Max(0.1f, def.moveSpeed), 0.35f, 1.6f));
+                if (gait && hipWorld > 0.01f)
+                {
+                    // a standing enemy (telegraph, cornered) still shuffles a little rather than freezing mid-stride
+                    anim.SetFloat(PMoveMul, Mathf.Clamp(move.magnitude / (gait.moveStride * hipWorld), 0.25f, 3f));
+                    anim.SetFloat(PRunMul, Mathf.Clamp(def.moveSpeed * DashMul / (gait.runStride * hipWorld), 0.5f, 3f));
+                }
+                else anim.SetFloat(PMoveMul, Mathf.Clamp(move.magnitude / Mathf.Max(0.1f, def.moveSpeed), 0.35f, 1.6f));
                 return;
             }
             phase += Time.deltaTime * (5f + move.magnitude * 2f);

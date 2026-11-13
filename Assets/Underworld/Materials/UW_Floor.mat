@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: UW_Floor
-  m_Shader: {fileID: 4800000, guid: 29a6a84b86fb1984eb59ed86f62feb6f, type: 3}
+  m_Shader: {fileID: 4800000, guid: 75c4850196c6fbb43be8f340ab6d2323, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -23,6 +23,46 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _AshAH:
+        m_Texture: {fileID: 2800000, guid: 2b81d6f6947eda740abc6e7993b3e385, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _AshNRA:
+        m_Texture: {fileID: 2800000, guid: 95f510dcbf4978b4caddd2d289d997ea, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CliffAH:
+        m_Texture: {fileID: 2800000, guid: df4cd49abb53a3143971f45e7fc443f9, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CliffNRA:
+        m_Texture: {fileID: 2800000, guid: 4fe0e1881a18df04391a56e8fe50b424, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FlagAH:
+        m_Texture: {fileID: 2800000, guid: 3562875e810e8a347a517c2d4b888824, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FlagNRA:
+        m_Texture: {fileID: 2800000, guid: 2c2ade8c4e8910646914577ad39f8b5d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MudAH:
+        m_Texture: {fileID: 2800000, guid: df4cd49abb53a3143971f45e7fc443f9, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MudNRA:
+        m_Texture: {fileID: 2800000, guid: 4fe0e1881a18df04391a56e8fe50b424, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RubAH:
+        m_Texture: {fileID: 2800000, guid: 4dff4eeaa570f604eb082a8beda17ac2, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RubNRA:
+        m_Texture: {fileID: 2800000, guid: ba7c8915dd94a914a8a5240a9af30ef1, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SideNrm:
         m_Texture: {fileID: 2800000, guid: 3ff750d42bace2c43ab2e8d7cc9f8794, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -41,22 +81,44 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _CrackAmt: 0.55
-    - _NrmStr: 1
+    - _AOStr: 0.45
+    - _AshAmt: 0.58
+    - _AshLift: 0.28
+    - _BlendDepth: 0.3
+    - _Cavity: 0.3
+    - _CliffTile: 4
+    - _CrackAmt: 0.3
+    - _GroutLevel: 0.4
+    - _Macro: 0.6
+    - _MudAmt: 0.35
+    - _NrmStr: 0.5
     - _Remap: 0.85
-    - _RimAmt: 0.05
+    - _RimAmt: 0
+    - _RubAmt: 0.5
+    - _Sat: 0.25
+    - _SeamDark: 0.2
     - _SideTile: 3
     - _Smooth: 0.28
+    - _SmoothMax: 0.4
+    - _SmoothScale: 0.4
     - _StainAmt: 0.5
     - _TopMode: 1
     - _TopTile: 3.4
-    - _WetAmt: 0.5
-    - _WetSmooth: 0.78
+    - _WetAmt: 0.4
+    - _WetSmooth: 0.45
     m_Colors:
-    - _CrackCol: {r: 1.2156863, g: 0.72156864, b: 2, a: 1}
+    - _AshTint: {r: 0.4, g: 0.39, b: 0.4, a: 1}
+    - _CliffTint: {r: 1.6, g: 1.6, b: 1.6, a: 1}
+    - _CrackCol: {r: 0.25, g: 0.55, b: 0.7, a: 1}
     - _Emission: {r: 0, g: 0, b: 0, a: 1}
+    - _FlagTint: {r: 0.88, g: 0.86, b: 0.86, a: 1}
+    - _HeightHi: {r: 0.74, g: 0.64, b: 0.71, a: 0.37}
+    - _HeightLo: {r: 0.26, g: 0.23, b: 0.28, a: 0.12}
+    - _MudTint: {r: 1.3, g: 1.25, b: 1.25, a: 1}
     - _RimCol: {r: 0.47999996, g: 0.23999995, b: 0.78, a: 1}
+    - _RubTint: {r: 1.4, g: 1.4, b: 1.45, a: 1}
     - _SideTint: {r: 0.26666668, g: 0.24313726, b: 0.3137255, a: 1}
+    - _Tiles: {r: 3.5, g: 2.2, b: 1.8, a: 4.5}
     - _Tint: {r: 0.29803923, g: 0.27450982, b: 0.32156864, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

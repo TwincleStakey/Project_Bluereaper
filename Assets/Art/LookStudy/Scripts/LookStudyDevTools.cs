@@ -346,6 +346,26 @@ public class LookStudyDevTools : MonoBehaviour
         {
             PlayerPrefs.SetInt("RR.ClassicEnemies", PlayerPrefs.GetInt("RR.ClassicEnemies", 0) == 0 ? 1 : 0); RefreshToggles();
         });
+        // RoomRun player look test (11-13): the LocoSplit greatsword 착호갑사 instead of the old 착호갑사.
+        // Same key as RoomRun.PlayerController.GreatswordKey, default on; the player swaps within half a second.
+        Section("플레이어");
+        r = NewRow();
+        Toggle(r, "양손검 캐릭터", () => PlayerPrefs.GetInt("RR.Greatsword", 1) != 0, () =>
+        {
+            PlayerPrefs.SetInt("RR.Greatsword", PlayerPrefs.GetInt("RR.Greatsword", 1) == 0 ? 1 : 0); RefreshToggles();
+        });
+        // 11-13 soft see-through near the player (same keys as RoomRun.SeeThroughFX.ModeKey / TemporalKey); off = the
+        // previous behaviour (hard hole in snow/폐촌/bamboo, none elsewhere), for before/after
+        Section("가림 투명");
+        r = NewRow();
+        Toggle(r, "부드러운 투명", () => PlayerPrefs.GetInt("RR.SeeThrough", 1) != 0, () =>
+        {
+            PlayerPrefs.SetInt("RR.SeeThrough", PlayerPrefs.GetInt("RR.SeeThrough", 1) == 0 ? 1 : 0); RefreshToggles();
+        });
+        Toggle(r, "디더 흔들기", () => PlayerPrefs.GetInt("RR.SeeThroughTemporal", 0) != 0, () =>
+        {
+            PlayerPrefs.SetInt("RR.SeeThroughTemporal", PlayerPrefs.GetInt("RR.SeeThroughTemporal", 0) == 0 ? 1 : 0); RefreshToggles();
+        });
         Section("빛");
         r = NewRow();
         for (int i = 0; i < Lights.Length; i++) { int k = i; if (i == 3) r = NewRow(); Toggle(r, Lights[i].name, () => lightIndex == k, () => { lightIndex = k; lightTouched = true; ApplyAll(); }); }

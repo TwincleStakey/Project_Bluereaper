@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 [ExecuteAlways]
-public class LookStudyInstancer : MonoBehaviour
+public class LookStudyInstancer : MonoBehaviour, VegetationQuery.ISource
 {
     // 8 m chunks: 16 m was measured (11-10) to add ~15% triangles for no CPU gain
     const float Chunk = 8f;
@@ -28,8 +28,30 @@ public class LookStudyInstancer : MonoBehaviour
     // Combined bounds of every instance, for systems that size rooms from renderers (RoomRun reads it by reflection).
     public Bounds WorldBounds { get { var b = new Bounds(); bool any = false; foreach (var k in buckets) if (k.hasBounds) { if (any) b.Encapsulate(k.bounds); else { b = k.bounds; any = true; } } return b; } }
 
-    void OnEnable() { RenderPipelineManager.beginCameraRendering += Draw; }
-    void OnDisable() { RenderPipelineManager.beginCameraRendering -= Draw; ReleaseProc(); groupsDirty = true; }
+    void OnEnable() { RenderPipelineManager.beginCameraRendering += Draw; VegetationQuery.Register(this); }
+    void OnDisable() { RenderPipelineManager.beginCameraRendering -= Draw; VegetationQuery.Unregister(this); ReleaseProc(); groupsDirty = true; }
+
+    // Greatsword cut debris: cuttable plants inside a swing sector (see VegetationQuery).
+    public void Collect(Vector3 centre, Vector3 dir, float radius, float cosHalf, List<VegetationQuery.Hit> hits, int max, ref int seen)
+    {
+        if (!isActiveAndEnabled) return;
+        foreach (var b in buckets)
+        {
+            if (!b.hasBounds) continue;
+            var bb = b.bounds;
+            if (centre.x + radius < bb.min.x || centre.x - radius > bb.max.x || centre.z + radius < bb.min.z || centre.z - radius > bb.max.z) continue;
+            var kind = VegetationQuery.KindOf(b.mat, out var col);
+            if (kind == VegetationQuery.Kind.None) continue;
+            for (int k = 0; k < b.mats.Count; k++)
+                for (int i = 0; i < b.counts[k]; i++)
+                    {
+                        var m = b.mats[k][i];
+                        int slot = VegetationQuery.Offer(m.GetColumn(3), centre, dir, radius, cosHalf, kind, col, hits, max, ref seen);
+                        if (slot < 0) continue;
+                        var h = hits[slot]; h.mesh = b.mesh; h.mat = b.mat; h.rot = m.rotation; h.scale = ((Vector3)m.GetColumn(1)).magnitude; hits[slot] = h;
+                    }
+        }
+    }
 
     public void Clear() { map.Clear(); buckets.Clear(); groups.Clear(); ReleaseProc(); groupsDirty = true; Count = 0; }
 

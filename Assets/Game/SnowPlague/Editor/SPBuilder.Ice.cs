@@ -115,7 +115,7 @@ public static partial class SPBuilder
             m.SetColor("_CrackCol", new Color(0.5f, 0.56f, 0.62f)); m.SetColor("_SkyCol", new Color(0.07f, 0.09f, 0.13f));
             m.SetFloat("_Cracks", 0.85f); m.SetFloat("_CrackDepth", 0.15f); m.SetFloat("_Frost", 0.5f); m.SetFloat("_IceNormal", 0.25f); m.SetFloat("_Smooth", 0.92f);
             m.SetFloat("_Dust", 1f); m.SetFloat("_Rim", 0.9f); m.SetFloat("_ShoreNoise", 0.6f);
-            m.SetFloat("_ReflStrength", 3f); m.SetFloat("_GlowStrength", 1f); m.SetFloat("_GlowStretch", 2.2f); m.SetFloat("_GlowRadius", 5f);
+            m.SetFloat("_ReflStrength", 3f); m.SetFloat("_GlowStrength", 1.0f); m.SetFloat("_GlowStretch", 2.2f); m.SetFloat("_GlowRadius", 5f);   // c14: glow strength back to 1 (2.2 flooded the ice)
             m.SetFloat("_MoonStreak", 0.25f); m.SetFloat("_LanternStreak", 0.6f);
             m.renderQueue = (int)RenderQueue.AlphaTest;
         });
@@ -194,6 +194,10 @@ public static partial class SPBuilder
         if (!refl) refl = root.gameObject.AddComponent<SPIceReflect>();
         refl.copyShader = Shader.Find("Hidden/SnowPlague/IceCopy");
         refl.historyScale = 1f;
+        // c14 (Kido "얼음위에 탄막 비쳐보이지 않는거같은데"): reflection colours follow the 11-13 bullet cores (enemy magenta-red,
+        // player cyan; the old orange read as lantern light, not as the bullets), a bit larger
+        refl.enemyGlow = new Color(1f, 0.12f, 0.38f) * 0.6f; refl.playerGlow = new Color(0.15f, 0.85f, 1f) * 0.6f;   // c14b: x2.6 flooded the ice pink
+        refl.enemySize = 0.4f; refl.playerSize = 0.32f;
         var cs = new List<Vector2>(); var hw = new List<float>();
         for (int k = 0; k < ns; k += 6) { cs.Add(c[k]); hw.Add(w[k] + 0.6f); }
         refl.centre = cs.ToArray(); refl.halfWidth = hw.ToArray();
