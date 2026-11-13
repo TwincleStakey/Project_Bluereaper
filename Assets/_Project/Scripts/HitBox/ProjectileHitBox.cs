@@ -9,6 +9,7 @@ namespace BlueReaper.HitBox
     {
         private Unit owner;
         private float damage;
+        private bool detachedEnemyProjectile;
         private bool armed, returned;
         private Rigidbody body;
         private BulletPatternData pattern;
@@ -46,6 +47,7 @@ namespace BlueReaper.HitBox
         public void Init(Unit unit, float damageMultiplier)
         {
             owner = unit;
+            detachedEnemyProjectile = false;
             damage = unit && unit.Data ? DamageFormula.Calculate(unit.Data.Attack, damageMultiplier) : 0f;
             returned = false;
             armed = true;
@@ -55,6 +57,23 @@ namespace BlueReaper.HitBox
             Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned)
         {
             Init(unit, pattern.DamageMultiplier);
+            InitFlight(pattern, pathIndex, emissionIndex, origin, facing, onReturned);
+        }
+
+        internal void InitDeathProjectile(float damage, BulletPatternData pattern, int pathIndex, int emissionIndex,
+            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned)
+        {
+            owner = null;
+            detachedEnemyProjectile = true;
+            this.damage = damage;
+            returned = false;
+            armed = true;
+            InitFlight(pattern, pathIndex, emissionIndex, origin, facing, onReturned);
+        }
+
+        private void InitFlight(BulletPatternData pattern, int pathIndex, int emissionIndex,
+            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned)
+        {
             this.pattern = pattern;
             this.pathIndex = pathIndex;
             this.emissionIndex = emissionIndex;
@@ -62,6 +81,21 @@ namespace BlueReaper.HitBox
             this.origin = origin;
             this.facing = facing;
             this.onReturned = onReturned;
+        }
+
+        internal static ProjectileHitBox Spawn(BulletPatternData pattern, int pathIndex, int emissionIndex,
+            Vector3 origin, Quaternion facing)
+        {
+            if (!pattern.TryEvaluate(pathIndex, emissionIndex, emissionIndex * pattern.RepeatInterval,
+                out var position, out var rotation)) return null;
+
+            var instance = ObjectPool.Spawn(pattern.BulletPrefab, origin + facing * position, facing * rotation);
+            var projectile = instance.GetComponent<ProjectileHitBox>();
+            if (projectile) return projectile;
+
+            ObjectPool.Despawn(instance);
+            Debug.LogWarning("Bullet prefab requires ProjectileHitBox.", pattern);
+            return null;
         }
 
         private void FixedUpdate()
@@ -83,8 +117,9 @@ namespace BlueReaper.HitBox
 
         private void TryHit(Collider other)
         {
-            if (!armed || returned || !owner || other.transform.IsChildOf(owner.transform)) return;
-            if (owner.GetComponent<Enemy>() && other.GetComponentInParent<Enemy>()) return;
+            if (!armed || returned) return;
+            if (!detachedEnemyProjectile && (!owner || other.transform.IsChildOf(owner.transform))) return;
+            if ((detachedEnemyProjectile || owner.GetComponent<Enemy>()) && other.GetComponentInParent<Enemy>()) return;
             var target = other.GetComponentInParent<IDamageable>();
             if (target != null)
             {

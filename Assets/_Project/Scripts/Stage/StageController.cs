@@ -2,8 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using BlueReaper.Boss;
+using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
 using BlueReaper.Data;
+using BlueReaper.HitBox;
 using BlueReaper.Player;
 using BlueReaper.UI;
 using UnityEngine;
@@ -35,6 +37,7 @@ namespace BlueReaper.Stage
 
         readonly List<Transform> alivePlayers = new();
         readonly Dictionary<Unit, StageUnitRecord> units = new();
+        readonly HashSet<ProjectileHitBox> deathProjectiles = new();
         public IReadOnlyList<Transform> AlivePlayers => alivePlayers;
 
         private Coroutine stageRoutine;
@@ -197,11 +200,10 @@ namespace BlueReaper.Stage
             return true;
         }
 
-        internal void SummonEnemies(Unit summoner, Transform target, SummonPatternData pattern)
+        internal void SummonEnemies(Unit summoner, Transform target, SummonPatternData pattern, Vector3? deathOrigin = null)
         {
-            if (!isActiveAndEnabled || !currentField || fieldComplete
-                || !units.TryGetValue(summoner, out StageUnitRecord owner) || owner.Dead
-                || !ReferenceEquals(owner.Field, currentField)) return;
+            if (!units.TryGetValue(summoner, out StageUnitRecord owner)
+                || owner.Dead != deathOrigin.HasValue || !IsFieldActive(owner.Field)) return;
 
             string error = pattern.GetValidationError();
             if (error != null)
@@ -217,7 +219,7 @@ namespace BlueReaper.Stage
             {
                 SummonPositionType.Target => target.position,
                 SummonPositionType.FieldCenter => currentField.Center,
-                _ => summoner.transform.position
+                _ => deathOrigin ?? summoner.transform.position
             };
 
             bool skippedSpawn = false;
@@ -226,7 +228,7 @@ namespace BlueReaper.Stage
                 Enemy prefab = pattern.SummonPrefab[i];
                 for (uint count = 0; count < pattern.SummonCount[i]; count++)
                 {
-                    if (!isActiveAndEnabled || fieldComplete || !IsRegistered(owner) || owner.Dead) return;
+                    if (!IsFieldActive(owner.Field) || !IsRegistered(owner) || owner.Dead != deathOrigin.HasValue) return;
                     Vector2 offset = Random.insideUnitCircle * pattern.SummonRadius;
                     Vector3 position = center + new Vector3(offset.x, 0f, offset.y);
                     if (TryGetSpawnPosition(prefab, position, center, out Vector3 spawnPosition))
@@ -276,6 +278,7 @@ namespace BlueReaper.Stage
             if (record.AI)
             {
                 record.AI.Stage = this;
+                record.AI.NotifySpawned();
                 record.OnPresentationFinished = () =>
                 {
                     if (record.Dead) ReleaseUnit(record);
@@ -298,7 +301,11 @@ namespace BlueReaper.Stage
                 && (!bossesOnly || record.Enemy.Rank == EnemyRank.Boss))
             {
                 fieldKills++;
-                if (fieldKills >= requiredKills) fieldComplete = true;
+                if (fieldKills >= requiredKills)
+                {
+                    fieldComplete = true;
+                    ReleaseDeathProjectiles();
+                }
             }
 
             if (!record.AI || !record.AI.isActiveAndEnabled) ReleaseUnit(record);
@@ -306,6 +313,60 @@ namespace BlueReaper.Stage
 
         private bool IsRegistered(StageUnitRecord record) =>
             units.TryGetValue(record.Unit, out StageUnitRecord registered) && ReferenceEquals(record, registered);
+
+        internal bool CanRunDeathPattern(Unit source) =>
+            units.TryGetValue(source, out StageUnitRecord record) && record.Dead && IsFieldActive(record.Field);
+
+        internal void StartDeathBullets(Unit source, BulletPatternData pattern, float diedAt,
+            Vector3 origin, Quaternion facing, float attack)
+        {
+            if (!CanRunDeathPattern(source)) return;
+            string error = pattern.GetValidationError();
+            if (!pattern.BulletPrefab || error != null)
+            {
+                Debug.LogWarning(error ?? "Death bullet pattern requires a bullet prefab.", pattern);
+                return;
+            }
+
+            float damage = DamageFormula.Calculate(attack, pattern.DamageMultiplier);
+            StartCoroutine(EmitDeathBullets(currentField, pattern, diedAt + pattern.StartTime, origin, facing, damage));
+        }
+
+        private IEnumerator EmitDeathBullets(StageField field, BulletPatternData pattern, float firstEmissionAt, Vector3 origin,
+            Quaternion facing, float damage)
+        {
+            for (int emission = 0; emission < pattern.RepeatCount; emission++)
+            {
+                float emissionAt = firstEmissionAt + emission * pattern.RepeatInterval;
+                while (IsFieldActive(field) && Time.time < emissionAt) yield return null;
+                if (!IsFieldActive(field)) yield break;
+
+                for (int path = 0; path < pattern.MaximumCount; path++)
+                {
+                    var projectile = ProjectileHitBox.Spawn(pattern, path, emission, origin, facing);
+                    if (!projectile) continue;
+                    if (!IsFieldActive(field))
+                    {
+                        projectile.ReturnToPool();
+                        yield break;
+                    }
+                    deathProjectiles.Add(projectile);
+                    projectile.InitDeathProjectile(damage, pattern, path, emission, origin, facing, OnDeathProjectileReturned);
+                }
+            }
+        }
+
+        private bool IsFieldActive(StageField field) =>
+            isActiveAndEnabled && !fieldComplete && field && ReferenceEquals(field, currentField);
+
+        private void OnDeathProjectileReturned(ProjectileHitBox projectile) => deathProjectiles.Remove(projectile);
+
+        private void ReleaseDeathProjectiles()
+        {
+            foreach (var projectile in new List<ProjectileHitBox>(deathProjectiles))
+                if (projectile) projectile.ReturnToPool();
+            deathProjectiles.Clear();
+        }
 
         private void ReleaseUnit(StageUnitRecord record)
         {
@@ -359,6 +420,7 @@ namespace BlueReaper.Stage
 
         private void ReleaseStage()
         {
+            ReleaseDeathProjectiles();
             foreach (StageUnitRecord record in new List<StageUnitRecord>(units.Values))
                 ReleaseUnit(record);
             alivePlayers.Clear();
