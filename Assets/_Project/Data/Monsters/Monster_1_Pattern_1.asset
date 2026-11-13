@@ -22,5 +22,5 @@ MonoBehaviour:
   TelegraphType: 0
   RestTime: 1
   ChasingDistance: 1
-  Implementions:
+  Implementations:
   - {fileID: 11400000, guid: b632dfd7836388e4ea14ede05f4f8c56, type: 2}

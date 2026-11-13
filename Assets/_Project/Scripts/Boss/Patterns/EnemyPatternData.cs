@@ -11,6 +11,6 @@ namespace BlueReaper.Data
         public int TelegraphType = 0; //todo
         public float RestTime = 0f;
         public float ChasingDistance = 10f;
-        public PatternImplData[] Implementions = null;
+        public PatternImplData[] Implementations = null;
     }
 }

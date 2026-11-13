@@ -370,7 +370,7 @@ namespace BlueReaper.Boss
             int pendingBulletEffects = 0;
             Action onBulletFinished = () => pendingBulletEffects--;
             bool meleeRegistered = false;
-            foreach (PatternImplData effect in pattern.Implementions ?? Array.Empty<PatternImplData>())
+            foreach (PatternImplData effect in pattern.Implementations ?? Array.Empty<PatternImplData>())
             {
                 if (health.IsDead || !isActiveAndEnabled) yield break;
                 switch (effect)
@@ -536,7 +536,7 @@ namespace BlueReaper.Boss
         private void RunDeathEffects(EnemyPatternData pattern, float diedAt, Vector3 origin, Quaternion facing, float attack)
         {
             bool meleeRegistered = false;
-            foreach (PatternImplData effect in pattern.Implementions ?? Array.Empty<PatternImplData>())
+            foreach (PatternImplData effect in pattern.Implementations ?? Array.Empty<PatternImplData>())
             {
                 if (!Stage || !Stage.CanRunDeathPattern(unit)) return;
                 switch (effect)
