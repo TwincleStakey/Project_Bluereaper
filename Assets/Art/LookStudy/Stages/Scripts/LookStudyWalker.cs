@@ -7,6 +7,9 @@ public class LookStudyWalker : MonoBehaviour
     public float speed = 5.5f;
     public Vector3 cameraOffset = new Vector3(0, 19.5f, -13.5f);
     public Material splashMat, mistMat;
+    [Tooltip("Authored splash effect; empty = Resources/WaterFX_Splash. Falls back to the old droplets when neither exists.")]
+    public GameObject splashPrefab;
+    WaterSplashPool splashPool;
     public System.Func<float, float, float> heightAt;
     public System.Func<Vector3> autoTarget;
     public enum Surface { Water, Dirt, Gravel, Grass, Stone }
@@ -50,6 +53,8 @@ public class LookStudyWalker : MonoBehaviour
         foam = LookStudyValley.Particle(transform, "Spray", mistMat, 60, 0.4f, 0.9f, 0.5f, 1.2f, Vector3.up * 0.5f, 0f, 0f, true);
         var fm = foam.main; fm.prewarm = false; fm.startColor = new Color(0.58f, 0.68f, 0.68f, 0.34f);
         foam.Play();
+        if (!splashPrefab) splashPrefab = Resources.Load<GameObject>("WaterFX_Splash");
+        if (splashPrefab) splashPool = WaterSplashPool.For(splashPrefab);
         lastPos = transform.position;
         LookStudyTrail.Ensure(trailCenter, trailSize).ownedByWalker = true;
         dust = LookStudyValley.Particle(transform, "Dust", dustMat ? dustMat : mistMat, 80, 0.6f, 1.4f, 0.35f, 0.9f, new Vector3(0, 0.35f, 0), 0.3f, 0f, true);
@@ -169,6 +174,7 @@ public class LookStudyWalker : MonoBehaviour
 
     public void Splash(Vector3 at, float strength)
     {
+        if (splashPool) { splashPool.Play(at, strength, Random.Range(0f, 360f)); return; }
         droplets.transform.position = at; foam.transform.position = at;
         droplets.Emit(Mathf.RoundToInt(10 + 14 * strength));
         foam.Emit(Mathf.RoundToInt(2 + 3 * strength));
