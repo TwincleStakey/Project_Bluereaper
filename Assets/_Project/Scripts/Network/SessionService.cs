@@ -46,6 +46,7 @@ namespace BlueReaper.Network
 
         void OnDestroy()
         {
+            attempt++; // 씬이 바뀌는 중에 도착한 세션은 받자마자 나가게 한다
             if (Instance == this) Instance = null;
             if (NetworkManager.Singleton) NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
         }

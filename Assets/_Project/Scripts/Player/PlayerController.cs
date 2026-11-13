@@ -15,6 +15,11 @@ namespace BlueReaper.Player
         [Tooltip("공격 후 이 시간 동안은 이동 방향이 아니라 공격 방향을 바라본다")]
         [SerializeField] float attackFacingHold = 0.25f;
 
+        // 대시 무적은 주인 PC만 알고 데미지 판정은 호스트가 하므로, 주인이 호스트에 알려 준다
+        readonly NetworkVariable<bool> syncedInvincible =
+            new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        Health health;
         PlayerLife life;
         PlayerMotor motor;
         PlayerInputReader input;
@@ -29,6 +34,7 @@ namespace BlueReaper.Player
 
         void Awake()
         {
+            health = GetComponent<Health>();
             life = GetComponent<PlayerLife>();
             motor = GetComponent<PlayerMotor>();
             input = GetComponent<PlayerInputReader>();
@@ -68,6 +74,11 @@ namespace BlueReaper.Player
 
         void Update()
         {
+            if (IsSpawned)
+            {
+                if (IsOwner) syncedInvincible.Value = health.Invincible;
+                else if (IsServer) health.Invincible = syncedInvincible.Value;
+            }
             if (!IsMine) return;
 
             // 빈사·사망 중엔 조작 불가 (입력은 계속 읽지만 몸에 전달하지 않음)

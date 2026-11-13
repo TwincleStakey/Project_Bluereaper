@@ -57,6 +57,9 @@ namespace BlueReaper.Player
             MoveDirection = Vector3.zero;
         }
 
+        // Awake에서 만든 복사본은 이 플레이어 것이라 같이 지운다
+        void OnDestroy() => Destroy(actions);
+
         void OnDash(InputAction.CallbackContext _) => DashPressed?.Invoke();
 
         void Update()
