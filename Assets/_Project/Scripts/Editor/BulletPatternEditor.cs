@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace BlueReaper.BulletPatterns.Editor
 {
-    [CustomEditor(typeof(BulletPattern))]
+    [CustomEditor(typeof(BulletPatternData))]
     public sealed class BulletPatternEditor : UnityEditor.Editor
     {
         // shortcut: preview at most 256 paths/instances, use instancing if larger previews are needed.
@@ -13,7 +13,7 @@ namespace BlueReaper.BulletPatterns.Editor
         private const float PathPickDistance = 8f;
         private readonly Vector3[] pathPoints = new Vector3[33];
         private readonly List<(int index, float distance)> pathHits = new List<(int, float)>();
-        private BulletPattern pattern;
+        private BulletPatternData pattern;
         private float PreviewDuration => pattern.StartTime + pattern.TotalDuration;
         private int selected;
         private float previewTime;
@@ -31,7 +31,7 @@ namespace BlueReaper.BulletPatterns.Editor
 
         private void OnEnable()
         {
-            pattern = (BulletPattern)target;
+            pattern = (BulletPatternData)target;
             CachePrefab();
             SceneView.duringSceneGui += DrawScene;
             EditorApplication.update += Tick;

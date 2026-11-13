@@ -11,13 +11,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 464f607179181bf44a435a37e18ba145, type: 3}
   m_Name: Monster_2_Bullet_1
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.BulletPatterns.BulletPattern
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.BulletPatterns.BulletPatternData
   BulletPrefab: {fileID: 747046017749657896, guid: c2b6ab7809c83a9478e399d65e144c96, type: 3}
   MovementType: 1
   AimAtTargetEachEmission: 1
   LinearCount: 1
-  LinearSpeed: 10
-  LinearLifetime: 2
+  LinearSpeed: 7
+  LinearLifetime: 3
   StartTime: 0
   Layout: 1
   LayoutCenter: {x: 0, y: 1, z: 1}
@@ -26,7 +26,7 @@ MonoBehaviour:
   FanAngle: 90
   TravelDistance: 10
   TravelDuration: 0.75
-  RepeatCount: 2
+  RepeatCount: 1
   RepeatInterval: 0.3
   DespawnAtEnd: 0
   AlignToPath: 1

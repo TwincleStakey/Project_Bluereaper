@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9456acc45759aac44be64569ef006287, type: 3}
   m_Name: Monster_1_Reward
-  m_EditorClassIdentifier: Assembly-CSharp::RewardTable
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Reward.RewardTableData
   RewardId: 01000000
   RewardCount: 01000000
   RewardPermil: e8030000

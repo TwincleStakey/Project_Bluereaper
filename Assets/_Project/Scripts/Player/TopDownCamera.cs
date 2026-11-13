@@ -18,8 +18,11 @@ namespace BlueReaper.Player
 
         void Awake() => followPosition = transform.position;
 
-        /// <summary>따라갈 대상을 바꾼다. 네트워크에서 내 캐릭터가 생겼을 때 부른다.</summary>
-        public void SetTarget(Transform newTarget) => target = newTarget;
+        public void SetTarget(Transform player)
+        {
+            target = player;
+            velocity = Vector3.zero;
+        }
 
         void LateUpdate()
         {

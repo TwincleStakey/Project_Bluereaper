@@ -5,6 +5,7 @@ using System.Linq;
 using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
 using BlueReaper.Data;
+using BlueReaper.HitBox;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -15,7 +16,7 @@ namespace BlueReaper.Boss
     [RequireComponent(typeof(Unit), typeof(Enemy), typeof(NavMeshAgent))]
     public class EnemyAI : MonoBehaviour
     {
-        [SerializeField] EnemyPattern[] patterns;
+        [SerializeField] EnemyPatternData[] patterns;
         [SerializeField] float aiTick = 0.1f;
         [SerializeField] float stopChasingDistance = 3f;
 
@@ -30,11 +31,13 @@ namespace BlueReaper.Boss
         private MeleeHitBox[] meleeHitBoxes;
         private readonly Dictionary<IDamageable, float> nextMeleeHits = new();
         private readonly HashSet<ProjectileHitBox> projectiles = new();
-        private MeleeAttackPattern activeMelee;
+        private MeleeAttackPatternData activeMelee;
         private float meleeStartedAt, meleeDamage, motionUntil;
         private Vector3 chaseDestination;
         private bool hasChaseDestination;
         private bool rewardHandled;
+
+        public event Action DeathPresentationFinished;
 
         private void Awake()
         {
@@ -120,7 +123,7 @@ namespace BlueReaper.Boss
             yield return null;
             var wait = new WaitForSeconds(Mathf.Max(0.01f, aiTick));
 
-            EnemyPattern selectedPattern = null;
+            EnemyPatternData selectedPattern = null;
 
             while (!health.IsDead)
             {
@@ -171,7 +174,7 @@ namespace BlueReaper.Boss
             coAIUpdate = null;
         }
 
-        private EnemyPattern SelectNextPattern()
+        private EnemyPatternData SelectNextPattern()
         {
             Owner.CalcPhase();
             if (patterns == null) return null;
@@ -218,7 +221,7 @@ namespace BlueReaper.Boss
             if (!animator.GetCurrentAnimatorStateInfo(0).IsName(state)) animator.Play(state, 0, 0f);
         }
 
-        private IEnumerator ExecutePattern(EnemyPattern pattern, Transform target)
+        private IEnumerator ExecutePattern(EnemyPatternData pattern, Transform target)
         {
             StopMeleeHitWindow();
             if (!pattern || !unit.Data || health.IsDead) yield break;
@@ -287,7 +290,7 @@ namespace BlueReaper.Boss
             currentPatternState = PatternState.Done;
         }
 
-        private void StartMeleeHitWindow(MeleeAttackPattern pattern)
+        private void StartMeleeHitWindow(MeleeAttackPatternData pattern)
         {
             StopMeleeHitWindow();
             if (!pattern || !unit.Data || !(pattern.HitDurationSeconds > 0f)
@@ -298,7 +301,7 @@ namespace BlueReaper.Boss
             coMeleeHitWindow = StartCoroutine(IEMeleeHitWindow(pattern));
         }
 
-        private IEnumerator IEMeleeHitWindow(MeleeAttackPattern pattern)
+        private IEnumerator IEMeleeHitWindow(MeleeAttackPatternData pattern)
         {
             float end = pattern.HitStartSeconds + pattern.HitDurationSeconds;
             while (Time.time - meleeStartedAt < end)
@@ -347,12 +350,34 @@ namespace BlueReaper.Boss
 
         private IEnumerator IEDied()
         {
-            animator.Play("Died");
+            bool canPlay = animator && animator.isActiveAndEnabled && animator.runtimeAnimatorController
+                && animator.layerCount > 0;
+            int stateId = canPlay ? Animator.StringToHash(animator.GetLayerName(0) + ".Died") : 0;
+            if (canPlay) canPlay = animator.HasState(0, stateId);
+            if (canPlay) animator.Play(stateId, 0, 0f);
 
-            yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length);
+            // Let the death subscribers record the kill before the stage can return this unit.
+            yield return null;
+            if (canPlay && animator && animator.isActiveAndEnabled)
+            {
+                var state = animator.GetCurrentAnimatorStateInfo(0);
+                float speed = animator.speed * state.speed * state.speedMultiplier;
+                if (state.fullPathHash == stateId && speed > 0f && state.normalizedTime < 1f)
+                {
+                    float remaining = state.length * (1f - state.normalizedTime) / speed;
+                    if (remaining > 0f && !float.IsInfinity(remaining))
+                        yield return new WaitForSeconds(remaining);
+                }
+            }
 
-            Release();
-            if (Owner.Rank == EnemyRank.Boss) GameEvents.RaiseBossDefeated(health);
+            try
+            {
+                if (Owner.Rank == EnemyRank.Boss) GameEvents.RaiseBossDefeated(health);
+            }
+            finally
+            {
+                DeathPresentationFinished?.Invoke();
+            }
         }
     }
 }

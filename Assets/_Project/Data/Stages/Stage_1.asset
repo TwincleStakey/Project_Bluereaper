@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68a505b659e4bab4ba6b848fed842bbc, type: 3}
+  m_Name: Stage_1
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Stage.StageData
+  Fields:
+  - {fileID: 3708069805306871976, guid: 21f3a9865db916545aedf8a8610b9980, type: 3}
+  - {fileID: 3708069805306871976, guid: c9e9d9b730838c0488e779a5d198c7ed, type: 3}
+  - {fileID: 3708069805306871976, guid: 0f5316ac9351aa64a8e23cc0247a15d1, type: 3}
+  - {fileID: 3708069805306871976, guid: 3fb132adeea2da04fab70eee85a44a55, type: 3}

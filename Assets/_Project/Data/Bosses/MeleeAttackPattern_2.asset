@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e0e93392d321478a873430a07f0ec53e, type: 3}
   m_Name: MeleeAttackPattern_2
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.MeleeAttackPattern
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.MeleeAttackPatternData
   AttackAnimation: {fileID: 7400000, guid: 76a9f540b4bc3524abe160af7730c743, type: 2}
   HitStartSeconds: 0.4
   HitDurationSeconds: 0.1

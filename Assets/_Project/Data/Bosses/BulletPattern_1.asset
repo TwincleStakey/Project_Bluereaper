@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 464f607179181bf44a435a37e18ba145, type: 3}
   m_Name: BulletPattern_1
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.BulletPatterns.BulletPattern
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.BulletPatterns.BulletPatternData
   BulletPrefab: {fileID: 747046017749657896, guid: c2b6ab7809c83a9478e399d65e144c96, type: 3}
   StartTime: 0.45
   Layout: 3

@@ -43,6 +43,20 @@ namespace BlueReaper.Player
             dashTimeLeft = 0f;
         }
 
+        public void Teleport(Vector3 position, Quaternion rotation)
+        {
+            if (IsDashing) health.Invincible = false;
+            dashTimeLeft = 0f;
+            verticalSpeed = 0f;
+            facingHoldLeft = 0f;
+            moveInput = Vector3.zero;
+
+            bool controllerEnabled = controller.enabled;
+            controller.enabled = false;
+            transform.SetPositionAndRotation(position, rotation);
+            controller.enabled = controllerEnabled;
+        }
+
         public void SetMoveInput(Vector3 direction) => moveInput = Vector3.ClampMagnitude(direction, 1f);
 
         /// <summary>즉시 방향을 돌리고, holdTime 동안은 이동 방향으로 돌아가지 않는다 (공격 방향 유지용).</summary>
