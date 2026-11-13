@@ -26,6 +26,8 @@ namespace RoomRun
     {
         public string id;
         public GameObject prefab;
+        [Tooltip("The code-made yokai this kind used before the dark monsters; the dev panel's 기존 몬스터 toggle spawns it instead.")]
+        public GameObject classicPrefab;
         public float scale = 1f;
         public int hp = 5;
         public float moveSpeed = 3f;

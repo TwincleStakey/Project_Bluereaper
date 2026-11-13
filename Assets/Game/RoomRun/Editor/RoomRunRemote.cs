@@ -352,9 +352,12 @@ namespace RoomRun
                 Vector3? at = null;
                 bool firing = id.EndsWith("!");
                 if (firing) { id = id.TrimEnd('!'); tag = id + "_fire"; }
+                // "grass+12*" : the extra enemies hold still where they spawned (looks check: they do not pile onto the player)
+                bool still = id.EndsWith("*");
+                if (still) { id = id.TrimEnd('*'); tag = id + "_still"; }
                 // "grass+150!" : 150 extra enemies around the player before the shots
                 int swarm = 0, plus = id.IndexOf('+');
-                if (plus > 0) { int.TryParse(id.Substring(plus + 1), out swarm); id = id.Substring(0, plus); tag = id + $"_swarm{swarm}" + (firing ? "_fire" : ""); }
+                if (plus > 0) { int.TryParse(id.Substring(plus + 1), out swarm); id = id.Substring(0, plus); tag = id + $"_swarm{swarm}" + (firing ? "_fire" : "") + (still ? "_still" : ""); }
                 int a = token.IndexOf('@');
                 if (a > 0)
                 {
@@ -378,7 +381,13 @@ namespace RoomRun
                     if (cc) cc.enabled = true;
                     yield return new WaitForSeconds(0.5f);
                 }
-                if (swarm > 0) { run.DevSwarm(swarm); yield return new WaitForSeconds(4f); }
+                if (swarm > 0 && still)
+                {
+                    run.DevSwarm(swarm);
+                    foreach (var e in run.Enemies) if (e) e.enabled = false; // the Animator keeps playing their walk
+                    yield return new WaitForSeconds(1f);
+                }
+                else if (swarm > 0) { run.DevSwarm(swarm); yield return new WaitForSeconds(4f); }
                 var keepSource = run.Player.Source;
                 if (firing) { run.Player.Source = new Firer(run); yield return new WaitForSeconds(1.2f); }
                 var rig = run.Rig;

@@ -226,7 +226,8 @@ MonoBehaviour:
     devOnly: 1
   enemies:
   - id: shade
-    prefab: {fileID: 1999660323683707200, guid: 643210c0d2542d44bac82a26082a3268, type: 3}
+    prefab: {fileID: 141494584402590501, guid: a777c57e70632414996f325b9bec82ff, type: 3}
+    classicPrefab: {fileID: 1999660323683707200, guid: 643210c0d2542d44bac82a26082a3268, type: 3}
     scale: 0.85
     hp: 3
     moveSpeed: 3.4
@@ -237,7 +238,8 @@ MonoBehaviour:
     spreadDeg: 30
     alsoAimed: 0
   - id: ghost
-    prefab: {fileID: 2169993185676791008, guid: 23a41ed1de530874a8252ee36b901a8a, type: 3}
+    prefab: {fileID: 7801065719102027861, guid: d9ca344844754764da101db83fb74bf4, type: 3}
+    classicPrefab: {fileID: 2169993185676791008, guid: 23a41ed1de530874a8252ee36b901a8a, type: 3}
     scale: 1
     hp: 5
     moveSpeed: 2.4
@@ -248,7 +250,8 @@ MonoBehaviour:
     spreadDeg: 34
     alsoAimed: 0
   - id: fox
-    prefab: {fileID: 1760530914208561208, guid: d575dc42e9d111b43a11123bd9be3e79, type: 3}
+    prefab: {fileID: 5809567662994547039, guid: f83384c3ec92ec447b3f397950e346ae, type: 3}
+    classicPrefab: {fileID: 1760530914208561208, guid: d575dc42e9d111b43a11123bd9be3e79, type: 3}
     scale: 1.15
     hp: 7
     moveSpeed: 3.2
@@ -259,7 +262,8 @@ MonoBehaviour:
     spreadDeg: 70
     alsoAimed: 0
   - id: dokkaebi
-    prefab: {fileID: 8822834645768131479, guid: ca4ea701dda7d6248b98c060443a0339, type: 3}
+    prefab: {fileID: 3794507743547437192, guid: 4b6402d1352e37a4a9dff7e0bf575e88, type: 3}
+    classicPrefab: {fileID: 8822834645768131479, guid: ca4ea701dda7d6248b98c060443a0339, type: 3}
     scale: 1.15
     hp: 12
     moveSpeed: 1.5
@@ -270,7 +274,8 @@ MonoBehaviour:
     spreadDeg: 30
     alsoAimed: 0
   - id: dokkaebi_elite
-    prefab: {fileID: 8822834645768131479, guid: ca4ea701dda7d6248b98c060443a0339, type: 3}
+    prefab: {fileID: 3794507743547437192, guid: 4b6402d1352e37a4a9dff7e0bf575e88, type: 3}
+    classicPrefab: {fileID: 8822834645768131479, guid: ca4ea701dda7d6248b98c060443a0339, type: 3}
     scale: 1.9
     hp: 70
     moveSpeed: 1.4

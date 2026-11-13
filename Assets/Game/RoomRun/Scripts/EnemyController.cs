@@ -1,4 +1,4 @@
-// Yokai behaviours. All movement is steering inside the room, so stages need no navmesh.
+﻿// Yokai behaviours. All movement is steering inside the room, so stages need no navmesh.
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -15,7 +15,14 @@ namespace RoomRun
         Health health;
         Transform visual;
         Renderer[] renderers;
-        Material[][] originalMats, flashMats;
+        Material[][] originalMats, flashMats, baseMats;
+        public const string ClassicKey = "RR.ClassicEnemies";
+        GameObject model, modelPrefab;
+        Animator anim;
+        bool dead;
+        static readonly int StMove = Animator.StringToHash("Move"), StRun = Animator.StringToHash("Run"),
+            StAttack = Animator.StringToHash("Attack"), StDie = Animator.StringToHash("Die"), PMoveMul = Animator.StringToHash("MoveMul");
+        int animState;
         Material flash;
         float fallbackY, fireTimer, telegraph, flashLeft, contactCool, phase, ringAngle;
         float dashWait, dashLeft;
@@ -46,10 +53,15 @@ namespace RoomRun
 
             visual = new GameObject("Visual").transform;
             visual.SetParent(transform, false);
-            if (d.prefab)
+            // dev panel toggle (LookStudyDevTools, 몬스터 > 기존 몬스터): spawn the old code-made yokai instead
+            modelPrefab = PlayerPrefs.GetInt(ClassicKey, 0) != 0 && d.classicPrefab ? d.classicPrefab : d.prefab;
+            if (modelPrefab)
             {
-                var m = Instantiate(d.prefab, visual);
-                m.transform.localScale = Vector3.one * s;
+                // 11-13 dark monsters: skinned + Animator models are pooled, since instantiating one is far dearer than the old meshes
+                model = VisualPool.Take(modelPrefab, visual);
+                model.transform.localScale = Vector3.one * s;
+                anim = model.GetComponentInChildren<Animator>();
+                if (anim) { anim.Rebind(); anim.Play(StMove, 0, Random.value); animState = StMove; }
             }
             else
             {
@@ -57,11 +69,14 @@ namespace RoomRun
             }
             renderers = visual.GetComponentsInChildren<Renderer>();
             originalMats = new Material[renderers.Length][];
+            baseMats = new Material[renderers.Length][];
             for (int i = 0; i < renderers.Length; i++)
             {
-                originalMats[i] = renderers[i].sharedMaterials;
+                originalMats[i] = baseMats[i] = renderers[i].sharedMaterials;
                 // dark fields: an extra rim slot so the enemy reads against the dark and catches nearby light
-                if (FieldLighting.EnemyRim && !(renderers[i] is ParticleSystemRenderer))
+                // 11-13: not on the skinned dark monsters; seen from above their tall sides are all grazing angles and the rim
+                // washed them to grey silhouettes
+                if (FieldLighting.EnemyRim && !(renderers[i] is ParticleSystemRenderer) && !(renderers[i] is SkinnedMeshRenderer))
                 {
                     var m = new Material[originalMats[i].Length + 1];
                     originalMats[i].CopyTo(m, 0); m[m.Length - 1] = FieldLighting.EnemyRim;
@@ -81,6 +96,7 @@ namespace RoomRun
 
         void Update()
         {
+            if (dead) return;
             var player = run.Player;
             if (!player || !player.Health.Alive || run.Transitioning) { Animate(Vector3.zero); return; }
 
@@ -122,7 +138,7 @@ namespace RoomRun
             }
             using (mMove.Auto()) MoveCheap(delta);
 
-            if (dist < 1.0f + cc.radius && contactCool <= 0f && player.Health.Hit(1)) contactCool = 0.8f;
+            if (dist < 1.0f + cc.radius && contactCool <= 0f && player.Health.Hit(1)) { contactCool = 0.8f; PlayAnim(StAttack, true); }
             contactCool -= dt;
 
             Face(dirTo, dt);
@@ -178,6 +194,7 @@ namespace RoomRun
             else if (fireTimer <= 0f)
             {
                 telegraph = 0.32f; // Swell before firing, so the volley can be read.
+                PlayAnim(StAttack, true);
             }
         }
 
@@ -190,6 +207,7 @@ namespace RoomRun
                 {
                     Aimed(dirTo);
                     dashWait = Random.Range(1.1f, 1.8f);
+                    PlayAnim(StMove, false);
                 }
                 return dashDir * def.moveSpeed * 3.4f;
             }
@@ -197,11 +215,11 @@ namespace RoomRun
             {
                 telegraph -= dt;
                 dashDir = dirTo;
-                if (telegraph <= 0f) dashLeft = 0.42f;
+                if (telegraph <= 0f) { dashLeft = 0.42f; PlayAnim(StRun, false); }
                 return Vector3.zero;
             }
             dashWait -= dt;
-            if (dashWait <= 0f) telegraph = 0.55f;
+            if (dashWait <= 0f) { telegraph = 0.55f; PlayAnim(StAttack, true); }
             return dirTo * def.moveSpeed;
         }
 
@@ -302,8 +320,23 @@ namespace RoomRun
             visual.rotation = Quaternion.Slerp(visual.rotation, Quaternion.LookRotation(dirTo), 1f - Mathf.Exp(-10f * dt));
         }
 
+        // Animated models: the clip carries the motion; only the walk speed follows the steering speed.
+        void PlayAnim(int state, bool restart)
+        {
+            if (!anim || (!restart && animState == state)) return;
+            animState = state;
+            anim.CrossFadeInFixedTime(state, 0.12f, 0, 0f);
+        }
+
         void Animate(Vector3 move)
         {
+            if (anim)
+            {
+                // Attack hands back to Move by itself (controller transition)
+                if (animState == StAttack && !anim.IsInTransition(0) && anim.GetCurrentAnimatorStateInfo(0).shortNameHash == StMove) animState = StMove;
+                anim.SetFloat(PMoveMul, Mathf.Clamp(move.magnitude / Mathf.Max(0.1f, def.moveSpeed), 0.35f, 1.6f));
+                return;
+            }
             phase += Time.deltaTime * (5f + move.magnitude * 2f);
             float hop = Mathf.Abs(Mathf.Sin(phase)) * 0.12f * Mathf.Clamp01(move.magnitude);
             float swell = telegraph > 0f ? 1.14f + Mathf.Sin(Time.time * 40f) * 0.03f : 1f;
@@ -336,7 +369,83 @@ namespace RoomRun
             Fx.Burst(transform.position + Vector3.up, Fx.Kind.Death, 26);
             run.Rig.Shake(0.28f);
             run.Enemies.Remove(this);
+            if (!anim) { Destroy(gameObject); return; }
+
+            // animated: the body plays its death, stays a moment, sinks, and the model goes back to the pool
+            dead = true;
+            cc.enabled = false; // bullets and the player pass through the corpse
+            if (flashLeft > 0f) { flashLeft = 0f; ApplyFlash(false); }
+            animState = StDie;
+            anim.CrossFadeInFixedTime(StDie, 0.08f, 0, 0f);
+            StartCoroutine(Corpse());
+        }
+
+        System.Collections.IEnumerator Corpse()
+        {
+            yield return new WaitForSeconds(1.6f);
+            float t = 0f;
+            var start = visual.localPosition;
+            while (t < 0.8f)
+            {
+                t += Time.deltaTime;
+                visual.localPosition = start + Vector3.down * (t * 1.2f);
+                yield return null;
+            }
+            ReleaseModel();
             Destroy(gameObject);
+        }
+
+        // Back to the pool before the enemy is destroyed (a child cannot be moved out while its parent is being destroyed;
+        // enemies cleared with the room just lose their model and the pool refills by instantiating).
+        void ReleaseModel()
+        {
+            if (!model) return;
+            // the rim slot was added on top of the prefab's materials; put them back before pooling
+            for (int i = 0; i < renderers.Length; i++) if (renderers[i]) renderers[i].sharedMaterials = baseMats[i];
+            visual.localPosition = Vector3.zero;
+            VisualPool.Return(modelPrefab, model);
+            model = null;
+        }
+    }
+
+    // Pooled enemy models, keyed by prefab. Kept in a DontDestroyOnLoad root so they survive the stage scene swaps.
+    static class VisualPool
+    {
+        static readonly Dictionary<GameObject, Stack<GameObject>> free = new Dictionary<GameObject, Stack<GameObject>>();
+        static Transform root;
+        static bool quitting;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void Reset() { free.Clear(); root = null; quitting = false; Application.quitting += () => quitting = true; }
+
+        public static GameObject Take(GameObject prefab, Transform parent)
+        {
+            if (free.TryGetValue(prefab, out var s))
+                while (s.Count > 0)
+                {
+                    var g = s.Pop();
+                    if (!g) continue;
+                    g.transform.SetParent(parent, false);
+                    g.transform.localPosition = Vector3.zero; g.transform.localRotation = Quaternion.identity;
+                    g.SetActive(true);
+                    return g;
+                }
+            return Object.Instantiate(prefab, parent);
+        }
+
+        public static void Return(GameObject prefab, GameObject g)
+        {
+            if (quitting || !g || !prefab) return;
+            if (!root)
+            {
+                var go = new GameObject("EnemyVisualPool");
+                Object.DontDestroyOnLoad(go);
+                root = go.transform;
+            }
+            g.SetActive(false);
+            g.transform.SetParent(root, false);
+            if (!free.TryGetValue(prefab, out var s)) free[prefab] = s = new Stack<GameObject>();
+            s.Push(g);
         }
     }
 }

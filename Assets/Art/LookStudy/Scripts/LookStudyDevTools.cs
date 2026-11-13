@@ -338,6 +338,14 @@ public class LookStudyDevTools : MonoBehaviour
             bool on = PlayerPrefs.GetInt("RR.VSync", 0) == 0; PlayerPrefs.SetInt("RR.VSync", on ? 1 : 0);
             QualitySettings.vSyncCount = on ? 1 : 0; RefreshToggles();
         });
+        // RoomRun enemies: the dark monsters, or the old code-made yokai (same PlayerPrefs key as RoomRun.EnemyController.ClassicKey);
+        // applies to enemies spawned after the click, so re-enter the field (F keys) to see a whole wave change
+        Section("몬스터");
+        r = NewRow();
+        Toggle(r, "기존 몬스터 (다음 스폰부터)", () => PlayerPrefs.GetInt("RR.ClassicEnemies", 0) != 0, () =>
+        {
+            PlayerPrefs.SetInt("RR.ClassicEnemies", PlayerPrefs.GetInt("RR.ClassicEnemies", 0) == 0 ? 1 : 0); RefreshToggles();
+        });
         Section("빛");
         r = NewRow();
         for (int i = 0; i < Lights.Length; i++) { int k = i; if (i == 3) r = NewRow(); Toggle(r, Lights[i].name, () => lightIndex == k, () => { lightIndex = k; lightTouched = true; ApplyAll(); }); }
