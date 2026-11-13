@@ -68,7 +68,11 @@ Shader "LookStudy/StageWater"
                 float a = frac(t), b = frac(t + 0.5);
                 float w = abs(1.0 - 2.0 * a);
                 float2 adv = dir * speed * 1.6;
-                return lerp(Height(xz - adv * a), Height(xz - adv * b + 3.7), 1.0 - w);
+                // 11-13 fix (Kido: streaks blinked on and off): each phase must be invisible at the moment it jumps
+                // back (a = 0 shows only B, b = 0 shows only A); the weights were swapped, so the visible layer reset
+                // twice a cycle. The mix is also renormalised so its contrast (and the foam thresholds on it) stays even.
+                float m = lerp(Height(xz - adv * a), Height(xz - adv * b + 3.7), w);
+                return (m - 0.5) * rsqrt(w * w + (1.0 - w) * (1.0 - w)) + 0.5;
             }
 
             half4 frag(V2F i) : SV_Target

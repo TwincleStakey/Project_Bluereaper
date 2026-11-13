@@ -1,7 +1,7 @@
 // Waterfall ribbon: stretched streaks panning along the mesh UV, whiter toward the churning base.
 Shader "LookStudy/StageFall"
 {
-    Properties { _Col("Water", Color) = (0.62, 0.74, 0.72, 1) _Speed("Speed", Float) = 1.3 }
+    Properties { _Col("Water", Color) = (0.62, 0.74, 0.72, 1) _Speed("Speed", Float) = 1.3 _Alpha("Opacity", Float) = 1 _Fill("Sheet fill between streaks", Float) = 0.25 }
     SubShader
     {
         Tags { "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" "Queue"="Transparent" }
@@ -16,6 +16,8 @@ Shader "LookStudy/StageFall"
             CBUFFER_START(UnityPerMaterial)
             float4 _Col;
             float _Speed;
+            float _Alpha;
+            float _Fill;
             CBUFFER_END
             struct A { float4 p : POSITION; float2 uv : TEXCOORD0; };
             struct V { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; float3 ws : TEXCOORD1; };
@@ -28,7 +30,7 @@ Shader "LookStudy/StageFall"
                 float b = LSFbm(float2(i.uv.x * 34.0 + 5.0, i.uv.y * 3.4 + t * 1.5));
                 float streak = smoothstep(0.34, 0.76, a * 0.65 + b * 0.5);
                 float edge = smoothstep(0.0, 0.14, i.uv.x) * smoothstep(1.0, 0.86, i.uv.x);
-                float alpha = saturate(streak + 0.25) * edge;
+                float alpha = saturate(streak + _Fill) * edge * _Alpha;
                 float base = smoothstep(0.75, 1.0, i.uv.y);
                 float3 col = _Col.rgb * (_LSShadowMul * 1.5 + _LSSunCol * 0.55) * (0.65 + streak * 0.7 + base * 0.8);
                 col = StageFog(col, i.ws);

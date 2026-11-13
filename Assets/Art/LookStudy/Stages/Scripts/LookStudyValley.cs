@@ -38,11 +38,13 @@ public class LookStudyValley : MonoBehaviour
     void OnDisable() { if (!Application.isPlaying) Clear(); else ReleaseMeshes(); }
     // In play mode the scene unload destroys the generated objects, but meshes made with new Mesh() are
     // assets that outlive them, so free them here. (Objects cannot be destroyed while being deactivated.)
+    // Only meshes this script made (DontSave); the downloaded pines keep their imported meshes.
+    static bool Own(Mesh m) => m && (m.hideFlags & HideFlags.DontSave) == HideFlags.DontSave;
     void ReleaseMeshes()
     {
         if (!root) return;
-        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true)) if (mf.sharedMesh) Destroy(mf.sharedMesh);
-        foreach (var mc in root.GetComponentsInChildren<MeshCollider>(true)) if (mc.sharedMesh) Destroy(mc.sharedMesh);
+        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true)) if (Own(mf.sharedMesh)) Destroy(mf.sharedMesh);
+        foreach (var mc in root.GetComponentsInChildren<MeshCollider>(true)) if (Own(mc.sharedMesh)) Destroy(mc.sharedMesh);
     }
 
 
@@ -55,7 +57,8 @@ public class LookStudyValley : MonoBehaviour
     public void Clear()
     {
         if (!root) return;
-        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true)) DestroyImmediate(mf.sharedMesh);
+        foreach (var mc in root.GetComponentsInChildren<MeshCollider>(true)) if (Own(mc.sharedMesh) && !mc.GetComponent<MeshFilter>()) DestroyImmediate(mc.sharedMesh);
+        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true)) if (Own(mf.sharedMesh)) DestroyImmediate(mf.sharedMesh);
         DestroyImmediate(root.gameObject);
     }
 
@@ -204,6 +207,165 @@ public class LookStudyValley : MonoBehaviour
         m.SetVertices(verts); m.SetColors(cols); m.SetTriangles(tris, 0);
         m.RecalculateNormals(); m.RecalculateBounds();
         Add("Water", m, water, false);
+
+        // 11-13 (Kido: the pools swallowed the player): an invisible floor WadeDepth under the surface,
+        // so walkers stand waist-deep over the deep pools while the bed (and the dark water colour) stays as is.
+        // Where the bed is shallower the terrain is hit first; it sits under the ground everywhere else.
+        var floor = new GameObject("WadeFloor", typeof(MeshCollider));
+        floor.hideFlags = HideFlags.DontSave;
+        floor.transform.SetParent(root, false);
+        floor.transform.localPosition = new Vector3(0f, -WadeDepth, 0f);
+        floor.GetComponent<MeshCollider>().sharedMesh = m;
+        BuildPoolWalls();
+    }
+
+    public const float WadeDepth = 0.7f;
+
+    // 11-13 (Kido: the pools look deep and should stay deep, the player only splashes in at the edge): a low invisible
+    // fence along the contour where a pool's bed drops below PoolEdgeDepth. Shallow runs (crossings) stay open.
+    // Its top sits a little above the surface, under bullet height, so shots still fly over the pools.
+    public const float PoolEdgeDepth = 0.3f, PoolWallTop = 0.45f;
+    static float PoolField(float x, float z)
+    {
+        Nearest(x, z, out _, out _, out float depth, out _, out _);
+        return Height(x, z) - (Water - PoolEdgeDepth) + Mathf.Max(0f, 0.7f - depth) * 10f;   // < 0: inside a deep pool
+    }
+
+    void BuildPoolWalls()
+    {
+        const float Step = 0.5f;
+        float x0 = ArenaCX - ArenaHX - 4f, z0 = ArenaCZ - ArenaHZ - 4f;
+        int nx = Mathf.CeilToInt((ArenaHX * 2f + 8f) / Step) + 1, nz = Mathf.CeilToInt((ArenaHZ * 2f + 8f) / Step) + 1;
+        var g = new float[nx * nz];
+        for (int j = 0; j < nz; j++)
+        for (int i = 0; i < nx; i++) g[j * nx + i] = PoolField(x0 + i * Step, z0 + j * Step);
+
+        var v = new List<Vector3>(); var t = new List<int>();
+        var pts = new Vector2[4];
+        void Seg(Vector2 a, Vector2 b)
+        {
+            int k = v.Count;
+            v.Add(new Vector3(a.x, -3f, a.y)); v.Add(new Vector3(b.x, -3f, b.y));
+            v.Add(new Vector3(b.x, PoolWallTop, b.y)); v.Add(new Vector3(a.x, PoolWallTop, a.y));
+            t.Add(k); t.Add(k + 1); t.Add(k + 2); t.Add(k); t.Add(k + 2); t.Add(k + 3);   // both faces
+            t.Add(k); t.Add(k + 2); t.Add(k + 1); t.Add(k); t.Add(k + 3); t.Add(k + 2);
+        }
+        for (int j = 0; j < nz - 1; j++)
+        for (int i = 0; i < nx - 1; i++)
+        {
+            // corners counter-clockwise: (i,j) (i+1,j) (i+1,j+1) (i,j+1); marching squares, one crossing per sign change
+            float[] c = { g[j * nx + i], g[j * nx + i + 1], g[(j + 1) * nx + i + 1], g[(j + 1) * nx + i] };
+            Vector2[] p = { new Vector2(x0 + i * Step, z0 + j * Step), new Vector2(x0 + (i + 1) * Step, z0 + j * Step),
+                            new Vector2(x0 + (i + 1) * Step, z0 + (j + 1) * Step), new Vector2(x0 + i * Step, z0 + (j + 1) * Step) };
+            int n = 0;
+            for (int e = 0; e < 4; e++)
+            {
+                float a = c[e], b = c[(e + 1) & 3];
+                if ((a < 0f) == (b < 0f)) continue;
+                pts[n++] = Vector2.Lerp(p[e], p[(e + 1) & 3], a / (a - b));
+            }
+            if (n >= 2) Seg(pts[0], pts[1]);
+            if (n == 4) Seg(pts[2], pts[3]);
+        }
+        if (v.Count == 0) return;
+        var m = new Mesh { indexFormat = IndexFormat.UInt32, hideFlags = HideFlags.DontSave };
+        m.SetVertices(v); m.SetTriangles(t, 0); m.RecalculateBounds();
+        var go = new GameObject("PoolWalls", typeof(MeshCollider));
+        go.hideFlags = HideFlags.DontSave;
+        go.transform.SetParent(root, false);
+        go.GetComponent<MeshCollider>().sharedMesh = m;
+    }
+
+    // 11-13 (Kido: "여기 폭포", the middle pool by the south gate): a low granite ledge standing in the deep part of the pool's
+    // north-west side, water spilling off it in a few uneven strands, with a churn of spray and mist where it lands.
+    // The ledge stands where the pool fence already stops the player, so it blocks nothing; it has no collider.
+    public static bool PoolFallOn = true;
+    // r2 (overview shots 11-14): the pool by the south gate is the lower one, (-3, -9.5); its upper-left bank faces the
+    // wisp at (-13.5, -6), so the water comes off the west bank and pours east-south-east into it.
+    static Vector2 PoolC = new Vector2(-3f, -9.5f), PoolOut = new Vector2(-0.89f, 0.46f);
+    static Material poolFallMat;
+
+    void BuildPoolFall()
+    {
+        if (!PoolFallOn || bigRocks == null || bigRocks.Length == 0) return;
+        // walk out from the pool centre to where the fence runs, and stand the ledge just inside it
+        float reach = 1f;
+        while (reach < 12f && PoolField(PoolC.x + PoolOut.x * reach, PoolC.y + PoolOut.y * reach) < 0f) reach += 0.25f;
+        var lip2 = PoolC + PoolOut * (reach - 1.3f);
+        var r = new System.Random(4711);
+        var across = new Vector2(PoolOut.y, -PoolOut.x);
+        // ledge: a tall boulder behind, two shoulders either side, a flat cap the water pours from
+        void Rock(Vector2 at, float size, float sy, float sink)
+        {
+            var p = bigRocks[r.Next(bigRocks.Length)];
+            float s = size / Mathf.Max(p.mesh.bounds.size.x, p.mesh.bounds.size.z);
+            float y = Mathf.Max(Height(at.x, at.y), Water - 1.6f) - p.mesh.bounds.size.y * s * sy * sink;
+            Stamp(p, new Vector3(at.x, y, at.y), Quaternion.Euler(R(r, -6, 6), R(r, 0, 360), R(r, -6, 6)), new Vector3(s, s * sy, s), Tint(r));
+            rockSpots.Add(new Vector3(at.x, at.y, size * 0.5f));
+        }
+        Rock(lip2 + PoolOut * 1.6f, 5.2f, 1.25f, 0.1f);
+        Rock(lip2 + PoolOut * 0.6f + across * 2.4f, 3.8f, 1.1f, 0.18f);
+        Rock(lip2 + PoolOut * 0.7f - across * 2.6f, 4.2f, 1.0f, 0.2f);
+        Rock(lip2 + PoolOut * 0.3f + across * 0.4f, 3.0f, 0.55f, 0.05f);
+        Rock(lip2 - PoolOut * 1.6f + across * 1.7f, 1.3f, 0.6f, 0.4f);   // broken stone in the plunge
+        FlushBatches(true);
+
+        if (!fall) return;
+        // strands: one wide sheet and two narrow ones, each with its own lean and width so the curtain is uneven
+        float top = 2.35f;
+        var down = new Vector3(-PoolOut.x, 0, -PoolOut.y);
+        var side = new Vector3(across.x, 0, across.y);
+        var lip = new Vector3(lip2.x, top, lip2.y);
+        var v = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+        // 11-13 r2 (Kido: thinner, see-through, splitting): many narrow strands leaving the ledge at different points and
+        // heights, each with its own throw and width; a see-through copy of the fall material with no sheet between streaks.
+        var rs = new System.Random(77);
+        void Strand(float offset, float w0, float w1, float push, float topY)
+        {
+            const int Seg = 14;
+            int b0 = v.Count;
+            float h = topY - Water + 0.1f;
+            var start = new Vector3(lip.x, topY, lip.z) + side * offset;
+            for (int s = 0; s <= Seg; s++)
+            {
+                float f = s / (float)Seg;
+                // falls off the lip with a little forward throw, curving down under gravity, wobbling sideways a touch
+                var p = start + down * (push * Mathf.Sqrt(f) + 0.12f) + side * (Mathf.Sin(f * 5f + offset * 3f) * 0.06f) + Vector3.down * (h * f * f * 0.85f + h * f * 0.15f);
+                float w = Mathf.Lerp(w0, w1, f * f);
+                v.Add(p - side * w); uv.Add(new Vector2(0, f));
+                v.Add(p + side * w); uv.Add(new Vector2(1, f));
+                if (s < Seg) { int b = b0 + s * 2; t.Add(b); t.Add(b + 1); t.Add(b + 2); t.Add(b + 1); t.Add(b + 3); t.Add(b + 2); }
+            }
+        }
+        foreach (var o in new[] { -1.55f, -1.1f, -0.62f, -0.2f, 0.18f, 0.55f, 0.98f, 1.4f })
+        {
+            if (rs.NextDouble() < 0.15) continue;
+            float w = (float)(0.07 + rs.NextDouble() * 0.2);
+            Strand(o + (float)(rs.NextDouble() - 0.5) * 0.2f, w, w * (1.6f + (float)rs.NextDouble()), 0.45f + (float)rs.NextDouble() * 0.7f, top - (float)rs.NextDouble() * 0.55f);
+        }
+        Strand(-0.05f, 0.32f, 0.55f, 0.75f, top + 0.05f);   // the main pour
+        var m = new Mesh { hideFlags = HideFlags.DontSave };
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(t, 0);
+        m.RecalculateBounds(); m.RecalculateNormals();
+        if (!poolFallMat) poolFallMat = new Material(fall) { name = "LS_PoolFall", hideFlags = HideFlags.DontSave };
+        poolFallMat.SetFloat("_Alpha", 0.62f); poolFallMat.SetFloat("_Fill", -0.05f); poolFallMat.SetFloat("_Speed", 1.7f);
+        Add("PoolFall", m, poolFallMat, false);
+
+        var foot = lip + down * 1.1f; foot.y = Water + 0.15f;
+        if (mistMat)
+        {
+            var churn = Particle(root, "PoolFallChurn", mistMat, 50, 0.8f, 1.6f, 0.7f, 1.6f, Vector3.up * 0.9f, 0.4f, 34f, true);
+            churn.transform.position = foot;
+            var sh = churn.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(2.8f, 0.2f, 1.2f);
+            churn.transform.rotation = Quaternion.LookRotation(down);
+            FadeAlpha(churn, new Color(0.8f, 0.88f, 0.88f), 0.35f);
+            churn.Play();
+            var mist = Particle(root, "PoolFallMist", mistMat, 30, 3f, 6f, 2.5f, 4.5f, new Vector3(-PoolOut.x * 0.25f, 0.25f, -PoolOut.y * 0.25f), 0.1f, 6f, true);
+            mist.transform.position = foot + Vector3.up * 0.3f;
+            var sh2 = mist.shape; sh2.shapeType = ParticleSystemShapeType.Sphere; sh2.radius = 1.6f;
+            FadeAlpha(mist, new Color(0.62f, 0.72f, 0.72f), 0.14f);
+            mist.Play();
+        }
     }
 
     void BuildFall()
@@ -300,6 +462,7 @@ public class LookStudyValley : MonoBehaviour
         var rot = RandY(r, 12f);
         float sy = s * R(r, 0.8f, 1.2f);
         Stamp(p, pos, rot, new Vector3(s, sy, s), Tint(r));
+        rockSpots.Add(new Vector3(x, z, size * 0.5f));
         if (size >= 1.5f)
         {
             var b = p.mesh.bounds;
@@ -324,8 +487,148 @@ public class LookStudyValley : MonoBehaviour
         Stamp(p, new Vector3(x, Height(x, z) - p.mesh.bounds.size.y * s * 0.3f, z), RandY(r, 22f), new Vector3(s, s * R(r, 0.7f, 1.1f), s), Tint(r, 0.14f));
     }
 
+    // Big rock footprints (x, z, radius): bank grass keeps off them (11-13 Kido: real valley boulders carry
+    // a little moss but no grass on top).
+    readonly List<Vector3> rockSpots = new List<Vector3>();
+    bool OnRock(float x, float z)
+    {
+        foreach (var k in rockSpots)
+        {
+            float dx = x - k.x, dz = z - k.y, rr = k.z * 1.05f + 0.25f;
+            if (dx * dx + dz * dz < rr * rr) return true;
+        }
+        return false;
+    }
+
+    // ---------- pines (11-13 Kido: all the same, tops too long and spiky)
+
+    System.Random mixR;
+    LookStudyValleyTrees trees;
+    int heroesLeft;
+    const int HeroCap = 7;   // ~156k tris each
+
+    // The valley's own pine, squashed so the spire top is shorter and blunter, and a bit wider.
+    void OwnPine(Vector3 pos, Quaternion rot, float s, Color tint)
+    {
+        var sc = new Vector3(s * 1.08f, s * R(mixR, 0.72f, 0.84f), s * 1.08f);
+        Stamp(pineTrunk, pos, rot, sc, new Color(0.42f, 0.36f, 0.34f, 0));
+        Stamp(pineBranches, pos, rot, sc, tint);
+    }
+
+    // Maybe a downloaded pine here instead; true when one was placed.
+    bool MixPine(Vector3 pos, double heroChance, double pineChance)
+    {
+        if (!trees) return false;
+        double roll = mixR.NextDouble();
+        GameObject src; float scale;
+        if (roll < heroChance && heroesLeft > 0 && trees.heroes != null && trees.heroes.Length > 0)
+        {
+            src = trees.heroes[mixR.Next(trees.heroes.Length)]; scale = R(mixR, 0.75f, 1.0f); heroesLeft--;
+        }
+        else if (roll < heroChance + pineChance && trees.pines != null && trees.pines.Length > 0)
+        {
+            src = trees.pines[mixR.Next(trees.pines.Length)]; scale = R(mixR, 0.55f, 0.9f);
+        }
+        else return false;
+        if (!src) return false;
+        Place(src, pos, scale);
+        return true;
+    }
+
+    GameObject Place(GameObject src, Vector3 pos, float scale)
+    {
+        var go = Instantiate(src, root, false);
+        go.name = src.name;
+        go.transform.SetPositionAndRotation(pos + Vector3.down * 0.1f, Quaternion.Euler(R(mixR, -3, 3), R(mixR, 0, 360), R(mixR, -3, 3)));
+        float sx = mixR.NextDouble() < 0.5 ? -1f : 1f;   // mirror half of them
+        go.transform.localScale = new Vector3(sx * scale, scale * R(mixR, 0.9f, 1.1f), scale);
+        foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.hideFlags = HideFlags.DontSave;
+        foreach (var c in go.GetComponentsInChildren<Collider>(true)) DestroyImmediate(c);
+        foreach (var mr in go.GetComponentsInChildren<Renderer>(true))
+        {
+            var ms = mr.sharedMaterials;
+            for (int i = 0; i < ms.Length; i++)
+                if (ms[i]) foreach (var sw in trees.swaps) if (sw && sw.name == "LSV_" + ms[i].name) { ms[i] = sw; break; }
+            mr.sharedMaterials = ms;
+            mr.lightProbeUsage = LightProbeUsage.Off; mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
+        }
+        return go;
+    }
+
+    // Near-edge silhouettes (11-13 Kido, Hades II reference: very tall, almost black shapes along the camera-side edge
+    // only): the same pine, its materials swapped for near-black, desaturated, rim-less copies, shared across rebuilds.
+    static readonly Dictionary<Material, Material> darkMats = new Dictionary<Material, Material>();
+    static void Silhouette(GameObject go)
+    {
+        if (!go) return;
+        foreach (var mr in go.GetComponentsInChildren<Renderer>(true))
+        {
+            var ms = mr.sharedMaterials;
+            for (int i = 0; i < ms.Length; i++)
+            {
+                var src = ms[i];
+                if (!src) continue;
+                if (!darkMats.TryGetValue(src, out var d) || !d)
+                {
+                    d = new Material(src) { name = src.name + "_Silhouette", hideFlags = HideFlags.DontSave };
+                    if (d.HasProperty("_Tint")) d.SetColor("_Tint", new Color(0.075f, 0.08f, 0.085f, 1f));
+                    if (d.HasProperty("_Desat")) d.SetFloat("_Desat", 1f);
+                    if (d.HasProperty("_RimScale")) d.SetFloat("_RimScale", 0f);
+                    if (d.HasProperty("_Smoothness")) d.SetFloat("_Smoothness", 0f);
+                    darkMats[src] = d;
+                }
+                ms[i] = d;
+            }
+            mr.sharedMaterials = ms;
+            mr.shadowCastingMode = ShadowCastingMode.Off;   // their long shadows would fall across the arena
+        }
+    }
+
+    // 11-13 (Kido, all fields: the fight space lacks big shapes that give depth; use existing/downloaded assets; never small
+    // things you trip on): tall downloaded pines just outside the near (south) edge whose crowns hang into the frame, tall
+    // pines along the far edge, and big granite masses outside the east and west edges. All outside the arena: the pines
+    // have no colliders, the boulders only their own big box.
+    void BuildDepth(System.Random r)
+    {
+        if (trees && trees.heroes != null && trees.heroes.Length > 0)
+        {
+            float zS = ArenaCZ - ArenaHZ;
+            foreach (var x in new[] { -50f, -31f, -14f, 4f, 22f, 40f, 52f })
+            {
+                float px = x + R(r, -4f, 4f), pz = zS - R(r, 3f, 6.5f);
+                Nearest(px, pz, out float d, out float w, out _, out _, out _);
+                if (d < w + 2f) continue;
+                var go = Place(trees.heroes[r.Next(trees.heroes.Length)], new Vector3(px, Height(px, pz) - 0.2f, pz), R(r, 1.55f, 1.9f));
+                Silhouette(go);
+            }
+        }
+        if (trees && trees.pines != null && trees.pines.Length > 0)
+        {
+            float zN = ArenaCZ + ArenaHZ;
+            for (float x = -58f; x < 50f; x += R(r, 9f, 15f))
+            {
+                float pz = zN + R(r, 2f, 5f);
+                Nearest(x, pz, out float d, out float w, out _, out _, out _);
+                if (d < w + 2f) continue;
+                Place(trees.pines[r.Next(trees.pines.Length)], new Vector3(x, Height(x, pz) - 0.2f, pz), R(r, 1.05f, 1.35f));
+            }
+        }
+        float xW = ArenaCX - ArenaHX, xE = ArenaCX + ArenaHX;
+        foreach (var b in new[] { new Vector3(xW - 6f, 14f, 10f), new Vector3(xW - 5f, -12f, 8.5f), new Vector3(xE + 6f, 22f, 11f), new Vector3(xE + 5.5f, -24f, 9f) })
+        {
+            Nearest(b.x, b.y, out float d, out float w, out _, out _, out _);
+            if (d < w + 3f) continue;
+            Big(r, b.x, b.y, b.z, 0.15f);
+        }
+        FlushBatches(true);
+    }
+
     void BuildProps()
     {
+        rockSpots.Clear();
+        mixR = new System.Random(1113);
+        trees = Resources.Load<LookStudyValleyTrees>("ValleyTrees");
+        heroesLeft = HeroCap;
         var r = new System.Random(2025);
         Random.InitState(2025);
 
@@ -349,6 +652,7 @@ public class LookStudyValley : MonoBehaviour
             var p = bigRocks[r.Next(bigRocks.Length)];
             float s = b.z / Mathf.Max(p.mesh.bounds.size.x, p.mesh.bounds.size.z);
             Stamp(p, new Vector3(b.x, -0.28f, b.y), Quaternion.Euler(0, R(r, 0, 360), 0), new Vector3(s, 0.42f * s, s), Tint(r));
+            rockSpots.Add(new Vector3(b.x, b.y, b.z * 0.5f));
         }
         // Rounded cobbles along the shoreline, thicker near the water.
         for (int i = 0; i < 1500; i++)
@@ -412,9 +716,12 @@ public class LookStudyValley : MonoBehaviour
                     float s0 = R(r, 0.65f, 1.0f);
                     var rot0 = Quaternion.Euler(R(r, -4, 4), R(r, 0, 360), R(r, -4, 4));
                     var pos0 = new Vector3(x, h0 - 0.25f, z);
-                    Stamp(pineTrunk, pos0, rot0, new Vector3(s0, s0, s0), new Color(0.42f, 0.36f, 0.34f, 0));
+                    var tint0 = new Color(R(r, 0.34f, 0.5f), R(r, 0.46f, 0.62f), R(r, 0.46f, 0.6f), 1);
                     if (pass == 0) Col(pos0 + Vector3.up * 2f, new Vector3(0.8f * s0, 4f, 0.8f * s0), Quaternion.identity);
-                    Stamp(pineBranches, pos0, rot0, new Vector3(s0, s0, s0), new Color(R(r, 0.34f, 0.5f), R(r, 0.46f, 0.62f), R(r, 0.46f, 0.6f), 1));
+                    // irregular spacing: some slots stay empty, some get a downloaded pine instead
+                    if (mixR.NextDouble() < 0.12) continue;
+                    if (MixPine(pos0, pass == 0 ? 0.05 : 0.02, 0.4)) continue;
+                    OwnPine(pos0, rot0, s0, tint0);
                 }
                 FlushBatches(true);
             }
@@ -432,14 +739,15 @@ public class LookStudyValley : MonoBehaviour
                 var rot = Quaternion.Euler(R(r, -4, 4), R(r, 0, 360), R(r, -4, 4));
                 var tint = new Color(R(r, 0.34f, 0.5f), R(r, 0.46f, 0.62f), R(r, 0.46f, 0.6f), 1);
                 var pos = new Vector3(x, h - 0.25f, z);
-                Stamp(pineTrunk, pos, rot, new Vector3(s, s, s), new Color(0.42f, 0.36f, 0.34f, 0));
                 Col(pos + Vector3.up * 2f, new Vector3(0.7f * s, 4f, 0.7f * s), Quaternion.identity);
-                Stamp(pineBranches, pos, rot, new Vector3(s, s, s), tint);
+                if (!MixPine(pos, 0.0, 0.3)) OwnPine(pos, rot, s, tint);
                 if (++placed % 130 == 0) FlushBatches(true);
             }
         }
         FlushBatches(true);
 
+        BuildPoolFall();
+        BuildDepth(new System.Random(1314));
         BuildBankGrass(r);
         // Older sparse pass kept off: dense banks replace it.
         if (false && grassMat && grassClumps != null && grassClumps.Length > 0)
@@ -499,6 +807,7 @@ public class LookStudyValley : MonoBehaviour
                 float x = cx + (float)r.NextDouble() * Chunk, z = cz + (float)r.NextDouble() * Chunk;
                 float dens = GrassDensity(x, z);
                 if (r.NextDouble() > dens) continue;
+                if (OnRock(x, z)) continue;
                 float h = Height(x, z);
                 var g = gs[r.Next(gs.Length)];
                 bool blade = g.mesh.bounds.size.x < 0.2f;

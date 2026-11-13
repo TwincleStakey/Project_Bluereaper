@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d3c1e9a5b2f4e6a8c0d1b2a3f4e5d6c, type: 3}
+  m_Name: ValleyTrees
+  m_EditorClassIdentifier: 
+  pines:
+  - {fileID: 8074552136346441033, guid: 9bb41c8daa85856469492edf06184ad8, type: 3}
+  - {fileID: 1946147666110997230, guid: 8031ad8b6a9541f478a1b4bfca657f9b, type: 3}
+  heroes:
+  - {fileID: 8002008516796931851, guid: 75f8272ae2a01e249999061b46d7ac93, type: 3}
+  - {fileID: 4793911031297736956, guid: 54658471b212cc0479fc55a1298f32f8, type: 3}
+  swaps:
+  - {fileID: 2100000, guid: 5c7a2ca62c28933d57718cb9e4873cc4, type: 2}
+  - {fileID: 2100000, guid: 0ee161aac1290c26c45c56af7b7dfaab, type: 2}
+  - {fileID: 2100000, guid: e80d8d623b744395731b9d9c60cd98bc, type: 2}
+  - {fileID: 2100000, guid: f07c2afe2d62ee5a5b0ecc67701f357d, type: 2}
+  - {fileID: 2100000, guid: bdc0c7b45974983e8e2299d48b14effd, type: 2}
