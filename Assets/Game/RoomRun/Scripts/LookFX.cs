@@ -5,11 +5,16 @@
 //   Shots: every bullet gets a soft pool of light on the ground under it and a tapered streak along its path
 //   (instanced additive cards, so thousands cost about the same as a few), on top of FieldLighting's real lights.
 //   Flashes: short real point lights on player shots (muzzle), hits and kills, from a small recycled pool.
-//   Player: a faint cool glow on the ground around the feet.
+//   Player: no ground glow any more (11-13); the rim glow is PlayerGlowPass.
+//   Readable cores (11-13, Kido: missiles got darkened with the dark fields): every shot also gets a crisp core sprite
+//   drawn AFTER post-processing (BulletCorePass, RR_BulletCore), so no field's grade, exposure, vignette or grain can
+//   dim or grey it. Player shots cyan and stretched along their path, enemy shots hot magenta-red and round. The halos
+//   above stay in the scene, so they still bloom around the core.
 // Off for A/B with the perf probe variant off:LookFX, or LookFX.On = false.
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 namespace RoomRun
@@ -25,8 +30,8 @@ namespace RoomRun
 
         [Header("Shot light")]
         // strongly saturated: StageMood's grade takes 45-66% of the colour out after this
-        public Color enemyGlow = new Color(1.0f, 0.25f, 0.04f) * 0.6f;
-        public Color playerGlow = new Color(0.25f, 0.6f, 1.0f) * 0.65f;
+        public Color enemyGlow = new Color(1.0f, 0.12f, 0.3f) * 0.3f;   // 11-13: magenta-red to match the readable core; halved, 100+ shots stained bright fields pink
+        public Color playerGlow = new Color(0.15f, 0.7f, 1.0f) * 0.65f;
         public float poolRadius = 1.6f, streakLength = 1.5f, playerStreakLength = 2.4f, streakWidth = 0.32f;
         public float muzzleHeight = 1.05f;   // shots fly this high above the ground (EnemyController.MuzzleHeight)
 
@@ -49,9 +54,19 @@ namespace RoomRun
         // meshes are hidden while this is on.
         Material haloEnemy, haloPlayer, coreEnemy, corePlayer;
         Mesh quad;
-        const int N = 1023;
+        // room for the 2,000+ bullet stress case; drawn 1,023 at a time
+        const int N = 4096;
         readonly Matrix4x4[] auraM = new Matrix4x4[1], pe = new Matrix4x4[N], pp = new Matrix4x4[N], se = new Matrix4x4[N], sp = new Matrix4x4[N],
             he = new Matrix4x4[N], hp = new Matrix4x4[N], coreTmp = new Matrix4x4[N], auraTmp = new Matrix4x4[N];
+
+        [Header("Readable cores (after post)")]
+        public bool readableCores = true;
+        public Color enemyCoreRim = new Color(1f, 0.12f, 0.38f), enemyCoreHot = new Color(1f, 0.92f, 0.96f);
+        public Color playerCoreRim = new Color(0.15f, 0.85f, 1f), playerCoreHot = new Color(0.92f, 1f, 1f);
+        public float enemyCoreSize = 0.9f, playerCoreWidth = 0.6f, playerCoreLength = 1.3f;
+        Material overEnemy, overPlayer;
+        static readonly Color EnemyHalo = new Color(1f, 0.1f, 0.3f) * 1.6f;
+        BulletCorePass corePass;
 
         [Header("Bullet sprites")]
         public float haloSize = 0.95f, playerHaloSize = 0.9f, coreSize = 0.32f;
@@ -71,16 +86,30 @@ namespace RoomRun
                     return m;
                 }
                 poolEnemy = M(enemyGlow, 0, 2.2f); poolPlayer = M(playerGlow, 0, 2.2f);
-                streakEnemy = M(new Color(1f, 0.2f, 0.03f) * 2.2f, 3, 1.1f, "trace_01_rotated"); streakPlayer = M(playerGlow * 3.8f, 3, 1.3f, "trace_04_rotated");
-                haloEnemy = M(new Color(1f, 0.16f, 0.02f) * 1.6f, 2, 1.8f, "light_01"); haloPlayer = M(new Color(0.15f, 0.45f, 1f) * 1.6f, 2, 1.8f, "light_02");
-                coreEnemy = M(new Color(1f, 0.6f, 0.3f) * 2.4f, 2, 1.5f, "light_03"); corePlayer = M(new Color(0.75f, 0.9f, 1f) * 3.2f, 2, 1.0f, "flare_01");
+                streakEnemy = M(new Color(1f, 0.12f, 0.3f) * 2.2f, 3, 1.1f, "trace_01_rotated"); streakPlayer = M(playerGlow * 3.8f, 3, 1.3f, "trace_04_rotated");
+                haloEnemy = M(EnemyHalo, 2, 1.8f, "light_01"); haloPlayer = M(new Color(0.1f, 0.6f, 1f) * 1.6f, 2, 1.8f, "light_02");
+                coreEnemy = M(new Color(1f, 0.45f, 0.65f) * 2.4f, 2, 1.5f, "light_03"); corePlayer = M(new Color(0.75f, 0.9f, 1f) * 3.2f, 2, 1.0f, "flare_01");
                 aura = M(new Color(0.35f, 0.5f, 0.75f) * 0.35f, 0, 1.6f);
+            }
+            var osh = Resources.Load<Shader>("RR_BulletCore");
+            if (osh)
+            {
+                Material O(Color rim, Color hot, float core, float rimR, float dark)
+                {
+                    var m = new Material(osh) { enableInstancing = true, hideFlags = HideFlags.DontSave };
+                    m.SetColor("_Color", rim); m.SetColor("_CoreColor", hot); m.SetFloat("_Core", core); m.SetFloat("_Rim", rimR); m.SetFloat("_Dark", dark);
+                    return m;
+                }
+                overEnemy = O(enemyCoreRim, enemyCoreHot, 0.28f, 0.5f, 0.3f);
+                overPlayer = O(playerCoreRim, playerCoreHot, 0.3f, 0.55f, 0.25f);
+                corePass = new BulletCorePass { renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing };
             }
             quad = new Mesh { name = "LookFX quad", hideFlags = HideFlags.DontSave };
             quad.vertices = new[] { new Vector3(-0.5f, 0, -0.5f), new Vector3(0.5f, 0, -0.5f), new Vector3(-0.5f, 0, 0.5f), new Vector3(0.5f, 0, 0.5f) };
             quad.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
             quad.triangles = new[] { 0, 2, 1, 1, 2, 3 };
             quad.bounds = new Bounds(Vector3.zero, Vector3.one * 2f);
+            if (corePass != null) corePass.mesh = quad;
 
             vol = gameObject.AddComponent<Volume>();
             vol.isGlobal = true; vol.priority = 1100;
@@ -110,10 +139,10 @@ namespace RoomRun
 
         // Per-field saturation / bloom. Snow (snow thread, 11-11): -18 made the snow too colourful and a 0.8 threshold
         // smeared bloom over the bright snow, so it keeps more grey and only real light sources bloom.
-        struct RoomPost { public float saturation, bloomThreshold, bloomIntensity; }
+        struct RoomPost { public float saturation, bloomThreshold, bloomIntensity; public float flashScale; }   // flashScale: death flash intensity x (0 = 1)
         static readonly System.Collections.Generic.Dictionary<string, RoomPost> RoomPosts = new System.Collections.Generic.Dictionary<string, RoomPost>
         {
-            { "snow", new RoomPost { saturation = -30f, bloomThreshold = 1.15f, bloomIntensity = 0.9f } },
+            { "snow", new RoomPost { saturation = -40f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.35f } },   // 11-13 (Kido: snow too bright, glow blob round the player): 1.15 / 0.9 -> 1.4 / 0.6
         };
 
         void OnEnable()
@@ -148,6 +177,7 @@ namespace RoomRun
                 var post = custom ? RoomPosts[run.Room.id] : new RoomPost { saturation = saturation, bloomThreshold = bloomThreshold, bloomIntensity = bloomIntensity };
                 adj.saturation.value = post.saturation;
                 if (bloom) { bloom.threshold.value = post.bloomThreshold; bloom.intensity.value = post.bloomIntensity; }
+                deathFlash = post.flashScale > 0f ? post.flashScale : 1f;
             }
             if (live && run.Player)
             {
@@ -166,6 +196,7 @@ namespace RoomRun
             if (!On || !run || !poolEnemy || cam != run.Rig.Cam) return;
             var bs = run.Bullets;
             int ne = 0, np = 0;
+            if (corePass != null) corePass.Clear();
             // sprites face the camera: the card's normal (+Y) toward it, its +Z along the screen's up
             var ct = cam.transform;
             var face = Quaternion.LookRotation(ct.up, -ct.forward);
@@ -185,23 +216,100 @@ namespace RoomRun
                     var core = Matrix4x4.TRS(pos + lift * 1.2f, face, new Vector3(coreSize, 1f, coreSize) * (pl ? 1.4f : 1f));
                     if (pl) { if (np >= N) continue; pp[np] = pool; sp[np] = streak; hp[np] = halo; auraTmp[np] = core; np++; }
                     else { if (ne >= N) continue; pe[ne] = pool; se[ne] = streak; he[ne] = halo; coreTmp[ne] = core; ne++; }
+                    if (corePass != null && readableCores)
+                    {
+                        if (pl)
+                        {
+                            // the card's length along the shot's path as seen on screen
+                            var sd = Vector3.ProjectOnPlane(dir, ct.forward);
+                            var r = sd.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(sd, -ct.forward) : face;
+                            corePass.Add(true, Matrix4x4.TRS(pos + lift * 1.2f, r, new Vector3(playerCoreWidth, 1f, playerCoreLength)));
+                        }
+                        else corePass.Add(false, Matrix4x4.TRS(pos + lift * 1.2f, face, new Vector3(enemyCoreSize, 1f, enemyCoreSize)));
+                    }
                 }
+            // 11-13 QA: with 100+ enemy shots the additive ground pools and halos stacked into a magenta fog over the
+            // floor. Their total light is held to about that of ~25 shots; the readable cores (after post) carry the shots.
+            float crowd = Mathf.Clamp(25f / Mathf.Max(1, ne), 0.08f, 1f);
+            poolEnemy.SetColor("_Color", enemyGlow * crowd);
+            haloEnemy.SetColor("_Color", EnemyHalo * Mathf.Sqrt(crowd));
             Submit(cam, poolEnemy, pe, ne); Submit(cam, poolPlayer, pp, np);
             // no trails (Kido 11-11: "뒤에 올챙이 꼬리 달지말고")
             Submit(cam, haloEnemy, he, ne); Submit(cam, haloPlayer, hp, np);
             Submit(cam, coreEnemy, coreTmp, ne); Submit(cam, corePlayer, auraTmp, np);
-            if (run.Player)
+            if (corePass != null && corePass.Count > 0)
             {
-                auraM[0] = Matrix4x4.TRS(run.Player.transform.position + Vector3.up * 0.05f, Quaternion.identity, new Vector3(5f, 1f, 5f));
-                Submit(cam, aura, auraM, 1);
+                var data = cam.GetUniversalAdditionalCameraData();
+                if (data != null && data.scriptableRenderer != null)
+                {
+                    corePass.enemyMat = overEnemy; corePass.playerMat = overPlayer; corePass.cam = cam;
+                    data.scriptableRenderer.EnqueuePass(corePass);
+                }
             }
+            // no ground aura under the player (11-13, Kido: the bright cool pool under the feet looked wrong and lit the
+            // snow ice); the player's rim glow is PlayerGlowPass.
         }
 
         void Submit(Camera cam, Material m, Matrix4x4[] arr, int n)
         {
             if (n <= 0) return;
             var rp = new RenderParams(m) { camera = cam, layer = 0, shadowCastingMode = ShadowCastingMode.Off, receiveShadows = false };
-            Graphics.RenderMeshInstanced(rp, quad, 0, arr, n);
+            for (int s = 0; s < n; s += 1023) Graphics.RenderMeshInstanced(rp, quad, 0, arr, Mathf.Min(1023, n - s), s);
+        }
+
+        // ---------------------------------------------------------------- readable cores, after post-processing
+        // Drawn onto the graded image with the camera's own matrices and no depth test (a shot is never hidden behind a
+        // tree or a wall), 1,023 instances per draw.
+        sealed class BulletCorePass : ScriptableRenderPass
+        {
+            public Mesh mesh;
+            public Material enemyMat, playerMat;
+            public Camera cam;
+            readonly List<Matrix4x4[]> enemy = new List<Matrix4x4[]>(), player = new List<Matrix4x4[]>();
+            int ne, np;
+            public int Count => ne + np;
+
+            public void Clear() { ne = np = 0; }
+            public void Add(bool isPlayer, Matrix4x4 m)
+            {
+                var list = isPlayer ? player : enemy;
+                int n = isPlayer ? np : ne;
+                int chunk = n / 1023;
+                if (chunk >= list.Count) list.Add(new Matrix4x4[1023]);
+                list[chunk][n % 1023] = m;
+                if (isPlayer) np++; else ne++;
+            }
+
+            class PassData { public BulletCorePass p; public TextureHandle target; }
+
+            public override void RecordRenderGraph(RenderGraph rg, ContextContainer frameData)
+            {
+                if (!mesh || !cam || Count == 0) return;
+                var res = frameData.Get<UniversalResourceData>();
+                using (var builder = rg.AddRasterRenderPass<PassData>("Bullet Cores (after post)", out var data))
+                {
+                    data.p = this; data.target = res.activeColorTexture;
+                    builder.SetRenderAttachment(data.target, 0, AccessFlags.Write);
+                    builder.AllowGlobalStateModification(true);
+                    builder.AllowPassCulling(false);
+                    builder.SetRenderFunc((PassData d, RasterGraphContext ctx) =>
+                    {
+                        var p = d.p;
+                        // After post the target reports a bottom-left UV origin (Game view and capture RTs alike, checked
+                        // 11-13) and needs the unflipped GPU projection; flipping it mirrored every core top to bottom.
+                        bool flip = ctx.GetTextureUVOrigin(d.target) != TextureUVOrigin.BottomLeft;
+                        ctx.cmd.SetViewProjectionMatrices(p.cam.worldToCameraMatrix, GL.GetGPUProjectionMatrix(p.cam.projectionMatrix, flip));
+                        DrawChunks(ctx.cmd, p.mesh, p.enemyMat, p.enemy, p.ne);
+                        DrawChunks(ctx.cmd, p.mesh, p.playerMat, p.player, p.np);
+                    });
+                }
+            }
+
+            static void DrawChunks(RasterCommandBuffer cmd, Mesh mesh, Material m, List<Matrix4x4[]> chunks, int n)
+            {
+                if (!m) return;
+                for (int c = 0; c * 1023 < n; c++) cmd.DrawMeshInstanced(mesh, 0, m, 0, chunks[c], Mathf.Min(1023, n - c * 1023));
+            }
         }
 
         // ---------------------------------------------------------------- flashes
@@ -217,12 +325,15 @@ namespace RoomRun
             Spawn(pos + dir * 0.4f, muzzleColor, 4f, 3.5f, 0.07f);
         }
 
+        // 11-13 (Kido: white blob on snow when enemies die next to the player): per-field death flash scale (RoomPost.flashScale)
+        float deathFlash = 1f;
+
         void OnBurst(Vector3 pos, Fx.Kind kind)
         {
             if (!On) return;
             switch (kind)
             {
-                case Fx.Kind.Death: Spawn(pos + Vector3.up * 0.5f, killColor, 7f, 6f, 0.35f); break;
+                case Fx.Kind.Death: Spawn(pos + Vector3.up * 0.5f, killColor, 7f, 6f * deathFlash, 0.35f); break;
                 case Fx.Kind.PlayerSpark: Spawn(pos, muzzleColor, 2.5f, 2.5f, 0.08f); break;
                 default: Spawn(pos, hitColor, 2.5f, 2.5f, 0.08f); break;
             }
