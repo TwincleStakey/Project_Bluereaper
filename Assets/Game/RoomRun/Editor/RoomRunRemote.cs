@@ -30,6 +30,13 @@ namespace RoomRun
         static RoomRunRemote()
         {
             EditorApplication.update += Tick;
+            // 11-13: reed field ground/water tiles leaked out of Play (old DontSave MeshChunker) drew over every scene
+            EditorApplication.delayCall += () =>
+            {
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+                int n = MeshChunker.PurgeLeaked();
+                if (n > 0) Note($"purged {n} leaked MeshChunker tiles (outside any scene)");
+            };
         }
 
         static void Note(string s)
@@ -58,6 +65,30 @@ namespace RoomRun
             {
                 var parts = File.ReadAllText(Cmd).Trim().Split(' ');
                 File.Delete(Cmd);
+                // "orphans" lists renderers outside any scene (leaked from another field); "orphans clear" destroys them
+                if (parts[0] == "orphans")
+                {
+                    var roots = new HashSet<GameObject>();
+                    var names = new Dictionary<string, int>();
+                    foreach (var r in Resources.FindObjectsOfTypeAll<Renderer>())
+                    {
+                        if (!r || EditorUtility.IsPersistent(r) || r.gameObject.scene.IsValid()) continue;
+                        var root = r.transform.root.gameObject;
+                        roots.Add(root);
+                        string k = $"{root.name} > {r.name} flags={r.gameObject.hideFlags} y={r.bounds.center.y:0.0}";
+                        k = System.Text.RegularExpressions.Regex.Replace(k, @"-?\d+_-?\d+", "#");
+                        names[k] = names.TryGetValue(k, out var c) ? c + 1 : 1;
+                    }
+                    foreach (var kv in names.OrderByDescending(x => x.Value).Take(20)) Note($"orphan {kv.Value} x {kv.Key}");
+                    if (parts.Length > 1 && parts[1] == "clear")
+                    {
+                        int n = 0;
+                        foreach (var g in roots) if (g) { Object.DestroyImmediate(g); n++; }
+                        Note($"orphans cleared {n} roots");
+                    }
+                    else Note($"orphans {roots.Count} roots");
+                    return;
+                }
                 if (parts[0] == "menu")
                 {
                     string item = string.Join(" ", parts, 1, parts.Length - 1);

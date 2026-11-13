@@ -39,7 +39,27 @@ namespace RoomRun
             return split;
         }
 
-        sealed class TileMarker : MonoBehaviour { }
+        public sealed class TileMarker : MonoBehaviour { }
+
+        // Destroys tiles that ended up outside any scene (made by the old DontSave version, or left by an aborted
+        // field). Called on every field change and when the editor loads, so nothing from another field draws here.
+        public static int PurgeLeaked()
+        {
+            int n = 0;
+            // by renderer and name, not by TileMarker: after a script reload the old tiles' marker can be a missing script
+            foreach (var r in Resources.FindObjectsOfTypeAll<MeshRenderer>())
+            {
+                if (!r) continue;
+                var go = r.gameObject;
+                if (go.scene.IsValid() || !go.name.Contains("_tile") || (go.hideFlags & HideFlags.DontSave) == 0 && !go.GetComponent<TileMarker>()) continue;
+#if UNITY_EDITOR
+                if (UnityEditor.EditorUtility.IsPersistent(go)) continue;
+#endif
+                if (Application.isPlaying) Object.Destroy(go); else Object.DestroyImmediate(go);
+                n++;
+            }
+            return n;
+        }
 
         static int Split(MeshRenderer mr, Mesh mesh)
         {
@@ -111,7 +131,13 @@ namespace RoomRun
                 m.SetSubMesh(0, new SubMeshDescriptor(0, tris.Length, MeshTopology.Triangles) { bounds = bb, vertexCount = used.Count }, MeshUpdateFlags.DontRecalculateBounds);
                 m.bounds = bb;
 
-                var go = new GameObject(m.name) { hideFlags = HideFlags.DontSave, layer = mr.gameObject.layer };
+                // NOT DontSave (11-13 Kido: "brown mud slab in every map"): a DontSave GameObject is lifted out of its scene and
+                // survives every scene load, and in the editor even the end of Play. Tiles of a root mesh (the reed field's
+                // RF_Ground / RF_Water / RF_River) were left floating over every other field and every scene, burying the
+                // player. As a plain scene object the tile unloads with its field; only the mesh stays DontSave
+                // (RunDirector.ReleaseStageMeshes frees it).
+                var go = new GameObject(m.name) { layer = mr.gameObject.layer };
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, mr.gameObject.scene);
                 // a sibling with the same local transform: correct under any parent, unloads with the scene
                 go.transform.SetParent(tr.parent, false);
                 go.transform.localPosition = tr.localPosition; go.transform.localRotation = tr.localRotation; go.transform.localScale = tr.localScale;
@@ -145,7 +171,12 @@ namespace RoomRun
             int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
             var run = RunDirector.Instance;
             if (run && run.Transitioning) return;
-            if (scene != sceneSeen) { sceneSeen = scene; frames = 0; }
+            if (scene != sceneSeen)
+            {
+                sceneSeen = scene; frames = 0;
+                int purged = MeshChunker.PurgeLeaked();
+                if (purged > 0) Debug.Log($"[RoomRun] MeshChunker: removed {purged} leaked tiles from another field");
+            }
             frames++;
             if (System.Array.IndexOf(PassAt, frames) < 0) return;
             var sw = System.Diagnostics.Stopwatch.StartNew();
