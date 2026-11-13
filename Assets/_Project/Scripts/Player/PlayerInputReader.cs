@@ -32,6 +32,8 @@ namespace BlueReaper.Player
 
         void Awake()
         {
+            // 플레이어마다 복사본을 쓴다. 원본을 같이 쓰면 남의 캐릭터에서 입력을 끌 때 내 입력까지 꺼진다
+            actions = Instantiate(actions);
             map = actions.FindActionMap("Player", throwIfNotFound: true);
             move = map.FindAction("Move", true);
             aimPoint = map.FindAction("AimPoint", true);
