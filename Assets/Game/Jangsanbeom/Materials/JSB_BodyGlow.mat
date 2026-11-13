@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: JSB_BodyGlow
+  m_Shader: {fileID: 4800000, guid: 4d40bae7c24c1294da862c0855a58c95, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 249ab38ff957f3f448e1627a21eaa2c1, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EyeMask:
+        m_Texture: {fileID: 2800000, guid: 83f6a5f5d824c6546ac7a5c2e759576a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AmbientBoost: 1.2
+    - _EyeIntensity: 8
+    - _EyePulseAmount: 0.35
+    - _EyePulseSpeed: 1.6
+    - _FurLumMin: 0.35
+    - _RimIntensity: 4
+    - _RimPower: 2.5
+    - _SparkleAmount: 0.22
+    - _SparkleDensity: 7
+    - _SparkleIntensity: 9
+    - _SparkleSpeed: 3
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _EyeColor: {r: 4, g: 1.4, b: 0.2, a: 1}
+    - _RimColor: {r: 0.55, g: 0.75, b: 1.4, a: 1}
+    - _SparkleColor: {r: 2.5, g: 2.8, b: 3.5, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
