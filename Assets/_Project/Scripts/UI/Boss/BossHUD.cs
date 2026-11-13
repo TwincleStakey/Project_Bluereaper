@@ -10,6 +10,8 @@ namespace BlueReaper.UI
     {
         [SerializeField]
         private HPBarUI hpBarUI = null;
+        [SerializeField]
+        private PostureBarUI postureBarUI = null;
 
         public void Init(Enemy enemy)
         {
@@ -27,16 +29,27 @@ namespace BlueReaper.UI
                     hpBarUI.Init(health);
                 }
             }
+
+            if(postureBarUI)
+            {
+                var posture = enemy.GetComponent<Posture>();
+                if(posture)
+                {
+                    postureBarUI.Init(posture);
+                }
+            }
         }
 
         public void Show()
         {
             if (hpBarUI) hpBarUI.gameObject.SetActive(true);
+            if (postureBarUI) postureBarUI.gameObject.SetActive(true);
         }
 
         public void Hide()
         {
             if (hpBarUI) hpBarUI.gameObject.SetActive(false);
+            if (postureBarUI) postureBarUI.gameObject.SetActive(false);
         }
     }
 }
