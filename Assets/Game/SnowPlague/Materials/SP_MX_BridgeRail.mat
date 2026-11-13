@@ -40,7 +40,7 @@ Material:
     - _GroundMelt: 0
     - _NormalStrength: 1
     - _SeeThrough: 0
-    - _Smoothness: 0.3
+    - _Smoothness: 0.15
     - _SnowBias: 0.1
     - _SnowCap: 0
     - _TriScale: 4

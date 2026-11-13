@@ -51,7 +51,7 @@ Material:
     - _TopMode: 0
     - _TopTile: 3.2
     - _WetAmt: 0.45
-    - _WetSmooth: 0.78
+    - _WetSmooth: 0.32
     m_Colors:
     - _CrackCol: {r: 2.2, g: 0.8, b: 5, a: 1}
     - _Emission: {r: 0, g: 0, b: 0, a: 1}

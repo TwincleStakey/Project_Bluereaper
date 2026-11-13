@@ -57,6 +57,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _DryGloss: 0.4
     - _RockScale: 0.11
     m_Colors:
     - _ForestTint: {r: 0.6901961, g: 0.69803923, b: 0.5568628, a: 1}

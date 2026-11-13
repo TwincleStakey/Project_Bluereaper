@@ -47,7 +47,7 @@ Material:
     - _Triplanar: 0
     - _VColAlbedo: 0
     - _VertexFrost: 0
-    - _Wetness: 0.55
+    - _Wetness: 0.15
     m_Colors:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _Tint: {r: 0.37254903, g: 0.3529412, b: 0.32156864, a: 1}

@@ -13,6 +13,7 @@ Shader "LookStudy/StageRock"
         _MossAmt("Moss amount", Range(0,1)) = 0.55
         _Wet("Wet band height", Float) = 0.55
         _BurnOn("Burn from vertex alpha", Range(0,1)) = 0
+        _DryGloss("Dry gloss scale (0 = matte straw, cloth, clay)", Range(0,2)) = 1
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 2
     }
     SubShader
@@ -30,6 +31,7 @@ Shader "LookStudy/StageRock"
         float _MossAmt;
         float _Wet;
         float _BurnOn;
+        float _DryGloss;
         float _Cull;
         CBUFFER_END
         ENDHLSL
@@ -84,7 +86,9 @@ Shader "LookStudy/StageRock"
                 // Dark wet band above the waterline.
                 float wet = 1.0 - smoothstep(_LSWaterY + _Wet * 0.3, _LSWaterY + max(_Wet, 0.01), i.positionWS.y + (noise - 0.5) * 0.25);
                 albedo *= lerp(1.0, 0.36, wet);
-                float gloss = lerp(0.12, 0.34, wet) * (1.0 - moss * 0.7);   // 11-13 QA: 0.72 read as plastic under the wisp lights
+                // 11-13 QA: 0.72 read as plastic under the wisp lights. 11-13 Kido: thatch/straw/crocks still shone, so the dry
+                // gloss is per material now (_DryGloss), the wet band keeps its own.
+                float gloss = lerp(0.12 * _DryGloss, 0.34, wet) * (1.0 - moss * 0.7);
 
                 // Fire damage: char spreads through noise as vertex alpha rises, cracks glow at the worst parts.
                 float burn = i.color.a * _BurnOn;

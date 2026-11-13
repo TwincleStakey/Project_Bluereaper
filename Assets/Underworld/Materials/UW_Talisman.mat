@@ -46,12 +46,12 @@ Material:
     - _Remap: 0.6
     - _RimAmt: 0.1
     - _SideTile: 3
-    - _Smooth: 0.28
+    - _Smooth: 0.08
     - _StainAmt: 0.45
     - _TopMode: 0
     - _TopTile: 3.2
     - _WetAmt: 0.45
-    - _WetSmooth: 0.78
+    - _WetSmooth: 0.2
     m_Colors:
     - _CrackCol: {r: 2.2, g: 0.8, b: 5, a: 1}
     - _Emission: {r: 0.11764707, g: 0.1082353, b: 0.081176475, a: 1}

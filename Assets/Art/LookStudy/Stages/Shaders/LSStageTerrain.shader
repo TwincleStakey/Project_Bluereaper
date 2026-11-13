@@ -15,6 +15,7 @@ Shader "LookStudy/StageTerrain"
         _PebbleTint("Pebble tint", Color) = (0.8, 0.76, 0.66, 1)
         _ForestTint("Forest tint", Color) = (0.62, 0.62, 0.5, 1)
         _RockScale("Rock texture scale", Float) = 0.11
+        _DryGloss("Dry gloss scale (0 = matte dirt)", Range(0,2)) = 1
     }
     SubShader
     {
@@ -30,6 +31,7 @@ Shader "LookStudy/StageTerrain"
         float4 _PebbleTint;
         float4 _ForestTint;
         float _RockScale;
+        float _DryGloss;
         CBUFFER_END
         ENDHLSL
         Pass
@@ -109,7 +111,7 @@ Shader "LookStudy/StageTerrain"
 
                 float wet = 1.0 - smoothstep(_LSWaterY + 0.05, _LSWaterY + 0.5, ws.y + brk * 0.3);
                 albedo *= lerp(1.0, 0.42, wet);
-                float gloss = lerp(0.08, 0.6, wet) + fp * 0.18;
+                float gloss = lerp(0.08 * _DryGloss, 0.6, wet) + fp * 0.18 * _DryGloss;   // 11-13: per-material dry gloss (village dirt shone under wisps)
                 float3 col = StageLight(albedo, n, ws, i.screen.xy / i.screen.w, gloss, 1.0);
                 col = StageFog(col, ws);
                 return half4(col, 1);
