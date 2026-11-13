@@ -309,6 +309,7 @@ MonoBehaviour:
   - {fileID: 7612043392014892968, guid: 138680d54af36c84ab9e7d7eff7ddae5, type: 3}
   stage: {fileID: 1271118104}
   player: {fileID: 974666820}
+  teammate: {fileID: 1663266923}
   spawnDistance: 6
 --- !u!4 &1009706327
 Transform:
@@ -1270,6 +1271,86 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!1001 &1663266922
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1159832944218927828, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1309065299624844582, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2548448141780889844, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4250884013731307215, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7688844634782436642, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+      propertyPath: m_Name
+      value: Teammate_Dummy
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+--- !u!114 &1663266923 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 140846048566676297, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
+  m_PrefabInstance: {fileID: 1663266922}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 446b29e88ea018c488458641a12fdc78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Health
 --- !u!1 &2026528197
 GameObject:
   m_ObjectHideFlags: 0
@@ -1493,3 +1574,4 @@ SceneRoots:
   - {fileID: 1271118105}
   - {fileID: 1149490489}
   - {fileID: 1009706327}
+  - {fileID: 1663266922}

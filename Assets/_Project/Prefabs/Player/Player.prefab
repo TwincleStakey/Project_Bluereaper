@@ -109,6 +109,8 @@ GameObject:
   - component: {fileID: 1088931757704909158}
   - component: {fileID: 3650432783886912464}
   - component: {fileID: 838616606205560431}
+  - component: {fileID: 7570825820211192148}
+  - component: {fileID: 1159832944218927828}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -293,6 +295,37 @@ MonoBehaviour:
   hitHeight: 1
   shakeStrength: 0.15
   shakeDuration: 0.12
+--- !u!114 &7570825820211192148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae60f252b9c32a2448c43e7eaa9b5976, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerLife
+  bleedOutTime: 15
+  rescueTime: 3
+  reviveHealthRatio: 0.3
+--- !u!114 &1159832944218927828
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe4df9b8f8aaba747ac35069b40aa689, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerRescuer
+  rescueRadius: 1.8
+  playerLayers:
+    serializedVersion: 2
+    m_Bits: 64
 --- !u!1 &8960930555137822400
 GameObject:
   m_ObjectHideFlags: 0

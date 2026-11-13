@@ -8,13 +8,13 @@ namespace BlueReaper.Player
     /// Core 규칙(사망 이벤트)을 지킨다.
     /// </summary>
     [RequireComponent(typeof(Health), typeof(PlayerMotor), typeof(PlayerInputReader))]
-    [RequireComponent(typeof(AutoAim), typeof(SwordAttack))]
+    [RequireComponent(typeof(AutoAim), typeof(SwordAttack), typeof(PlayerLife))]
     public class PlayerController : MonoBehaviour
     {
         [Tooltip("공격 후 이 시간 동안은 이동 방향이 아니라 공격 방향을 바라본다")]
         [SerializeField] float attackFacingHold = 0.25f;
 
-        Health health;
+        PlayerLife life;
         PlayerMotor motor;
         PlayerInputReader input;
         AutoAim autoAim;
@@ -22,27 +22,26 @@ namespace BlueReaper.Player
 
         void Awake()
         {
-            health = GetComponent<Health>();
+            life = GetComponent<PlayerLife>();
             motor = GetComponent<PlayerMotor>();
             input = GetComponent<PlayerInputReader>();
             autoAim = GetComponent<AutoAim>();
             attack = GetComponent<SwordAttack>();
         }
 
-        void OnEnable()
-        {
-            health.Died += OnDied;
-            input.DashPressed += OnDashPressed;
-        }
+        void OnEnable() => input.DashPressed += OnDashPressed;
 
-        void OnDisable()
-        {
-            health.Died -= OnDied;
-            input.DashPressed -= OnDashPressed;
-        }
+        void OnDisable() => input.DashPressed -= OnDashPressed;
 
         void Update()
         {
+            // 빈사·사망 중엔 조작 불가 (입력은 계속 읽지만 몸에 전달하지 않음)
+            if (life.State != LifeState.Alive)
+            {
+                motor.SetMoveInput(Vector3.zero);
+                return;
+            }
+
             motor.SetMoveInput(input.MoveDirection);
 
             if (input.AttackHeld && !motor.IsDashing)
@@ -52,14 +51,9 @@ namespace BlueReaper.Player
             }
         }
 
-        void OnDashPressed() => motor.TryDash();
-
-        void OnDied()
+        void OnDashPressed()
         {
-            GameEvents.RaisePlayerDied(transform);
-            input.enabled = false;
-            motor.enabled = false;
-            enabled = false; // 적의 추적 목록에서 빼는 건 StageController가 Health.Died로 처리
+            if (life.State == LifeState.Alive) motor.TryDash();
         }
     }
 }

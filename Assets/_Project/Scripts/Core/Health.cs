@@ -19,6 +19,8 @@ namespace BlueReaper.Core
         /// <summary>받은 데미지량을 전달.</summary>
         public event Action<float> Damaged;
         public event Action Died;
+        /// <summary>HP 0에서 다시 일어났을 때 (플레이어 구조).</summary>
+        public event Action Revived;
 
         void Awake() => unit = GetComponent<Unit>();
 
@@ -42,6 +44,15 @@ namespace BlueReaper.Core
 
             Current = 0f;
             Died?.Invoke();
+        }
+
+        /// <summary>HP 0인 대상을 최대 체력의 ratio만큼 채워 다시 일으킨다.</summary>
+        public void Revive(float ratio)
+        {
+            if (!IsDead) return;
+
+            Current = MaxHealth * Mathf.Clamp(ratio, 0.01f, 1f);
+            Revived?.Invoke();
         }
     }
 }

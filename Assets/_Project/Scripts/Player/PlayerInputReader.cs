@@ -17,7 +17,7 @@ namespace BlueReaper.Player
         [SerializeField] Camera aimCamera;
 
         InputActionMap map;
-        InputAction move, aimPoint, aimStick, attack, dash;
+        InputAction move, aimPoint, aimStick, attack, dash, interact;
         bool usingStickAim;
         Vector2 lastMousePosition;
 
@@ -26,6 +26,8 @@ namespace BlueReaper.Player
         /// <summary>월드 XZ 평면 방향, 길이 1.</summary>
         public Vector3 AimDirection { get; private set; } = Vector3.forward;
         public bool AttackHeld => attack.IsPressed();
+        /// <summary>상호작용(F / 패드 ↓)을 누르고 있는지. 구조처럼 꾹 누르는 동작용.</summary>
+        public bool InteractHeld => enabled && interact.IsPressed();
         public event Action DashPressed;
 
         void Awake()
@@ -36,6 +38,7 @@ namespace BlueReaper.Player
             aimStick = map.FindAction("AimStick", true);
             attack = map.FindAction("Attack", true);
             dash = map.FindAction("Dash", true);
+            interact = map.FindAction("Interact", true);
             if (aimCamera == null) aimCamera = Camera.main;
         }
 

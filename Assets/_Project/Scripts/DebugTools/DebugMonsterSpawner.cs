@@ -1,4 +1,5 @@
 using BlueReaper.Core;
+using BlueReaper.Player;
 using BlueReaper.Stage;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -6,7 +7,8 @@ using UnityEngine.InputSystem;
 namespace BlueReaper.DebugTools
 {
     /// <summary>
-    /// 샌드박스 전용 테스트 도구. 숫자키로 몬스터 소환, K로 전부 처치, G로 플레이어 무적.
+    /// 샌드박스 전용 테스트 도구. 숫자키로 몬스터 소환, K로 전부 처치, G로 플레이어 무적,
+    /// H로 플레이어 쓰러뜨리기, J로 더미 동료 쓰러뜨리기.
     /// Kibaek 씬에만 둔다 (Prototype 씬·프리팹에는 넣지 않음).
     /// </summary>
     public class DebugMonsterSpawner : MonoBehaviour
@@ -15,6 +17,8 @@ namespace BlueReaper.DebugTools
         [SerializeField] Enemy[] monsters;
         [SerializeField] StageController stage;
         [SerializeField] Health player;
+        [Tooltip("구조 테스트용 더미 동료 (조작 컴포넌트를 끈 Player)")]
+        [SerializeField] Health teammate;
         [Tooltip("플레이어 앞 몇 m에 소환할지")]
         [SerializeField] float spawnDistance = 6f;
 
@@ -29,7 +33,16 @@ namespace BlueReaper.DebugTools
                 if (keyboard[Key.Digit1 + i].wasPressedThisFrame) Spawn(monsters[i]);
 
             if (keyboard.kKey.wasPressedThisFrame) KillAll();
-            if (keyboard.gKey.wasPressedThisFrame) godMode = !godMode;
+            if (keyboard.gKey.wasPressedThisFrame)
+            {
+                godMode = !godMode;
+                // 끌 때 실제 무적도 푼다. 대시 중이면 대시가 끝날 때 PlayerMotor가 푼다
+                if (!godMode && !(player.TryGetComponent(out PlayerMotor motor) && motor.IsDashing))
+                    player.Invincible = false;
+            }
+            // Kill은 무적을 무시하므로 G를 켜 둬도 쓰러진다
+            if (keyboard.hKey.wasPressedThisFrame) player.Kill();
+            if (keyboard.jKey.wasPressedThisFrame && teammate) teammate.Kill();
 
             // 대시가 끝날 때 PlayerMotor가 무적을 끄므로, 무적 모드면 매 프레임 다시 켠다
             if (godMode) player.Invincible = true;
