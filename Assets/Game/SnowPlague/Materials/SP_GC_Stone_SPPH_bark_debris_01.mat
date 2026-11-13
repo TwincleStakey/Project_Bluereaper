@@ -43,10 +43,6 @@ Material:
     - _SeeThrough: 0
     - _Smoothness: 0.12
     - _SnowBias: -0.3
-    - _SnowCap: 0
-    - _TriScale: 4
-    - _Triplanar: 0
-    - _VColAlbedo: 0
     - _VertexFrost: 1
     - _Wetness: 0
     m_Colors:

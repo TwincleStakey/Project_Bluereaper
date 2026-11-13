@@ -240,6 +240,8 @@ public static class SPRemote
         int w = 1920, h = 1080;
         // hero pine close-ups at the game camera pitch (tr5): one inside-the-field hero (side/accent) and one foreground hero
         var shotList = new List<(string name, Vector3 focus, float zoom, bool player)>(views);
+        if (outDir.Contains("r13only")) shotList.Clear();   // r13: only the round-13 views
+        shotList.AddRange(SPBuilder.R13Views());
         Transform heroIn = null, heroFg = null, heroPl = null;
         foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
         {

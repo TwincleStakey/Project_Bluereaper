@@ -87,3 +87,9 @@
 - "Oriental_stone_lantern" by kebijini - https://sketchfab.com/3d-models/oriental-stone-lantern-b582ab0acb67424e88a12320734fe789 (KoreanLantern, CC BY 4.0; decimated 500k -> 40k tris, scaled to ~1.7 m, colour from its vertex colours; replaces the Japanese-style lanterns, all placed just outside the arena)
 - "Low Poly Dead Body Covered Game Ready" by -Arthur- - https://sketchfab.com/3d-models/1e6ae13f6c2e46429eaca4d22d8bdbaa (CorpseCovered, CC BY 4.0; recoloured as a straw mat, model normal map kept)
 - "Corpse" by Tamal De Quezo - https://sketchfab.com/3d-models/be9b034525c246cebab3620acb5a8027 (CorpseCloth, CC BY 4.0; recoloured as a straw mat, model normal map kept)
+
+## Round 13 (`Editor/SPBuilder.R13.cs`) - CC BY 4.0, credit required
+- "KCISA-수내동가옥_초가집02" by Korea Culture Information Service Agency (KCISA) - https://sketchfab.com/3d-models/12f1375cfa8e4b22b1f07735cd4cd1a8 (ThatchHouse2; 1k GLB converted in Blender, decimated 86k -> 60k tris, recoloured, shader snow on the roof)
+- "KCISA-House of Changwon_Sarangchae(창원의 집 사랑채)" by Korea Culture Information Service Agency (KCISA) - https://sketchfab.com/3d-models/095e7862fb91443ca2658b1e98066e53 (Sarangchae; 1k GLB converted in Blender, decimated 324k -> 80k tris, recoloured, shader snow on the roof)
+- Bridges: the Quixel Megascans arched wooden bridge + railing listed above, re-placed on a skew over the river with Megascans stone-wall abutments.
+- Blood: the Quixel Megascans Blood Stain scan (blood_stain_sg3bdgoc, Fab Standard License, free) already in `ThirdParty/Megascans/`, re-coloured (new SP_Blood_R13_* materials).

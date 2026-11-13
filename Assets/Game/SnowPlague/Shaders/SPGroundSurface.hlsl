@@ -15,6 +15,7 @@
 // arena: deeper, redder), A snow allowed (under the foreground pines).
 #ifndef SP_GROUND_SURFACE
 #define SP_GROUND_SURFACE
+#include "Assets/Game/SnowPlague/Shaders/SPSparkle.hlsl"   // r13 sparse clustered glints
 
 TEXTURE2D(_SnowA); TEXTURE2D(_SnowN); TEXTURE2D(_SnowH);
 TEXTURE2D(_GravelA); TEXTURE2D(_GravelN); TEXTURE2D(_GravelH);
@@ -370,14 +371,8 @@ void SPSurface(SPInput i, inout SPOut o)
     o.occlusion *= 1 - snowT * thick * saturate((0.5 - hs) * 2.5) * 0.25 - fp * 0.2;   // sn1: crust / print cavities
     o.rim = 0;
 
-    // sparkle: tiny glints in fresh snow (~3.5 cm cells), each lights up for a narrow band of view directions
-    float2 sc = xz * 15.0;   // sn2: ~7 cm cells so a glint covers a pixel or two at the game camera
-    float2 cid = floor(sc);
-    float2 r = float2(SPHashI((int2)cid), SPHashI((int2)cid + int2(5, 9)));
-    float2 cp = frac(sc) - 0.25 - r * 0.5;
-    float dot1 = 1 - smoothstep(0.08, 0.24, length(cp));
-    float tw = frac(r.x * 37.1 + dot(i.viewWS, float3(5.3, 9.1, 7.7)) * (0.6 + r.y));
-    float glint = dot1 * smoothstep(0.91, 0.97, tw) * step(0.72, r.y) * (0.4 + 0.6 * frac(r.x * 13.7));   // sn4: sparse, uneven (sn3 read as polka dots)
+    // r13: clustered, irregular glints (SPSparkle.hlsl) instead of the even 7 cm sprinkle (sn2..sn4)
+    float glint = SPSparkleField(xz, i.viewWS);
     o.sparkle = glint * snowT * saturate(thick * 1.5) * (1 - trod * 0.7) * (1 - dirty * 0.6) * (1 - iceT) * lerp(0.6, 1.2, saturate((hs - 0.4) * 2.5)) * _Sparkle;
 }
 #endif

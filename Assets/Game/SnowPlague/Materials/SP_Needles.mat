@@ -43,10 +43,10 @@ Material:
     - _Desat: 0
     - _GroundMelt: 0.15
     - _NormalStrength: 1
-    - _RimScale: 0.0625
+    - _RimScale: 0.0078125
     - _SeeThrough: 0
     - _Smoothness: 0.05
-    - _SnowBias: -0.8
+    - _SnowBias: -1
     - _SnowClump: 1
     - _SnowCover: 0.3
     - _SnowLift: 0

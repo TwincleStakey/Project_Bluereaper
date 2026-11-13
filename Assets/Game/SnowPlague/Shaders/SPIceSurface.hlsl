@@ -9,6 +9,7 @@
 // streaks, a short moon streak, optional SSR (SPIceReflect.SSROn, default off).
 #ifndef SP_ICE_SURFACE
 #define SP_ICE_SURFACE
+#include "Assets/Game/SnowPlague/Shaders/SPSparkle.hlsl"   // r13 sparse clustered glints
 
 TEXTURE2D(_SnowA); TEXTURE2D(_SnowN); SAMPLER(sampler_SnowA);
 TEXTURE2D(_IceA); TEXTURE2D(_IceN); TEXTURE2D(_IceR); SAMPLER(sampler_IceA);
@@ -252,7 +253,7 @@ void SPSurface(SPInput i, inout SPOut o)
     o.smoothness = lerp(iceSmooth, _SnowSmooth, snowW);
     o.rim = 0.6 * snowW;   // no fresnel rim on the ice (read as a white edge line)
     o.occlusion = lerp(0.12, 1, snowW);   // ice8: no probe GI on the glossy ice
-    float gl = step(0.992, SPIceHashI((int2)floor(xz * 40.0)));
+    float gl = SPSparkleField(xz, i.viewWS) * 0.6;   // r13: was step(0.992) on a 2.5 cm grid (even sprinkle)
     o.sparkle = gl * _Sparkle * 0.012 * snowW;
 
 #if defined(SP_PASS_FORWARD)
