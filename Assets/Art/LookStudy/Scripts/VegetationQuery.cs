@@ -12,7 +12,8 @@ public static class VegetationQuery
     {
         public Vector3 pos; public Kind kind; public Color color;
         public Mesh mesh; public Material mat; public Quaternion rot; public float scale;   // instanced plant
-        public Mesh field; public int vertex;                                              // blade in a baked grass field mesh
+        public Matrix4x4 matrix; public Color tint;                                        // instanced plant: placement, instance tint
+        public Mesh field; public int vertex; public float rnd;                            // blade in a baked grass field mesh (rnd = its uv1.w)
     }
 
     public interface ISource
@@ -91,7 +92,33 @@ public static class VegetationQuery
 
     // ---------- baked grass fields (LookStudyWorld.BuildGrass: chunk meshes, 5 vertices per blade, uv1 = root xyz + rnd)
     static readonly FieldGrass fieldGrass = new FieldGrass();
-    static VegetationQuery() { sources.Add(fieldGrass); }
+    static readonly Planted planted = new Planted();
+    static VegetationQuery() { sources.Add(fieldGrass); sources.Add(planted); }
+
+    // ---------- single plants baked into a field mesh (LookStudyWorld meadow bushes, 11-14): the builder registers each
+    // one with its mesh, material and placement so a cut can throw it whole. Dropped when the owner is destroyed.
+    public static void RegisterPlant(Object owner, Mesh mesh, Material mat, Matrix4x4 m, Color tint)
+    {
+        if (owner && mesh && mat) planted.list.Add((owner, mesh, mat, m, tint));
+    }
+
+    sealed class Planted : ISource
+    {
+        public readonly List<(Object owner, Mesh mesh, Material mat, Matrix4x4 m, Color tint)> list = new List<(Object, Mesh, Material, Matrix4x4, Color)>();
+        public void Collect(Vector3 centre, Vector3 dir, float radius, float cosHalf, List<Hit> hits, int max, ref int seen)
+        {
+            list.RemoveAll(p => !p.owner);
+            foreach (var p in list)
+            {
+                var kind = KindOf(p.mat, out var col);
+                if (kind == Kind.None) continue;
+                // always listed (never lost to the reservoir sampling of thousands of blades)
+                int slot = Offer(p.m.GetColumn(3), centre, dir, radius, cosHalf, kind, col, hits, int.MaxValue, ref seen);
+                if (slot < 0) continue;
+                var h = hits[slot]; h.mesh = p.mesh; h.mat = p.mat; h.matrix = p.m; h.rot = p.m.rotation; h.scale = ((Vector3)p.m.GetColumn(1)).magnitude; h.tint = p.tint; hits[slot] = h;
+            }
+        }
+    }
 
     sealed class FieldGrass : ISource
     {
@@ -140,7 +167,7 @@ public static class VegetationQuery
                 {
                     var p = new Vector3(rt[v].x, rt[v].y, rt[v].z);
                     int slot = Offer(p, centre, dir, radius, cosHalf, kind, col, hits, max, ref seen);
-                    if (slot >= 0) { var h = hits[slot]; h.field = mesh; h.vertex = v; hits[slot] = h; }
+                    if (slot >= 0) { var h = hits[slot]; h.field = mesh; h.vertex = v; h.rnd = rt[v].w; h.mat = r.sharedMaterial; hits[slot] = h; }
                 }
             }
         }

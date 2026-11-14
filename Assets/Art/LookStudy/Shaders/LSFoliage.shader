@@ -13,6 +13,7 @@ Shader "LookStudy/Foliage"
         _LumScale("Remap luminance scale", Float) = 1.6
         _Bend("Wind bend", Range(0,1)) = 0.25
         _RemapDark("Remap on dark areas", Range(0,1)) = 1
+        _CutWhole("Greatsword cut removes the whole plant (bushes)", Float) = 0
     }
     SubShader
     {
@@ -30,6 +31,7 @@ Shader "LookStudy/Foliage"
         float _LumScale;
         float _Bend;
         float _RemapDark;
+        float _CutWhole;
         CBUFFER_END
         UNITY_INSTANCING_BUFFER_START(LSProps)
             UNITY_DEFINE_INSTANCED_PROP(float4, _Tint)
@@ -42,8 +44,21 @@ Shader "LookStudy/Foliage"
             #define LS_ROOT(a) a.root.xyz
         #endif
 
+        // 11-14 greatsword cuts (Kido: "꽃들은 그대로네"): flower heads stand tilted on a lifted root, so squashing them
+        // toward the root did nothing; a cut flower is now removed whole (its vertices collapse to the root) and RoomRun
+        // CutDebris throws it. LS_PIECE = such a thrown piece: no sway, no cut, fade (1 - tint alpha) as a dither.
+        static float gLSFlower = 0;
+        float LSFlowerOf(float4x4 m) { return normalize(float3(m._m01, m._m11, m._m21)).y < 0.8 ? 1 : 0; }
+        #if defined(UNITY_INSTANCING_ENABLED)
+        #define LS_SET_FLOWER() gLSFlower = LSFlowerOf(UNITY_MATRIX_M)
+        #else
+        #define LS_SET_FLOWER()
+        #endif
         float3 Sway(float3 ws, float3 root)
         {
+            #if defined(LS_PIECE)
+            return ws;   // a thrown piece: rigid
+            #endif
             float h = saturate((ws.y - root.y) / 1.2);
             float2 p = root.xz * 0.09 + float2(_LSTime * 0.35, _LSTime * 0.21);
             float gust = LSNoise(p) * 0.9 + sin(_LSTime * 2.1 + root.x * 0.9 + root.z * 0.7) * 0.12;
@@ -63,6 +78,7 @@ Shader "LookStudy/Foliage"
                 ws.xz += pd * rise * flat * 0.95;
                 ws.y -= rise * flat * 0.72;
             }
+            if ((gLSFlower > 0.5 || _CutWhole > 0.5) && RRCut(root.xz) > 0.35) return root;   // cut flower / bush: gone whole (thrown by CutDebris)
             return RRCutApply(ws, root, 0.15);   // greatsword cuts
         }
         ENDHLSL
@@ -78,7 +94,7 @@ Shader "LookStudy/Foliage"
             #pragma multi_compile_instancing
             // LS_PROC: far plants drawn by LookStudyInstancer with RenderMeshPrimitives; matrix and tint come from
             // buffers uploaded once, indexed by the instance id (11-11 perf).
-            #pragma multi_compile_local _ LS_PROC
+            #pragma multi_compile_local _ LS_PROC LS_PIECE
             #if defined(LS_PROC)
             StructuredBuffer<float4x4> _LSProcMats;
             StructuredBuffer<float4> _LSProcTints;
@@ -105,12 +121,14 @@ Shader "LookStudy/Foliage"
                     #endif
                     float4x4 m = _LSProcMats[id];
                     float3 root = float3(m._m03, m._m13, m._m23);
+                    gLSFlower = LSFlowerOf(m);
                     float3 ws = Sway(mul(m, float4(a.positionOS.xyz, 1)).xyz, root);
                     o.normalWS = normalize(mul((float3x3)m, a.normalOS));
                     o.color = _LSProcTints[id];
                 #else
                     UNITY_SETUP_INSTANCE_ID(a);
                     float3 root = LS_ROOT(a);
+                    LS_SET_FLOWER();
                     float3 ws = Sway(TransformObjectToWorld(a.positionOS.xyz), root);
                     o.normalWS = TransformObjectToWorldNormal(a.normalOS);
                     #if defined(UNITY_INSTANCING_ENABLED)
@@ -120,7 +138,9 @@ Shader "LookStudy/Foliage"
                     #endif
                 #endif
                 // greatsword cut: the stubble left behind reads straw-coloured from the top-down camera
+                #if !defined(LS_PIECE)
                 o.color.rgb *= lerp(float3(1, 1, 1), float3(1.25, 1.05, 0.45), RRCut(root.xz));
+                #endif
                 o.positionWS = ws;
                 o.positionCS = TransformWorldToHClip(ws);
                 o.uv = a.uv;
@@ -132,6 +152,9 @@ Shader "LookStudy/Foliage"
             {
                 float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 clip(tex.a - _Cutoff);
+                #if defined(LS_PIECE)
+                clip(frac(52.9829189 * frac(dot(i.positionCS.xy, float2(0.06711056, 0.00583715)))) - (1 - i.color.a));
+                #endif
                 RRSeeThroughClip(i.positionCS, i.positionWS);   // 11-13: soft see-through near the player
                 float lum = dot(tex.rgb, float3(0.3, 0.59, 0.11));
                 float3 remap = lerp(_Dark.rgb, _Light.rgb, saturate(lum * _LumScale));
@@ -158,7 +181,7 @@ Shader "LookStudy/Foliage"
             #pragma multi_compile_instancing
             struct DA { float4 p : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; float4 root : TEXCOORD1; UNITY_VERTEX_INPUT_INSTANCE_ID };
             struct DV { float4 cs : SV_POSITION; float3 n : TEXCOORD0; float2 uv : TEXCOORD1; float3 ws : TEXCOORD2; };
-            DV vert(DA a) { DV o; UNITY_SETUP_INSTANCE_ID(a); o.ws = Sway(TransformObjectToWorld(a.p.xyz), LS_ROOT(a)); o.cs = TransformWorldToHClip(o.ws); o.n = TransformObjectToWorldNormal(a.n); o.uv = a.uv; return o; }
+            DV vert(DA a) { DV o; UNITY_SETUP_INSTANCE_ID(a); LS_SET_FLOWER(); o.ws = Sway(TransformObjectToWorld(a.p.xyz), LS_ROOT(a)); o.cs = TransformWorldToHClip(o.ws); o.n = TransformObjectToWorldNormal(a.n); o.uv = a.uv; return o; }
             half4 frag(DV i) : SV_Target { clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a - _Cutoff); RRSeeThroughClip(i.cs, i.ws); return half4(normalize(i.n), 0); }
             ENDHLSL
         }
@@ -179,6 +202,7 @@ Shader "LookStudy/Foliage"
             {
                 V2F o;
                 UNITY_SETUP_INSTANCE_ID(a);
+                LS_SET_FLOWER();
                 float3 ws = Sway(TransformObjectToWorld(a.positionOS.xyz), LS_ROOT(a));
                 float3 n = TransformObjectToWorldNormal(a.normalOS);
                 float4 cs = TransformWorldToHClip(ApplyShadowBias(ws, n, _LightDirection));

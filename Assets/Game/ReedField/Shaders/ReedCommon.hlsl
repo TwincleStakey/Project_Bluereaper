@@ -122,6 +122,53 @@ float RFStaticShadow(float2 xz)
     return min(reed, prop);
 }
 
+// 11-13 (Kido: the reeds read flat, no shading): baked mass occlusion from the placed clumps, same rect as the shadows.
+// R = how much of the ground within ~1.5 m is covered by reeds, G = their mean height above the ground / 8 m.
+TEXTURE2D(_RF_ReedAO); SAMPLER(sampler_RF_ReedAO);
+float _RF_AOOn;
+
+// For a reed vertex: x = occlusion (0 open .. 1 deep inside a dense stand), y = baked sun shadow on the stalk (1 lit),
+// z = how far it sticks out above the surrounding canopy (0..1).
+float3 RFMass(float3 ws, float3 root)
+{
+    if (_RF_AOOn < 0.5) return float3(0, 1, 0);
+    float2 uv = (root.xz - _RF_ShadowRect.xy) / _RF_ShadowRect.zw;
+    if (any(uv < 0) || any(uv > 1)) return float3(0, 1, 0);
+    float2 t = SAMPLE_TEXTURE2D_LOD(_RF_ReedAO, sampler_RF_ReedAO, uv, 0).rg;
+    float canopy = max(t.g * 8, 0.35);
+    float y = max(ws.y - root.y, 0);
+    float depth = saturate(1 - y / canopy);            // 1 at the ground, 0 at the canopy top
+    float occl = t.r * depth * (0.55 + 0.45 * depth);
+    float above = saturate((y - canopy) / max(canopy * 0.3, 0.25));
+    float sun = lerp(1, RFStaticShadow(ws.xz), saturate(depth * 1.6));
+    return float3(occl, sun, above);
+}
+
+// 11-13 moonlight shafts (RFMoonShafts): up to 8 beams, xyz = where a beam meets the ground, w = radius (0 = off).
+// _RF_ShaftDir: xyz toward the moon, w = brightness. _RF_ShaftFade: per-beam breathing. Returns 0..1 how much a point
+// sits inside a beam (its distance to the beam axis), so reeds and ground inside a beam catch the moon.
+float4 _RF_Shafts[8];
+float4 _RF_ShaftFadeArr[2];
+float4 _RF_ShaftDir;
+float4 _RF_ShaftCol;
+float RFShaftLight(float3 ws)
+{
+    float3 L = _RF_ShaftDir.xyz;
+    if (_RF_ShaftDir.w <= 0) return 0;
+    float lit = 0;
+    [unroll] for (int k = 0; k < 8; k++)
+    {
+        float4 s = _RF_Shafts[k];
+        if (s.w <= 0) continue;
+        float3 q = ws - s.xyz;
+        float3 perp = q - L * dot(q, L);
+        float d = length(perp);
+        float f = _RF_ShaftFadeArr[k >> 2][k & 3];
+        lit = max(lit, smoothstep(s.w, s.w * 0.35, d) * f);
+    }
+    return lit * _RF_ShaftDir.w;
+}
+
 // Low fog lying in the reeds plus distance fog. Fog thickness drifts with a slow noise.
 float3 RFFog(float3 col, float3 ws)
 {

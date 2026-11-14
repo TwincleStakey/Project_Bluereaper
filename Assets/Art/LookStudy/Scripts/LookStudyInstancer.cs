@@ -48,7 +48,7 @@ public class LookStudyInstancer : MonoBehaviour, VegetationQuery.ISource
                         var m = b.mats[k][i];
                         int slot = VegetationQuery.Offer(m.GetColumn(3), centre, dir, radius, cosHalf, kind, col, hits, max, ref seen);
                         if (slot < 0) continue;
-                        var h = hits[slot]; h.mesh = b.mesh; h.mat = b.mat; h.rot = m.rotation; h.scale = ((Vector3)m.GetColumn(1)).magnitude; hits[slot] = h;
+                        var h = hits[slot]; h.mesh = b.mesh; h.mat = b.mat; h.rot = m.rotation; h.scale = ((Vector3)m.GetColumn(1)).magnitude; h.matrix = m; h.tint = b.tints[k][i]; hits[slot] = h;
                     }
         }
     }

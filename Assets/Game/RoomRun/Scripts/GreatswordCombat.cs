@@ -317,9 +317,11 @@ namespace RoomRun
         void EmitBits(Vector3 center, Step s)
         {
             if (!debris) return;
-            int max = s.finisher ? 40 : 28;
-            if (VegetationQuery.Collect(center, aim, s.radius, s.halfAngle, vegHits, max) == 0) return;
-            debris.Spawn(vegHits, center, aim, s.vfxRoll > 90f ? -1f : 1f);
+            // every reed clump the cut map cuts gets its top thrown (the soft edge of the stamp reaches a few degrees past the
+            // sector); single blades are thinned to CutDebris.grassPerSwing inside Spawn
+            const int max = 2500;
+            if (VegetationQuery.Collect(center, aim, s.radius, Mathf.Min(s.halfAngle + 6f, 180f), vegHits, max) == 0) return;
+            debris.Spawn(vegHits, center, aim, s.vfxRoll > 90f ? -1f : 1f, s.radius, s.halfAngle, s.finisher);
         }
 
         // Debug trace (set by RoomRunRemote's 8-direction test): one CSV row per frame.

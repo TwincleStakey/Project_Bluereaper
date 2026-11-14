@@ -30,6 +30,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Bend: 0.1
+    - _CutWhole: 1
     - _Cutoff: 0.4
     - _LumScale: 1.6
     - _Remap: 0

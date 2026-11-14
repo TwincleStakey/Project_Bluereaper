@@ -437,7 +437,9 @@ public class LookStudyWorld : MonoBehaviour
             {
                 float x = VividX + t.x;
                 var c = Color.white * R(rnd, 0.93f, 1.08f); c.a = 1;
-                Stamp(batch, bs, new Vector3(x, VividH(x, t.y) + 0.12f, t.y), Quaternion.Euler(0, R(rnd, 0, 360), 0), t.z, c, (float)rnd.NextDouble());
+                var bp = new Vector3(x, VividH(x, t.y) + 0.12f, t.y); var br = Quaternion.Euler(0, R(rnd, 0, 360), 0);
+                Stamp(batch, bs, bp, br, t.z, c, (float)rnd.NextDouble());
+                VegetationQuery.RegisterPlant(root.gameObject, mBush, fBush, Matrix4x4.TRS(bp, br, Vector3.one * t.z), c);   // 11-14: greatsword throws it when cut
             }
             Flush(batch, "RBush", fBush, true);
         }

@@ -30,6 +30,10 @@ namespace RoomRun
         static RoomRunRemote()
         {
             EditorApplication.update += Tick;
+            // 11-14: the third freeze (02:24) came from a script compile requested while a remote run was in Play (other
+            // threads keep saving scripts). Compile only after Play ends (0 = recompile and continue playing, the
+            // default, which reloads the domain mid-Play; 1 = recompile after finished playing).
+            if (EditorPrefs.GetInt("ScriptCompilationDuringPlay", 0) != 1) { EditorPrefs.SetInt("ScriptCompilationDuringPlay", 1); Debug.Log("[RoomRunRemote] script changes now compile after Play ends"); }
             // 11-13: reed field ground/water tiles leaked out of Play (old DontSave MeshChunker) drew over every scene
             EditorApplication.delayCall += () =>
             {
@@ -37,6 +41,34 @@ namespace RoomRun
                 int n = MeshChunker.PurgeLeaked();
                 if (n > 0) Note($"purged {n} leaked MeshChunker tiles (outside any scene)");
             };
+        }
+
+        // 11-14 (two editor freezes, 11-13 23:23 and 00:54: a remote command started a scene build / Play while Play was
+        // still entering or exiting). Shared by every *_cmd remote (same code copied into each): nothing starts while Play
+        // changes, for 15 s after any Play change or domain reload, while compiling or importing, or while another remote
+        // holds ArtSource/remote_play.lock (its Play run; a lock older than 10 min counts as stale).
+        static class Gate
+        {
+            static double lastChange = EditorApplication.timeSinceStartup;
+            static Gate() { EditorApplication.playModeStateChanged += _ => lastChange = EditorApplication.timeSinceStartup; }
+            static string LockPath => Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource", "remote_play.lock");
+            public static bool Ready(string me)
+            {
+                if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return false;
+                if (EditorApplication.timeSinceStartup - lastChange < 15.0) return false;
+                try
+                {
+                    if (File.Exists(LockPath) && !File.ReadAllText(LockPath).StartsWith(me + " ")
+                        && (System.DateTime.Now - File.GetLastWriteTime(LockPath)).TotalMinutes < 10) return false;
+                }
+                catch (IOException) { return false; }
+                return true;
+            }
+            public static void Take(string me) { try { File.WriteAllText(LockPath, me + " " + System.DateTime.Now.ToString("HH:mm:ss")); } catch (IOException) { } }
+            public static void Release(string me)
+            {
+                try { if (File.Exists(LockPath) && File.ReadAllText(LockPath).StartsWith(me + " ")) File.Delete(LockPath); } catch (IOException) { }
+            }
         }
 
         static void Note(string s)
@@ -61,10 +93,43 @@ namespace RoomRun
                 return;
             }
 
-            if (state == "" && File.Exists(Cmd) && !EditorApplication.isPlaying && !EditorApplication.isCompiling && !EditorApplication.isUpdating)
+            if (state == "" && !EditorApplication.isPlayingOrWillChangePlaymode) Gate.Release("rr");
+            // 11-14: a compile/import right when a run asked for Play cancels the request, and the run then waited for
+            // Play forever (rr stuck 03:09 -> 03:28, every other remote blocked). Ask again a few times, then give up.
+            if ((state == "shots" || state == "perf" || state == "census" || state == "inkkeys" || state == "devkeys" || state == "starting")
+                && !EditorApplication.isPlayingOrWillChangePlaymode && !EditorApplication.isCompiling && !EditorApplication.isUpdating)
+            {
+                double asked = SessionState.GetFloat("RoomRun.Clip.AskedAt", 0f);
+                if (asked <= 0 || asked > EditorApplication.timeSinceStartup) SessionState.SetFloat("RoomRun.Clip.AskedAt", (float)EditorApplication.timeSinceStartup);
+                else if (EditorApplication.timeSinceStartup - asked > 20)
+                {
+                    int tries = SessionState.GetInt("RoomRun.Clip.Retries", 0);
+                    if (tries < 3) { SessionState.SetInt("RoomRun.Clip.Retries", tries + 1); SessionState.SetFloat("RoomRun.Clip.AskedAt", (float)EditorApplication.timeSinceStartup); Note($"{state}: play request was dropped, asking again"); EditorApplication.isPlaying = true; }
+                    else { Note($"{state}: Play never started, run dropped"); SessionState.SetString(KeyState, ""); SessionState.SetInt("RoomRun.Clip.Retries", 0); SessionState.EraseFloat("RoomRun.Clip.AskedAt"); }
+                    return;
+                }
+            }
+            else if (EditorApplication.isPlaying) { SessionState.EraseFloat("RoomRun.Clip.AskedAt"); SessionState.SetInt("RoomRun.Clip.Retries", 0); }
+            // 11-14: several threads overwrote each other's rr_cmd.txt. A thread can instead drop its line into
+            // ArtSource/rr_queue/<anything>.txt; the oldest one becomes the next rr_cmd.txt when the slot is free.
+            if (state == "" && !File.Exists(Cmd))
+            {
+                var q = Path.Combine(Dir, "rr_queue");
+                if (Directory.Exists(q))
+                {
+                    var files = new DirectoryInfo(q).GetFiles("*.txt");
+                    if (files.Length > 0)
+                    {
+                        System.Array.Sort(files, (a, b) => a.LastWriteTimeUtc.CompareTo(b.LastWriteTimeUtc));
+                        try { File.Move(files[0].FullName, Cmd); Note("queued " + files[0].Name); } catch (IOException) { }
+                    }
+                }
+            }
+            if (state == "" && File.Exists(Cmd) && Gate.Ready("rr"))
             {
                 var parts = File.ReadAllText(Cmd).Trim().Split(' ');
                 File.Delete(Cmd);
+                Gate.Take("rr");
                 // "orphans" lists renderers outside any scene (leaked from another field); "orphans clear" destroys them
                 if (parts[0] == "orphans")
                 {
@@ -293,6 +358,21 @@ namespace RoomRun
             }
         }
 
+        // "%" (11-14 cut debris check): walks a slow circle swinging the greatsword left and right of the way it walks,
+        // so every swing goes into uncut grass / reeds
+        sealed class CutWalker : ICommandSource
+        {
+            readonly float t0 = Time.time;
+            public PlayerCommand Read(PlayerController p, Camera cam)
+            {
+                float t = Time.time - t0;
+                float head = t * 0.3f;
+                var mv = new Vector2(Mathf.Sin(head), Mathf.Cos(head));
+                float a = head + Mathf.Sin(t * 1.6f) * 1.0f;
+                return new PlayerCommand { move = mv * 0.45f, aimDir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)), fire = true };
+            }
+        }
+
         sealed class Firer : ICommandSource
         {
             readonly RunDirector run;
@@ -398,6 +478,7 @@ namespace RoomRun
             float[] zooms = ShotZooms;
             int seq = 0;
             string seeTag = "";
+            string[] offList = new string[0]; string offTag = "";
             foreach (var token in rooms)
             {
                 if (string.IsNullOrEmpty(token)) continue;
@@ -407,6 +488,14 @@ namespace RoomRun
                 // the file names get _see0 / _see1, the setting goes back to on after the shots
                 if (token.StartsWith("see=")) { PlayerPrefs.SetInt(SeeThroughFX.ModeKey, token.Substring(4) == "0" ? 0 : 1); seeTag = "_see" + token.Substring(4); continue; }
                 // "z=1,1.2,1.4" sets the zoom levels for the rooms after it
+                // "off=StageMood,FireShadowSpot": for the rooms after it, behaviours of those types (or lights with those
+                // names) are switched off just for the capture; file names get _off-<list> ("off=" clears it). A/B for look bugs.
+                if (token.StartsWith("off="))
+                {
+                    offList = token.Length > 4 ? token.Substring(4).Split(',') : new string[0];
+                    offTag = offList.Length > 0 ? "_off-" + string.Join("-", offList) : "";
+                    continue;
+                }
                 if (token.StartsWith("z="))
                 {
                     zooms = System.Array.ConvertAll(token.Substring(2).Split(','), s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
@@ -416,6 +505,8 @@ namespace RoomRun
                 Vector3? at = null;
                 bool dirs8 = id.EndsWith("~");
                 if (dirs8) { id = id.TrimEnd('~'); tag = id + "_dirs8"; }
+                bool cutWalk = token.Contains("%");
+                if (cutWalk) { id = id.Replace("%", ""); tag = id + "_cutwalk"; }
                 bool firing = id.EndsWith("!");
                 if (firing) { id = id.TrimEnd('!'); tag = id + "_fire"; }
                 // "grass+12*" : the extra enemies hold still where they spawned (looks check: they do not pile onto the player)
@@ -427,10 +518,10 @@ namespace RoomRun
                 int a = token.IndexOf('@');
                 if (a > 0)
                 {
-                    id = token.Substring(0, a);
+                    id = token.Substring(0, a).Replace("%", "");
                     var xz = token.Substring(a + 1).Split(',');
                     at = new Vector3(float.Parse(xz[0], System.Globalization.CultureInfo.InvariantCulture), 0, float.Parse(xz[1], System.Globalization.CultureInfo.InvariantCulture));
-                    tag = $"{id}_{xz[0]}_{xz[1]}" + (firing ? "_fire" : "");
+                    tag = $"{id}_{xz[0]}_{xz[1]}" + (firing ? "_fire" : "") + (cutWalk ? "_cutwalk" : "");
                 }
                 if (run.Room.id != id) run.DevJump(id);
                 for (int f = 0; f < 10 && !run.Transitioning; f++) yield return null;
@@ -456,6 +547,7 @@ namespace RoomRun
                 else if (swarm > 0) { run.DevSwarm(swarm); yield return new WaitForSeconds(4f); }
                 var keepSource = run.Player.Source;
                 if (firing) { run.Player.Source = new Firer(run); yield return new WaitForSeconds(1.2f); }
+                if (cutWalk) run.Player.Source = new CutWalker();
                 if (dirs8)
                 {
                     GreatswordCombat.TracePath = Path.Combine(Dir, "gs_trace.csv");
@@ -467,6 +559,12 @@ namespace RoomRun
                 foreach (var r in Resources.FindObjectsOfTypeAll<Renderer>())
                     if (r && !EditorUtility.IsPersistent(r) && r.enabled && !r.gameObject.scene.IsValid()) { r.enabled = false; orphans.Add(r); }
                 if (orphans.Count > 0) Note($"  hid {orphans.Count} orphan renderers from other fields");
+                var switchedOff = new List<Behaviour>();
+                if (offList.Length > 0)
+                    foreach (var b in Object.FindObjectsByType<Behaviour>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                        if (b && b.enabled && (System.Array.IndexOf(offList, b.GetType().Name) >= 0 || (b is Light && System.Array.IndexOf(offList, b.name) >= 0)))
+                        { b.enabled = false; switchedOff.Add(b); }
+                if (switchedOff.Count > 0) { Note($"  off: {switchedOff.Count} ({string.Join(",", offList)})"); yield return null; yield return null; }
                 foreach (float z in zooms)
                 {
                     rig.Zoom = z; rig.Snap();
@@ -475,8 +573,9 @@ namespace RoomRun
                     cam.targetTexture = rt; cam.Render();
                     RenderTexture.active = rt; tex.ReadPixels(new Rect(0, 0, W, H), 0, 0); RenderTexture.active = null;
                     cam.targetTexture = null;
-                    File.WriteAllBytes(Path.Combine(dir, $"{tag}{seeTag}_z{z:0.0}.jpg"), tex.EncodeToJPG(90));
+                    File.WriteAllBytes(Path.Combine(dir, $"{tag}{seeTag}{offTag}_z{z:0.0}.jpg"), tex.EncodeToJPG(90));
                 }
+                foreach (var b in switchedOff) if (b) b.enabled = true;
                 if (seq > 0)
                 {
                     string clipDir = Path.Combine(Dir, "rr_clip");
@@ -497,7 +596,7 @@ namespace RoomRun
                 }
                 foreach (var r in orphans) if (r) r.enabled = true;
                 rig.Zoom = CameraRig.FixedZoom;
-                if (firing || dirs8) run.Player.Source = keepSource;
+                if (firing || dirs8 || cutWalk) run.Player.Source = keepSource;
                 // what the post stack actually resolves to for the game camera (diagnosing the dark underworld)
                 var stack = UnityEngine.Rendering.VolumeManager.instance.stack;
                 var cadj = stack.GetComponent<UnityEngine.Rendering.Universal.ColorAdjustments>();
