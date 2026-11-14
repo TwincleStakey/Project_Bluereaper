@@ -93,3 +93,8 @@
 - "KCISA-House of Changwon_Sarangchae(창원의 집 사랑채)" by Korea Culture Information Service Agency (KCISA) - https://sketchfab.com/3d-models/095e7862fb91443ca2658b1e98066e53 (Sarangchae; 1k GLB converted in Blender, decimated 324k -> 80k tris, recoloured, shader snow on the roof)
 - Bridges: the Quixel Megascans arched wooden bridge + railing listed above, re-placed on a skew over the river with Megascans stone-wall abutments.
 - Blood: the Quixel Megascans Blood Stain scan (blood_stain_sg3bdgoc, Fab Standard License, free) already in `ThirdParty/Megascans/`, re-coloured (new SP_Blood_R13_* materials).
+
+## Round 16 (11-14) — bridge (`ThirdParty/Sketchfab/SnowyBridge/`, `Editor/SPBuilder.R16.cs`) - CC BY 4.0, credit required
+- "Snowy bridge" by NoodlePoodle - https://sketchfab.com/3d-models/snowy-bridge-1df9cfa691e144ea988bac99e07af98c
+  (CC-BY-4.0, http://creativecommons.org/licenses/by/4.0/). Converted glTF -> FBX in metres, textures resized 4k -> 2k;
+  geometry unchanged, stretched up to ~1.4x along the span to fit each river crossing. Replaces the Megascans arched deck.

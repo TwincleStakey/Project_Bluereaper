@@ -363,6 +363,7 @@ public static partial class SPBuilder
         BorderRocks();        // tr44: irregular rock clusters along the edges instead of the straight wall rows (Kido)
         R13Pass();          // r13 (11-13): skewed bridges, blood redo, KCISA houses at the edges (SPBuilder.R13.cs)
         R15Pass();          // r15 (11-13): misfit props out, two-sided bridge, no boundary line, tall dark trees on the camera-side edge (SPBuilder.R15.cs)
+        R16Pass();          // r16 (11-14): downloaded snowy wooden bridge replaces the stretched Megascans deck (SPBuilder.R16.cs)
         ArenaCheck();       // arena rule: no colliders inside, list anything tall that is not vegetation
         VgLineShadowProbe();   // tr20: finds and un-shadows the caster of the long line shadow in view 02
         LMGateFill();            // tr21: soft warm fill on the 솟을삼문 front (it stands in the moon shadow)
