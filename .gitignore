@@ -125,3 +125,23 @@ InitTestScene*.unity*
 
 # Snow plague: downloads, Blender work files and previews stay local.
 /ArtSource/SnowPlague/
+
+# Review screenshots / capture frames stay local (LFS diet 2026-11-14).
+/ArtSource/rr_shots/
+/ArtSource/rr_shots_old/
+/ArtSource/rr_review/
+/ArtSource/sweep/
+/ArtSource/wfx_shots/
+/ArtSource/LookStudyShots/
+/ArtSource/LocoSplit/shots/
+/ArtSource/LocoSplit/clipsheet/
+/ArtSource/LocoSplit/vfxflat/
+/ArtSource/LocoSplit/vfxall/
+/ArtSource/LocoSplit/vfxflatcheck/
+/ArtSource/LocoSplit/slashprev/
+/ArtSource/Jangsanbeom/renders/
+/ArtSource/uw_quality/after/
+/ArtSource/uw_quality/before/
+/ArtSource/uw_quality/final/
+/ArtSource/uw_quality/pass*/
+/Assets/Game/SnowPlague/BlenderSource~/arch/preview*.png
