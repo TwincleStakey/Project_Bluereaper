@@ -61,6 +61,7 @@ Shader "BambooArena/Floor"
             TEXTURE2D(_PathTex); TEXTURE2D(_PathNrm); TEXTURE2D(_SlabTex); TEXTURE2D(_SlabNrm); TEXTURE2D(_PebbleTex); TEXTURE2D(_PebbleNrm);
             TEXTURE2D(_RootTex); TEXTURE2D(_RootNrm); TEXTURE2D(_MossTex);
             SAMPLER(sampler_SoilTex);
+            float4 _BA_Contact[12];   // r29: landmark feet (x, z, radius, strength), set by BambooField
             CBUFFER_START(UnityPerMaterial)
                 float4 _SoilTex_ST, _SoilNrm_ST, _LeafTex_ST, _LeafNrm_ST, _Leaf2Tex_ST, _Leaf2Nrm_ST, _PathTex_ST, _PathNrm_ST, _SlabTex_ST, _SlabNrm_ST;
                 float4 _PebbleTex_ST, _PebbleNrm_ST, _RootTex_ST, _RootNrm_ST, _MossTex_ST;
@@ -128,18 +129,24 @@ Shader "BambooArena/Floor"
                 }
 
                 // old flagstones: along the path and in courtyard patches (~20 % of the floor), some missing
-                float court = max(smoothstep(0.66, 0.72, RFFbm(xz * 0.025 + 55.0) + (mid - 0.5) * 0.2) * 0.8, 1 - saturate(i.color.a));   // the shrine court (vertex a) + a few old paved patches
-                float slabArea = saturate(max(court, smoothstep(0.45, 0.8, tr))) * _Slabs;   // r27: the path is paved (B2 stone path)
+                // r29 (Kido 11-14: "자갈바닥", "보도블럭 같은 길"): only the shrine court (vertex a) and the path are paved; no
+                // random paved patches (from the game camera the 3.6 m scan read as gravel). Big flagstones (8 m tile ->
+                // stones ~1.2 m), and the paving ends raggedly: earth and moss creep over the stones in wobbly fronts
+                // instead of a straight border line.
+                float court = 1 - saturate(i.color.a);
+                float slabArea = saturate(max(court, smoothstep(0.45, 0.8, tr))) * _Slabs;
                 float slab = 0, joint = 0;
                 [branch] if (slabArea > 0.01)
                 {
-                    float2 su = Rot(xz, 0.12, 0.99) / 3.6;
+                    float2 su = Rot(xz, 0.12, 0.99) / 8.0;
                     float3 sc = SAMPLE_TEXTURE2D(_SlabTex, sampler_SoilTex, su).rgb;
                     float sl = dot(sc, float3(0.3, 0.5, 0.2));
                     float stone = smoothstep(0.22, 0.3, sl);                    // the scan's dark joints -> earth/moss
-                    float missing = smoothstep(0.45, 0.4, RFNoise(floor(su * 4.0) + 7.0) * 0.6 + RFFbm(xz * 0.2) * 0.4);   // whole stones missing here and there
-                    slab = slabArea * stone * (1 - missing * 0.85);
-                    joint = slabArea * (1 - stone);
+                    float front = slabArea + (RFFbm(xz * 0.35 + 5.0) - 0.5) * 0.9 + (fine - 0.5) * 0.3;
+                    float keep = smoothstep(0.45, 0.6, front);                  // ragged edge of the paving, buried under earth
+                    float missing = smoothstep(0.45, 0.4, RFFbm(xz * 0.18 + 7.0));   // a few stones missing inside
+                    slab = keep * stone * (1 - missing * 0.85);
+                    joint = keep * (1 - stone);
                     float3 stoneCol = lerp(float3(0.24, 0.225, 0.2), float3(0.19, 0.18, 0.165), RFNoise(floor(su * 4.0) + 3.0)) * lerp(0.85, 1.1, sl);
                     col = lerp(col, stoneCol, slab);
                     nxy = lerp(nxy, Nrm(TEXTURE2D_ARGS(_SlabNrm, sampler_SoilTex), su) * 0.8, slab);
@@ -164,18 +171,30 @@ Shader "BambooArena/Floor"
                     col = lerp(col, lerp(col, lc, 0.7), leaves);
                 }
 
-                // pebbles along the stone edges
-                float edge = slabArea * (1 - slabArea) * 4.0;
-                float peb = smoothstep(0.55, 0.75, edge + (fine - 0.5) * 0.5) * (1 - slab) * _Pebbles;
-                [branch] if (peb > 0.01)
+                // r29: no pebble band along the paving (it drew two thin pale lines either side of the path, like curbs)
+
+                // r29: ground contact round the landmarks (pagoda rock, cairns, statues): soil and moss heaped against the
+                // base, a little darker right at the foot (soft occlusion), so the stone sits in the ground
+                float contact = 0;
+                [unroll] for (int ci = 0; ci < 12; ci++)
                 {
-                    float3 pcol = SAMPLE_TEXTURE2D(_PebbleTex, sampler_SoilTex, xz / 1.8).rgb;
-                    col = lerp(col, lerp(dot(pcol, float3(0.33, 0.33, 0.34)).xxx, pcol, 0.5) * 0.45, peb * 0.8);
+                    float4 cd = _BA_Contact[ci];
+                    if (cd.z <= 0) continue;
+                    float d = length(xz - cd.xy) / cd.z + (mid - 0.5) * 0.35 + (fine - 0.5) * 0.15;
+                    contact = max(contact, saturate(1 - smoothstep(0.75, 1.35, d)) * cd.w);
+                }
+                [branch] if (contact > 0.01)
+                {
+                    float3 mc = SAMPLE_TEXTURE2D(_MossTex, sampler_SoilTex, xz / 2.2).rgb;
+                    float3 heap = lerp(earth * 0.8, _MossCol.rgb * lerp(0.7, 1.1, dot(mc, float3(0.3, 0.6, 0.1))), smoothstep(0.4, 0.7, fine + contact * 0.3) * 0.7);
+                    col = lerp(col, heap, contact * 0.85 * (1 - slab * 0.6));
+                    col *= 1 - contact * contact * 0.35;
                 }
 
                 col *= _Tint.rgb;
                 col = lerp(col, col * _Shade.rgb * 6.0, under * 0.7);
-                float damp = smoothstep(0.62, 0.74, RFFbm(xz * 0.05 + 41.0)) * _Damp * (1 - slab) * (1 - moss * 0.5);
+                // r29 (Kido: black stains): damp patches only a faint darkening, no wet sheen spots
+                float damp = smoothstep(0.62, 0.74, RFFbm(xz * 0.05 + 41.0)) * _Damp * (1 - slab) * (1 - moss * 0.5) * 0.4;
                 col *= 1 - damp * 0.3;
                 nxy *= _NormalStrength * 0.6;
 

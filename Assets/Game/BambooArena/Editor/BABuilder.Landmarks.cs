@@ -85,6 +85,19 @@ public static partial class BABuilder
         float hx = field.arena.x * 0.5f, hz = field.arena.y * 0.5f;
         var root = new GameObject("Landmarks").transform;
         var clear = new List<Vector3>();
+        // r29 (Kido 11-14: the pagoda rock "looks like a flat cutout sitting on the floor"): every big stone piece
+        // registers its foot with the ground shader (soil and moss heaped against it, soft occlusion at the base)
+        field.contacts = new List<Vector4>();
+        GameObject Foot(GameObject go, float radiusMul = 0.55f, float strength = 1f)
+        {
+            if (!go) return go;
+            var rs0 = go.GetComponentsInChildren<Renderer>(); if (rs0.Length == 0) return go;
+            var bb = rs0[0].bounds; foreach (var r0 in rs0) bb.Encapsulate(r0.bounds);
+            var fp = field.transform.position;
+            if (field.contacts.Count < 12)
+                field.contacts.Add(new Vector4(bb.center.x - fp.x, bb.center.z - fp.z, Mathf.Max(bb.extents.x, bb.extents.z) * radiusMul * 2f, strength));
+            return go;
+        }
 
 
         var pagodaMat = ScanMat("Pagoda", 0.62f, 0.08f);
@@ -104,7 +117,7 @@ public static partial class BABuilder
         // a 서낭당 cairn: one big boulder at the heart, mossy stones heaped round it in rings, smaller toward the top
         void Cairn(Vector3 c, float size)
         {
-            Block(Landmark(root, Boulder(rs.Next(2) == 0 ? 1 : 3), c, Rn() * 360, 1.1f * size, stoneMat, 0.15f), 1.6f);   // r27: the cairn heap blocks as a whole
+            Block(Foot(Landmark(root, Boulder(rs.Next(2) == 0 ? 1 : 3), c, Rn() * 360, 1.1f * size, stoneMat, 0.15f), 1.15f, 0.9f), 1.6f);   // r27: the cairn heap blocks as a whole
             for (int ring = 0; ring < 3; ring++)
             {
                 int n = 9 - ring * 3; float rad = (1.5f - ring * 0.5f) * size, y = ring * 0.32f * size;
@@ -123,6 +136,58 @@ public static partial class BABuilder
         // clearing, paved (floor shader, vertex a): the old pagoda at its heart, two literati facing the path, cairns at
         // the court rim, 장승 where the path enters, offering candles. The big pieces block (box colliders) like walls.
         var pag = new Vector3(field.shrine.x, 0, field.shrine.y);
+        // r29 (Kido 11-14: the rock under the pagoda read as a flat cutout lying on the floor): the KHS scan stands on its
+        // own bedrock outcrop with a cut-off underside. Find the outcrop (the height slices that are still wide), sink it
+        // so only its upper part shows, tip it a little, and seat it: Megascans small rocks and low plants half buried
+        // along its rim (inside the blocker, so nothing to snag on), plus the shader's soil/moss heap (Foot).
+        GameObject PagodaOnRock(GameObject go)
+        {
+            if (!go) return go;
+            var mfs = go.GetComponentsInChildren<MeshFilter>();
+            var pts = new List<Vector3>();
+            foreach (var mf in mfs) { var m = mf.sharedMesh; if (!m) continue; var v = m.vertices; for (int k = 0; k < v.Length; k += 3) pts.Add(mf.transform.TransformPoint(v[k])); }
+            if (pts.Count == 0) return go;
+            float y0 = pts.Min(q => q.y), y1 = pts.Max(q => q.y);
+            var c0 = new Vector2(pts.Average(q => q.x), pts.Average(q => q.z));
+            const int S = 40; var ext = new float[S];
+            foreach (var q in pts) { int si = Mathf.Clamp((int)((q.y - y0) / (y1 - y0) * S), 0, S - 1); ext[si] = Mathf.Max(ext[si], Vector2.Distance(new Vector2(q.x, q.z), c0)); }
+            float maxExt = ext.Max(); int top = 0;
+            for (int si = 0; si < S; si++) if (ext[si] > maxExt * 0.62f) top = si;
+            float rockH = (top + 1f) / S * (y1 - y0);
+            float sink = rockH * 0.4f;
+            go.transform.position += Vector3.down * sink;
+            go.transform.RotateAround(new Vector3(c0.x, 0, c0.y), Vector3.right, 1.5f);
+            go.transform.RotateAround(new Vector3(c0.x, 0, c0.y), Vector3.forward, -1.0f);
+            // rim: the outcrop's outline where it now meets the ground
+            var rim = new List<Vector3>();
+            foreach (var mf in mfs) { var m = mf.sharedMesh; if (!m) continue; var v = m.vertices; for (int k = 0; k < v.Length; k += 7) { var q = mf.transform.TransformPoint(v[k]); if (Mathf.Abs(q.y) < 0.12f) rim.Add(q); } }
+            Debug.Log($"[Bamboo] pagoda rock: height {y1 - y0:0.00}, outcrop {rockH:0.00} m (slice {top}/{S}), sunk {sink:0.00}, widest {maxExt:0.00} m, rim points {rim.Count}");
+            if (rim.Count < 8) return go;
+            string smallRocks = $"{AVMS}/SmallRocks/AV_MS_SmallRocks.fbx";
+            var srMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Game/AbandonedVillage/Materials/AV_MS_SmallRocks.mat");
+            string[] plantVars = { "VarA", "VarB", "VarC" };
+            var plantMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Game/AbandonedVillage/Materials/AV_MS_WildGreen.mat");
+            int n = 16;
+            for (int k = 0; k < n; k++)
+            {
+                var q = rim[rs.Next(rim.Count)];
+                var outward = new Vector3(q.x - c0.x, 0, q.z - c0.y).normalized;
+                var p = q + outward * (0.05f + Rn() * 0.35f); p.y = 0;
+                if (k % 3 != 2)
+                {
+                    string src = Rn() < 0.5f ? smallRocks : Rock(1 + rs.Next(13));
+                    float h = 0.18f + Rn() * 0.3f;
+                    var r = Landmark(root, src, p, Rn() * 360, h, src == smallRocks && srMat ? srMat : (Rn() < 0.6f ? stoneMat : stone2Mat), 0.45f, false);
+                    if (r) r.transform.rotation = Quaternion.Euler(Rn() * 24 - 12, Rn() * 360, Rn() * 24 - 12);
+                }
+                else
+                {
+                    string plants = $"{AVMS}/WildGreen/AV_MS_WildGreen_{plantVars[rs.Next(3)]}.fbx";
+                    Landmark(root, plants, p + outward * 0.2f, Rn() * 360, 0.3f + Rn() * 0.25f, plantMat, 0.05f, false);
+                }
+            }
+            return go;
+        }
         void Block(GameObject go, float shrink)
         {
             if (!go) return;
@@ -133,14 +198,14 @@ public static partial class BABuilder
             bc.transform.position = new Vector3(bb.center.x, bb.min.y + bb.size.y * 0.5f, bb.center.z);
             bc.size = new Vector3(bb.size.x * shrink, bb.size.y, bb.size.z * shrink);
         }
-        Block(Landmark(root, pagoda, pag, 180f + Rn() * 20f - 10f, 6.2f, pagodaMat, 0.04f), 0.55f);
+        Block(Foot(PagodaOnRock(Landmark(root, pagoda, pag, 180f + Rn() * 20f - 10f, 6.2f, pagodaMat, 0.04f)), 0.5f, 1f), 0.55f);
         var pathIn = new Vector3(field.TrailX(pag.z - field.shrineRadius + 1f), 0, pag.z - field.shrineRadius + 1f);
-        Block(Landmark(root, lit, pag + new Vector3(-3.2f, 0, -3.6f), 180f + 10f, 2.5f, litMat), 0.6f);
-        Block(Landmark(root, lit, pag + new Vector3(3.2f, 0, -3.6f), 180f - 10f, 2.5f, litMat), 0.6f);
+        Block(Foot(Landmark(root, lit, pag + new Vector3(-3.2f, 0, -3.6f), 180f + 10f, 2.5f, litMat), 0.8f, 0.7f), 0.6f);
+        Block(Foot(Landmark(root, lit, pag + new Vector3(3.2f, 0, -3.6f), 180f - 10f, 2.5f, litMat), 0.8f, 0.7f), 0.6f);
         Cairn(pag + new Vector3(-6.4f, 0, 2.2f), 0.85f);
         Cairn(pag + new Vector3(6.6f, 0, 1.0f), 0.7f);
-        Block(Landmark(root, jang, pathIn + new Vector3(-2.3f, 0, 0), 175f, 2.1f, jangMat), 0.8f);
-        Block(Landmark(root, jang, pathIn + new Vector3(2.3f, 0, 0), 185f, 2.0f, jangMat), 0.8f);
+        Block(Foot(Landmark(root, jang, pathIn + new Vector3(-2.3f, 0, 0), 175f, 2.1f, jangMat), 0.9f, 0.6f), 0.8f);
+        Block(Foot(Landmark(root, jang, pathIn + new Vector3(2.3f, 0, 0), 185f, 2.0f, jangMat), 0.9f, 0.6f), 0.8f);
         Block(Landmark(root, sotdae, pag + new Vector3(-5.2f, 0, -2.4f), 20f, 5.4f, woodMat), 0.5f);
         float tx = field.TrailX(hz + 1.5f);
         Landmark(root, jang, new Vector3(tx - 2.7f, 0, hz + 1.4f), 172f, 1.9f, jangMat);
@@ -164,8 +229,8 @@ public static partial class BABuilder
         // east: two literati flanking a smaller cairn
         var ec = new Vector3(hx + 2.4f, 0, -9f);
         Cairn(ec, 0.9f);
-        Landmark(root, lit, ec + new Vector3(-1.4f, 0, 3.2f), -90f + 6f, 2.5f, litMat);
-        Landmark(root, lit, ec + new Vector3(-1.4f, 0, -3.2f), -90f - 6f, 2.5f, litMat);
+        Foot(Landmark(root, lit, ec + new Vector3(-1.4f, 0, 3.2f), -90f + 6f, 2.5f, litMat), 0.8f, 0.7f);
+        Foot(Landmark(root, lit, ec + new Vector3(-1.4f, 0, -3.2f), -90f - 6f, 2.5f, litMat), 0.8f, 0.7f);
         clear.Add(new Vector3(ec.x, ec.z, 7f));
 
         // south (camera side): tall near-black 장승 and 솟대 among the dark bamboo, spaced so the middle stays open
