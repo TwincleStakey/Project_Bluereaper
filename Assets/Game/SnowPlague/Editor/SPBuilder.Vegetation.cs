@@ -256,7 +256,7 @@ public static partial class SPBuilder
         foreach (var fp0 in new[] { EdgeCrown(new Vector3(-40f, 0f, 28f), 1f, 0.0f, 1.02f, 11f) })   // tr15: tr14 (0.1, 0.88, 8.5 m) covered the left third of 02; arena rule: outside only
         {
             var fp = fp0; if (InArena(fp.x, fp.y, -1f)) fp.x = -HX - 4f;   // arena rule: the framing tree stands just past the west boundary
-            var g = Place(SkHero, fp.x, fp.y, Rv(0, 360), 1.2f, fr, false, 0.15f);
+            var g = Place("SK:Con_PineTree_1", fp.x, fp.y, Rv(0, 360), 1.2f, fr, false, 0.15f);   /* 11-14: was the black pine (SkHero), banned */
             if (!g) continue;
             skHeroPlaced++;
             var skfg = SkFgSwap();
@@ -404,7 +404,7 @@ public static partial class SPBuilder
     // hero pine (matt z chan "Japanese Black Pine", CC BY; 156k tris): bent trunk + cloud pads, the closest to 적송. Kept to
     // <= 13 in the scene: "SK:HERO_<slot>" draws a hero while that slot has budget, else a straight conifer.
     const string SkHero = "SK:HeroPine_JBP_Snow";   // tr4: hull normals on the needle cards + vertex AO (BlenderSource~/veg/hero_pine_prep.py)
-    static readonly Dictionary<string, int> skHeroCap = new Dictionary<string, int> { { "FG", 5 }, { "LEDGE", 2 }, { "SIDE", 1 } };
+    static readonly Dictionary<string, int> skHeroCap = new Dictionary<string, int> { { "FG", 0 }, { "LEDGE", 0 }, { "SIDE", 0 } };   /* 11-14 Kido: the Japanese black pine looks like a bonsai, never use it (was FG 5, LEDGE 2, SIDE 1) */
     static Dictionary<string, int> skHeroLeft = new Dictionary<string, int>();
     static int skHeroPlaced;
     static readonly string[] SkFgPines = { "SK:HERO_FG", "SK:Con_PineTree_1", "SK:HERO_FG", "SK:Con_FirTree_0" };

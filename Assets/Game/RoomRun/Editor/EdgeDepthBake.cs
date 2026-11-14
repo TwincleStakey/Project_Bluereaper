@@ -11,7 +11,7 @@ namespace RoomRun
     [InitializeOnLoad]
     static class EdgeDepthBake
     {
-        const int Version = 4;   // v2: KCISA village houses (dropped); v3: 폐촌 thatched houses AV_Choga_A/B/C for 민가; v4: + the collapsed one
+        const int Version = 5;   // v5: + EF_HanokWall (대전 앞 court walls, 11-14); v2: KCISA village houses (dropped); v3: 폐촌 thatched houses AV_Choga_A/B/C for 민가; v4: + the collapsed one
         const string OutDir = "Assets/Game/RoomRun/Resources/EdgeFeatures";
         const string Trees = "Assets/Game/SnowPlague/ThirdParty/Trees/Prefabs/", LM = "Assets/Game/SnowPlague/ThirdParty/Landmarks/";
 
@@ -42,6 +42,9 @@ namespace RoomRun
             EdgeFeaturesBake.Make("VH_AV_ChogaB", AV + "AV_Choga_B.fbx", 0f, Vector3.forward, null);
             EdgeFeaturesBake.Make("VH_AV_ChogaC", AV + "AV_Choga_C.fbx", 0f, Vector3.forward, null);
             EdgeFeaturesBake.Make("VH_AV_ChogaCollapsed", AV + "AV_ChogaCollapsed.fbx", 0f, Vector3.forward, null);
+            // v5 (Kido 11-14 on the coded 대전 앞 galleries: "quality is awful, download something"): the downloaded tiled hanok
+            // wall ("Korea Traditional House_House Wall", chrishong, CC BY 4.0) rings the court instead; face on -Z, 3 m tall
+            EdgeFeaturesBake.Make("EF_HanokWall", LM + "HanokWall/SKF_HanokWall.fbx", 3.0f, Vector3.back, "HanokWall");
             AssetDatabase.SaveAssets();
             Debug.Log("[EdgeFeatures] depth features baked into " + OutDir);
         }

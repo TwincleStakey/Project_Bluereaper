@@ -21,33 +21,35 @@ namespace RoomRun
 
         static readonly Dictionary<string, F[]> Layout = new Dictionary<string, F[]>
         {
+            // 11-14 (Kido: the Japanese black pine EF_PineA/B "looks like a bonsai, never use it"): replaced by the downloaded dead
+            // conifers in every field; 민가 has no living pines or firs at all.
             // 11-13 grass/village depth (Kido, Hades 2 ref: very tall, near-black silhouettes only along the bottom (camera)
             // edge, outside the fight area; tall trees around the sides). dark = a
             // foreground silhouette (see Silhouette). Doors: grass north centre, village east centre (kept clear).
-            ["grass"] = new[] { new F("EF_PineA", -0.82f, -1f, 0.8f, 0, 0.85f), new F("EF_PineB", 1f, 0.78f, 1.2f, 60), new F("EF_Jangseung", -0.52f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", -0.45f, 1f, 0.5f, 8, 1.25f),
+            ["grass"] = new[] { new F("EF_DeadConiferA", -0.82f, -1f, 0.8f, 0, 0.85f), new F("EF_RF_DeadConifer_B", 1f, 0.78f, 1.2f, 60), new F("EF_Jangseung", -0.52f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", -0.45f, 1f, 0.5f, 8, 1.25f),
                 // bottom (camera) edge: dark pine silhouettes rising into the lower part of the screen only (no shadows into the
                 // arena), branchy dead conifers at the corners; spaced so the middle of the screen stays open
-                new F("EF_PineB", -0.62f, -1f, 5f, 200, 1.05f, true), new F("EF_PineA", -0.25f, -1f, 4f, 300, 1.0f, true), new F("EF_PineB", 0.1f, -1f, 5.5f, 30, 1.1f, true),
-                new F("EF_PineA", 0.42f, -1f, 4.5f, 80, 1.1f, true), new F("EF_PineB", 0.75f, -1f, 5f, 260, 1.0f, true),
+                new F("EF_RF_DeadConifer_B", -0.62f, -1f, 5f, 200, 1.05f, true), new F("EF_DeadConiferA", -0.25f, -1f, 4f, 300, 1.0f, true), new F("EF_RF_DeadConifer_B", 0.1f, -1f, 5.5f, 30, 1.1f, true),
+                new F("EF_DeadConiferA", 0.42f, -1f, 4.5f, 80, 1.1f, true), new F("EF_RF_DeadConifer_B", 0.75f, -1f, 5f, 260, 1.0f, true),
                 new F("EF_DeadConiferA", -0.95f, -1f, 4f, 150, 1.4f, true), new F("EF_DeadConiferA", 0.96f, -1f, 4f, 30, 1.35f, true),
                 // sides: tall firs and pines over the hedge (on screen when the player is near that side)
-                new F("EF_Fir", -1f, 0.42f, 4f, 0, 1.3f), new F("EF_TallPine", -1f, 0.05f, 6f, 70, 1.1f), new F("EF_PineB", -1f, -0.35f, 3f, 130, 1.25f), new F("EF_DeadConiferA", -1f, -0.66f, 4f, 240, 1.1f),
-                new F("EF_Fir", 1f, 0.35f, 4.5f, 160, 1.25f), new F("EF_TallPine", 1f, -0.1f, 4f, 20, 1.15f), new F("EF_DeadConiferA", 1f, -0.5f, 3.5f, 300), new F("EF_PineA", 1f, -0.78f, 3f, 50, 1.2f) },
-            ["valley"] = new[] { new F("EF_PineB", -0.8f, -1f, 0.8f, 30), new F("EF_PineA", 0.6f, 1f, 1.5f, 200, 0.9f), new F("EF_Jangseung", -1f, 0.55f, 0.6f, -70, 1.25f) },
-            ["village"] = new[] { new F("EF_Jangseung", 0.42f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", 0.49f, 1f, 0.5f, -8, 1.25f), new F("EF_PineA", 1f, 0.8f, 1.2f, 140),
+                new F("EF_Fir", -1f, 0.42f, 4f, 0, 1.3f), new F("EF_TallPine", -1f, 0.05f, 6f, 70, 1.1f), new F("EF_RF_DeadConifer_B", -1f, -0.35f, 3f, 130, 1.25f), new F("EF_DeadConiferA", -1f, -0.66f, 4f, 240, 1.1f),
+                new F("EF_Fir", 1f, 0.35f, 4.5f, 160, 1.25f), new F("EF_TallPine", 1f, -0.1f, 4f, 20, 1.15f), new F("EF_DeadConiferA", 1f, -0.5f, 3.5f, 300), new F("EF_DeadConiferA", 1f, -0.78f, 3f, 50, 1.2f) },
+            ["valley"] = new[] { new F("EF_RF_DeadConifer_B", -0.8f, -1f, 0.8f, 30), new F("EF_DeadConiferA", 0.6f, 1f, 1.5f, 200, 0.9f), new F("EF_Jangseung", -1f, 0.55f, 0.6f, -70, 1.25f) },
+            ["village"] = new[] { new F("EF_Jangseung", 0.42f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", 0.49f, 1f, 0.5f, -8, 1.25f), new F("EF_DeadConiferA", 1f, 0.8f, 1.2f, 140),
                 // bottom (camera) edge: the pine belt there is darkened to silhouettes by LookStudyRuins.SouthSil; a
                 // pair of 장승 like pillars where the south lane leaves
                 new F("EF_Jangseung", -0.06f, -1f, 1.8f, 190, 2.2f, true), new F("EF_Jangseung", 0.06f, -1f, 1.8f, 170, 2.2f, true),
                 // sides (east centre is the door): tall trees over the belt, clear of the village houses that stand just
                 // outside the north and side edges (LookStudyRuins.BuildVillage, 11-14)
-                new F("EF_Fir", -1f, -0.75f, 5f, 30, 1.3f), new F("EF_TallPine", -1f, 0.85f, 5f, 220, 1.1f),
-                new F("EF_TallPine", 1f, 0.2f, 5f, 80, 1.15f), new F("EF_Fir", 1f, -0.95f, 5f, 10, 1.25f), new F("EF_DeadConiferA", 1f, 0.88f, 4f, 140, 1.1f) },
+                new F("EF_DeadConiferA", -1f, -0.75f, 5f, 30, 1.3f), new F("EF_RF_DeadConifer_B", -1f, 0.85f, 5f, 220, 1.1f),
+                new F("EF_RF_DeadConifer_B", 1f, 0.2f, 5f, 80, 1.15f), new F("EF_DeadConiferA", 1f, -0.95f, 5f, 10, 1.25f), new F("EF_DeadConiferA", 1f, 0.88f, 4f, 140, 1.1f) },
             // 11-13 (Kido, all fields: the fight area lacked big things for depth): tall pines between the galleries (x +-54)
             // and the outer wall (+-63) and flanking the hall, crowns towering over the gallery roofs. All outside the arena.
-            ["palace"] = new[] { new F("EF_PineA", -0.78f, -1f, 0.9f, 0, 0.9f), new F("EF_PineB", 0.8f, -1f, 0.9f, 110, 0.85f),
-                new F("EF_PineB", -1f, 0.55f, 6f, 20, 1.25f), new F("EF_PineA", -1f, -0.15f, 7.5f, 140, 1.4f), new F("EF_PineB", -1f, -0.72f, 5.5f, 250, 1.15f),
-                new F("EF_PineA", 1f, 0.35f, 6.5f, 80, 1.35f), new F("EF_PineB", 1f, -0.45f, 5.5f, 200, 1.2f),
-                new F("EF_PineA", -0.55f, 1f, 9f, 30, 1.45f), new F("EF_PineB", 0.62f, 1f, 8f, 300, 1.35f) },
+            ["palace"] = new[] { new F("EF_DeadConiferA", -0.78f, -1f, 0.9f, 0, 0.9f), new F("EF_RF_DeadConifer_B", 0.8f, -1f, 0.9f, 110, 0.85f),
+                new F("EF_RF_DeadConifer_B", -1f, 0.55f, 6f, 20, 1.25f), new F("EF_DeadConiferA", -1f, -0.15f, 7.5f, 140, 1.4f), new F("EF_RF_DeadConifer_B", -1f, -0.72f, 5.5f, 250, 1.15f),
+                new F("EF_DeadConiferA", 1f, 0.35f, 6.5f, 80, 1.35f), new F("EF_RF_DeadConifer_B", 1f, -0.45f, 5.5f, 200, 1.2f),
+                new F("EF_DeadConiferA", -0.55f, 1f, 9f, 30, 1.45f), new F("EF_RF_DeadConifer_B", 0.62f, 1f, 8f, 300, 1.35f) },
             // 11-13 night pass (Kido: the pine in the reeds was round at the bottom and did not fit): no pines; all outside the edge.
             ["reeds"] = new[] { new F("EF_Jangseung", 0.55f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", 0.62f, 1f, 0.5f, -10, 1.25f),
                                 // 11-14 (Kido: the coded 폐촌 dead trees looked "weird", remove): downloaded dead conifers and snags only
@@ -135,14 +137,57 @@ namespace RoomRun
             Vector3 c = run.Room.center; float hx = run.Room.size.x * 0.5f, hz = run.Room.size.y * 0.5f;
             int n = 0;
             float k = Lift.TryGetValue(run.Room.id, out var l) ? l : 1f;
-            foreach (var f in list) if (Place(f, c, hx, hz, holder.transform, k, run.Room.id)) n++;
+            foreach (var f in list) if (Place(f, c, hx, hz, holder.transform, k, run.Room.id) != null) n++;
+            if (run.Room.id == "palace") n += PalaceWalls(c, hx, hz, holder.transform, k);
             Debug.Log($"[EdgeFeatures] {run.Room.id}: {n} features at the edges");
         }
 
-        static bool Place(F f, Vector3 c, float hx, float hz, Transform parent, float lift, string field)
+        // 11-14 (Kido on the coded 대전 앞 galleries, "quality is awful, download something and use it"): the court is ringed
+        // by the downloaded tiled hanok wall (EF_HanokWall) just outside the arena: both long sides (the side gates at z ~6
+        // stay open) and the north side from the corners in to the hall terrace (|x| > 27). LookStudyRuins no longer builds
+        // the gallery posts and roofs; the low south row stays (camera side).
+        static int PalaceWalls(Vector3 c, float hx, float hz, Transform parent, float lift)
+        {
+            var probe = Place(new F("EF_HanokWall", 0, 0, 0, 90), c, hx, hz, parent, lift * 0.5f, "palace");
+            if (!probe) return 0;
+            float len = WorldBounds(probe).size.z * 0.97f;   // slight overlap so the runs read continuous
+            Destroy(probe);
+            if (len < 1f) return 0;
+            int n = 0;
+            void Run(Vector3 a, Vector3 b, float yaw, float gateZ, Vector3 outward, float edge)
+            {
+                float d = Vector3.Distance(a, b); int count = Mathf.Max(1, Mathf.RoundToInt(d / len));
+                for (int i = 0; i < count; i++)
+                {
+                    var p = Vector3.Lerp(a, b, (i + 0.5f) / count);
+                    if (!float.IsNaN(gateZ) && Mathf.Abs(p.z - gateZ) < len * 0.5f + 2.5f) continue;   // side gate stays open
+                    var go = Place(new F("EF_HanokWall", 0, 0, 0, yaw), c, hx, hz, parent, lift * 0.5f, "palace");
+                    if (!go) continue;
+                    p.y = Ground(p, c.y);
+                    go.transform.position = p + Vector3.down * 0.06f;
+                    // the model has a short return wall at one end (6 m deep): push the piece out until its inner side sits
+                    // 0.3 m past the arena edge (arena rule: nothing stands inside)
+                    var wb = WorldBounds(go);
+                    float inner = outward.x > 0 ? wb.min.x : outward.x < 0 ? -wb.max.x : wb.min.z;
+                    go.transform.position += outward * Mathf.Max(0f, edge + 0.3f - inner);
+                    n++;
+                }
+            }
+            // 11-14 capture: the model's short return wall stood into the court; turned 180 so the return points away from
+            // the arena (the wall's back is the same plaster and tile), and the plaster is kept darker than the x2 field lift
+            float wx = c.x - hx - 0.6f, ex = c.x + hx + 0.6f, s0 = c.z - hz + 1.5f, s1 = c.z + hz + 0.6f, nz = c.z + hz + 0.6f;
+            Run(new Vector3(wx, 0, s0), new Vector3(wx, 0, s1), 90f, 6f, Vector3.left, -(c.x - hx));   // west, face east
+            Run(new Vector3(ex, 0, s0), new Vector3(ex, 0, s1), -90f, 6f, Vector3.right, c.x + hx);                         // east, face west
+            Run(new Vector3(c.x - hx, 0, nz), new Vector3(c.x - 27f, 0, nz), 180f, float.NaN, Vector3.forward, c.z + hz);         // north-west, face south
+            Run(new Vector3(c.x + 27f, 0, nz), new Vector3(c.x + hx, 0, nz), 180f, float.NaN, Vector3.forward, c.z + hz);         // north-east
+            Debug.Log($"[EdgeFeatures] palace: {n} hanok wall pieces ({len:0.0} m)");
+            return n;
+        }
+
+        static GameObject Place(F f, Vector3 c, float hx, float hz, Transform parent, float lift, string field)
         {
             var prefab = Resources.Load<GameObject>("EdgeFeatures/" + f.what);
-            if (!prefab) { Debug.LogWarning("[EdgeFeatures] no prefab " + f.what); return false; }
+            if (!prefab) { Debug.LogWarning("[EdgeFeatures] no prefab " + f.what); return null; }
             bool house = f.what.Contains("House");
             // on an edge (|u| or |v| = 1) push outward by outM; a house is pushed so its corner pokes in by outM
             var p = new Vector3(c.x + f.u * hx, c.y, c.z + f.v * hz);
@@ -197,7 +242,7 @@ namespace RoomRun
             }
             var wb = WorldBounds(go);
             Debug.Log($"[EdgeFeatures]   {f.what} at ({p.x:0.0}, {p.y:0.0}, {p.z:0.0}) bounds x {wb.min.x:0.0}..{wb.max.x:0.0} z {wb.min.z:0.0}..{wb.max.z:0.0}");
-            return true;
+            return go;
         }
 
         static float Ground(Vector3 p, float fallback)

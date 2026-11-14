@@ -336,15 +336,14 @@ public class LookStudyRuins : MonoBehaviour
         void Gallery(float x, float z, float yaw, int state, bool low)
         {
             var p = new Vector3(x, 0.02f, z);
-            if (!low) { K("Gal_Plinth", p, yaw, 0.2f); }
-            else K("Gal_Plinth", p, yaw, 0.35f);
+            if (low) K("Gal_Plinth", p, yaw, 0.35f);
             // 11-13: smaller, rarer tile spills (Kido: the heaps were bunched everywhere); the half-sunk lattice wall
             // under bare rafters read as an unknown black structure, so a collapsed bay is now a plinth with a little rubble.
             if (low) { if (r.NextDouble() < 0.3) K("Prop_TileHeap", p + Vector3.up * 0.15f, R(r, 0, 360), 0.2f, R(r, 0.55f, 0.8f)); return; }
-            if (state == 0) { K("Gal_Post", p, yaw, 0.15f); K("Gal_Wall", p, yaw, 0.2f); K("Gal_Roof", p, yaw, 0.12f); }
-            else if (state == 1) { K("Gal_Post", p, yaw, 0.75f); K("Gal_Wall", p, yaw, 0.65f); K("Gal_Roof", p, yaw, 0.68f); }
-            else if (state == 2) { K("Gal_Post", p, yaw, 0.6f); if (r.NextDouble() < 0.4) K("Prop_TileHeap", p + Vector3.up * 0.15f, R(r, 0, 360), 0.3f, R(r, 0.55f, 0.85f)); }
-            else { if (r.NextDouble() < 0.5) K("Prop_TileHeap", p + Vector3.up * 0.15f, R(r, 0, 360), 0.3f, R(r, 0.6f, 0.9f)); else K("Prop_Beam", p + new Vector3(0.4f, 0.12f, 0.2f), R(r, 0, 360), 0.95f, R(r, 0.6f, 0.9f)); }
+            // 11-14 (Kido: the coded gallery posts and roofs looked like cheap sheds): the side and north rows are the
+            // downloaded hanok wall now (RoomRun.EdgeFeatures.PalaceWalls); only the random rolls are kept so the rest stays put.
+            if (state == 2) { if (r.NextDouble() < 0.4) { R(r, 0, 360); R(r, 0.55f, 0.85f); } }
+            else if (state == 3) { r.NextDouble(); R(r, 0, 360); R(r, 0.6f, 0.9f); }
         }
         for (int i = 0; i < 30; i++)
         {
@@ -354,7 +353,7 @@ public class LookStudyRuins : MonoBehaviour
             {
                 int st = PickState(r, x * 0.13f + z);
                 Gallery(x, z, x < 0 ? 90 : -90, st, false);
-                if (st == 1 && r.NextDouble() < 0.55) fires.Add(new Vector3(x, 2.4f, z));
+                if (st == 1 && r.NextDouble() < 0.55) { }   /* 11-14: no gallery roofs left to burn (hanok wall now) */
             }
         }
         for (int i = 0; i < 36; i++)
@@ -670,6 +669,8 @@ public class LookStudyRuins : MonoBehaviour
                 if (LaneDist(x, z) < 2.2f && pass == 0) continue;   // lanes run out between the trees
                 if (NearHouse(x, z)) continue;
                 float y = VillageH(x, z) - 0.25f, s = R(r, 0.75f, 1.2f);
+                // 11-14: the north belt (top of the screen) is taller, so its crowns fill the top edge as dark volume
+                if (z > VillageMaxZ) s *= 1.35f + pass * 0.15f;
                 var rot = Quaternion.Euler(R(r, -3, 3), R(r, 0, 360), R(r, -3, 3));
                 Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(0.42f, 0.36f, 0.34f, 1), z));
                 Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1), z));
@@ -708,8 +709,8 @@ public class LookStudyRuins : MonoBehaviour
                 Flush(false);
             }
         }
-        foreach (var w in new[] { new Vector3(0, 1.4f, -12), new Vector3(-13, 1.6f, -13), new Vector3(12, 1.6f, 14), new Vector3(-40, 1.6f, -10), new Vector3(40, 1.6f, 12), new Vector3(8, 1.5f, -36) }) Wisp(w);
-        // 11-14 abandoned village: no burning roofs, so no falling ash either (the wisps stay: ghost lights in a dead village)
+        // 11-14 abandoned village: no burning roofs, so no falling ash either.
+        // 11-14 (Kido: "what is this white glowing cone on the grass"): the ghost-light wisps are gone too.
     }
 
     public static LookStudyWalker.Surface PalaceSurface(float x, float z)
@@ -721,7 +722,10 @@ public class LookStudyRuins : MonoBehaviour
     // silhouettes, fading in over the first metres past the wall; the other sides keep their green.
     static Color SouthSil(Color c, float z)
     {
-        float k = Mathf.Lerp(1f, 0.03f, Mathf.InverseLerp(VillageMinZ - 1f, VillageMinZ - 4f, z));
+        // 11-14 (Kido on the village pines: "fix them", "trees at the top of the screen can just be dark volume"): every side
+        // is now a dark, desaturated mass (0.3), not lit green needles; the camera side still goes near-black.
+        float k = Mathf.Lerp(0.3f, 0.03f, Mathf.InverseLerp(VillageMinZ - 1f, VillageMinZ - 4f, z));
+        float g = (c.r + c.g + c.b) / 3f; c = new Color(Mathf.Lerp(g, c.r, 0.45f), Mathf.Lerp(g, c.g, 0.45f), Mathf.Lerp(g, c.b, 0.45f), c.a);
         return new Color(c.r * k, c.g * k, c.b * k, c.a);
     }
 

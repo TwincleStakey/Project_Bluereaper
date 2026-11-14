@@ -189,7 +189,7 @@ public static partial class SPBuilder
         var O = new Vector3(0f, -4000f, 0f);
         // pines / firs make the mass, the hero pine its cloud pads, dead conifers the bare branch lace
         // look4: no dead conifers and no bark (crowns only): their trunks threw 25-40 m straight pole shadows over the floor
-        var pool = new[] { "TR_HeroPine_A", "TR_HeroPine_B", "TR_Pine", "TR_Pine", "TR_Fir", "TR_Fir", "TR_NobleFir" };
+        var pool = new[] { "TR_Pine", "TR_Pine", "TR_Fir", "TR_Fir", "TR_NobleFir" };   /* 11-14: black pine banned (Kido) */
         var prefabs = new Dictionary<string, GameObject>();
         foreach (var n in pool.Distinct()) { var pf = AssetDatabase.LoadAssetAtPath<GameObject>(P + n + ".prefab"); if (pf) prefabs[n] = pf; else Log("LOOK cookie: missing " + P + n); }
         if (prefabs.Count == 0) return false;

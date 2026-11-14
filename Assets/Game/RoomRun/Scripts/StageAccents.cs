@@ -32,8 +32,8 @@ namespace RoomRun
         {
             ["grass"]   = new Look { shafts = 4, wisps = 12 },
             ["valley"]  = new Look { shafts = 3, wisps = 10 },
-            ["village"] = new Look { shafts = 3, wisps = 9 },
-            ["palace"]  = new Look { shafts = 3, wisps = 8, shaft = new Color(0.17f, 0.24f, 0.40f), pool = new Color(1.8f, 2.1f, 2.9f) },
+            ["village"] = new Look { shafts = 3, wisps = 0 },   /* 11-14 Kido: the wisp read as a white glowing cone on the grass; abandoned village, no ghost lights */
+            ["palace"]  = new Look { shafts = 3, wisps = 0, /* 11-14: the wisps read as white glowing cones (Kido in 민가) */ shaft = new Color(0.17f, 0.24f, 0.40f), pool = new Color(1.8f, 2.1f, 2.9f) },
             // the reed field draws its own moon shafts (Reeds.RFMoonShafts, they also light the reed tops): wisps and lantern halos only
             ["reeds"]   = new Look { shafts = 0, wisps = 10, wisp = new Color(0.36f, 0.6f, 0.4f), wispGlow = 0.45f },   // 11-14 reed QA: white-cyan read as bullets/pickups; pale marsh green, dimmer
             // snow: no accents (11-14 overnight: on the bright snow a wisp read as a glitchy sparkle and the shafts added nothing)
