@@ -732,19 +732,27 @@ namespace Underworld
             }
             // (tried a crag in the NE chamfer: read as a black hole - off)
             // pass 4: 피안화 (red spider lily) clumps on the charred rim strip just inside the plaza edge, thickest on the gate
-            // approach. Procedural mesh (UWSpiderLily), no colliders, knee-high: ground dressing, not an obstacle.
-            var lilySh = Shader.Find("Underworld/Lily");
-            if (lilySh)
+            // approach. 11-14: the plant is the CC0 Sketchfab scan (Resources/Hell/SpiderLily, ~4k tris, built by
+            // UWSpiderLilyProp), drawn instanced by UWLilyField. No colliders, knee-high: ground dressing, not an obstacle.
+            var lilyPf = P("SpiderLily");
+            if (lilyPf)
             {
-                var lilyMat = new Material(lilySh) { hideFlags = HideFlags.DontSave, enableInstancing = false };
+                var lilyMat = new Material(lilyPf.GetComponent<MeshRenderer>().sharedMaterial) { hideFlags = HideFlags.DontSave, enableInstancing = true };
                 lilyMat.SetFloat("_Glow", lilyGlow);
+                var field = new GameObject("SpiderLilies").AddComponent<UWLilyField>(); field.transform.SetParent(root, false);
+                field.Init(lilyPf.GetComponent<MeshFilter>().sharedMesh, lilyMat);
                 int clumps = 0;
                 void Lily(float x, float z, int count, float r)
                 {
-                    var go = new GameObject("SpiderLily"); go.transform.SetParent(root, false);
-                    go.transform.position = new Vector3(x, Ground(x, z) + 0.01f, z);
-                    go.AddComponent<MeshFilter>().sharedMesh = UWSpiderLily.Clump(count, r, rnd.Next(), 1f);
-                    var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = lilyMat; mr.shadowCastingMode = ShadowCastingMode.Off;
+                    var lr = new System.Random(rnd.Next());   // own stream: the rim layout after this keeps its old random sequence
+                    float LF(float lo, float hi) => lo + (float)lr.NextDouble() * (hi - lo);
+                    for (int i = 0; i < count; i++)
+                    {
+                        float a = LF(0f, Mathf.PI * 2f), d = Mathf.Sqrt(LF(0f, 1f)) * r;
+                        float px = x + Mathf.Cos(a) * d, pz = z + Mathf.Sin(a) * d;
+                        field.plants.Add(Matrix4x4.TRS(new Vector3(px, Ground(px, pz) - 0.02f, pz),
+                            Quaternion.Euler(LF(-10f, 10f), LF(0f, 360f), LF(-10f, 10f)), Vector3.one * LF(0.8f, 1.2f)));
+                    }
                     clumps++;
                 }
                 for (float x = xMin + 2f; x <= xMax - 2f; x += F(4f, 8f))
@@ -758,9 +766,10 @@ namespace Underworld
                     if (rnd.NextDouble() < 0.5) Lily(xMin + F(0.6f, 1.8f), z, rnd.Next(6, 11), F(0.8f, 1.4f));
                     if (rnd.NextDouble() < 0.5) Lily(xMax - F(0.6f, 1.8f), z, rnd.Next(6, 11), F(0.8f, 1.4f));
                 }
-                var dbgM = UWSpiderLily.Plant();
-                Debug.Log($"UWLook: {clumps} spider lily clumps; plant v{dbgM.vertexCount} t{dbgM.triangles.Length / 3} bounds {dbgM.bounds}; shader ok {lilySh.isSupported}; first at {(root.Find("SpiderLily") ? root.Find("SpiderLily").position.ToString() : "-")}");
+                field.Bake();
+                Debug.Log($"UWLook: {clumps} spider lily clumps, {field.plants.Count} plants x {field.mesh.GetIndexCount(0) / 3} tris (instanced)");
             }
+            else Debug.LogWarning("UWLook: Resources/Hell/SpiderLily missing (Tools/Underworld/Quality/Build Spider Lily)");
 
             // fires at the gate and along the north / side rims (lights + additive flame puffs + embers)
             var fires = new List<Vector3> { new(gx - 5f, 0, gz - 2f), new(gx + 5f, 0, gz - 2f), new(gx, 0, zMax + 18f) };
