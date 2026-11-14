@@ -61,6 +61,7 @@ namespace Underworld
             m.SetFloat("_RubAmt", 0f); m.SetFloat("_AshAmt", 0f);
             m.SetVector("_Tiles", new Vector4(8f, 6f, 4f, 4.5f));
             m.SetFloat("_CrackAmt", 0f);
+            m.SetFloat("_CodeFX", 1f);   // the old procedural sea keeps its coded channels (unused since 11-14: UW_LavaField)
             EditorUtility.SetDirty(m);
             AssetDatabase.SaveAssets();
             Debug.Log("UWQuality: " + path + " written");
@@ -117,6 +118,22 @@ namespace Underworld
             m.SetVector("_LaneWidth", new Vector4(5f, 7f, 0f, 0f));   // pass 7: wider, so no stray fragment survives in the wedge between the lanes   // rivers taper out over 8 m   // spawn / boss centre without rivers
             m.SetFloat("_CrackAmt", 0f);         // old violet soul cracks OFF (set 0.3 to bring them back)
             m.SetFloat("_RimAmt", 0f);
+            // 11-14 Kido ("don't draw these yourself, download one"): every coded glow line / voronoi seam on the floor OFF.
+            // The floor is now only the downloaded scans: Hawaiian Lava Stone (4 m scan) as the rock, coal ash in the low
+            // crevices and in soft patches, coal debris in large drifts; macro brightness variation breaks up repetition.
+            if (rock == RockSet)
+            {
+                m.SetFloat("_CodeFX", 0f);
+                m.SetVector("_Tiles", new Vector4(4.0f, 2.2f, 1.6f, 4.5f));
+                m.SetVector("_HeightLo", new Vector4(0.2f, 0.23f, 0.28f, 0.12f));
+                m.SetVector("_HeightHi", new Vector4(0.8f, 0.64f, 0.71f, 0.37f));
+                m.SetColor("_FlagTint", new Color(1.1f, 1.03f, 0.96f));   // Hawaiian scan luma ~0.085 linear: keep near black but readable
+                m.SetColor("_CliffTint", new Color(0.9f, 0.85f, 0.8f));
+                m.SetFloat("_Sat", 0.22f);
+                m.SetFloat("_AshAmt", 0.42f); m.SetFloat("_RubAmt", 0.75f);
+                m.SetFloat("_Macro", 0.75f); m.SetFloat("_Cavity", 0.55f); m.SetFloat("_SeamDark", 0.2f);
+            }
+            else m.SetFloat("_CodeFX", 1f);
         }
 
         // shader compile messages to ArtSource/uw_quality/shader_check.txt (console is not reachable remotely)

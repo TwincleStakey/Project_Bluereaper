@@ -776,7 +776,9 @@ namespace Underworld
                 lg.transform.rotation = Quaternion.LookRotation(new Vector3(gx, seaHeight + 10f, gz) - lg.transform.position);
             }
             // lava sea filling the void around and below the plaza: everything beyond the arena edge glows from below
-            var sea = Resources.Load<Material>("UW_LavaSea");
+            // 11-14: surface from the downloaded Lava Vol.04 maps (HellFX/UW_LavaField); the old procedural sea is the fallback
+            var sea = Resources.Load<Material>("HellFX/UW_LavaField");
+            if (!sea) sea = Resources.Load<Material>("UW_LavaSea");
             if (sea)
             {
                 var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -787,16 +789,17 @@ namespace Underworld
                 q.transform.localScale = new Vector3(320f, 320f, 1f);
                 var mr = q.GetComponent<MeshRenderer>(); mr.sharedMaterial = sea; mr.shadowCastingMode = ShadowCastingMode.Off;
                 // big warm glow welling up from the sea onto the plaza edges / props
-                for (int i = 0; i < 6; i++)
+                for (int i = 0; i < seaGlows; i++)
                 {
-                    float a2 = i / 6f * Mathf.PI * 2f + 0.3f; var d = new Vector2(Mathf.Cos(a2), Mathf.Sin(a2));
+                    float a2 = i / (float)seaGlows * Mathf.PI * 2f + 0.3f; var d = new Vector2(Mathf.Cos(a2), Mathf.Sin(a2));
                     var lp = Rim3(d, 10f); lp.y = seaHeight + 3f;
                     var lg = new GameObject("SeaGlow"); lg.transform.SetParent(root, false); lg.transform.position = lp;
                     var l = lg.AddComponent<Light>(); l.type = LightType.Point; l.color = new Color(1f, 0.32f, 0.08f); l.range = 26f; l.intensity = 40f;
                     l.shadows = LightShadows.None; l.renderMode = LightRenderMode.ForcePixel;
                 }
             }
-            Debug.Log($"UWLook: hell set {placed} props, {fires.Count} fires");
+            FireSea(root, Ground);
+            Debug.Log($"UWLook: hell set {placed} props, {fires.Count} fires, {fireLights} fire lights");
         }
 
         Vector3 Rim3(Vector2 d, float outward)
@@ -808,41 +811,167 @@ namespace Underworld
             return new Vector3(e.x, 0f, e.y);
         }
 
-        Material fireMat, emberMat2;
-        void Fire(Transform root, Vector3 p)
+        // ---------------------------------------------------------------- 11-14 sea of fire (Kido: burning corpses, lava)
+        // Flames are the downloaded Skulmovski flame flipbook (16 x 5 frames, HellFX/UW_Flame) on plain Shuriken systems,
+        // smoke = its smoke layer sprite, sparks = its spark sprite. Corpses = "Zombie: The Burnt" posed lying (HellFX/Corpse_*).
+        // Nothing here has a collider. Light budget: at most maxFireLights point lights for all fires together.
+        public int seaFires = 52, lipFires = 26, rimCorpses = 12, seaCorpses = 16, maxFireLights = 4, seaGlows = 3;
+        int fireLights;
+        Material flameMat, smokeMat2, sparkMat;
+        bool FireMats()
         {
-            var psh = Shader.Find("Underworld/Particle");
-            if (!fireMat)
-            {
-                Texture puff = null;
-                foreach (var r in FindObjectsByType<ParticleSystemRenderer>(FindObjectsSortMode.None))
-                    if (r.sharedMaterial && r.sharedMaterial.name.StartsWith("UW_PtMist")) { puff = r.sharedMaterial.GetTexture("_MainTex"); break; }
-                if (!psh || !puff) return;
-                var soft = Resources.Load<Texture2D>("VFX/smoke_04"); if (soft) puff = soft;   // hell pass 2: soft puff, not halftone dots
-                fireMat = new Material(psh) { hideFlags = HideFlags.DontSave };
-                fireMat.SetTexture("_MainTex", puff); fireMat.SetColor("_Tint", new Color(1f, 0.38f, 0.1f) * 1.6f);
-                fireMat.SetFloat("_Src", (float)BlendMode.One); fireMat.SetFloat("_Dst", (float)BlendMode.One); fireMat.SetFloat("_SoftFade", 1f);
-            }
-            var go = new GameObject("HellFire"); go.transform.SetParent(root, false); go.transform.position = p + Vector3.up * 0.3f;
+            if (!flameMat) { flameMat = Resources.Load<Material>("HellFX/UW_Flame"); smokeMat2 = Resources.Load<Material>("HellFX/UW_FireSmoke"); sparkMat = Resources.Load<Material>("HellFX/UW_Spark"); }
+            return flameMat;
+        }
+        static Gradient FlameGrad(float hot)
+        {
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.Lerp(new Color(1f, 0.55f, 0.2f), new Color(1f, 0.8f, 0.5f), hot), 0), new GradientColorKey(new Color(1f, 0.36f, 0.08f), 0.45f), new GradientColorKey(new Color(0.55f, 0.07f, 0.02f), 1) },
+                new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.1f), new GradientAlphaKey(0.8f, 0.6f), new GradientAlphaKey(0, 1) });
+            return g;
+        }
+        ParticleSystem Flames(Transform parent, Vector3 pos, Vector3 box, float sizeMin, float sizeMax, float rate, float hot = 0.5f)
+        {
+            var go = new GameObject("HellFlames"); go.transform.SetParent(parent, false); go.transform.position = pos;
             var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var r2 = go.GetComponent<ParticleSystemRenderer>(); r2.sharedMaterial = fireMat; r2.shadowCastingMode = ShadowCastingMode.Off;
-            var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true;
-            mm.startLifetime = new ParticleSystem.MinMaxCurve(0.8f, 1.6f); mm.startSpeed = 0f; mm.maxParticles = 80;
-            mm.startSize = new ParticleSystem.MinMaxCurve(1.2f, 2.6f); mm.startRotation = new ParticleSystem.MinMaxCurve(0f, 6.28f);
-            var em = ps.emission; em.rateOverTime = 26f;
-            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Circle; sh.radius = 1.4f; sh.rotation = new Vector3(90, 0, 0);
+            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = flameMat; r.shadowCastingMode = ShadowCastingMode.Off;
+            r.renderMode = ParticleSystemRenderMode.Billboard; r.pivot = new Vector3(0f, 0.35f, 0f);   // flame base near the emitter, not mid-sprite
+            r.maxParticleSize = 2f;
+            var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true; mm.playOnAwake = true;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(1.1f, 1.7f); mm.startSpeed = 0f;
+            mm.startSize = new ParticleSystem.MinMaxCurve(sizeMin, sizeMax); mm.startRotation = new ParticleSystem.MinMaxCurve(-0.12f, 0.12f);
+            mm.maxParticles = Mathf.CeilToInt(rate * 2f) + 2;
+            var em = ps.emission; em.rateOverTime = rate;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = box;
             var v = ps.velocityOverLifetime; v.enabled = true; v.space = ParticleSystemSimulationSpace.World;
-            v.x = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f); v.y = new ParticleSystem.MinMaxCurve(1.8f, 3.6f); v.z = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f);
-            var col = ps.colorOverLifetime; col.enabled = true;
-            var g = new Gradient(); g.SetKeys(new[] { new GradientColorKey(new Color(1f, 0.85f, 0.5f), 0), new GradientColorKey(new Color(1f, 0.35f, 0.08f), 0.4f), new GradientColorKey(new Color(0.4f, 0.05f, 0.02f), 1) },
-                new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.12f), new GradientAlphaKey(0.6f, 0.6f), new GradientAlphaKey(0, 1) });
-            col.color = g;
-            var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 1f, 1, 0.3f));
+            v.x = new ParticleSystem.MinMaxCurve(-0.1f, 0.15f); v.y = new ParticleSystem.MinMaxCurve(0.2f, 0.5f); v.z = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f);
+            var col = ps.colorOverLifetime; col.enabled = true; col.color = FlameGrad(hot);
+            var ts = ps.textureSheetAnimation; ts.enabled = true; ts.mode = ParticleSystemAnimationMode.Grid; ts.numTilesX = 16; ts.numTilesY = 5;
+            ts.animation = ParticleSystemAnimationType.WholeSheet; ts.frameOverTime = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 0, 1, 1));
+            ts.startFrame = new ParticleSystem.MinMaxCurve(0f, 79f); ts.cycleCount = 1;
             ps.Play();
-            var lg = new GameObject("HellFireLight"); lg.transform.SetParent(go.transform, false); lg.transform.localPosition = Vector3.up * 1.5f;
-            var l = lg.AddComponent<Light>(); l.type = LightType.Point; l.color = new Color(1f, 0.42f, 0.14f); l.range = 14f; l.intensity = 18f;
+            return ps;
+        }
+        void Smoke(Transform parent, Vector3 pos, float radius, float size, float rate)
+        {
+            if (!smokeMat2) return;
+            var go = new GameObject("HellFireSmoke"); go.transform.SetParent(parent, false); go.transform.position = pos;
+            var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = smokeMat2; r.shadowCastingMode = ShadowCastingMode.Off;
+            var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(4f, 7f); mm.startSpeed = 0f; mm.maxParticles = Mathf.CeilToInt(rate * 7f) + 2;
+            mm.startSize = new ParticleSystem.MinMaxCurve(size * 0.7f, size * 1.3f); mm.startRotation = new ParticleSystem.MinMaxCurve(0f, 6.28f);
+            var em = ps.emission; em.rateOverTime = rate;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Circle; sh.radius = radius; sh.rotation = new Vector3(90, 0, 0);
+            var v = ps.velocityOverLifetime; v.enabled = true; v.space = ParticleSystemSimulationSpace.World;
+            v.x = new ParticleSystem.MinMaxCurve(0.1f, 0.5f); v.y = new ParticleSystem.MinMaxCurve(1.2f, 2.2f); v.z = new ParticleSystem.MinMaxCurve(-0.2f, 0.3f);
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient(); g.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) }, new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.2f), new GradientAlphaKey(0, 1) });
+            col.color = g;
+            var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 0.6f, 1, 1.8f));
+            var rot = ps.rotationOverLifetime; rot.enabled = true; rot.z = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f);
+            ps.Play();
+        }
+        void Sparks(Transform parent, Vector3 pos, Vector3 box, float rate)
+        {
+            if (!sparkMat) return;
+            var go = new GameObject("HellSparks"); go.transform.SetParent(parent, false); go.transform.position = pos;
+            var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = sparkMat; r.shadowCastingMode = ShadowCastingMode.Off;
+            var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.4f); mm.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.5f); mm.maxParticles = Mathf.CeilToInt(rate * 2.5f) + 2;
+            mm.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.14f);
+            var em = ps.emission; em.rateOverTime = rate;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = box;
+            var v = ps.velocityOverLifetime; v.enabled = true; v.space = ParticleSystemSimulationSpace.World;
+            v.y = new ParticleSystem.MinMaxCurve(1.5f, 3.5f); v.x = new ParticleSystem.MinMaxCurve(-0.4f, 0.6f); v.z = new ParticleSystem.MinMaxCurve(-0.4f, 0.4f);
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient(); g.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(new Color(1f, 0.3f, 0.05f), 1) }, new[] { new GradientAlphaKey(1, 0), new GradientAlphaKey(1, 0.6f), new GradientAlphaKey(0, 1) });
+            col.color = g;
+            var no = ps.noise; no.enabled = true; no.strength = 0.6f; no.frequency = 0.8f;
+            ps.Play();
+        }
+        void FireLight(Transform parent, Vector3 pos, float range, float intensity)
+        {
+            if (fireLights >= maxFireLights) return;
+            fireLights++;
+            var lg = new GameObject("HellFireLight"); lg.transform.SetParent(parent, false); lg.transform.position = pos;
+            var l = lg.AddComponent<Light>(); l.type = LightType.Point; l.color = new Color(1f, 0.42f, 0.14f); l.range = range; l.intensity = intensity;
             l.shadows = LightShadows.None; l.renderMode = LightRenderMode.ForcePixel;
             var fl = lg.AddComponent<UWFlicker>(); fl.baseIntensity = l.intensity; fl.amount = 0.25f;
+        }
+
+        // a fire (gate, rims, roof): the downloaded flame flipbook + smoke + sparks
+        void Fire(Transform root, Vector3 p)
+        {
+            if (!FireMats()) return;
+            var go = new GameObject("HellFire"); go.transform.SetParent(root, false); go.transform.position = p;
+            Flames(go.transform, p + Vector3.up * 0.1f, new Vector3(2.2f, 0.1f, 2.2f), 2.2f, 3.6f, 9f, 0.7f);
+            Smoke(go.transform, p + Vector3.up * 2.5f, 1.2f, 3.5f, 1.2f);
+            Sparks(go.transform, p + Vector3.up * 0.5f, new Vector3(2f, 0.2f, 2f), 6f);
+            FireLight(go.transform, p + Vector3.up * 1.5f, 14f, 18f);
+        }
+
+        // the lava sea burns: flame patches scattered over it, burning corpses on the plaza rim strip and adrift in the lava
+        void FireSea(Transform root, System.Func<float, float, float> ground)
+        {
+            if (!FireMats()) { Debug.LogWarning("UWLook: HellFX materials missing (run Tools/Underworld/Quality/Build Hell Fire Assets)"); return; }
+            var rnd = new System.Random(1414);
+            float F(float a, float b) => a + (float)rnd.NextDouble() * (b - a);
+            var fx = new GameObject("UWLook fire sea").transform; fx.SetParent(root, false);
+            var cps = new[] { Resources.Load<GameObject>("HellFX/Corpse_Back"), Resources.Load<GameObject>("HellFX/Corpse_Front"), Resources.Load<GameObject>("HellFX/Corpse_Side") };
+            int nc = 0;
+            void Corpse(Vector3 at, float sink, float flameRate)
+            {
+                var pf = cps[rnd.Next(cps.Length)]; if (!pf) return;
+                var go = Instantiate(pf, fx);
+                go.transform.SetPositionAndRotation(at - Vector3.up * sink, Quaternion.Euler(0f, F(0f, 360f), 0f));
+                go.transform.localScale = Vector3.one * F(0.95f, 1.1f);
+                nc++;
+                if (flameRate > 0f)
+                {
+                    Flames(go.transform, at + Vector3.up * 0.15f, new Vector3(0.9f, 0.2f, 1.5f), 0.9f, 1.7f, flameRate, 0.4f);
+                    if (rnd.NextDouble() < 0.5) Smoke(go.transform, at + Vector3.up * 1.8f, 0.5f, 2.2f, 0.6f);
+                }
+            }
+            float xMin = plazaRect.xMin, xMax = plazaRect.xMax, zMin = plazaRect.yMin, zMax = plazaRect.yMax;
+            Vector3 OnRimStrip()
+            {
+                // 0.8-3 m inside a random plaza edge (lilies share the strip; corpses have no colliders)
+                int side = rnd.Next(4); float t = F(0.05f, 0.95f), d = F(0.8f, 3f);
+                float x = side == 0 ? xMin + d : side == 1 ? xMax - d : Mathf.Lerp(xMin, xMax, t);
+                float z = side == 2 ? zMin + d : side == 3 ? zMax - d : Mathf.Lerp(zMin, zMax, t);
+                if (side == 3 && Mathf.Abs(x - plazaRect.center.x) < 12f) x += 24f * Mathf.Sign(x - plazaRect.center.x + 0.01f);   // keep the gate approach clear
+                return new Vector3(x, ground(x, z), z);
+            }
+            Vector3 OnSea(float outMin, float outMax)
+            {
+                float a = F(0f, Mathf.PI * 2f);
+                var p = Rim3(new Vector2(Mathf.Cos(a), Mathf.Sin(a)), F(outMin, outMax)); p.y = seaHeight; return p;
+            }
+            for (int i = 0; i < rimCorpses; i++) Corpse(OnRimStrip(), 0.05f, F(4f, 7f));
+            for (int i = 0; i < seaCorpses; i++) Corpse(OnSea(2f, 16f), 0.25f, F(3f, 6f));
+            // flame patches on the lava: 2-6 m wide fields of 2-5 m flames
+            for (int i = 0; i < seaFires; i++)
+            {
+                var p = OnSea(0.5f, 16f);   // pass 2: most of the sea beyond ~16 m is never on screen
+                float w = F(2.5f, 6f);
+                Flames(fx, p, new Vector3(w, 0.2f, w * F(0.5f, 1f)), 2.6f, 5.5f, w * 2.4f, F(0.3f, 0.8f));
+                if (i % 3 == 0) Smoke(fx, p + Vector3.up * 3f, w * 0.4f, 5f, 1.2f);
+                if (i % 2 == 0) Sparks(fx, p + Vector3.up * 0.5f, new Vector3(w, 0.2f, w), 4f);
+            }
+            // pass 2: the boulder band along the plaza lip hid the sea from the gameplay camera (south edge read as a black
+            // wall): flames burning on the lip itself, just outside the walkable plaza, at plaza height
+            for (int i = 0; i < lipFires; i++)
+            {
+                float a = F(0f, Mathf.PI * 2f); var d = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                if (d.y > 0.5f && Mathf.Abs(d.x) < 0.25f) continue;   // gate side has its own fires
+                var p = Rim3(d, F(0.8f, 4f)); p.y = 0.2f;
+                float w = F(2f, 4.5f);
+                Flames(fx, p, new Vector3(w, 0.2f, w * 0.6f), 2.2f, 4.2f, w * 2.2f, F(0.4f, 0.8f));
+                if (i % 4 == 0) Smoke(fx, p + Vector3.up * 3f, w * 0.4f, 4f, 0.8f);
+            }
+            Debug.Log($"UWLook: fire sea {seaFires} flame patches, {lipFires} lip fires, {nc} corpses");
         }
 
         // Kido 11-13: the stage's first-draft primitive props (my own placeholder pagoda, gate, statues, rocks, walls, trees,

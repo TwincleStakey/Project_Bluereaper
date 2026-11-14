@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UW_LavaField
+  m_Shader: {fileID: 4800000, guid: b89e580a9b7780b4e9ca4b9a11faeb8d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 66da9d225a145f54b94a0e06f4002088, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmisMap:
+        m_Texture: {fileID: 2800000, guid: 936c88c9ea2a5e5499db7c8494e17a6c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _HeightMap:
+        m_Texture: {fileID: 2800000, guid: 57c9e2d57c347cc4bb35219c0eeccce2, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 2800000, guid: 9209557250b53b44195fb2838eef7ed9, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlbedoMul: 0.2
+    - _Breathe: 0.25
+    - _EmisGain: 5
+    - _EmisPow: 1
+    - _Flow: 0.12
+    - _MoltenLo: 0.7
+    - _NoShadow: 1
+    - _Tile: 7
+    m_Colors:
+    - _EmisTint: {r: 1, g: 0.5, b: 0.28, a: 1}
+    - _MoltenCol: {r: 1.6, g: 0.41599998, b: 0.080000006, a: 1.6}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

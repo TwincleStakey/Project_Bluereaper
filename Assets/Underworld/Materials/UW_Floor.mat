@@ -32,19 +32,19 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CliffAH:
-        m_Texture: {fileID: 2800000, guid: 3562875e810e8a347a517c2d4b888824, type: 3}
+        m_Texture: {fileID: 2800000, guid: 4d597b17041c5ab479811f2d65d213a2, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CliffNRA:
-        m_Texture: {fileID: 2800000, guid: 2c2ade8c4e8910646914577ad39f8b5d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 9ff6700e3c1ce604f961731fd835cb36, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _FlagAH:
-        m_Texture: {fileID: 2800000, guid: 3562875e810e8a347a517c2d4b888824, type: 3}
+        m_Texture: {fileID: 2800000, guid: 4d597b17041c5ab479811f2d65d213a2, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _FlagNRA:
-        m_Texture: {fileID: 2800000, guid: 2c2ade8c4e8910646914577ad39f8b5d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 9ff6700e3c1ce604f961731fd835cb36, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MudAH:
@@ -82,11 +82,12 @@ Material:
     m_Ints: []
     m_Floats:
     - _AOStr: 0.7
-    - _AshAmt: 0.22
+    - _AshAmt: 0.42
     - _AshLift: 0.2
     - _BlendDepth: 0.2
-    - _Cavity: 0.5
+    - _Cavity: 0.55
     - _CliffTile: 3
+    - _CodeFX: 0
     - _CrackAmt: 0
     - _FloorRefY: 0
     - _GroutLevel: 0.3
@@ -97,17 +98,17 @@ Material:
     - _LavaPulse: 0.3
     - _LavaScale: 1
     - _LavaWidth: 0.5
-    - _Macro: 0.6
+    - _Macro: 0.75
     - _MudAmt: 0
     - _NrmStr: 0.9
     - _ObsAmt: 0.1
     - _Remap: 0.85
     - _RimAmt: 0
-    - _RubAmt: 0.8
-    - _Sat: 0.3
+    - _RubAmt: 0.75
+    - _Sat: 0.22
     - _ScorchAmt: 0.6
     - _SeaMode: 0
-    - _SeamDark: 0.25
+    - _SeamDark: 0.2
     - _SideTile: 3
     - _Smooth: 0.28
     - _SmoothMax: 0.3
@@ -120,13 +121,13 @@ Material:
     m_Colors:
     - _AshTint: {r: 0.72, g: 0.66, b: 0.62, a: 1}
     - _ClearZone: {r: -2, g: -2, b: 6, a: 8}
-    - _CliffTint: {r: 1.2, g: 1.15, b: 1.1, a: 1}
+    - _CliffTint: {r: 0.9, g: 0.85, b: 0.8, a: 1}
     - _CrackCol: {r: 0.25, g: 0.55, b: 0.7, a: 1}
     - _EdgeRect: {r: -44, g: -29, b: 44, a: 27}
     - _Emission: {r: 0, g: 0, b: 0, a: 1}
-    - _FlagTint: {r: 1.35, g: 1.27, b: 1.2, a: 1}
-    - _HeightHi: {r: 0.74, g: 0.64, b: 0.71, a: 0.37}
-    - _HeightLo: {r: 0.26, g: 0.23, b: 0.28, a: 0.12}
+    - _FlagTint: {r: 1.1, g: 1.03, b: 0.96, a: 1}
+    - _HeightHi: {r: 0.8, g: 0.64, b: 0.71, a: 0.37}
+    - _HeightLo: {r: 0.2, g: 0.23, b: 0.28, a: 0.12}
     - _Lane0: {r: -2, g: -2, b: -2, a: 27}
     - _Lane1: {r: -2, g: -2, b: 20, a: 26}
     - _LaneWidth: {r: 5, g: 7, b: 0, a: 0}
@@ -137,7 +138,7 @@ Material:
     - _RimCol: {r: 0.47999996, g: 0.23999995, b: 0.78, a: 1}
     - _RubTint: {r: 3.6, g: 3.4, b: 3.2, a: 1}
     - _SideTint: {r: 0.26666668, g: 0.24313726, b: 0.3137255, a: 1}
-    - _Tiles: {r: 3, g: 2, b: 1.4, a: 4.5}
+    - _Tiles: {r: 4, g: 2.2, b: 1.6, a: 4.5}
     - _Tint: {r: 0.29803923, g: 0.27450982, b: 0.32156864, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

@@ -15,3 +15,4 @@ Added 2026-11-13 (third pass, "underworld, not a field"):
   Coal    = Coal Debris (1 m)             https://www.fab.com/listings/6d4f763b-35c6-41be-9568-97923358950d
   Bones (3D, Assets/Underworld/Models/Bones): Animal Jaw Bone https://www.fab.com/listings/6342cc06-f514-4a1c-bd7f-98eb40d23464
                                               Animal Leg Bone https://www.fab.com/listings/59a5f8d3-6381-4a0c-82eb-7e61952d85db
+  Lava    = Hawaiian Lava Stone (4 m)   https://www.fab.com/listings/a3c6ff99-d81e-446c-bbfc-4b44b74bec4f  (11-14, main floor rock; packed by packone.py)
