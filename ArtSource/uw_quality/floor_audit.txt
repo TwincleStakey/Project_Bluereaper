@@ -1,0 +1,6 @@
+5 renderers use UW_Floor
+Underworld/Ground/UW_Plaza | pos (0.00, 0.00, 0.00) rot (0.00, 180.00, 0.00) scale (1.00, 1.00, 1.00) | bounds min (-44.00, -7.10, -29.00) max (44.00, 0.00, 27.00) | mesh UW_Plaza v7428 | static False
+Underworld/Ground/UW_PlatformBack | pos (0.00, 0.00, 0.00) rot (0.00, 180.00, 0.00) scale (1.00, 1.00, 1.00) | bounds min (11.39, -0.50, 22.83) max (28.61, 1.20, 31.65) | mesh UW_PlatformBack v1210 | static False
+Underworld/Ground/UW_GateTerrace | pos (0.00, 0.00, 0.00) rot (0.00, 180.00, 0.00) scale (1.00, 1.00, 1.00) | bounds min (-44.11, -0.59, -16.13) max (-35.85, 0.90, -5.32) | mesh UW_GateTerrace v892 | static False
+Underworld/Ground/UW_Steps | pos (0.00, 0.00, 0.00) rot (0.00, 180.00, 0.00) scale (1.00, 1.00, 1.00) | bounds min (-36.00, 0.00, -12.45) max (23.00, 0.90, 23.00) | mesh UW_Steps v116 | static False
+Underworld/Architecture/GateDais | pos (-48.00, 0.08, 0.30) rot (0.00, 0.00, 0.00) scale (11.00, 0.16, 3.40) | bounds min (-53.50, 0.00, -1.40) max (-42.50, 0.16, 2.00) | mesh Cube v24 | static False

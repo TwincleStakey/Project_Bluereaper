@@ -1,0 +1,2 @@
+Animal_Jaw_Bone_vilicfiaa_Mid: 3458 tris, bounds (0.11, 0.12, 0.27)
+Animal_Leg_Bone_vd5jei1aa_Mid: 2494 tris, bounds (0.28, 0.05, 0.06)

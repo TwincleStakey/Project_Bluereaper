@@ -1,0 +1,13 @@
+1_east_hell_0	https://i.ytimg.com/vi/jFPaFb2DhfA/maxresdefault.jpg
+1_east_hell_1	https://i.ytimg.com/vi/O1jQkwIIo5E/hqdefault.jpg
+1_east_hell_2	https://www.abandonware-france.org/images_abandonware/jeux/95107-artworks-onimusha-3-demon-siege.jpg
+1_east_hell_3	https://gamefabrique.com/screenshots2/ps2/onimusha-3-demon-siege-07.big.jpg
+2_topdown_hell_0	https://i.ytimg.com/vi/3i95A9b6HG4/maxresdefault.jpg
+2_topdown_hell_1	https://www.tehinterwebs.org/wp-content/uploads/2026/03/screenshot_2-59.jpg
+2_topdown_hell_2	https://assets.rockpapershotgun.com/images/2020/03/best-hells-4-diablo-iii.jpg
+2_topdown_hell_3	https://cdnb.artstation.com/p/assets/images/images/065/142/981/4k/jonathon-ruland-kehjhell-throneofhatred-b-templated85.jpg
+3_dark_arpg_hell_0	https://i.ytimg.com/vi/tGJ95l33HYo/maxresdefault.jpg
+3_dark_arpg_hell_1	https://i.ytimg.com/vi/7iGrsv6y12E/maxresdefault.jpg
+3_dark_arpg_hell_2	https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1782460/ss_2d0b5e631acc728c97fd9bc40352b926821cd83f.1920x1080.jpg
+3_dark_arpg_hell_3	https://static1.thegamerimages.com/wordpress/wp-content/uploads/2022/08/Road-of-Lament-Nazan-fight.jpg
+(web screenshots, reference only)

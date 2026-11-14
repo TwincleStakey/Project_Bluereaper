@@ -1,20 +1,16 @@
-// Underworld ground, rewrite 11-13 (owner: "too ugly"). Target: dark-fantasy ARPG ground (PoE2 / No Rest for the Wicked):
-// big worn flagstones that break into dark earth, debris along the seams, strong cavity darkening, macro variation.
-// Fab Megascans packed as  AH = albedo RGB + displacement A,  NRA = normal GL RG + roughness B + AO A:
-//   Flag   flagstone paving (2 m scan, tiled ~6 m so slabs read 0.6-1.2 m)
-//   Earth  burnt forest floor / ash (dark earth that fills the grout and eats the paving)
-//   Rubble gravel on soil (debris band along the stone/earth seam)
-//   Mud    second earth slot (damp dark dirt patches; generic, point it at a real mud scan later)
-//   Cliff  triplanar sides
-// Pipeline of the top surface:
-//   1. domain-warped soft masks (ash coverage with area-density variation, damp earth)
-//   2. hex-tile bombing of Flag and Earth (random rotation+offset per cell, height weighted) = no repetition
-//   3. height blend: earth fills the grout first (GroutLevel), stones poke out; the stone/earth balance is shifted by the mask
-//   4. seam: rubble where the blend is 50/50 (edge term), plus darkening band
-//   5. cavity: low parts of stones dirty, tops worn lighter; texture AO
-//   6. macro: 15-40 m brightness/hue/roughness, 4-8 m mid variation
-//   7. wet: a few subtle damp zones, darker, smoothness capped (no white specular circles from spot lights)
-// Texture samples on the top surface: Flag 6 + Earth 6 + Rubble 2 + Mud 2 = 16. Sides (Cliff 6) only run on non-up faces.
+// Underworld ground, HELL pass 11-13 (Diablo IV / Burning Hells from a high top-down camera).
+// Dark cracked volcanic rock with glowing molten-lava rifts and veins; glow carries the image, the rock stays near black.
+// Fab Megascans packed as  AH = albedo RGB + height A,  NRA = normal GL RG + roughness B + AO A:
+//   Flag   main cracked rock (hex-tile bombed)         Ash    cooled dark crust (hex-tile bombed, only a little, fills crevices)
+//   Rubble coal debris along the crack banks (hex-tile bombed, only evaluated near cracks)
+//   Mud    unused now (properties kept so the material keeps its slots)       Cliff  triplanar sides
+// Top surface pipeline:
+//   1 warped soft masks  2 hex bombing of Flag/Ash  3 height blend rock vs crust  4 lava distance fields:
+//   rifts = contour of a smooth 2-octave noise (0.3-1 m wide, pinched into broken rivers), veins = contours of two
+//   mid-frequency noises inside a ~40% region mask (+ always near rifts = branching), both perturbed by the rock height
+//   so the glow follows the scan's natural crevices   5 heat ramp cool->mid->hot + pulse + slow crust mottling
+//   6 scorch halo (rock darkens near lava) + warm fake bounce (emission tinted by rock albedo)  7 obsidian patches.
+// Texture samples (top): Flag 6 + Ash 6 + Rubble 6 (only near cracks) = 18 max. Sides (Cliff 6) only on non-up faces.
 Shader "Underworld/Ground"
 {
     Properties
@@ -30,6 +26,7 @@ Shader "Underworld/Ground"
         _CliffAH("Cliff albedo+height", 2D) = "grey" {}
         _CliffNRA("Cliff normal+rough+AO", 2D) = "grey" {}
         _Tiles("Metres per tile (flag, earth, rubble, mud)", Vector) = (6, 4, 1.2, 7)
+        _FloorRefY("Floor reference height (m) for the view-projected mapping", Float) = 0
         _CliffTile("Cliff metres per tile", Float) = 4
         _HeightLo("Scan height low (flag, earth, rubble, mud)", Vector) = (0.28, 0.12, 0.28, 0.12)
         _HeightHi("Scan height high (flag, earth, rubble, mud)", Vector) = (0.66, 0.37, 0.69, 0.37)
@@ -56,6 +53,24 @@ Shader "Underworld/Ground"
         _SmoothMax("Smoothness cap", Range(0, 1)) = 0.65
         _CrackAmt("Glowing soul cracks", Range(0, 1)) = 0.25
         [HDR] _CrackCol("Crack colour", Color) = (0.35, 0.9, 1.1, 1)
+        _LavaAmt("Lava vein region coverage", Range(0, 1)) = 0.6
+        _LavaWidth("Rift half-width (m)", Range(0.05, 2.0)) = 1.0
+        _LavaScale("Lava crust/sea feature scale", Range(0.3, 6)) = 1.0
+        _SeaMode("Lava sea mode (all molten)", Range(0, 1)) = 0.0
+        _ClearZone("River-free zone (x, z, radius m, fade m)", Vector) = (-2, -2, 5, 2.5)
+        _Lane0("River-free lane 0 (x1, z1, x2, z2)", Vector) = (0, 0, 0, 0)
+        _Lane1("River-free lane 1 (x1, z1, x2, z2)", Vector) = (0, 0, 0, 0)
+        _LaneWidth("Lane half width / fade (m)", Vector) = (4, 3, 0, 0)
+        _EdgeRect("Plaza rect for the broken rim (xMin, zMin, xMax, zMax; zero = off)", Vector) = (0, 0, 0, 0)
+        [HDR] _LavaColHot("Lava hottest core", Color) = (1.0, 0.82, 0.42, 1)
+        [HDR] _LavaColMid("Lava mid", Color) = (1.0, 0.3, 0.04, 1)
+        [HDR] _LavaColCool("Lava cool edge", Color) = (0.55, 0.04, 0.01, 1)
+        _LavaIntensity("Lava HDR intensity", Range(0, 12)) = 3.5
+        _LavaPulse("Lava pulse depth", Range(0, 1)) = 0.35
+        _LavaFlow("Lava crust flow speed", Range(0, 3)) = 1.0
+        _LavaBounce("Warm bounce on rock", Range(0, 2)) = 0.5
+        _ScorchAmt("Scorch halo darkening", Range(0, 1)) = 0.6
+        _ObsAmt("Obsidian patches", Range(0, 1)) = 0.5
         _RimCol("Rim colour", Color) = (0.4, 0.5, 0.6, 1)
         _RimAmt("Rim amount", Range(0, 1)) = 0.0
     }
@@ -73,8 +88,12 @@ Shader "Underworld/Ground"
         #define SMP sampler_FlagAH
         CBUFFER_START(UnityPerMaterial)
         float4 _Tiles, _HeightLo, _HeightHi, _FlagTint, _AshTint, _RubTint, _MudTint, _CliffTint, _CrackCol, _RimCol;
-        float _CliffTile, _Sat, _AshAmt, _RubAmt, _MudAmt, _GroutLevel, _AshLift, _BlendDepth, _SeamDark, _Cavity, _NrmStr, _Macro, _AOStr;
+        float _FloorRefY, _CliffTile, _Sat, _AshAmt, _RubAmt, _MudAmt, _GroutLevel, _AshLift, _BlendDepth, _SeamDark, _Cavity, _NrmStr, _Macro, _AOStr;
         float _SmoothScale, _WetAmt, _WetSmooth, _SmoothMax, _CrackAmt, _RimAmt;
+        float4 _LavaColHot, _LavaColMid, _LavaColCool;
+        float4 _ClearZone, _EdgeRect, _Lane0, _Lane1, _LaneWidth;
+            float SegD(float2 p, float4 s) { float2 a = s.xy, b = s.zw, ab = b - a; float t = saturate(dot(p - a, ab) / max(dot(ab, ab), 1e-4)); return length(p - a - ab * t); }
+        float _LavaScale, _SeaMode, _LavaAmt, _LavaWidth, _LavaIntensity, _LavaPulse, _LavaFlow, _LavaBounce, _ScorchAmt, _ObsAmt;
         CBUFFER_END
         ENDHLSL
 
@@ -162,13 +181,45 @@ Shader "Underworld/Ground"
             float Luma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
             float3 Desat(float3 c, float s) { return lerp(Luma(c).xxx, c, s); }
 
+            // Gradient (Perlin) noise, 0..1, quintic fade, lattice pre-rotated. Value noise (UWNoise) has zero slope on every lattice
+            // line, so its mid-level contours snap to the grid and read as straight axis-aligned cuts; gradient noise does not.
+            float GN(float2 x)
+            {
+                x = mul(float2x2(0.8, -0.6, 0.6, 0.8), x);
+                float2 i = floor(x), f = frac(x);
+                float2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+                float a = dot(UWHash22(i) * 2.0 - 1.0, f);
+                float b = dot(UWHash22(i + float2(1, 0)) * 2.0 - 1.0, f - float2(1, 0));
+                float c = dot(UWHash22(i + float2(0, 1)) * 2.0 - 1.0, f - float2(0, 1));
+                float d = dot(UWHash22(i + float2(1, 1)) * 2.0 - 1.0, f - float2(1, 1));
+                return saturate(0.5 + 0.9 * lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y));
+            }
+            // second-octave helper: lattice turned a further 60 degrees so octaves never share grid directions
+            float GN2(float2 x) { return GN(mul(float2x2(0.5, -0.866, 0.866, 0.5), x)); }
+            // pass 3: sin-free hash + value noise (Hoskins). UWHash21 is frac(sin(big)): on the lava sea (|p| ~ 100-500 m after
+            // scaling) GPU sin loses precision and the mottle came out as blocky horizontal bands.
+            float HH(float2 p) { float3 p3 = frac(float3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return frac((p3.x + p3.y) * p3.z); }
+            float VN(float2 x)
+            {
+                float2 i = floor(x), f = frac(x); float2 u = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(HH(i), HH(i + float2(1, 0)), u.x), lerp(HH(i + float2(0, 1)), HH(i + float2(1, 1)), u.x), u.y);
+            }
+
             half4 frag(V2F i) : SV_Target
             {
                 float3 ws = i.positionWS;
                 float3 N = normalize(i.normalWS);
-                float top = smoothstep(0.7, 0.9, N.y);
-                float2 p = ws.xz;
+                // the plaza floor is many tiles at slightly different heights; plain ws.xz shifts the pattern by the step
+                // height x the view slope, which cut every lava line at tile borders. Project along the view ray onto the
+                // reference plane instead, so the pattern is continuous on screen across steps.
+                float3 vr = ws - _WorldSpaceCameraPos;
+                float2 p = ws.xz;   // (view-projected mapping tried 11-13; floor is one flat mesh, not needed) vr unused: float _unusedRef = _FloorRefY;
                 float3 dwx = ddx(ws), dwy = ddy(ws);     // derivatives outside any branch (sampling uses _GRAD)
+                // robust 'upward' test from the geometric normal (ignores smoothed/tilted/scaled vertex normals, same for every floor mesh)
+                float3 Ng = normalize(cross(dwx, dwy));
+                float top = smoothstep(0.35, 0.6, abs(Ng.y));
+                N = lerp(N, float3(0, 1, 0), top);   // top pieces shade with a clean up normal; the cliff branch is skipped at top >= 0.999
+                N = normalize(N);
 
                 float3 albedo; float3 n; float rough, ao, height = 0.5;
                 float stoneW = 0, earthW = 0, edge = 0;
@@ -196,77 +247,215 @@ Shader "Underworld/Ground"
                 }
 
                 // ------------------------------------------------------------- top surface
-                float3 topAlb = 0, topN = float3(0, 1, 0); float topR = 0.8, topAO = 1, crackMask = 0, wetMask = 0;
+                float3 topAlb = 0, topN = float3(0, 1, 0); float topR = 0.8, topAO = 1;
+                float3 lavaEm = 0, bounceEm = 0; float lavaMask = 0, obsOut = 0, crackMask = 0;
                 if (top > 0.001)
                 {
-                    // ---- 1. soft, domain-warped masks (everything below is smooth: no tiny-width smoothsteps)
-                    float2 warp = float2(UWNoise(p * 0.06 + 3.1), UWNoise(p * 0.06 + 8.7)) - 0.5;
+                    // ---- 1. soft, domain-warped masks
+                    float2 warp = float2(GN(p * 0.06 + 3.1), GN2(p * 0.06 + 8.7)) - 0.5;
                     float2 q = p + warp * 16.0;                                         // large warp: organic outlines
-                    q += (float2(UWNoise(p * 0.45 + 1.7), UWNoise(p * 0.45 + 5.9)) - 0.5) * 1.6;   // small warp: ragged edge
+                    q += (float2(GN(p * 0.45 + 1.7), GN2(p * 0.45 + 5.9)) - 0.5) * 1.6;   // small warp: ragged edge
                     float m1 = UWFbm(p * 0.03 + 2.7);                                   // ~33 m macro
                     float n1 = saturate((m1 - 0.25) / 0.5);
                     float m2 = UWNoise(p * 0.2 + 13.0);                                 // ~5 m mid
-                    float density = UWNoise(p * 0.02 + 40.0) - 0.5;                     // 50 m: some areas stay paved, some are mostly earth
+                    float density = UWNoise(p * 0.02 + 40.0) - 0.5;
                     float earthN = UWFbm(q * 0.045 + 7.3) + (UWNoise(q * 0.35) - 0.5) * 0.2;
                     float thr = 0.62 - _AshAmt * 0.25 - density * 0.35;
-                    float ash = smoothstep(thr - 0.13, thr + 0.13, earthN);             // 0 = paved, 1 = earth with a few stones poking out
-                    float mudM = smoothstep(0.5, 0.78, UWFbm(q * 0.08 + 31.7)) * _MudAmt;
+                    float ash = smoothstep(thr - 0.13, thr + 0.13, earthN);             // cooled crust coverage (kept small)
 
-                    // ---- 2. layers
+                    // ---- 2. layers (hex-tile bombing: no visible cells, no repetition)
                     float2 dpx = dwx.xz, dpy = dwy.xz;
-                    float2 uf = p / _Tiles.x, ue = p / _Tiles.y, ur = p / _Tiles.z, um = p / _Tiles.w;
-                    L lf = Hex(_FlagAH, _FlagNRA, uf, dpx / _Tiles.x, dpy / _Tiles.x, 3.0, float2(_HeightLo.x, _HeightHi.x));
-                    L la = Hex(_AshAH, _AshNRA, ue, dpx / _Tiles.y, dpy / _Tiles.y, 2.0, float2(_HeightLo.y, _HeightHi.y));
-                    L lr = SampleRot(_RubAH, _RubNRA, ur, dpx / _Tiles.z, dpy / _Tiles.z, floor(p / (_Tiles.z * 3.0)), float2(_HeightLo.z, _HeightHi.z));
-                    L lm = SampleRot(_MudAH, _MudNRA, um, dpx / _Tiles.w, dpy / _Tiles.w, floor(p / (_Tiles.w * 3.0)) + 17, float2(_HeightLo.w, _HeightHi.w));
-
+                    float2 uf = p / _Tiles.x, ue = p / _Tiles.y;
+                    L lf = Hex(_FlagAH, _FlagNRA, uf, dpx / _Tiles.x, dpy / _Tiles.x, 1.5, float2(_HeightLo.x, _HeightHi.x));
+                    L la = Hex(_AshAH, _AshNRA, ue, dpx / _Tiles.y, dpy / _Tiles.y, 1.2, float2(_HeightLo.y, _HeightHi.y));
                     lf.a = Desat(lf.a, _Sat) * _FlagTint.rgb;
                     la.a = Desat(la.a, _Sat) * _AshTint.rgb;
-                    lr.a = Desat(lr.a, _Sat) * _RubTint.rgb;
-                    lm.a = Desat(lm.a, _Sat) * _MudTint.rgb;
-                    la.o = lerp(1.0, la.o, 0.6);       // the earth scan's AO is very dark; keep it from crushing the floor
-                    lm.o = lerp(1.0, lm.o, 0.6);
+                    la.o = lerp(1.0, la.o, 0.6);
 
-                    // cavity on the stones: dirt gathers in the low parts, the proud tops are worn lighter
+                    // cavity on the rock: low parts darker, proud tops slightly lighter
                     float cav = lerp(1.0 - _Cavity * 0.75, 1.0, smoothstep(0.1, 0.6, lf.h));
                     lf.a *= cav * (1.0 + 0.18 * smoothstep(0.6, 0.95, lf.h));
 
-                    // damp/dark earth patches blend softly into the base earth (by mask, nudged by relative height)
-                    float mw = saturate(mudM * 1.4 + (lm.h - la.h) * 0.25 * mudM);
-                    L le = Lerp(la, lm, mw);
-
-                    // ---- 3. height blend stone vs earth: earth fills the grout first, stones poke out as coverage rises
+                    // ---- 3. height blend rock vs cooled crust (crust only fills the low crevices)
                     float hS = lf.h + (1.0 - ash) * _AshLift;
-                    float hE = _GroutLevel + le.h * 0.2 + ash * _AshLift;
+                    float hE = _GroutLevel + la.h * 0.2 + ash * _AshLift;
                     float hmax = max(hS, hE) - _BlendDepth;
                     float2 bw = max(float2(hS, hE) - hmax, 0.0);
                     bw /= max(bw.x + bw.y, 1e-4);
                     stoneW = bw.x; earthW = bw.y;
-                    L g = Lerp(le, lf, stoneW);
-
-                    // ---- 4. seam: debris + darkening where stone and earth meet
+                    L g = Lerp(la, lf, stoneW);
                     edge = 4.0 * stoneW * (1.0 - stoneW);
-                    float rubN = UWNoise(p * 1.1 + 9.0);
-                    float rubW = smoothstep(0.2, 0.8, edge * _RubAmt * (0.55 + rubN) + (lr.h - 0.5) * 0.6 * saturate(edge * 2.0));
-                    g = Lerp(g, lr, rubW);
-                    g.a *= 1.0 - _SeamDark * edge * (1.0 - rubW * 0.5);
 
-                    // ---- 6. macro variation: 15-40 m brightness / hue / roughness, 4-8 m mid brightness
+                    // ---- 4. lava distance fields (metres, approximate = noise distance / noise gradient)
+                    // all shapes are gradient noise of the warped plane q only (no hex-sampled term anywhere in the glow path)
+                    float tt = _UWTime;
+                    float sea = _SeaMode;
+                    float2 ql = q / max(_LavaScale, 0.1);
+                    // rifts: a FEW wide rivers = contour of a smooth 2-octave noise (33 m cells), 0.5-1.5 x _LavaWidth half-width, pinched into segments
+                    float fr = 0.65 * GN(q * 0.032 + 11.3) + 0.35 * GN2(q * 0.08 + 23.7);
+                    // pass 3: true-ish distance (divide by the local world gradient, from screen derivatives). With a constant
+                    // divisor, flat stretches of the noise (fr ~ 0.5 over metres) became huge molten pools.
+                    float2 wd = float2(length(float2(ddx(p.x), ddy(p.x))), length(float2(ddx(p.y), ddy(p.y)))) + 1e-4;
+                    float gfr = length(float2(ddx(fr), ddy(fr))) / max(min(wd.x, wd.y), 1e-4);
+                    float dR0 = abs(fr - 0.5) / clamp(gfr, 0.006, 0.08);
+                    float dR = dR0 + (GN(q * 0.9 + 5.0) - 0.5) * 0.5;
+                    float pinch = smoothstep(0.2, 0.45, GN2(q * 0.07 + 77.0));
+                    float hwR = max(_LavaWidth * (0.5 + 1.0 * GN(q * 0.1 + 3.0)) * pinch, 0.02);
+                    // pass 5 (final_04 #1/#2): rivers TAPER to a point instead of being cut: (a) only about half of the river
+                    // network exists (low-frequency keep mask), (b) none within _ClearZone of the spawn / boss centre,
+                    // (c) none in the last metres before the plaza rim (they used to end flat against the edge)
+                    float taper = smoothstep(0.3, 0.5, GN(p * 0.018 + 71.0));   // pass 7: more rivers back (glow)
+                    taper *= smoothstep(_ClearZone.z, _ClearZone.z + _ClearZone.w, distance(ws.xz, _ClearZone.xy));
+                    if (_EdgeRect.z > _EdgeRect.x)
+                    {
+                        float dE0 = min(min(p.x - _EdgeRect.x, _EdgeRect.z - p.x), min(p.y - _EdgeRect.y, _EdgeRect.w - p.y));
+                        taper *= smoothstep(6.0, 11.0, dE0);   // pass 8: also clears the narrow NE ledge (final_07 #2)
+                    }
+                    // pass 6 (final_05 #2): no rivers on the natural walking lanes (spawn -> gate, spawn -> portal)
+                    if (dot(_Lane0, _Lane0) > 0) taper *= smoothstep(_LaneWidth.x, _LaneWidth.x + _LaneWidth.y, SegD(p, _Lane0));
+                    if (dot(_Lane1, _Lane1) > 0) taper *= smoothstep(_LaneWidth.x, _LaneWidth.x + _LaneWidth.y, SegD(p, _Lane1));
+                    taper = lerp(taper, 1.0, _SeaMode);
+                    hwR = max(hwR * taper, 0.0005);
+                    // veins: RARE, short, only within a few metres of a rift (branching off), thin and dim red
+                    float f2 = 0.7 * GN(q * 0.16 + 51.7) + 0.3 * GN2(q * 0.37 + 13.9);
+                    float f3 = 0.7 * GN2(q * 0.13 + 87.3) + 0.3 * GN(q * 0.41 + 33.1);
+                    float dV = min(abs(f2 - 0.5), abs(f3 - 0.5)) / 0.12;
+                    float regN = 0.6 * GN(q * 0.035 + 91.0) + 0.3 * GN2(q * 0.07 + 12.0) + 0.1 * GN(q * 0.15 + 3.0);
+                    float thrV = 0.68 - _LavaAmt * 0.12;
+                    float region = smoothstep(thrV - 0.05, thrV + 0.05, regN);
+                    float nearR = saturate(1.0 - dR0 / (_LavaWidth * 3.0 + 2.5));
+                    float regTot = nearR * region;
+                    float hwV = _LavaWidth * 0.1 * (0.6 + 0.8 * GN(q * 0.5 + 9.0)) * regTot;
+                    float cR = saturate(1.0 - dR / hwR);
+                    // final_03 #1: keep the spawn / boss centre free of rivers (rivers fade out over _ClearZone.w metres)
+                    cR *= smoothstep(0.02, 0.15, hwR);   // tapered-away tips vanish cleanly
+                    float cV = saturate(1.0 - dV / max(hwV, 0.005)) * smoothstep(0.02, 0.07, hwV) * 0.3;   // caps veins at dim red-orange
+                    float lavaCore = max(cR, cV);                                       // 0 at bank .. 1 at centre line
+                    // pass 4 (final_03 #3, ruler-straight plaza edges): a jagged glowing fissure runs 0.8-3.5 m inside the rim and
+                    // the strip outside it is charred and crumbling, so the edge reads as broken-off rock over the lava sea
+                    float crumble = 0;
+                    if (_EdgeRect.z > _EdgeRect.x)
+                    {
+                        float dE = min(min(p.x - _EdgeRect.x, _EdgeRect.z - p.x), min(p.y - _EdgeRect.y, _EdgeRect.w - p.y));
+                        float eL = dE - (0.6 + 4.0 * GN(p * 0.12 + 61.0) + 0.8 * GN2(p * 0.6 + 17.0));
+                        float hwE = 0.12 + 0.3 * GN(p * 0.35 + 5.0);
+                        float segE = smoothstep(0.42, 0.58, GN(p * 0.09 + 41.0));       // broken into separate cracks, not one line
+                        float cE = saturate(1.0 - abs(eL) / hwE) * smoothstep(-1.0, 4.0, dE) * (1.0 - sea) * segE;
+                        lavaCore = max(lavaCore, cE * 0.0);   // fissure off: even broken, a crack parallel to the rim still read as a ruler line
+                        crumble = smoothstep(0.2, -0.6, eL) * (1.0 - sea);
+                    }
+                    // lava sea mode: the whole surface is molten, brightness drifting slowly
+                    // sea = glowing channels along the 0.5 contour of a warped gradient-noise field, everything else is dark crust islands
+                    float2 qs = ql + float2(tt * 0.04, -tt * 0.025) * _LavaFlow;        // slow flow
+                    qs += (float2(GN(ql * 0.25 + 3.0), GN2(ql * 0.25 + 9.0)) - 0.5) * 4.0;
+                    float sf = 0.55 * GN(qs * 0.05 + 21.0) + 0.3 * GN2(qs * 0.13 + 4.0) + 0.15 * GN(qs * 0.4 + 15.0);
+                    float seaCh = saturate(1.0 - abs(sf - 0.5) / 0.05);                 // pass 4: narrower, crisper channels
+                    seaCh = seaCh * seaCh * (3.0 - 2.0 * seaCh);
+                    lavaCore = lerp(lavaCore, seaCh, sea);
+                    if (sea > 0.5)
+                    {
+                        // pass 4 (final_03 #2, "mushy sea"): the crust islands break into ~4 m basalt plates with glowing seams,
+                        // so the sea reads as a cracked crust floating on lava instead of soft cream blobs
+                        float bdS = UWVoronoi(qs * 0.6).y;
+                        float seam = 1.0 - smoothstep(0.03, 0.12, bdS);
+                        float seamReg = smoothstep(0.33, 0.55, GN(qs * 0.08 + 13.0));   // only some crust fields are cracked (no even web)
+                        lavaCore = max(lavaCore, seam * (1.0 - seaCh) * 0.8 * seamReg);
+                    }
+                    lavaMask = smoothstep(0.0, 0.2, lavaCore);
+                    // wide soft red halo onto the rock around rifts, much tighter around veins
+                    float presence = smoothstep(0.1, 0.5, hwR);                           // pinched-off rift stretches have no halo/bounce
+                    float halo = max(saturate(1.0 - dR / (hwR * 4.0 + 2.0)) * presence, saturate(1.0 - dV / (hwV * 3.0 + 0.2)) * regTot * 0.5);
+                    float bounceFall = saturate(1.0 - max(dR - hwR, 0.0) / 4.0);   // red bounce only within ~4 m of a rift
+                    bounceFall *= bounceFall * presence * (1.0 - sea);
+                    halo *= 1.0 - sea;
+                    halo *= halo;
+
+                    // heat-cracked basalt plates: polygonal slabs ~2.6 m (voronoi border distance is continuous), dark seams
+                    float bdR = UWVoronoi(q * 0.38).y;
+                    float rockSeam = 1.0 - smoothstep(0.03, 0.12, bdR);
+                    float plateLight = smoothstep(0.0, 0.45, bdR);
+
+                    // ---- 5. coal debris along the banks (only sampled near cracks)
+                    float bank = halo * (1.0 - lavaMask);
+                    float rubGate = bank * _RubAmt;   // noise-only gate (no hex-derived edge)
+                    if (rubGate > 0.04)
+                    {
+                        float2 ur = p / _Tiles.z;
+                        L lr = Hex(_RubAH, _RubNRA, ur, dpx / _Tiles.z, dpy / _Tiles.z, 1.2, float2(_HeightLo.z, _HeightHi.z));
+                        lr.a = Desat(lr.a, _Sat) * _RubTint.rgb;
+                        float rubN = UWNoise(p * 1.1 + 9.0);
+                        float rubW = smoothstep(0.2, 0.8, rubGate * (0.55 + rubN) * 1.6 + (lr.h - 0.5) * 0.6 * saturate(rubGate * 3.0));
+                        g = Lerp(g, lr, rubW * (1.0 - lavaMask));
+                    }
+                    g.a *= 1.0 - _SeamDark * edge;
+                    g.a *= (1.0 - 0.55 * rockSeam) * (0.8 + 0.35 * plateLight);
+
+                    // ---- 6. macro variation
                     float bright = 1.0 + _Macro * ((n1 - 0.5) * 1.1 + (m2 - 0.5) * 0.7);
                     g.a *= bright;
-                    g.a *= lerp(float3(1.05, 1.0, 0.93), float3(0.94, 0.99, 1.06), UWNoise(p * 0.035 + 5.0));   // warm/cool drift
+                    g.a *= lerp(float3(1.06, 1.0, 0.92), float3(0.95, 0.99, 1.04), UWNoise(p * 0.035 + 5.0));   // warm/cool drift
                     g.r = saturate(g.r + (n1 - 0.5) * 0.25 * _Macro);
-                    g.a = min(g.a, 0.32);   // hard luma-ish ceiling: nothing on the floor should ever bloom
+
+                    // ---- 7. obsidian: cooled black glass patches, smooth and dark, away from the molten core
+                    float obsN = 0.6 * GN(q * 0.07 + 201.0) + 0.3 * GN2(q * 0.15 + 7.0) + 0.1 * GN(q * 0.4 + 2.0);
+                    float obs = smoothstep(0.56, 0.7, obsN) * _ObsAmt * (1.0 - lavaMask);
+                    g.a = lerp(g.a, g.a * 0.3 + 0.008, obs);
+                    g.n *= 1.0 - 0.55 * obs;
+                    obsOut = obs;
+
+                    // scorch: rock darkens near the glow; the lava surface itself is a dark skin under the emission
+                    g.a *= 1.0 - _ScorchAmt * 0.7 * halo;
+                    g.a *= 1.0 - 0.85 * lavaMask;
+                    g.a *= 1.0 - 0.8 * crumble;   // pass 4: charred broken rim strip
+                    g.a = min(g.a, 0.2);   // hard ceiling: the rock must never bloom, only the lava does
+
+                    // ---- cooling crust skin: dark cracked plates floating on the rift; many at the banks, few in the deep core
+                    float crust = 0;
+                    if (lavaCore > 0.001 && sea < 0.5)
+                    {
+                        float2 pd = ql + float2(tt * 0.03, -tt * 0.02) * _LavaFlow;
+                        float bdC = UWVoronoi(pd * 0.9).y;
+                        float plate = smoothstep(0.04, 0.16, bdC);                       // 0 in the glowing gaps between plates
+                        float covRift = saturate((1.0 - cR) * 0.9 + 0.1) * saturate(cR * 6.0);   // none on thin veins, dense at banks, sparse in the core
+                        float islandN = 0.6 * GN(ql * 0.05 + 31.0) + 0.4 * GN2(ql * 0.12 + 5.0);
+                        float covSea = smoothstep(0.45, 0.65, islandN) * 0.95;           // drifting dark crust islands
+                        crust = plate * covRift;
+                    }
+
+                    // ---- lava emission: heat ramp (deep red edge -> orange -> yellow-orange core), slow pulse, crust mottling
+                    float flowN = VN(p * 1.3 + float2(tt * 0.12, -tt * 0.08) * _LavaFlow);
+                    float flowN2 = VN(p * 3.1 + float2(-tt * 0.2, tt * 0.15) * _LavaFlow + 7.0);
+                    float mottle = lerp(0.75, 1.3, saturate(flowN * 0.6 + flowN2 * 0.4));
+                    float heat = saturate(pow(lavaCore, 1.6) * mottle) * (1.0 - 0.92 * crust);
+                    float phase = VN(p * 0.06 + 4.0) * 6.2831853;                  // pulse rolls across the floor, not in lockstep
+                    float pulse = 1.0 + _LavaPulse * (0.7 * sin(tt * 0.8 + phase) + 0.3 * sin(tt * 1.9 + phase * 1.7));
+                    float3 lcol = lerp(_LavaColCool.rgb, _LavaColMid.rgb, smoothstep(0.05, 0.5, heat));
+                    lcol = lerp(lcol, _LavaColHot.rgb, smoothstep(0.7, 1.0, heat));
+                    // HDR levels (at _LavaIntensity 3.5): edge 0.4 -> mid 1.2 -> hot core 3.5 (exposure +1.6 EV is applied after)
+                    float level = lerp(0.4, 1.2, smoothstep(0.05, 0.5, heat));
+                    level = lerp(level, 2.6, smoothstep(0.7, 1.0, heat));   // final_03: hot core was 3.5 -> cream-white after exposure
+                    lavaEm = lcol * level * (_LavaIntensity / 3.5) * pulse * smoothstep(0.02, 0.25, heat);
+                    // fake bounce: dark-red light on the rock near rifts, strongest in the plate seams
+                    float3 bcol = _LavaColCool.rgb * 0.5 + _LavaColMid.rgb * 0.5;
+                    bounceEm = bcol * 0.37 * bounceFall * (1.0 - lavaMask) * _LavaIntensity * _LavaBounce * pulse * 0.35 * (0.25 + 1.2 * rockSeam);
+                    // pass 7 (final_06 #1, "too dark/empty"): dim crimson heat in the basalt plate seams over about half of the
+                    // floor - glow everywhere without a bright core; the bright orange stays reserved for the real rivers
+                    // (first try 0.12 seams over half the floor = the old red voronoi web again; now faint and patchy)
+                    float glowReg = smoothstep(0.55, 0.8, GN(p * 0.05 + 5.0));
+                    // pass 8 (final_07 #1): a ring of seam heat + flecks around the spawn hub (4-13 m), lanes kept clean
+                    float dHub = distance(ws.xz, _ClearZone.xy);
+                    float hub = smoothstep(3.0, 5.0, dHub) * (1.0 - smoothstep(10.0, 14.0, dHub));
+                    if (dot(_Lane0, _Lane0) > 0) hub *= smoothstep(2.5, 4.5, SegD(p, _Lane0));
+                    if (dot(_Lane1, _Lane1) > 0) hub *= smoothstep(2.5, 4.5, SegD(p, _Lane1));
+                    glowReg = max(glowReg, 0.6 * hub);
+                    float fleck = smoothstep(lerp(0.72, 0.66, hub), lerp(0.86, 0.8, hub), GN(p * 0.35 + 19.0)) * smoothstep(0.6, 1.0, rockSeam);   // sparse short seam flecks
+                    bounceEm += _LavaColCool.rgb * (0.04 * rockSeam * glowReg + 0.12 * fleck) * _LavaIntensity * (1.0 - lavaMask) * (1.0 - sea) * pulse;
 
                     topAlb = g.a;
                     float2 tn = g.n * _NrmStr;
-                    topN = normalize(float3(tn.x, sqrt(saturate(1.0 - dot(g.n, g.n))), tn.y));
+                    topN = normalize(float3(tn.x, sqrt(saturate(1.0 - dot(tn, tn))), tn.y));
                     topR = g.r; topAO = g.o; height = g.h;
                     crackMask = pow(edge, 3.0) * (1.0 - ash);
-
-                    // ---- 7. a few subtle damp zones (low spots, mostly earth); computed here so it can darken albedo
-                    float wetN = UWFbm(q * 0.11 + 3.1) + (0.45 - height) * 0.12 + earthW * 0.05;
-                    wetMask = smoothstep(0.64, 0.86, wetN) * _WetAmt;
                 }
 
                 albedo = lerp(sideAlb, topAlb, top);
@@ -274,22 +463,27 @@ Shader "Underworld/Ground"
                 rough = lerp(sideR, topR, top);
                 ao = lerp(1.0, lerp(sideAO, topAO, top), _AOStr);
 
-                float wet = wetMask * top;
-                albedo *= lerp(1.0, 0.68, wet);
                 float dry = saturate(1.0 - rough) * _SmoothScale;
-                float wetS = min(dry + 0.28, _WetSmooth);                      // damp = a bit smoother, never mirror-like
-                float smoothness = lerp(dry, wetS, wet);
-                smoothness = min(smoothness, _SmoothMax);                            // hard cap: no hot white circles under spot lights
-                n = normalize(lerp(n, float3(0, 1, 0), wet * 0.35 * top));
+                float smoothness = min(dry, _SmoothMax);
+                smoothness = max(smoothness, min(obsOut * top * 0.75, 0.7));              // obsidian: glassy, capped (no hot specular disks)
+                smoothness = lerp(smoothness, 0.1, lavaMask * top);
 
-                // soul cracks: faint cold glow in the grout line of a few paving clusters
-                float3 emission = 0;
+                // emission: lava + warm bounce; old violet soul cracks are added below only when _CrackAmt > 0
+                float3 emission = (lavaEm + bounceEm) * top;
+                // pass 4: lava seeping down the plaza cliff walls (below the walking surface only), vertical streaks
+                if (top < 0.999 && _SeaMode < 0.5)
+                {
+                    float ux = (ws.x + ws.z) * 0.6;
+                    float drip = smoothstep(0.6, 0.78, GN(float2(ux, ws.y * 0.08 + 7.0))) * smoothstep(-1.2, -2.2, ws.y);   // only the real cliff, not the low rim step ~3 m inside the edge
+                    drip *= 0.6 + 0.4 * GN(float2(ux * 3.0, ws.y * 0.6 - _UWTime * 0.4));
+                    emission += _LavaColMid.rgb * 1.1 * drip * (1.0 - top) * (_LavaIntensity / 3.5);
+                }
                 if (_CrackAmt > 0.001 && top > 0.001)
                 {
                     float clN = UWFbm(p * 0.13 + 5.3);
                     float cluster = smoothstep(0.7 - _CrackAmt * 0.15, 0.88 - _CrackAmt * 0.15, clN) * crackMask * top;
                     float breathe = 0.55 + 0.45 * sin(_UWTime * 0.6 + UWNoise(p * 0.3) * 6.28);
-                    emission = _CrackCol.rgb * cluster * breathe * 0.4;
+                    emission += _CrackCol.rgb * cluster * breathe * 0.4;
                 }
 
                 InputData d = (InputData)0;
@@ -298,6 +492,8 @@ Shader "Underworld/Ground"
                 d.normalWS = n;
                 d.viewDirectionWS = GetWorldSpaceNormalizeViewDir(ws);
                 d.shadowCoord = TransformWorldToShadowCoord(ws);
+                // lava sea (pass 2): never shadowed - the plaza 6 m above cast a hard black rectangle onto it. z = 0 is "beyond shadow far"
+                if (_SeaMode > 0.5) d.shadowCoord = float4(0, 0, 0, 1);
                 d.fogCoord = i.fog;
                 d.bakedGI = SampleSH(n);
                 d.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.positionCS);

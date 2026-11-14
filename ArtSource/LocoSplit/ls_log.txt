@@ -1,0 +1,253 @@
+[11:04:34] got build
+[11:04:38] imports ok
+controller ok, loco children 5
+sword axis 2 len 1.99 guard slice 10 pommelLo True
+scene saved Assets/Game/LocoSplit/LocoSplit.unity
+build done
+[11:07:13] got demo
+[11:07:13] demo: entering play mode
+[11:15:18] got demo
+[11:15:18] demo: entering play mode
+[11:16:52] demo timeout
+[11:18:38] got demo
+[11:18:38] demo: entering play mode
+[11:21:27] demo: play request was dropped, retrying
+[11:21:57] demo done
+[11:23:59] got build
+[11:24:00] imports ok
+controller ok, loco children 5
+sword axis 2 len 1.99 guard slice 10 pommelLo True
+scene saved Assets/Game/LocoSplit/LocoSplit.unity
+build done
+[11:24:24] got demo
+[11:24:24] demo: entering play mode
+[11:24:49] demo done
+[11:27:05] got demo
+[11:27:05] demo: entering play mode
+[11:27:27] demo done
+[11:31:37] got open Assets/Scenes/LookStudy.unity
+[11:31:39] opened Assets/Scenes/LookStudy.unity
+[11:45:41] got build2
+[11:45:44] imports ok
+controller ok, loco children 5
+sword axis 2 len 1.99 guard slice 10 pommelLo True
+scene saved Assets/Game/LocoSplit/LocoSplit.unity
+build done
+[11:46:58] got demo
+[11:46:58] demo: entering play mode
+[11:47:26] demo done
+[11:51:44] got open Assets/Scenes/LookStudy.unity
+[11:51:46] opened Assets/Scenes/LookStudy.unity
+[12:59:08] got build2
+[12:59:09] imports ok
+controller ok, loco children 5
+sword axis 2 len 1.99 guard slice 10 pommelLo True
+scene saved Assets/Game/LocoSplit/LocoSplit.unity
+build done
+[12:59:24] got demo
+[12:59:24] demo: entering play mode
+[12:59:53] demo done
+[13:04:55] got build2
+[13:04:57] imports ok
+hunter rig avatar ok
+controller ok, loco children 5
+sword axis 2 len 1.99 guard slice 10 pommelLo True
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+no DD material for Lit
+scene saved Assets/Game/LocoSplit/LocoSplit.unity
+build done
+[13:05:43] got build2
+[13:05:43] imports ok
+hunter rig avatar ok
+controller ok, loco children 5
+sword axis 2 len 1.99 guard slice 10 pommelLo True
+scene saved Assets/Game/LocoSplit/LocoSplit.unity
+build done
+[13:05:50] got demo
+[13:05:50] demo: entering play mode
+[13:06:21] demo done
+[13:07:02] got demo
+[13:07:02] demo: entering play mode
+[13:08:26] demo: play request was dropped, retrying
+[13:08:57] demo done
+[14:24:21] got rrplayer
+[14:24:22] rrplayer: saved Assets/Game/LocoSplit/Generated/RR_GreatswordPlayer.prefab and set RoomRunConfig.greatswordPrefab
+[15:07:39] got rrplayer
+[15:07:41] rr imports ok
+rr controller ok, loco children 9
+rrplayer: saved Assets/Game/LocoSplit/Generated/RR_GreatswordPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[15:11:04] got reimport Assets/Free Slash VFX/Shaders
+[15:11:06] reimported Assets/Free Slash VFX/Shaders
+[15:13:23] got rrplayer
+[15:13:24] rr imports ok
+rr controller ok, loco children 9
+rrplayer: saved Assets/Game/LocoSplit/Generated/RR_GreatswordPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[15:16:18] got rrplayer
+[15:16:19] rr imports ok
+rr controller ok, loco children 9
+rrplayer: saved Assets/Game/LocoSplit/Generated/RR_GreatswordPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[15:17:59] got vfxtest
+[15:17:59] vfxtest saved C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\vfxtest.png (left to right: none, X+90, X-90, Z+90; cube shows aim)
+[15:52:59] got vfxtest
+[15:52:59] vfxtest saved C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\vfxtest.png (X-90 at t=0.03/0.07/0.12/0.25; cube shows aim)
+[15:53:24] got rrplayer
+[15:53:25] rr imports ok
+rr controller ok, loco children 9
+rrplayer: saved Assets/Game/LocoSplit/Generated/RR_GreatswordPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[16:11:37] got posetest
+[16:11:37] posetest saved C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\posetest.png rows: SweepA,SweepB,SweepC,Spin (game angle, then side; bar = aim)
+[16:13:09] got vfxall
+[16:13:11] vfxall: 12 prefabs to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\vfxall
+[16:14:42] got clipsheet
+[16:14:43] clipsheet: 8 clips: GS_SweepA, GS_SweepB, GS_DownSlash, GS_SweepC, GS_PowerSlash, GS_SpinAttack, GS_Slash1, GS_Slash2
+[16:17:27] got vfxflat Assets/Free Slash VFX/Prefabs
+[16:17:29] vfxflat Assets/Free Slash VFX/Prefabs: 12 prefabs
+[16:28:17] got waterflat
+[16:28:18] waterflat:
+  GS_SlashWater_Flat: Mesh/Local -> Mesh/Local
+  Slash Distortion: Mesh/Local -> Mesh/Local
+  Flying: Stretch/View -> Stretch/View
+  Puddle: Mesh/Local -> Mesh/Local
+  Impact: Stretch/View -> Stretch/View
+  Shafts: Billboard/View -> HorizontalBillboard/View
+  Light: Billboard/View -> HorizontalBillboard/View
+  Shafts Streched: Mesh/Local -> Mesh/Local
+  RoomRunConfig slashVfx + finisher = Assets/Game/LocoSplit/Generated/GS_SlashWater_Flat.prefab
+  [sheet t0.08] Slash Water VFX(Clone): 1 parts, centre y 1.00..1.00, max size 2.00, Mesh/Local
+  [sheet t0.08] Flying: 100 parts, centre y -3.04..7.43, max size 0.05, Stretch/View
+  [sheet t0.08] Impact: 4 parts, centre y -0.71..2.54, max size 2.00, Stretch/View
+  [sheet t0.08] Shafts: 4 parts, centre y 1.23..1.23, max size 0.11, Billboard/View
+  [sheet t0.08] Light: 1 parts, centre y 1.23..1.23, max size 0.56, Billboard/View
+  [sheet t0.08] Shafts Streched: 1 parts, centre y 1.00..1.00, max size 0.10, Mesh/Local
+  [sheet t0.20] Slash Water VFX(Clone): 1 parts, centre y 1.00..1.00, max size 2.00, Mesh/Local
+  [sheet t0.20] Slash Distortion: 1 parts, centre y 1.00..1.00, max size 2.00, Mesh/Local
+  [sheet t0.20] Flying: 92 parts, centre y -3.72..7.21, max size 0.05, Stretch/View
+  [sheet t0.20] Impact: 4 parts, centre y -1.80..3.45, max size 2.00, Stretch/View
+  [sheet t0.20] Shafts: 4 parts, centre y 1.23..1.23, max size 0.09, Billboard/View
+  [sheet t0.20] Light: 1 parts, centre y 1.23..1.23, max size 0.23, Billboard/View
+  [sheet t0.20] Shafts Streched: 1 parts, centre y -7.28..-7.28, max size 0.10, Mesh/Local
+  [copy t0.08] GS_SlashWater_Flat(Clone): 1 parts, centre y 1.00..1.00, max size 2.00, Mesh/Local
+  [copy t0.08] Flying: 100 parts, centre y -3.90..7.53, max size 0.05, Stretch/View
+  [copy t0.08] Impact: 4 parts, centre y -1.15..3.40, max size 2.00, Stretch/View
+  [copy t0.08] Shafts: 4 parts, centre y 1.23..1.23, max size 0.07, HorizontalBillboard/View
+  [copy t0.08] Light: 1 parts, centre y 1.23..1.23, max size 0.26, HorizontalBillboard/View
+  [copy t0.08] Shafts Streched: 1 parts, centre y 1.00..1.00, max size 0.10, Mesh/Local
+  [copy t0.20] GS_SlashWater_Flat(Clone): 1 parts, centre y 1.00..1.00, max size 2.00, Mesh/Local
+  [copy t0.20] Slash Distortion: 1 parts, centre y 1.00..1.00, max size 2.00, Mesh/Local
+  [copy t0.20] Flying: 92 parts, centre y -4.23..7.23, max size 0.05, Stretch/View
+  [copy t0.20] Impact: 4 parts, centre y 0.29..2.13, max size 2.00, Stretch/View
+  [copy t0.20] Shafts: 4 parts, centre y 1.23..1.23, max size 0.10, HorizontalBillboard/View
+  [copy t0.20] Light: 1 parts, centre y 1.23..1.23, max size 0.12, HorizontalBillboard/View
+  [copy t0.20] Shafts Streched: 1 parts, centre y -7.28..-7.28, max size 0.10, Mesh/Local
+[16:29:24] got rotprobe
+[16:29:25] rotprobe Assets/Game/LocoSplit/Generated/GS_SlashWater_Flat.prefab
+rot 0 (0.00, 0.00, 0.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-6.4, 0.7, -8.3) s(65.3, 65.3, 65.3);
+rot 1 (-90.00, 0.00, 0.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-6.4, -7.3, 0.3) s(65.3, 65.3, 65.3);
+rot 2 (90.00, 0.00, 0.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-6.4, 9.3, -0.3) s(65.3, 65.3, 65.3);
+rot 3 (0.00, 0.00, 90.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(0.3, -5.4, -8.3) s(65.3, 65.3, 65.3);
+rot 4 (0.00, 0.00, -90.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-0.3, 7.4, -8.3) s(65.3, 65.3, 65.3);
+rot 5 (0.00, 90.00, 0.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-8.3, 0.7, 6.4) s(65.3, 65.3, 65.3);
+rot 6 (-90.00, 90.00, 0.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(0.3, -7.3, 6.4) s(65.3, 65.3, 65.3);
+rot 7 (0.00, 90.00, 90.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-8.3, -5.4, -0.3) s(65.3, 65.3, 65.3);
+rot 8 (0.00, 90.00, -90.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-8.3, 7.4, 0.3) s(65.3, 65.3, 65.3);
+rot 9 (90.00, 90.00, 0.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 37.9, 37.9); Slash Distortion c(0.0, 1.0, 0.0) s(18.9, 18.9, 18.9); Shafts Streched c(-0.3, 9.3, 6.4) s(65.3, 65.3, 65.3);
+[16:30:21] got waterflat
+[16:30:21] waterflat:
+  GS_SlashWater_Flat: Mesh/Local -> Mesh/Local
+  Slash Distortion: Mesh/Local -> Mesh/Local
+  Flying: Stretch/View -> Stretch/View
+  Puddle: Mesh/Local -> Mesh/Local
+  Impact: Stretch/View -> Stretch/View
+  Shafts: HorizontalBillboard/View -> HorizontalBillboard/View
+  Light: HorizontalBillboard/View -> HorizontalBillboard/View
+  Shafts Streched: Mesh/Local -> Mesh/Local
+  RoomRunConfig slashVfx + finisher = Assets/Game/LocoSplit/Generated/GS_SlashWater_Flat.prefab
+  [sheet t0.08] Slash Water VFX(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [sheet t0.08] Flying: 100 parts, centre y -1999.33..-1998.67, max size 0.05, Stretch/View
+  [sheet t0.08] Impact: 4 parts, centre y -2001.21..-1996.81, max size 2.00, Stretch/View
+  [sheet t0.08] Shafts: 4 parts, centre y -1999.28..-1999.28, max size 0.08, Billboard/View
+  [sheet t0.08] Light: 1 parts, centre y -1999.28..-1999.28, max size 0.33, Billboard/View
+  [sheet t0.08] Shafts Streched: 1 parts, centre y -1999.28..-1999.28, max size 0.10, Mesh/Local
+  [sheet t0.20] Slash Water VFX(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [sheet t0.20] Slash Distortion: 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [sheet t0.20] Flying: 91 parts, centre y -1999.49..-1998.76, max size 0.05, Stretch/View
+  [sheet t0.20] Impact: 4 parts, centre y -2000.75..-1996.55, max size 2.00, Stretch/View
+  [sheet t0.20] Shafts: 4 parts, centre y -1999.28..-1999.28, max size 0.09, Billboard/View
+  [sheet t0.20] Light: 1 parts, centre y -1999.28..-1999.28, max size 0.48, Billboard/View
+  [sheet t0.20] Shafts Streched: 1 parts, centre y -1999.28..-1999.28, max size 0.10, Mesh/Local
+  [copy t0.08] GS_SlashWater_Flat(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [copy t0.08] Flying: 100 parts, centre y -1999.29..-1998.73, max size 0.05, Stretch/View
+  [copy t0.08] Impact: 4 parts, centre y -2001.75..-1998.22, max size 2.00, Stretch/View
+  [copy t0.08] Shafts: 4 parts, centre y -1999.28..-1999.28, max size 0.08, HorizontalBillboard/View
+  [copy t0.08] Light: 1 parts, centre y -1999.28..-1999.28, max size 0.48, HorizontalBillboard/View
+  [copy t0.08] Shafts Streched: 1 parts, centre y -1999.28..-1999.28, max size 0.10, Mesh/Local
+  [copy t0.20] GS_SlashWater_Flat(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [copy t0.20] Slash Distortion: 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [copy t0.20] Flying: 91 parts, centre y -1999.38..-1998.62, max size 0.05, Stretch/View
+  [copy t0.20] Impact: 4 parts, centre y -2001.77..-1997.77, max size 2.00, Stretch/View
+  [copy t0.20] Shafts: 4 parts, centre y -1999.28..-1999.28, max size 0.07, HorizontalBillboard/View
+  [copy t0.20] Light: 1 parts, centre y -1999.28..-1999.28, max size 0.50, HorizontalBillboard/View
+  [copy t0.20] Shafts Streched: 1 parts, centre y -1999.28..-1999.28, max size 0.10, Mesh/Local
+[16:31:02] got waterflat
+[16:31:03] waterflat:
+  GS_SlashWater_Flat: Mesh/Local -> Mesh/Local
+  Slash Distortion: Mesh/Local -> Mesh/Local
+  Flying: Stretch/View -> Stretch/View
+  Puddle: Mesh/Local -> Mesh/Local
+  Impact: stretched shards stand up -> off
+  Shafts: HorizontalBillboard/View -> HorizontalBillboard/View
+  Light: HorizontalBillboard/View -> HorizontalBillboard/View
+  Shafts Streched: Mesh/Local -> Mesh/Local
+  RoomRunConfig slashVfx + finisher = Assets/Game/LocoSplit/Generated/GS_SlashWater_Flat.prefab
+  [sheet t0.08] Slash Water VFX(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [sheet t0.08] Flying: 100 parts, centre y -1999.31..-1998.73, max size 0.05, Stretch/View
+  [sheet t0.08] Impact: 4 parts, centre y -2001.33..-1996.82, max size 2.00, Stretch/View
+  [sheet t0.08] Shafts: 4 parts, centre y -1999.28..-1999.28, max size 0.11, Billboard/View
+  [sheet t0.08] Light: 1 parts, centre y -1999.28..-1999.28, max size 0.64, Billboard/View
+  [sheet t0.08] Shafts Streched: 1 parts, centre y -1999.28..-1999.28, max size 0.10, Mesh/Local
+  [sheet t0.20] Slash Water VFX(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [sheet t0.20] Slash Distortion: 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [sheet t0.20] Flying: 92 parts, centre y -1999.34..-1998.82, max size 0.05, Stretch/View
+  [sheet t0.20] Impact: 4 parts, centre y -2002.31..-1998.06, max size 2.00, Stretch/View
+  [sheet t0.20] Shafts: 4 parts, centre y -1999.28..-1999.28, max size 0.04, Billboard/View
+  [sheet t0.20] Light: 1 parts, centre y -1999.28..-1999.28, max size 0.55, Billboard/View
+  [sheet t0.20] Shafts Streched: 1 parts, centre y -1999.28..-1999.28, max size 0.10, Mesh/Local
+  [copy t0.08] GS_SlashWater_Flat(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [copy t0.08] Flying: 100 parts, centre y -1999.30..-1998.71, max size 0.05, Stretch/View
+  [copy t0.20] GS_SlashWater_Flat(Clone): 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [copy t0.20] Slash Distortion: 1 parts, centre y -1999.00..-1999.00, max size 2.00, Mesh/Local
+  [copy t0.20] Flying: 89 parts, centre y -1999.38..-1998.68, max size 0.05, Stretch/View
+[16:38:11] got slashprev
+[16:38:12] slashprev: 30 tiles to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\slashprev (t = 0.04, 0.08, 0.12, 0.18, 0.26, 0.38)
+[16:39:11] got slashprev
+[16:39:12] slashprev: 30 tiles to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\slashprev (t = 0.04, 0.08, 0.12, 0.18, 0.26, 0.38)
+[16:39:51] got slashprev
+[16:39:52] slashprev: 30 tiles to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\slashprev (t = 0.04, 0.08, 0.12, 0.18, 0.26, 0.38)
+[16:40:39] got slashprev
+[16:40:40] slashprev: 30 tiles to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\slashprev (t = 0.04, 0.08, 0.12, 0.18, 0.26, 0.38)
+[16:41:44] got slashprev nopost
+[16:41:45] slashprev: 30 tiles to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\slashprev (t = 0.04, 0.08, 0.12, 0.18, 0.26, 0.38)
+[16:46:32] got slashprev
+[16:46:32] slashprev: 30 tiles to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\slashprev (t = 0.04, 0.08, 0.12, 0.18, 0.26, 0.38)
+[16:50:10] got slashprev
+[16:50:10] slashprev: 30 tiles to C:\UnityProject\BulletHeavenArt\ArtSource\LocoSplit\slashprev (t = 0.04, 0.08, 0.12, 0.18, 0.26, 0.38)
+[17:20:26] got cutpieces
+[17:20:26] cutpieces -> Assets/Game/RoomRun/Resources/GS_CutPieces.asset
+  RF_Reed_A: 14 pieces
+  RF_Reed_B: 14 pieces
+  RF_Susuki_A: 14 pieces
+  RF_Susuki_B: 14 pieces
+  RF_Susuki_C: 14 pieces
+  RF_Susuki_Broken: 14 pieces

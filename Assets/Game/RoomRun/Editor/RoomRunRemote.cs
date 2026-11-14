@@ -486,7 +486,8 @@ namespace RoomRun
                 if (token.StartsWith("seq=")) { int.TryParse(token.Substring(4), out seq); continue; }
                 // "see=0" / "see=1": soft see-through off (previous behaviour) / on for the rooms after it (SeeThroughFX);
                 // the file names get _see0 / _see1, the setting goes back to on after the shots
-                if (token.StartsWith("see=")) { PlayerPrefs.SetInt(SeeThroughFX.ModeKey, token.Substring(4) == "0" ? 0 : 1); seeTag = "_see" + token.Substring(4); continue; }
+                // (see=1 = the first soft version, see=2 = v2 with the default v2 shape)
+                if (token.StartsWith("see=")) { int.TryParse(token.Substring(4), out int sm); PlayerPrefs.SetInt(SeeThroughFX.ModeKey, sm); if (sm == 2) SeeThroughFX.ResetV2(); seeTag = "_see" + token.Substring(4); continue; }
                 // "z=1,1.2,1.4" sets the zoom levels for the rooms after it
                 // "off=StageMood,FireShadowSpot": for the rooms after it, behaviours of those types (or lights with those
                 // names) are switched off just for the capture; file names get _off-<list> ("off=" clears it). A/B for look bugs.
@@ -609,7 +610,7 @@ namespace RoomRun
                 Note($"shots {tag} done (fps {1f / Mathf.Max(Time.smoothDeltaTime, 1e-4f):0})");
             }
             Object.Destroy(rt); Object.Destroy(tex);
-            if (seeTag != "") PlayerPrefs.SetInt(SeeThroughFX.ModeKey, 1);
+            if (seeTag != "") PlayerPrefs.SetInt(SeeThroughFX.ModeKey, 2);
             SessionState.SetString(KeyState, "stopping");
         }
 

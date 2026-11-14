@@ -40,35 +40,83 @@ namespace Underworld
             Debug.Log("UWQuality: UW_Floor now uses Underworld/Ground");
         }
 
+        // Lava sea seen in the void around/below the arena (300 x 300 m plane at y = -6). Lives in Resources so UWLook can Resources.Load it.
+        [MenuItem("Tools/Underworld/Quality/Apply Lava Sea Material")]
+        public static void ApplyLavaSea()
+        {
+            const string path = "Assets/Underworld/Resources/UW_LavaSea.mat";
+            var sh = Shader.Find("Underworld/Ground");
+            if (!sh) { Debug.LogError("UWQuality: Underworld/Ground shader missing"); return; }
+            System.IO.Directory.CreateDirectory("Assets/Underworld/Resources");
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (!m) { m = new Material(sh); AssetDatabase.CreateAsset(m, path); }
+            Setup(m, sh);                                  // textures + shared look, then the sea overrides
+            m.SetFloat("_SeaMode", 1f);                    // whole surface molten, drifting dark crust islands
+            m.SetFloat("_LavaScale", 2.5f);                // crust plates ~2.8 m, islands tens of metres: reads from far above
+            m.SetFloat("_LavaIntensity", 0.45f);            // pass 7 (was 0.7). pass 6: caramel patches darker. pass 2: was 1.8, sea read as white-hot blobs. dark, far below: channel cores ~1.8, mid ~0.6, edge ~0.2
+            m.SetFloat("_LavaFlow", 0.6f); m.SetFloat("_LavaPulse", 0.25f);
+            m.SetFloat("_LavaAmt", 0f);                    // no extra veins, no rock to scorch
+            m.SetFloat("_ScorchAmt", 0f); m.SetFloat("_ObsAmt", 0f); m.SetFloat("_LavaBounce", 0f);
+            m.SetColor("_LavaColHot", new Color(1.0f, 0.34f, 0.06f)); m.SetColor("_LavaColMid", new Color(0.85f, 0.1f, 0.02f)); m.SetColor("_LavaColCool", new Color(0.45f, 0.03f, 0.01f));   // pass 8: magma red, not toffee
+            m.SetFloat("_RubAmt", 0f); m.SetFloat("_AshAmt", 0f);
+            m.SetVector("_Tiles", new Vector4(8f, 6f, 4f, 4.5f));
+            m.SetFloat("_CrackAmt", 0f);
+            EditorUtility.SetDirty(m);
+            AssetDatabase.SaveAssets();
+            Debug.Log("UWQuality: " + path + " written");
+        }
+
+        // Main rock scan used in the Flag slot. Switch to "Lava" once T_UWG_Lava_AH/NRA.png (Fab volcanic / lava rock, packed
+        // AH + NRA like the others) exist; falls back to Crack automatically while the files are missing.
+        const string RockSet = "Lava";
+        const string RockFallback = "Crack";
+
         public static void Setup(Material m, Shader sh)
         {
             m.shader = sh;
             void T(string prop, string file) { var t = AssetDatabase.LoadAssetAtPath<Texture2D>(G + file); if (!t) Debug.LogError("UWQuality: missing " + file); m.SetTexture(prop, t); }
-            T("_FlagAH", "T_UWG_Crack_AH.png"); T("_FlagNRA", "T_UWG_Crack_NRA.png");   // 3rd pass (Kido: "저승이 그냥 일반 필드"): petrified cracked black rock
-            T("_AshAH", "T_UWG_CoalAsh_AH.png"); T("_AshNRA", "T_UWG_CoalAsh_NRA.png");   // grey ash
-            T("_RubAH", "T_UWG_Coal_AH.png"); T("_RubNRA", "T_UWG_Coal_NRA.png");   // black coal debris along the seams
-            // Fab Megascans only (Kido 11-13): wet patches reuse the burnt floor at another scale, darker and glossy;
-            // the few side faces of the plaza use it triplanar
-            T("_MudAH", "T_UWG_Ash_AH.png"); T("_MudNRA", "T_UWG_Ash_NRA.png");
-            T("_CliffAH", "T_UWG_Ash_AH.png"); T("_CliffNRA", "T_UWG_Ash_NRA.png");
-            // Rewrite 11-13 ("too ugly"): big slabs, soft warped masks, height-blended earth/rubble seams, capped smoothness.
-            // 2nd pass scans: Flag = church-ruin slabs (1 m scan, ~0.45 m slabs), Ash = dark soil (0.36 m), Rub = rocky ground (3 m),
-            // Mud = burnt forest floor (2 m). Values from ArtSource/uw_quality/ref_targets.md (ref contrast 0.12-0.22, slabs ~1.5 m).
-            m.SetVector("_Tiles", new Vector4(3.5f, 2.2f, 1.8f, 4.5f));   // crack 1 m, coal ash 0.36 m, coal debris 1 m, burnt 2 m
+            string rock = AssetDatabase.LoadAssetAtPath<Texture2D>(G + "T_UWG_" + RockSet + "_AH.png") ? RockSet : RockFallback;
+            T("_FlagAH", "T_UWG_" + rock + "_AH.png"); T("_FlagNRA", "T_UWG_" + rock + "_NRA.png");   // HELL pass: main cracked rock
+            T("_AshAH", "T_UWG_CoalAsh_AH.png"); T("_AshNRA", "T_UWG_CoalAsh_NRA.png");               // cooled dark crust (crevices only)
+            T("_RubAH", "T_UWG_Coal_AH.png"); T("_RubNRA", "T_UWG_Coal_NRA.png");                     // coal debris along the crack banks
+            T("_MudAH", "T_UWG_Ash_AH.png"); T("_MudNRA", "T_UWG_Ash_NRA.png");                      // Mud slot unused by the hell shader (kept so the material keeps its slots)
+            T("_CliffAH", "T_UWG_" + rock + "_AH.png"); T("_CliffNRA", "T_UWG_" + rock + "_NRA.png"); // plaza side faces: same rock
+
+            // layout: crack scan 1 m -> 3 m tile, coal ash 0.36 m -> 2 m, coal debris 1 m -> 1.4 m
+            m.SetVector("_Tiles", new Vector4(3.0f, 2.0f, 1.4f, 4.5f));
             m.SetVector("_HeightLo", new Vector4(0.26f, 0.23f, 0.28f, 0.12f));
             m.SetVector("_HeightHi", new Vector4(0.74f, 0.64f, 0.71f, 0.37f));
-            m.SetFloat("_CliffTile", 4f);
-            m.SetColor("_FlagTint", new Color(0.88f, 0.86f, 0.86f)); m.SetColor("_AshTint", new Color(0.4f, 0.39f, 0.4f));   // Kido 11-13: read pale/bone-white -> dark ash   // crack luma 0.048, coal ash 0.083: target ~0.05-0.06, ash slightly cold
-            m.SetColor("_RubTint", new Color(1.4f, 1.4f, 1.45f));   // coal debris luma 0.011
-            m.SetColor("_MudTint", new Color(1.3f, 1.25f, 1.25f)); m.SetColor("_CliffTint", new Color(1.6f, 1.6f, 1.6f));
-            m.SetFloat("_Sat", 0.25f);
-            m.SetFloat("_AshAmt", 0.58f); m.SetFloat("_RubAmt", 0.5f); m.SetFloat("_MudAmt", 0.35f);
-            m.SetFloat("_GroutLevel", 0.4f); m.SetFloat("_AshLift", 0.28f); m.SetFloat("_BlendDepth", 0.3f);
-            m.SetFloat("_SeamDark", 0.2f); m.SetFloat("_Cavity", 0.3f);
-            m.SetFloat("_NrmStr", 0.5f); m.SetFloat("_Macro", 0.6f); m.SetFloat("_AOStr", 0.45f);
-            m.SetFloat("_SmoothScale", 0.4f); m.SetFloat("_WetAmt", 0.4f); m.SetFloat("_WetSmooth", 0.45f); m.SetFloat("_SmoothMax", 0.4f);
-            // _CrackCol was still the old violet #9B5CFF x2 from the first floor material: it painted purple patches (12:35)
-            m.SetFloat("_CrackAmt", 0.3f);   // dreamy pass (Kido wants the old violet floor cracks back): seam glow, soft m.SetColor("_CrackCol", new Color(0.55f, 0.28f, 1.1f)); m.SetFloat("_RimAmt", 0f);
+            m.SetFloat("_CliffTile", 3f);
+            // albedo luma targets 0.04-0.08: crack scan luma ~0.048 -> x1.3, coal ash ~0.083 -> x0.7, coal debris ~0.011 -> x3.5
+            m.SetColor("_FlagTint", new Color(1.35f, 1.27f, 1.2f));   // faint warm cast on the basalt
+            m.SetColor("_AshTint", new Color(0.72f, 0.66f, 0.62f));
+            m.SetColor("_RubTint", new Color(3.6f, 3.4f, 3.2f));
+            m.SetColor("_MudTint", new Color(1.3f, 1.25f, 1.25f)); m.SetColor("_CliffTint", new Color(1.2f, 1.15f, 1.1f));
+            m.SetFloat("_Sat", 0.3f);
+            m.SetFloat("_AshAmt", 0.22f); m.SetFloat("_RubAmt", 0.8f); m.SetFloat("_MudAmt", 0f);   // crust only a little, in crevices
+            m.SetFloat("_GroutLevel", 0.3f); m.SetFloat("_AshLift", 0.2f); m.SetFloat("_BlendDepth", 0.2f);
+            m.SetFloat("_SeamDark", 0.25f); m.SetFloat("_Cavity", 0.5f);
+            m.SetFloat("_NrmStr", 0.9f); m.SetFloat("_Macro", 0.6f); m.SetFloat("_AOStr", 0.7f);
+            m.SetFloat("_SmoothScale", 0.35f); m.SetFloat("_WetAmt", 0f); m.SetFloat("_WetSmooth", 0.45f); m.SetFloat("_SmoothMax", 0.3f);   // moderate roughness
+            // lava (post: bloom threshold ~0.95, +1.6 EV): hot core 3.5 x ~1 = HDR 3-4, deep red edge stays just under bloom
+            // Diablo-IV hell: a few wide rifts (1-3 m) with dark cooling crust plates, wide red halo, rare dim veins.
+            // Colours are normalised (max channel 1); the HDR level comes from the shader: edge 0.4, mid 1.2, hot core 3.5 x _LavaIntensity/3.5.
+            m.SetFloat("_LavaAmt", 0.15f);        // vein region coverage (rare short veins branching off rifts); 0 = almost none
+            m.SetFloat("_LavaWidth", 0.5f);   // pass 2: rivers dominated the arena      // rift half-width in m (rifts come out 0.5-1.5 half = 1-3 m wide, pinched into segments)
+            m.SetFloat("_LavaScale", 1f); m.SetFloat("_SeaMode", 0f);
+            m.SetColor("_LavaColHot", new Color(1.0f, 0.52f, 0.14f));   // pass 3: no white cores (review_02 #3)
+            m.SetColor("_LavaColMid", new Color(1.0f, 0.28f, 0.04f));
+            m.SetColor("_LavaColCool", new Color(0.9f, 0.06f, 0.015f));
+            m.SetFloat("_LavaIntensity", 1.6f);   // pass 2 (was 2.7): cores still blew to near white
+            m.SetFloat("_LavaPulse", 0.3f); m.SetFloat("_LavaFlow", 1f);
+            m.SetFloat("_LavaBounce", 0.28f); m.SetFloat("_ScorchAmt", 0.6f); m.SetFloat("_ObsAmt", 0.1f);   // final_03: softer black bank outline
+            m.SetVector("_EdgeRect", new Vector4(-44f, -29f, 44f, 27f));   // pass 4: broken glowing rim along the UW_Plaza bounds
+            m.SetVector("_ClearZone", new Vector4(-2f, -2f, 6f, 8f));
+            m.SetVector("_Lane0", new Vector4(-2f, -2f, -2f, 27f));    // pass 6: spawn -> burning gate hall
+            m.SetVector("_Lane1", new Vector4(-2f, -2f, 20f, 26f));    // spawn -> portal plateau
+            m.SetVector("_LaneWidth", new Vector4(5f, 7f, 0f, 0f));   // pass 7: wider, so no stray fragment survives in the wedge between the lanes   // rivers taper out over 8 m   // spawn / boss centre without rivers
+            m.SetFloat("_CrackAmt", 0f);         // old violet soul cracks OFF (set 0.3 to bring them back)
+            m.SetFloat("_RimAmt", 0f);
         }
 
         // shader compile messages to ArtSource/uw_quality/shader_check.txt (console is not reachable remotely)

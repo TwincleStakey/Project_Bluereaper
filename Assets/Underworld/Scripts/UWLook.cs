@@ -1,4 +1,4 @@
-// Underworld look (quality pass 11-13, Kido: POE2 / No Rest for the Wicked, heavy, dark, low saturation, real post).
+﻿// Underworld look (quality pass 11-13, Kido: POE2 / No Rest for the Wicked, heavy, dark, low saturation, real post).
 // Added at play time by UWEnvironment. Nothing in the scene or in a material asset is changed: everything is runtime
 // (light values, MaterialPropertyBlocks, renderer/particle toggles, a runtime volume profile).
 //
@@ -36,15 +36,15 @@ namespace Underworld
         public float exposure = 1.6f;   // 3rd pass (Kido: "너무 밝고 일반 필드"): -0.5 EV;   // EV; the shared bullet / enemy look (LookFX 2.3) was tuned around this
         // ref_targets.md 5-6: refs keep mids near-neutral, shadows slightly cool (~210 deg), highlights warm (25-40 deg);
         // our highlights measured blue (236 deg) -> neutral filter, warm white balance, split toning cool/warm.
-        public float contrast = 4f, saturation = -32f, temperature = -4f;   // dreamy pass (Kido: "설원처럼 ... 너무 쨍 안 해보이게"): soft, low contrast   // 3rd pass: lower contrast, heavily desaturated, cold
+        public float contrast = 14f, saturation = -18f, temperature = 6f;   // hell pass (11-13 night): darker, fire colour kept, glow carries the image
         public Color filter = Color.white;
         // URP split toning: 0.5 grey is neutral, below 0.5 darkens (soft light). Shadows ~210 deg sat 15, highs ~35 deg sat 20.
-        public Color splitShadows = new Color(0.5f, 0.46f, 0.58f), splitHighlights = new Color(0.52f, 0.5f, 0.54f);   // lavender shadows   // cold teal shadows: the underworld reads cold
+        public Color splitShadows = new Color(0.47f, 0.44f, 0.46f), splitHighlights = new Color(0.58f, 0.48f, 0.4f);   // red-black shadows, orange highlights
         public float splitBalance = -20f;
         // LiftGammaGain lift offset. Was -0.035 plus SMH shadows -0.08 plus darkening split toning: 74 % of the frame
         // measured pure black (luma < 10). Slightly positive now so the dark field reads as luma 10-25, not 0.
-        public float shadowLift = 0.025f;   // dreamy: lifted, milky blacks
-        public float bloomIntensity = 1.15f, bloomThreshold = 0.95f, bloomScatter = 0.82f;   // dreamy: wider softer bloom   // threshold (gamma) above any lit floor
+        public float shadowLift = 0.008f;
+        public float bloomIntensity = 1.25f, bloomThreshold = 0.95f, bloomScatter = 0.75f;   // lava / fire bloom wide
         public float vignette = 0.45f, vignetteSmooth = 0.5f, grain = 0.1f;
 
         [Header("Lighting")]
@@ -56,7 +56,7 @@ namespace Underworld
         [Tooltip("ref_targets.md 3: refs r50 ~5.5 m, centre 4-8x the surround, ~3500 K. Ours was r50 ~2 m, 60-110x, blue-white.")]
         public bool retunePlayerPool = true;
         public Color playerPoolColor = new Color(0.8f, 0.78f, 0.76f);   // 3rd pass: pale cold, not warm   // ~3500 K (255,214,170)
-        public float playerPoolHeight = 7f, playerPoolRange = 15f, playerPoolLux = 0.6f;   // Kido: floor read pale/bone-white under the pool   // r50 ~ 0.77 x height
+        public float playerPoolHeight = 7f, playerPoolRange = 15f, playerPoolLux = 0.9f;   // review_01: player read too dark on dark rock   // Kido: floor read pale/bone-white under the pool   // r50 ~ 0.77 x height
 
         [Header("Lantern pools (~2500 K)")]
         public Color lanternColor = new Color(1f, 0.62f, 0.3f);
@@ -67,12 +67,12 @@ namespace Underworld
         public float lanternFlicker = 0.1f;
 
         [Header("Braziers (warm pools from lights only, off the spawn centre)")]
-        public Vector2[] braziers = { new(-27f, -16f), new(21f, 9f), new(-2f, -22f), new(-38f, 14f), new(30f, -20f), new(8f, 22f), new(-14f, 16f), new(38f, 2f) };   // 3rd pass: 8 cold soul-fire pools
-        public Color brazierColor = new Color(0.55f, 0.42f, 1f);   // dreamy pass: violet-blue soul fire   // 3rd pass: cold ghost-fire pools (soul flames), the underworld accent
+        public Vector2[] braziers = { };   // pass 5 (final_04 #4): sourceless light pools read as round red stains - off   // 3rd pass: 8 cold soul-fire pools
+        public Color brazierColor = new Color(1f, 0.36f, 0.1f);   // hell pass: fire pools
         public float brazierHeight = 3f, brazierFloorLux = 3.2f;
 
         [Header("Moon shafts (cold, soft, dim)")]
-        public Vector2[] shafts = { new(-16f, 7f), new(10f, -9f), new(30f, 16f) };
+        public Vector2[] shafts = { };   // hell pass: no moon shafts
         public Color shaftColor = new Color(0.72f, 0.8f, 0.95f);
         public float shaftHeight = 14f, shaftFloorLux = 0.35f, shaftAngle = 90f, shaftInner = 10f;
 
@@ -81,7 +81,7 @@ namespace Underworld
 
         [Header("Height fog")]
         [Tooltip("Fog colour as it should read after exposure (pre-tonemap). Divided by 2^exposure before use.")]
-        public Color fogColor = new Color(0.06f, 0.05f, 0.085f);   // dreamy pass: violet-grey haze   // 3rd pass: cold grey-teal, visible   // ~luma 30 after ACES: dark blue-grey, not black
+        public Color fogColor = new Color(0.07f, 0.035f, 0.028f);   // hell pass: smoky red-brown haze, low
         [Tooltip("Share of the lit scene colour the fog keeps, so fog inside a lantern pool glows warm instead of greying it.")]
         public float fogLitScatter = 0.45f;
         public float fogBase = 0.1f, fogFalloff = 0.9f, fogDensity = 0.55f, fogMax = 0.85f;   // 3rd pass: thick low fog to ~2.5 m
@@ -108,6 +108,8 @@ namespace Underworld
             vol.sharedProfile = p;
 
             p.Add<Tonemapping>(true).mode.Override(TonemappingMode.ACES);
+            // review_01: LookFX's bokeh DoF (focus on the player) turned the lava sea far below into blocky low-res squares
+            p.Add<DepthOfField>(true).mode.Override(DepthOfFieldMode.Off);
             var ca = p.Add<ColorAdjustments>(true);
             ca.postExposure.Override(exposure); ca.contrast.Override(contrast); ca.saturation.Override(saturation);
             ca.colorFilter.Override(filter); ca.hueShift.Override(0f);
@@ -137,6 +139,8 @@ namespace Underworld
             HideArenaRubble();
             ScatterBones();
             HellFx();
+            HideOldProps();
+            HellSet();
             // Kido 11-13 ("저 유령같은것들 지워봐"): the stage's decorative standing ghosts (builder group "Ghosts") off
             foreach (var root in gameObject.scene.GetRootGameObjects())
                 foreach (var t in root.GetComponentsInChildren<Transform>(true))
@@ -212,12 +216,12 @@ namespace Underworld
                         break;
                     }
                     case "PaperLight": l.color = new Color(1f, 0.38f, 0.2f); SetI(l, 2.4f, 0.12f); l.range = 6f; break;
-                    case "OrbLight": l.color = new Color(0.62f, 0.42f, 1f); SetI(l, 2.2f, 0.08f); l.range = 6f; break;      // cold ghost fire
-                    case "SoulGateLight": l.color = new Color(0.6f, 0.45f, 1f); SetI(l, 8f, 0.1f); l.range = 13f; break;
+                    case "OrbLight": l.color = new Color(1f, 0.4f, 0.12f); SetI(l, 2.2f, 0.08f); l.range = 6f; break;      // cold ghost fire
+                    case "SoulGateLight": l.color = new Color(1f, 0.25f, 0.08f); SetI(l, 8f, 0.1f); l.range = 13f; break;
                     case "GateWarmFill": l.color = lanternColor; SetI(l, 4f, 0.08f); break;
                     case "BridgeFillA": case "BridgeFillB": l.color = new Color(0.55f, 0.65f, 0.85f); SetI(l, 2.5f, 0.06f); break;
                     // violet portal lights painted purple patches across the plaza (12:24 capture): cold, dimmer, gate-local
-                    case "PortalKey": case "PortalBack": l.color = new Color(0.45f, 0.62f, 0.95f); SetI(l, 5f, 0.08f); l.range = Mathf.Min(l.range, 9f); break;
+                    case "PortalKey": case "PortalBack": l.color = new Color(1f, 0.35f, 0.1f); SetI(l, 5f, 0.08f); l.range = Mathf.Min(l.range, 9f); break;
                 }
             }
             Debug.Log($"UWLook: lanterns {tall} tall + {low} low");
@@ -264,14 +268,17 @@ namespace Underworld
                 var n = ps.gameObject.name;
                 string mat = r && r.sharedMaterial ? r.sharedMaterial.name : "";
                 if (n == "EmbersRed" && r) emberMat = r.sharedMaterial;
-                if (n == "EmbersViolet")
+                if (n == "EmbersRed")   // hell pass: red embers kept (violet off)
                 {
                     // Kido 11-13 ("원래 보라색 vfx ... 몽환스럽게"): violet soul sparks back, a quarter of the old density
-                    var em = ps.emission; em.rateOverTimeMultiplier *= 0.25f;
+                    var em = ps.emission; em.rateOverTimeMultiplier *= 0.5f;   // pass 8: more rising embers (glow sources), now ember orange
+                    { var mm0 = ps.main; mm0.startSizeMultiplier *= 1.6f; }   // pass 9: sparks were under 4 px at the gameplay zoom
                     var main = ps.main; main.maxParticles = Mathf.Min(main.maxParticles, 600);
+                    // hell pass 2: these read as lavender/white "stars" over the floor; ember orange instead
+                    main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.38f, 0.08f, 1f), new Color(1f, 0.6f, 0.2f, 1f));
                     Refill(ps);
                 }
-                else if (n == "EmbersRed" || mat == "UW_PtMist")
+                else if (n == "EmbersViolet" || mat == "UW_PtMist")
                 {
                     ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                     if (r) r.enabled = false;
@@ -290,7 +297,7 @@ namespace Underworld
                 else if (n == "SoulStream" || n == "PortalSpiral")
                 {
                     var main = ps.main; var c = main.startColor.color;
-                    main.startColor = new Color(c.r * 0.75f, c.g * 0.75f, c.b * 0.75f, c.a);   // violet kept (dreamy pass)
+                    main.startColor = new Color(1f, 0.42f, 0.12f, c.a);   // hell pass 2: violet -> ember
                     Refill(ps);
                 }
             }
@@ -303,19 +310,38 @@ namespace Underworld
                 switch (mat)
                 {
                     case "UW_OrbSmall":
-                        if (n == "SoulGateGlow") { Glow(r, mpb, new Color(0.75f, 0.9f, 1f) * 2f, new Color(0.3f, 0.5f, 0.9f) * 0.3f, 0.8f); halos++; }
-                        else if ((r.GetInstanceID() & 3) != 0) { r.enabled = false; off++; }   // loose "Orb" / "Mote" billboards: keep one in four (dreamy pass)
+                        if (n == "SoulGateGlow") { Glow(r, mpb, new Color(1f, 0.7f, 0.4f) * 2f, new Color(1f, 0.3f, 0.06f) * 0.3f, 0.8f); halos++; }
+                        else { r.enabled = false; off++; }   // hell pass 2: loose blue-white motes all off   // loose "Orb" / "Mote" billboards: keep one in four (dreamy pass)
                         continue;
-                    case "UW_OrbViolet": Glow(r, mpb, new Color(0.9f, 0.8f, 1f) * 2.0f, new Color(0.5f, 0.25f, 0.9f) * 0.35f, 0.8f); halos++; continue;   // violet again
+                    case "UW_OrbViolet": Glow(r, mpb, new Color(1f, 0.8f, 0.5f) * 2.0f, new Color(1f, 0.3f, 0.05f) * 0.35f, 0.8f); halos++; continue;   // violet again
                     case "UW_HaloLantern": Glow(r, mpb, lanternColor * 1.8f, new Color(0.9f, 0.45f, 0.15f) * 0.18f, 1.1f); halos++; continue;
                     case "UW_HaloPaper": Glow(r, mpb, new Color(1f, 0.38f, 0.2f) * 1.4f, new Color(0.8f, 0.2f, 0.1f) * 0.16f, 1.0f); halos++; continue;
-                    case "UW_FogVoid": Col(r, mpb, fogPre * 0.8f, 0.9f); cards++; continue;
-                    case "UW_FogEdge": Col(r, mpb, fogPre * 1.2f, 0.6f); cards++; continue;
-                    case "UW_FogGround": Col(r, mpb, fogPre, 0.4f); cards++; continue;
-                    case "UW_SoulVeil": Col(r, mpb, new Color(0.22f, 0.14f, 0.36f), 0.5f); cards++; continue;
+                    case "UW_FogVoid": r.enabled = false; off++; continue;   // hell pass 2: rectangular dark cards over the lava sea read as slabs; height fog does the haze
+                    case "UW_FogEdge": r.enabled = false; off++; continue;   // hell pass 2: standing cards read as black slabs over the lava sea
+                    case "UW_FogGround": r.enabled = false; off++; continue;   // hell pass 2: rectangular dark patches over the lava sea
+                    case "UW_SoulVeil": r.enabled = false; off++; continue;   // hell pass 2: violet veil haze off
                 }
             }
-            Debug.Log($"UWLook: {off} dot/mist emitters and cards off, {halos} halos toned, {cards} fog cards darkened");
+            // hell pass 2: any remaining cold (blue / violet / white-blue) scene emitter reads as "stars" in a lava world -> ember
+            int warmed = 0;
+            foreach (var ps in FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None))
+            {
+                if (ps.transform.IsChildOf(transform) || ps.gameObject.scene != gameObject.scene) continue;   // stage dressing only, never weapon / bullet VFX
+                var main = ps.main; var sc = main.startColor;
+                Color c = sc.mode == ParticleSystemGradientMode.Color ? sc.color : sc.mode == ParticleSystemGradientMode.TwoColors ? sc.colorMax
+                        : sc.mode == ParticleSystemGradientMode.Gradient || sc.mode == ParticleSystemGradientMode.RandomColor ? sc.gradient.Evaluate(0.5f) : sc.gradientMax.Evaluate(0.5f);
+                var col = ps.colorOverLifetime; Color cl = col.enabled ? col.color.Evaluate(0.5f) : Color.white;
+                bool cold = c.b > c.r + 0.05f || (col.enabled && cl.b > cl.r + 0.05f);
+                if (!cold) continue;
+                float a2 = c.a;
+                main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.36f, 0.08f, a2), new Color(1f, 0.55f, 0.18f, a2));
+                if (col.enabled) { var g = new Gradient(); g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) }, col.color.gradient != null ? col.color.gradient.alphaKeys : new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }); col.color = g; }
+                var tr = ps.trails; if (tr.enabled) tr.colorOverLifetime = new Color(1f, 0.4f, 0.1f);
+                warmed++;
+                var pr = ps.GetComponent<ParticleSystemRenderer>();
+                Debug.Log($"UWLook: warmed cold emitter {ps.gameObject.name} ({(pr && pr.sharedMaterial ? pr.sharedMaterial.name : "-")})");
+            }
+            Debug.Log($"UWLook: {off} dot/mist emitters and cards off, {halos} halos toned, {cards} fog cards darkened, {warmed} cold emitters warmed");
 
             if (emberMat && emberSpots.Count > 0 && emberRate > 0f) embers = MakeEmbers(emberMat);
         }
@@ -518,13 +544,15 @@ namespace Underworld
         //  - hell rim: red-orange fire glow welling up from the chasm just outside the arena edge, and dark smoke columns rising
         //    from it, lit from below. Nothing inside the arena is added except the low wisps.
         // Particles reuse the stage's Kenney puff sprite (UW_PtMist's texture) through runtime material copies.
-        public int wispRate = 12, smokeColumns = 12, rimFires = 14;
-        public Color wispColor = new Color(0.55f, 0.45f, 0.8f, 0.06f), fireColor = new Color(1f, 0.32f, 0.08f), smokeColor = new Color(0.09f, 0.075f, 0.07f, 0.55f);
+        public int wispRate = 12, smokeColumns = 12, rimFires = 0;   // hell pass: the lava sea glow replaces the rim fire lights (perf)
+        public Color wispColor = new Color(0.12f, 0.08f, 0.07f, 0.12f), fireColor = new Color(1f, 0.32f, 0.08f), smokeColor = new Color(0.09f, 0.075f, 0.07f, 0.55f);
         void HellFx()
         {
             Texture puff = null; Shader psh = Shader.Find("Underworld/Particle");
             foreach (var r in FindObjectsByType<ParticleSystemRenderer>(FindObjectsSortMode.None))
                 if (r.sharedMaterial && r.sharedMaterial.name.StartsWith("UW_PtMist")) { puff = r.sharedMaterial.GetTexture("_MainTex"); break; }
+            // hell pass 2: the stage puff is a halftone-dot sprite; scaled to 6-13 m smoke columns it read as speckled black bushes
+            var soft = Resources.Load<Texture2D>("VFX/smoke_04"); if (soft) puff = soft;
             if (!psh || !puff) { Debug.LogWarning("UWLook: no mist sprite/shader for hell fx"); return; }
             Material M(Color tint, bool additive, float soft)
             {
@@ -613,6 +641,236 @@ namespace Underworld
                 gp.Play();
             }
             Debug.Log($"UWLook: hell fx: wisps {wispRate}/s, {rimFires} rim fires, {smokeColumns} smoke columns");
+        }
+
+        // Hell set dressing (11-13 night, Kido: depth from BIG structures at the rim only, tall black silhouettes along the
+        // bottom of the screen, nothing inside the battlefield, existing/downloaded assets only). Prefabs come from
+        // Resources/Hell (built by Tools/Underworld/Quality/Build Hell Props from third-party meshes already in the project).
+        //   south rim (screen bottom): very tall dead trees and stone pillars, near-black, no shadows -> foreground silhouettes
+        //   north rim: the burning ghost gate (Korean gate) under a giant stone pagoda, jangseung guardians, fires
+        //   east / west rims: rows of colossal pillars, boulders, dead trees, skull piles, fires in the gaps
+        public bool hellSet = true;
+        public Rect plazaRect = new Rect(-44f, -29f, 88f, 56f);   // UW_Plaza bounds: rim dressing goes just outside this
+        public float seaHeight = -6f;
+        public float lilyGlow = 2.4f;
+        void HellSet()
+        {
+            if (!hellSet) return;
+            GameObject P(string n) => Resources.Load<GameObject>("Hell/" + n);
+            var root = new GameObject("UWLook hell set").transform; root.SetParent(transform, false);
+            var rnd = new System.Random(4242);
+            float F(float a, float b) => a + (float)rnd.NextDouble() * (b - a);
+            // pass 3 (QA_02 #8): off the plaza the raycast hits nothing - stand on the lava sea, not float at plaza height
+            // pass 4: cast from just above the walk surface and ignore triggers (from 40 m the ray hit room trigger volumes,
+            // so small dressing like the lilies ended up floating out of view)
+            // (the plaza has no collider: on the plaza the walk surface is y = 0, off it the lava sea)
+            float Ground(float x, float z) => Physics.Raycast(new Vector3(x, 3f, z), Vector3.down, out var h, 20f, ~0, QueryTriggerInteraction.Ignore) ? h.point.y
+                : plazaRect.Contains(new Vector2(x, z)) ? 0f : seaHeight;
+            int placed = 0;
+            GameObject Put(string n, float x, float z, float yaw, float scale, bool shadows, float sink = 0f)
+            {
+                var pf = P(n); if (!pf) return null;
+                var go = Instantiate(pf, root);
+                go.transform.SetPositionAndRotation(new Vector3(x, Ground(x, z) - sink, z), Quaternion.Euler(0f, yaw, 0f));
+                go.transform.localScale = Vector3.one * scale;
+                foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = shadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                placed++;
+                return go;
+            }
+            float xMin = plazaRect.xMin, xMax = plazaRect.xMax, zMin = plazaRect.yMin, zMax = plazaRect.yMax;
+            string[] trees = { "DeadTree0", "DeadTree1", "DeadTree2", "DeadTree3" };
+
+            // south rim: foreground silhouettes (the camera looks north, so these stand between the camera and the arena)
+            // 1st capture: pillars here read as huge black slabs over half the screen. Only spindly dead trees, further out
+            // and less tall, so they frame the bottom edge without covering the arena.
+            for (float x = xMin - 6f; x <= xMax + 6f; x += F(8f, 13f))
+                Put(trees[rnd.Next(4)], x, zMin - F(7f, 12f), F(0, 360), F(5.5f, 6.5f), false, 0f);   // pass 3: rooted on the sea (6 m lower), so they frame the bottom edge without crossing the arena
+            // north rim: ghost gate + pagoda + guardians
+            float gx = plazaRect.center.x, gz = zMax + 10f;   // 1st capture: at +6 / x1.5 the gate was a black wall over the top of the screen
+            Put("Gate", gx, gz, 90f, 1.7f, true);   // pass 3: rises out of the lava sea (6 m below), so bigger
+            Put("Pagoda", gx + 2f, zMax + 30f, F(0, 360), 0.6f, true);
+            Put("Jangseung", gx - 8f, zMax - 0.3f, 180f, 5f, true); Put("Jangseung", gx + 8f, zMax - 0.3f, 180f, 5f, true);   // on the lip (thin posts)
+            for (float x = xMin - 4f; x <= xMax + 4f; x += F(9f, 14f))
+            {
+                if (Mathf.Abs(x - gx) < 14f) continue;
+                Put(trees[rnd.Next(4)], x, zMax + F(6f, 14f), F(0, 360), F(6f, 8f), true);   // pass 3: north pillars read as giant black slabs; dead trees only   // pass 3: rooted on the sea
+            }
+            // east / west rims: colossal pillar rows, boulders, trees
+            foreach (float side in new[] { -1f, 1f })
+            {
+                float x0 = side < 0 ? xMin - 7f : xMax + 7f;
+                for (float z = zMin; z <= zMax; z += F(8f, 12f))
+                {
+                    float x = x0 + side * F(0f, 6f);
+                    // pass 2: from the high camera anything tall on the east / west rims projects across the screen as a long
+                    // black slab (pillars, then trees). Kido: tall silhouettes only at the bottom / outer edge. Sides: low rock only.
+                    if (rnd.NextDouble() < 0.6) Put("Boulder", x, z, F(0, 360), F(4.5f, 7f), false, 0f);   // pass 3: basalt crags rising from the sea
+                }
+            }
+            // review_01 #3: the plaza ends in ruler-straight edges; broken basalt boulders along the lip, just outside it
+            // pass 2: a regular row of 5-7 m boulders read as black beads hiding the north backdrop. Smaller, irregular, sides
+            // and south only (the gate / jangseung own the north lip)
+            for (float x = xMin; x <= xMax; x += F(5f, 11f)) if (rnd.NextDouble() < 0.6) Put("Boulder", x, zMin - F(4.5f, 6.5f), F(0, 360), F(4f, 6.5f), false, 0f);
+            for (float z = zMin; z <= zMax; z += F(5f, 11f)) { if (rnd.NextDouble() < 0.6) Put("Boulder", xMin - F(4.5f, 6.5f), z, F(0, 360), F(4f, 6.5f), false, 0f); if (rnd.NextDouble() < 0.6) Put("Boulder", xMax + F(4.5f, 6.5f), z, F(0, 360), F(4f, 6.5f), false, 0f); }
+            // skull piles at the four corners, just outside the play area
+            foreach (var (cx, cz) in new[] { (xMin - 3f, zMin - 3f), (xMax + 3f, zMin - 3f), (xMin - 3f, zMax + 3f), (xMax + 3f, zMax + 3f) })
+                Put("Skulls", cx, cz, F(0, 360), 1.6f, false);
+
+            // pass 4 (final_03 #3): the plaza mesh has a 45-degree chamfer at its NE corner; a basalt crag rising from the sea
+            // fills the notch so it no longer reads as a cut
+            // pass 5 (final_04 #1): break the ruler-straight plaza lip at gameplay zoom - a dense row of basalt shoulders
+            // rising from the sea whose tops just reach the lip (dome profile: they stay below the walk surface inside it)
+            for (float x = xMin - 2f; x <= xMax + 2f; x += F(3f, 6f))
+            {
+                if (Mathf.Abs(x - gx) > 15f) Put("Boulder", x, zMax + F(0.4f, 1.4f), F(0, 360), F(4.3f, 6f), false, 0f);
+                Put("Boulder", x, zMin - F(0.4f, 1.4f), F(0, 360), F(4.3f, 6f), false, 0f);
+            }
+            for (float z = zMin; z <= zMax; z += F(3f, 6f))
+            {
+                Put("Boulder", xMin - F(0.4f, 1.4f), z, F(0, 360), F(4.3f, 6f), false, 0f);
+                Put("Boulder", xMax + F(0.4f, 1.4f), z, F(0, 360), F(4.3f, 6f), false, 0f);
+            }
+            // (tried a crag in the NE chamfer: read as a black hole - off)
+            // pass 4: 피안화 (red spider lily) clumps on the charred rim strip just inside the plaza edge, thickest on the gate
+            // approach. Procedural mesh (UWSpiderLily), no colliders, knee-high: ground dressing, not an obstacle.
+            var lilySh = Shader.Find("Underworld/Lily");
+            if (lilySh)
+            {
+                var lilyMat = new Material(lilySh) { hideFlags = HideFlags.DontSave, enableInstancing = false };
+                lilyMat.SetFloat("_Glow", lilyGlow);
+                int clumps = 0;
+                void Lily(float x, float z, int count, float r)
+                {
+                    var go = new GameObject("SpiderLily"); go.transform.SetParent(root, false);
+                    go.transform.position = new Vector3(x, Ground(x, z) + 0.01f, z);
+                    go.AddComponent<MeshFilter>().sharedMesh = UWSpiderLily.Clump(count, r, rnd.Next(), 1f);
+                    var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = lilyMat; mr.shadowCastingMode = ShadowCastingMode.Off;
+                    clumps++;
+                }
+                for (float x = xMin + 2f; x <= xMax - 2f; x += F(4f, 8f))
+                {
+                    bool approach = Mathf.Abs(x - gx) < 12f;
+                    if (approach || rnd.NextDouble() < 0.55) Lily(x, zMax - F(0.6f, 1.8f), approach ? 14 : rnd.Next(6, 11), approach ? 1.6f : F(0.8f, 1.4f));
+                    if (rnd.NextDouble() < 0.45) Lily(x, zMin + F(0.6f, 1.8f), rnd.Next(6, 11), F(0.8f, 1.4f));
+                }
+                for (float z = zMin + 2f; z <= zMax - 2f; z += F(4f, 8f))
+                {
+                    if (rnd.NextDouble() < 0.5) Lily(xMin + F(0.6f, 1.8f), z, rnd.Next(6, 11), F(0.8f, 1.4f));
+                    if (rnd.NextDouble() < 0.5) Lily(xMax - F(0.6f, 1.8f), z, rnd.Next(6, 11), F(0.8f, 1.4f));
+                }
+                var dbgM = UWSpiderLily.Plant();
+                Debug.Log($"UWLook: {clumps} spider lily clumps; plant v{dbgM.vertexCount} t{dbgM.triangles.Length / 3} bounds {dbgM.bounds}; shader ok {lilySh.isSupported}; first at {(root.Find("SpiderLily") ? root.Find("SpiderLily").position.ToString() : "-")}");
+            }
+
+            // fires at the gate and along the north / side rims (lights + additive flame puffs + embers)
+            var fires = new List<Vector3> { new(gx - 5f, 0, gz - 2f), new(gx + 5f, 0, gz - 2f), new(gx, 0, zMax + 18f) };
+            for (int i = 0; i < 8; i++) { float a = F(0f, Mathf.PI * 2f); var d = new Vector2(Mathf.Cos(a), Mathf.Sin(a)); if (d.y < -0.3f) continue; fires.Add(Rim3(d, F(4f, 9f))); }
+            foreach (var f in fires) Fire(root, new Vector3(f.x, Ground(f.x, f.z), f.z));
+            // pass 4 (final_03 #4, "hall reads as a box"): the roof burns along its ridge, and a high warm light picks out the
+            // roof tiles so the hall reads as a building from the top-down camera
+            foreach (var rx in new[] { -9f, 0f, 9f }) Fire(root, new Vector3(gx + rx, seaHeight + 12.5f, gz + F(-1.5f, 1.5f)));
+            {
+                var lg = new GameObject("GateRoofLight"); lg.transform.SetParent(root, false); lg.transform.position = new Vector3(gx, seaHeight + 24f, gz - 6f);
+                var l = lg.AddComponent<Light>(); l.type = LightType.Spot; l.spotAngle = 70f; l.innerSpotAngle = 30f; l.range = 40f; l.intensity = 2500f;   // pass 5: 120 did not reach the roof
+                l.color = new Color(1f, 0.45f, 0.2f); l.shadows = LightShadows.None; l.renderMode = LightRenderMode.ForcePixel;
+                lg.transform.rotation = Quaternion.LookRotation(new Vector3(gx, seaHeight + 10f, gz) - lg.transform.position);
+            }
+            // lava sea filling the void around and below the plaza: everything beyond the arena edge glows from below
+            var sea = Resources.Load<Material>("UW_LavaSea");
+            if (sea)
+            {
+                var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Destroy(q.GetComponent<Collider>());
+                q.name = "UWLook lava sea"; q.transform.SetParent(root, false);
+                q.transform.position = new Vector3(arenaRect.center.x, seaHeight, arenaRect.center.y);
+                q.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+                q.transform.localScale = new Vector3(320f, 320f, 1f);
+                var mr = q.GetComponent<MeshRenderer>(); mr.sharedMaterial = sea; mr.shadowCastingMode = ShadowCastingMode.Off;
+                // big warm glow welling up from the sea onto the plaza edges / props
+                for (int i = 0; i < 6; i++)
+                {
+                    float a2 = i / 6f * Mathf.PI * 2f + 0.3f; var d = new Vector2(Mathf.Cos(a2), Mathf.Sin(a2));
+                    var lp = Rim3(d, 10f); lp.y = seaHeight + 3f;
+                    var lg = new GameObject("SeaGlow"); lg.transform.SetParent(root, false); lg.transform.position = lp;
+                    var l = lg.AddComponent<Light>(); l.type = LightType.Point; l.color = new Color(1f, 0.32f, 0.08f); l.range = 26f; l.intensity = 40f;
+                    l.shadows = LightShadows.None; l.renderMode = LightRenderMode.ForcePixel;
+                }
+            }
+            Debug.Log($"UWLook: hell set {placed} props, {fires.Count} fires");
+        }
+
+        Vector3 Rim3(Vector2 d, float outward)
+        {
+            var c = plazaRect.center;
+            float tx = Mathf.Abs(d.x) > 1e-3f ? plazaRect.width * 0.5f / Mathf.Abs(d.x) : 1e9f;
+            float tz = Mathf.Abs(d.y) > 1e-3f ? plazaRect.height * 0.5f / Mathf.Abs(d.y) : 1e9f;
+            var e = c + d * (Mathf.Min(tx, tz) + outward);
+            return new Vector3(e.x, 0f, e.y);
+        }
+
+        Material fireMat, emberMat2;
+        void Fire(Transform root, Vector3 p)
+        {
+            var psh = Shader.Find("Underworld/Particle");
+            if (!fireMat)
+            {
+                Texture puff = null;
+                foreach (var r in FindObjectsByType<ParticleSystemRenderer>(FindObjectsSortMode.None))
+                    if (r.sharedMaterial && r.sharedMaterial.name.StartsWith("UW_PtMist")) { puff = r.sharedMaterial.GetTexture("_MainTex"); break; }
+                if (!psh || !puff) return;
+                var soft = Resources.Load<Texture2D>("VFX/smoke_04"); if (soft) puff = soft;   // hell pass 2: soft puff, not halftone dots
+                fireMat = new Material(psh) { hideFlags = HideFlags.DontSave };
+                fireMat.SetTexture("_MainTex", puff); fireMat.SetColor("_Tint", new Color(1f, 0.38f, 0.1f) * 1.6f);
+                fireMat.SetFloat("_Src", (float)BlendMode.One); fireMat.SetFloat("_Dst", (float)BlendMode.One); fireMat.SetFloat("_SoftFade", 1f);
+            }
+            var go = new GameObject("HellFire"); go.transform.SetParent(root, false); go.transform.position = p + Vector3.up * 0.3f;
+            var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var r2 = go.GetComponent<ParticleSystemRenderer>(); r2.sharedMaterial = fireMat; r2.shadowCastingMode = ShadowCastingMode.Off;
+            var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(0.8f, 1.6f); mm.startSpeed = 0f; mm.maxParticles = 80;
+            mm.startSize = new ParticleSystem.MinMaxCurve(1.2f, 2.6f); mm.startRotation = new ParticleSystem.MinMaxCurve(0f, 6.28f);
+            var em = ps.emission; em.rateOverTime = 26f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Circle; sh.radius = 1.4f; sh.rotation = new Vector3(90, 0, 0);
+            var v = ps.velocityOverLifetime; v.enabled = true; v.space = ParticleSystemSimulationSpace.World;
+            v.x = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f); v.y = new ParticleSystem.MinMaxCurve(1.8f, 3.6f); v.z = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f);
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient(); g.SetKeys(new[] { new GradientColorKey(new Color(1f, 0.85f, 0.5f), 0), new GradientColorKey(new Color(1f, 0.35f, 0.08f), 0.4f), new GradientColorKey(new Color(0.4f, 0.05f, 0.02f), 1) },
+                new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.12f), new GradientAlphaKey(0.6f, 0.6f), new GradientAlphaKey(0, 1) });
+            col.color = g;
+            var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 1f, 1, 0.3f));
+            ps.Play();
+            var lg = new GameObject("HellFireLight"); lg.transform.SetParent(go.transform, false); lg.transform.localPosition = Vector3.up * 1.5f;
+            var l = lg.AddComponent<Light>(); l.type = LightType.Point; l.color = new Color(1f, 0.42f, 0.14f); l.range = 14f; l.intensity = 18f;
+            l.shadows = LightShadows.None; l.renderMode = LightRenderMode.ForcePixel;
+            var fl = lg.AddComponent<UWFlicker>(); fl.baseIntensity = l.intensity; fl.amount = 0.25f;
+        }
+
+        // Kido 11-13: the stage's first-draft primitive props (my own placeholder pagoda, gate, statues, rocks, walls, trees,
+        // shrubs, lantern posts) read awkward; hidden here (renderers only, their lights stay) and replaced by HellSet.
+        static readonly string[] OldProps = { "UW_Pagoda", "UW_Gate", "UW_Statue", "UW_RockPillar", "UW_DeadTree_", "UW_Shrub_", "UW_Wall_", "UW_Fence", "UW_Rock_", "UW_LanternLow", "UW_LanternPole", "UW_LanternTall", "UW_BridgeWide", "UW_Bridge", "GateDais", "Cylinder" };   // pass 6: primitive candle posts on the plaza   // pass 3: plank boardwalk off the west edge read as a level-editor cut
+        void HideOldProps()
+        {
+            int n = 0;
+            foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (r.gameObject.scene != gameObject.scene) continue;
+                for (var t = r.transform; t; t = t.parent)
+                {
+                    bool hit = false;
+                    foreach (var o in OldProps) if (t.name.StartsWith(o)) { hit = true; break; }
+                    if (hit) { r.enabled = false; n++; break; }
+                }
+            }
+            // the violet portal swirl becomes a hell-mouth: molten core, orange body, char edge
+            var mpb = new MaterialPropertyBlock();
+            foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (r.gameObject.scene != gameObject.scene || !r.sharedMaterial || r.sharedMaterial.name != "UW_Portal") continue;
+                r.GetPropertyBlock(mpb);
+                mpb.SetColor("_Core", new Color(1f, 0.78f, 0.45f) * 2f); mpb.SetColor("_Mid", new Color(1f, 0.28f, 0.05f) * 1.5f); mpb.SetColor("_Edge", new Color(0.18f, 0.02f, 0.01f));
+                r.SetPropertyBlock(mpb);
+            }
+            Debug.Log($"UWLook: hid {n} first-draft prop renderers");
         }
 
         void HideArenaRubble()

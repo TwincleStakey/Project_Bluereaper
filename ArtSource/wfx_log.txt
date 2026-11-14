@@ -1,0 +1,137 @@
+10:42:42 IAssetStoreDownloadManager -> UnityEditor.PackageManager.UI.Internal.AssetStoreDownloadManager
+10:42:42   Void add_onDownloadError(Action`2 value)
+10:42:42   Void remove_onDownloadError(Action`2 value)
+10:42:42   Void add_onDownloadFinalized(Action`1 value)
+10:42:42   Void remove_onDownloadFinalized(Action`1 value)
+10:42:42   Void add_onDownloadProgress(Action`1 value)
+10:42:42   Void remove_onDownloadProgress(Action`1 value)
+10:42:42   Void add_onDownloadStateChanged(Action`1 value)
+10:42:42   Void remove_onDownloadStateChanged(Action`1 value)
+10:42:42   Void add_onBeforeDownloadStart(Action`1 value)
+10:42:42   Void remove_onBeforeDownloadStart(Action`1 value)
+10:42:42   DownloadDelegateHandler get_downloadDelegateHandler()
+10:42:42   Void RegisterDownloadDelegate()
+10:42:42   Void UnRegisterDownloadDelegate()
+10:42:42   Boolean IsAnyDownloadInProgress()
+10:42:42   Boolean IsAnyDownloadInProgressOrPause()
+10:42:42   Int32 DownloadInProgressCount()
+10:42:42   Void Download(Int64 productId)
+10:42:42   Boolean Download(IEnumerable`1 productIds)
+10:42:42   Void ClearCache()
+10:42:42   AssetStoreDownloadOperation GetDownloadOperation(Nullable`1 productId)
+10:42:42   Void SetupDownloadOperation(AssetStoreDownloadOperation operation)
+10:42:42   Void OnDownloadFinalized(AssetStoreDownloadOperation operation)
+10:42:42   Void RemoveDownloadOperation(Int64 productId)
+10:42:42   Void OnDownloadProgress(String downloadId, String message, UInt64 bytes, UInt64 total, Int32 errorCode)
+10:42:42   Void AbortAllDownloads()
+10:42:42   Void AbortDownload(Nullable`1 productId)
+10:42:42   Void PauseDownload(Nullable`1 productId)
+10:42:42   Void ResumeDownload(Nullable`1 productId)
+10:42:42   Void OnPlayModeStateChanged(PlayModeStateChange state)
+10:42:42   Void OnEnable()
+10:42:42   Void OnDisable()
+10:42:42   Void OnUserLoginStateChange(Boolean userInfoReady, Boolean loggedIn)
+10:42:42   Void OnAssetStoreCacheConfigChange(CachePathConfig config)
+10:42:42   Boolean CheckTermsOfServiceAgreement(Action onTosAccepted, Action`1 onError)
+10:42:42   Void OnBeforeSerialize()
+10:42:42   Void OnAfterDeserialize()
+10:42:42 IAssetStoreCache -> UnityEditor.PackageManager.UI.Internal.AssetStoreCache
+10:42:42   Void add_onLocalInfosChanged(Action`2 value)
+10:42:42   Void remove_onLocalInfosChanged(Action`2 value)
+10:42:42   Void add_onProductInfoChanged(Action`1 value)
+10:42:42   Void remove_onProductInfoChanged(Action`1 value)
+10:42:42   Void add_onPurchaseInfosChanged(Action`1 value)
+10:42:42   Void remove_onPurchaseInfosChanged(Action`1 value)
+10:42:42   Void add_onUpdateInfosChanged(Action`1 value)
+10:42:42   Void remove_onUpdateInfosChanged(Action`1 value)
+10:42:42   Void add_onImportedPackagesChanged(Action`2 value)
+10:42:42   Void remove_onImportedPackagesChanged(Action`2 value)
+10:42:42   IEnumerable`1 get_localInfos()
+10:42:42   IEnumerable`1 get_importedPackages()
+10:42:42   IEnumerable`1 get_importedAssets()
+10:42:42   Void OnBeforeSerialize()
+10:42:42   Void OnAfterDeserialize()
+10:42:42   Void SetCategory(String category, Int64 count)
+10:42:42   Texture2D LoadImage(Int64 productId, String url)
+10:42:42   Void SaveImage(Int64 productId, String url, Texture2D texture)
+10:42:42   Void DownloadImageAsync(Int64 productID, String url, Action`2 doneCallbackAction)
+10:42:42   Void ClearOnlineCache()
+10:42:42   AssetStorePurchaseInfo GetPurchaseInfo(Nullable`1 productId)
+10:42:42   AssetStoreProductInfo GetProductInfo(Nullable`1 productId)
+10:42:42   AssetStoreLocalInfo GetLocalInfo(Nullable`1 productId)
+10:42:42   AssetStoreUpdateInfo GetUpdateInfo(Nullable`1 productId)
+10:42:42   AssetStoreImportedPackage GetImportedPackage(Nullable`1 productId)
+10:42:42   Void SetPurchaseInfos(IEnumerable`1 purchaseInfos)
+10:42:42   Void SetProductInfo(AssetStoreProductInfo productInfo)
+10:42:42   Void SetLocalInfos(IEnumerable`1 localInfos)
+10:42:42   Void SetLocalInfo(AssetStoreLocalInfo localInfo)
+10:42:42   Void SetUpdateInfos(IEnumerable`1 updateInfos)
+10:42:42   Void UpdateImportedAssets(IEnumerable`1 addedOrUpdatedAssets, IEnumerable`1 removedAssetPaths)
+10:42:42   Void RefreshImportedPackageList(HashSet`1 modifiedProductIds)
+10:42:52 download 270114 via Void Download(Int64) -> 
+10:43:55 imported C:/Users/PC/AppData/Roaming/Unity/Asset Store-5.x/Namu/Particle Systems/Stylized Water Effect Pack.unitypackage
+10:45:32 preview Assets/NamuFX/StylizedWaterEffects/Prefabs/Water_Splash_A.prefab -> C:/Users/PC/AppData/Local/Temp/claude/39e6eb33057f390b/6bff11f5-1813-4353-9439-b4d841f5f337/scratchpad/prev/Water_Splash_A.png
+10:45:33 preview Assets/NamuFX/StylizedWaterEffects/Prefabs/Water_Splash_B.prefab -> C:/Users/PC/AppData/Local/Temp/claude/39e6eb33057f390b/6bff11f5-1813-4353-9439-b4d841f5f337/scratchpad/prev/Water_Splash_B.png
+10:45:35 preview Assets/NamuFX/StylizedWaterEffects/Prefabs/Water_Splash_Multiple.prefab -> C:/Users/PC/AppData/Local/Temp/claude/39e6eb33057f390b/6bff11f5-1813-4353-9439-b4d841f5f337/scratchpad/prev/Water_Splash_Multiple.png
+10:50:57   ps WaterFX_Splash mat=ParticlesUnlit col=Color
+10:50:57   ps splash_long mat=M_Particles_Alp_Distortion col=Color
+10:50:57   ps splash_ground mat=M_Particles_Alp_Distortion col=Color
+10:50:57   ps particles mat=M_Particles_Alp_Distortion col=TwoColors
+10:50:57   ps bubbles mat=M_Particles_Alp_Distortion col=TwoColors
+10:50:57   ps ripples mat=M_Particles_Alp_Distortion col=TwoColors
+10:50:57 made Assets/Game/WaterFX/Resources/WaterFX_Splash.prefab
+10:50:58 preview Assets/Game/WaterFX/Resources/WaterFX_Splash.prefab -> C:/Users/PC/AppData/Local/Temp/claude/39e6eb33057f390b/6bff11f5-1813-4353-9439-b4d841f5f337/scratchpad/prev/mine_close.png
+10:55:48   ps WaterFX_Splash mat=ParticlesUnlit col=Color
+10:55:48   ps splash_long mat=M_Particles_Alp_Distortion col=Color
+10:55:48   ps splash_ground mat=M_Particles_Alp_Distortion col=Color
+10:55:48   ps particles mat=M_Particles_Alp_Distortion col=TwoColors
+10:55:48   ps bubbles mat=M_Particles_Alp_Distortion col=TwoColors
+10:55:48   ps ripples mat=M_Particles_Alp_Distortion col=TwoColors
+10:55:48 made Assets/Game/WaterFX/Resources/WaterFX_Splash.prefab
+10:57:15   ps WaterFX_Splash mat=ParticlesUnlit col=Color
+10:57:15   ps splash_long mat=M_Particles_Alp_Distortion col=Color
+10:57:15   ps splash_ground mat=M_Particles_Alp_Distortion col=Color
+10:57:15   ps particles mat=M_Particles_Alp_Distortion col=TwoColors
+10:57:15   ps bubbles mat=M_Particles_Alp_Distortion col=TwoColors
+10:57:15   ps ripples mat=M_Particles_Alp_Distortion col=TwoColors
+10:57:16 made Assets/Game/WaterFX/Resources/WaterFX_Splash.prefab
+10:57:17 wade: entering play mode
+10:57:34 wade at (-6.00, 0.00, -4.00) (player was (-6.00, -0.03, -3.00))
+10:57:36 wade v1 done, fps 104
+11:02:36   ps WaterFX_Splash mat=ParticlesUnlit col=Color
+11:02:36   ps splash_long mat=M_Particles_Alp_Distortion col=Color
+11:02:36   ps splash_ground mat=M_Particles_Alp_Distortion col=Color
+11:02:36   ps particles mat=M_Particles_Alp_Distortion col=TwoColors
+11:02:36   ps bubbles mat=M_Particles_Alp_Distortion col=TwoColors
+11:02:36   ps ripples mat=M_Particles_Alp_Distortion col=TwoColors
+11:02:37 made Assets/Game/WaterFX/Resources/WaterFX_Splash.prefab
+11:02:39 wade: entering play mode
+11:02:57 wade at (-6.00, 0.00, -4.00) (player was (-6.00, -0.03, -3.00))
+11:02:59 wade v2 done, fps 99
+11:08:38   ps WaterFX_Splash mat=ParticlesUnlit col=Color
+11:08:38   ps splash_long mat=M_Particles_Alp_Distortion col=Color
+11:08:38   ps splash_ground mat=M_Particles_Alp_Distortion col=Color
+11:08:38   ps particles mat=M_Particles_Alp_Distortion col=TwoColors
+11:08:38   ps bubbles mat=M_Particles_Alp_Distortion col=TwoColors
+11:08:38 made Assets/Game/WaterFX/Resources/WaterFX_Splash.prefab
+11:09:48 wade: entering play mode
+11:10:07 wade at (-4.00, 0.00, -2.00) (player was (-2.00, 0.00, -4.00))
+11:16:53 opened RoomRun (will restore )
+11:16:53 wade: entering play mode
+11:17:11 wade: not in valley (abandoned), stopping
+11:17:13 restored scene Assets/Game/LocoSplit/LocoSplit.unity
+11:17:51 opened RoomRun (will restore )
+11:17:51 wade: entering play mode
+11:18:11 wade at (-6.00, 0.00, -4.00) (player was (-6.00, -0.03, -3.00))
+11:18:13 wade v3 done, fps 65
+11:18:14 restored scene Assets/Game/LocoSplit/LocoSplit.unity
+11:23:13 opened RoomRun (will restore )
+11:23:13 wade: entering play mode
+11:23:31 wade at (-12.00, 0.00, -14.00) (player was (-6.00, -0.03, -3.00))
+11:23:34 wade v4 done, fps 70
+11:23:35 restored scene Assets/Game/LocoSplit/LocoSplit.unity
+16:53:25 download 200233 via Void Download(Int64) -> 
+16:54:22 download 373530 via Void Download(Int64) -> 
+16:54:44 download 248665 via Void Download(Int64) -> 
+16:56:17 download 232943 via Void Download(Int64) -> 
+16:56:39 download 295209 via Void Download(Int64) -> 

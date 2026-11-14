@@ -395,9 +395,14 @@ public class LookStudyDevTools : MonoBehaviour
         // previous behaviour (hard hole in snow/폐촌/bamboo, none elsewhere), for before/after
         Section("가림 투명");
         r = NewRow();
-        Toggle(r, "부드러운 투명", () => PlayerPrefs.GetInt("RR.SeeThrough", 1) != 0, () =>
+        Toggle(r, "부드러운 투명", () => PlayerPrefs.GetInt("RR.SeeThrough", 2) != 0, () =>
         {
-            PlayerPrefs.SetInt("RR.SeeThrough", PlayerPrefs.GetInt("RR.SeeThrough", 1) == 0 ? 1 : 0); RefreshToggles();
+            PlayerPrefs.SetInt("RR.SeeThrough", PlayerPrefs.GetInt("RR.SeeThrough", 2) == 0 ? 2 : 0); RefreshToggles();
+        });
+        // v1 = the first soft version (small radius, short band), for comparing against v2
+        Toggle(r, "이전 버전(v1)", () => PlayerPrefs.GetInt("RR.SeeThrough", 2) == 1, () =>
+        {
+            PlayerPrefs.SetInt("RR.SeeThrough", PlayerPrefs.GetInt("RR.SeeThrough", 2) == 1 ? 2 : 1); RefreshToggles();
         });
         Toggle(r, "디더 흔들기", () => PlayerPrefs.GetInt("RR.SeeThroughTemporal", 0) != 0, () =>
         {
@@ -427,6 +432,11 @@ public class LookStudyDevTools : MonoBehaviour
         MakeSlider("안개", 0f, 0.012f, Lights[0].fogDensity, v => { fog = v; ApplyAll(); });
         MakeSlider("구름 그늘", 0f, 1f, Lights[0].cloudShade, v => { cloudShade = v; ApplyAll(); });
         MakeSlider("바람", 0f, 4f, 1f, v => { windMul = v; ApplyAll(); });
+        // 가림 투명 v2 shape (keys = RoomRun.SeeThroughFX.InnerKey/OuterKey/MinKey/CurveKey; metres around the player)
+        MakeSlider("투명 안쪽", 0f, 3f, PlayerPrefs.GetFloat("RR.SeeInner", 0.5f), v => PlayerPrefs.SetFloat("RR.SeeInner", v));
+        MakeSlider("투명 바깥", 2f, 9f, PlayerPrefs.GetFloat("RR.SeeOuter", 6.5f), v => PlayerPrefs.SetFloat("RR.SeeOuter", v));
+        MakeSlider("중심 남김", 0f, 0.8f, PlayerPrefs.GetFloat("RR.SeeMin", 0.35f), v => PlayerPrefs.SetFloat("RR.SeeMin", v));
+        MakeSlider("외곽 부드럽게", 1f, 3f, PlayerPrefs.GetFloat("RR.SeeCurve", 1.2f), v => PlayerPrefs.SetFloat("RR.SeeCurve", v));
 
         Section("카메라");
         r = NewRow();
