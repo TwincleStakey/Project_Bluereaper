@@ -174,9 +174,11 @@ namespace RoomRun
             { "village", new RoomPost { saturation = -40f, bloomThreshold = 1.4f, bloomIntensity = 0.65f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.45f,
                 filter = new Color(0.97f, 0.95f, 0.92f), splitShadows = new Color(0.4f, 0.42f, 0.46f), splitHighlights = new Color(0.8f, 0.7f, 0.58f), splitBalance = 10f,
                 veil = new Color(0.29f, 0.28f, 0.26f), veilFar = new Color(0.12f, 0.11f, 0.1f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.15f } },
-            { "reeds", new RoomPost { saturation = -46f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 6f, exposureAdd = 0.3f,
-                filter = new Color(0.95f, 0.94f, 0.95f), splitShadows = new Color(0.36f, 0.4f, 0.48f), splitHighlights = new Color(0.86f, 0.68f, 0.5f), splitBalance = 10f,
-                veil = new Color(0.33f, 0.31f, 0.3f), veilFar = new Color(0.13f, 0.11f, 0.11f), veilDensity = 0.03f, veilMax = 0.7f, highlightPull = -0.15f } },
+            // 11-14 sunset (Kido: "하얀 빛대신 석양 ... 붉은 느낌"): warm red-orange highlights, dusky plum shadows, a rust veil;
+            // still pressed and low-saturation (was a grey veil and cold blue split shadows)
+            { "reeds", new RoomPost { saturation = -34f, bloomThreshold = 1.3f, bloomIntensity = 0.65f, flashScale = 0.5f, press = true, contrast = 12f, exposureAdd = 0.3f,
+                filter = new Color(1f, 0.92f, 0.88f), splitShadows = new Color(0.38f, 0.34f, 0.46f), splitHighlights = new Color(0.98f, 0.6f, 0.4f), splitBalance = 0f,
+                veil = new Color(0.4f, 0.22f, 0.16f), veilFar = new Color(0.17f, 0.08f, 0.06f), veilDensity = 0.028f, veilMax = 0.65f, highlightPull = -0.15f } },
             { "bamboo", new RoomPost { saturation = -18f, bloomThreshold = 1.3f, bloomIntensity = 0.7f, flashScale = 0.5f, press = true, contrast = 14f, exposureAdd = 0.1f,   // 11-13 redo: StageMood already greys it; the cyan filter tinted the stone landmarks
                 filter = new Color(0.98f, 0.97f, 0.96f), splitShadows = new Color(0.36f, 0.42f, 0.5f), splitHighlights = new Color(0.8f, 0.74f, 0.62f), splitBalance = 10f,
                 veil = new Color(0.2f, 0.22f, 0.25f), veilFar = new Color(0.07f, 0.08f, 0.09f), veilDensity = 0.02f, veilMax = 0.5f, highlightPull = -0.15f } },

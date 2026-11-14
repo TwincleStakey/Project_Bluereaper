@@ -30,6 +30,9 @@ namespace Reeds
         void Start()
         {
             field = GetComponent<ReedField>();
+            // 11-14 (Kido: "하얀 빛대신 석양이 지는 느낌으로 좀 붉은 느낌"): in the sunset mood the beams are low red-orange
+            // sun rays through the clouds, not cold white moonlight
+            if (field && field.mood == ReedField.Mood.Sunset) { color = new Color(1.0f, 0.4f, 0.2f); beamIntensity = 0.24f; poolIntensity = 1.1f; }
             var mat = Resources.Load<Material>("RF_LightShaft");
             count = Mathf.Clamp(count, 0, 8);
             beams = new Transform[count]; rends = new MeshRenderer[count];
@@ -67,7 +70,8 @@ namespace Reeds
             if (!sun) sun = field && field.moon && field.moon.isActiveAndEnabled ? field.moon : RenderSettings.sun;
             var d = sun ? -sun.transform.forward : new Vector3(0.3f, 0.8f, 0.5f);
             // keep the beams slanted but never flat: a low sun would lay them along the ground
-            if (d.y < 0.55f) { d.y = 0.55f; }
+            float minY = field && field.mood == ReedField.Mood.Sunset ? 0.42f : 0.55f;   // sunset: a lower, longer slant
+            if (d.y < minY) { d.y = minY; }
             return d.normalized;
         }
 

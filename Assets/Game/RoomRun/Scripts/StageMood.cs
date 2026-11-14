@@ -29,6 +29,9 @@ namespace RoomRun
             public float fogDensity = 0.018f;  // 0 or less: keep the stage's own fog
             public int firePools = 16;         // >0: eight stone lanterns lit just outside the arena edge (11-13; was metres between block braziers); 0 = none
             public Color fire = new Color(1f, 0.55f, 0.24f);
+            public Color sunColor = Color.clear;   // a > 0: the sun takes this colour (before sunGrey) instead of the stage's
+            public float reedAmbCut = 0f;          // ReedField/Reed: cut the flat ambient so the sun and AO shade (_RF_AmbCut)
+            public bool reedSunShadow;             // ReedField/Reed: realtime sun shadow on the reeds (_RF_RTShadow)
         }
 
         // Tuned per field from screenshots; anything not listed uses the defaults above.
@@ -45,7 +48,12 @@ namespace RoomRun
             // 11-13 (Kido: "nothing like POE2"): the grey filter and greyed moon flattened the new Megascans ground to one
             // grey; neutral-warm filter, the moon keeps its cold colour against the warm lantern pools
             { "abandoned",  new Mood { exposure = 0.8f, /* 11-14 폐촌 r14: refs median luminance 0.10-0.14, ours ~0.06 */ saturation = -40f, contrast = 40f, filter = new Color(1f, 0.97f, 0.92f), sun = 1.2f, sunGrey = 0.2f, ambient = 0.55f, ambientGrey = 0.3f, firePools = 0, fog = new Color(0.16f, 0.18f, 0.21f), fogDensity = 0.009f } },
-            { "reeds",      new Mood { exposure = -1.05f, saturation = -66f, filter = new Color(0.84f, 0.83f, 0.82f) } },
+            // 11-14 (Kido: "하얀 빛대신 석양이 지는 느낌으로 좀 붉은 느낌", "전체적으로 붕 뜨는 느낌 ... 쉐이드가 안들어가는"): a low red
+            // sunset sun kept near full (it was x0.45 and greyed, so the flat reed ambient carried everything and nothing
+            // was shaded), its colour kept; the reeds take the realtime sun shadows and lose most of their flat ambient
+            { "reeds",      new Mood { exposure = -1.25f, saturation = -40f, contrast = 22f, filter = new Color(1f, 0.86f, 0.78f),
+                                       sun = 0.95f, sunGrey = 0.12f, sunColor = new Color(1f, 0.52f, 0.3f, 1f), ambient = 0.45f, ambientGrey = 0.35f,
+                                       fog = new Color(0.16f, 0.085f, 0.06f), fogDensity = 0.016f, reedAmbCut = 0.55f, reedSunShadow = true } },
             // 11-13 bamboo redo (Kido: C mood, Sekiro bamboo at night): darker materials and a cold moon in the scene, so the
             // grade only lifts it; the old -0.6 EV / -58 sat / green-grey filter turned the floor into one olive mush
             { "bamboo",     new Mood { exposure = 0.15f, saturation = -42f, filter = new Color(0.95f, 0.96f, 0.99f), fire = new Color(0.95f, 0.6f, 0.38f) } },   // r9: darker, softer lantern colour
@@ -141,8 +149,11 @@ namespace RoomRun
             {
                 if (l.type != LightType.Directional || l.transform.IsChildOf(transform)) continue;
                 l.intensity *= m.sun;
+                if (m.sunColor.a > 0f) l.color = new Color(m.sunColor.r, m.sunColor.g, m.sunColor.b);
                 l.color = Grey(l.color, m.sunGrey);
             }
+            Shader.SetGlobalFloat("_RF_AmbCut", m.reedAmbCut);
+            Shader.SetGlobalFloat("_RF_RTShadow", m.reedSunShadow ? 1f : 0f);
             RenderSettings.ambientLight = Grey(RenderSettings.ambientLight, m.ambientGrey) * m.ambient;
             RenderSettings.ambientSkyColor = Grey(RenderSettings.ambientSkyColor, m.ambientGrey) * m.ambient;
             RenderSettings.ambientEquatorColor = Grey(RenderSettings.ambientEquatorColor, m.ambientGrey) * m.ambient;
