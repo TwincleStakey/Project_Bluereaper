@@ -38,6 +38,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _DryGloss: 0.5
+    - _WetGloss: 0.08
     - _BurnOn: 0
     - _Cull: 2
     - _MossAmt: 0.08
