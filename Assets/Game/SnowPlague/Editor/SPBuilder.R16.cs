@@ -68,7 +68,7 @@ public static partial class SPBuilder
             bool pillar = r.name == "SP_MX_StonePillar";
             r.gameObject.SetActive(false);
             if (pillar) { pillars++; continue; }
-            if (Mathf.Abs(p.x) > HX + 3f || Mathf.Abs(p.z) > HZ + 3f)
+            if ((Mathf.Abs(p.x) > HX + 3f || Mathf.Abs(p.z) > HZ + 3f) && !R13InDeck(new Vector2(p.x, p.z), 5f))   /* no crown over the bridges */
             {
                 var g = Place((k++ & 1) == 0 ? "SK:Con_PineTree_1" : "SK:Con_FirTree_0", p.x, p.z, (k * 137.5f) % 360f, 0.9f + (k % 3) * 0.1f, r.transform.parent, false, 0.15f);
                 if (g) { trees++; continue; }
