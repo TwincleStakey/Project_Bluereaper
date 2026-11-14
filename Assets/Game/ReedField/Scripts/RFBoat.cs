@@ -2,6 +2,7 @@
 // The current pushes it downstream until the rope is taut: it rides at the end of the rope, swings a little across the
 // stream, surges and tugs, bobs and rocks. The rope is a thin line from the 장승 to the iron ring on the bow, nearly
 // straight while it is pulled tight and sagging a touch when the boat surges back.
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Reeds
@@ -27,8 +28,101 @@ namespace Reeds
         public float bob = 0.05f;
         public LineRenderer rope;
 
+        [Tooltip("Height (m above the waterline) of the invisible lid that keeps the river out of the hull.")]
+        public float lidHeight = 0.14f;
+
         Vector3 ringLocal, bowLocal;
         bool measured;
+        GameObject lid;
+        Mesh lidMesh;
+        static Material lidMat;
+
+        // 11-14 (Kido: the boat's bottom looked see-through): the hull rides 0.18 m deep, so the transparent river was
+        // drawn over the floorboards inside it. A depth-only lid (ReedField/WaterMask) cut from the hull at lidHeight
+        // stops the water there; built in Play from the mesh itself as a plain scene object (dies with the scene; no
+        // DontSave GameObjects, they leak across scenes, see MeshChunker).
+        void OnEnable() { if (Application.isPlaying) BuildLid(); }
+
+        void OnDisable()
+        {
+            if (lid) Destroy(lid);
+            if (lidMesh) Destroy(lidMesh);
+        }
+
+        void BuildLid()
+        {
+            var mf = boat ? boat.GetComponentInChildren<MeshFilter>() : null;
+            var mesh = mf ? mf.sharedMesh : null;
+            if (!mesh || lid) return;
+            if (!lidMat) lidMat = Resources.Load<Material>("RF_BoatWaterMask");   // keeps the shader in builds
+            if (!lidMat)
+            {
+                var sh = Shader.Find("ReedField/WaterMask");
+                if (!sh) return;
+                lidMat = new Material(sh) { name = "RF_BoatWaterMask", hideFlags = HideFlags.DontSave };
+            }
+            var verts = mesh.vertices;
+            var tris = mesh.GetTriangles(0);   // hull skin + thwarts (floorboards, pole and ring are on other submeshes)
+            var bnd = mesh.bounds;
+            bool alongX = bnd.size.x > bnd.size.z;
+            float h = lidHeight / Mathf.Max(1e-4f, mf.transform.lossyScale.y);
+            // slice the hull at y = h: points where triangle edges cross the plane (skipping the end boards)
+            var pts = new List<Vector2>();   // (along, across)
+            for (int i = 0; i < tris.Length; i += 3)
+            {
+                Vector3 a = verts[tris[i]], b = verts[tris[i + 1]], c = verts[tris[i + 2]];
+                var nrm = Vector3.Cross(b - a, c - a).normalized;
+                if (Mathf.Abs(alongX ? nrm.x : nrm.z) > 0.7f) continue;
+                void Edge(Vector3 p, Vector3 q)
+                {
+                    if ((p.y - h) * (q.y - h) > 0 || Mathf.Approximately(p.y, q.y)) return;
+                    var x = Vector3.Lerp(p, q, (h - p.y) / (q.y - p.y));
+                    pts.Add(alongX ? new Vector2(x.x, x.z) : new Vector2(x.z, x.x));
+                }
+                Edge(a, b); Edge(b, c); Edge(c, a);
+            }
+            if (pts.Count < 8) return;
+            float mid = alongX ? bnd.center.z : bnd.center.x;
+            float amin = float.MaxValue, amax = float.MinValue;
+            foreach (var p in pts) { amin = Mathf.Min(amin, p.x); amax = Mathf.Max(amax, p.x); }
+            int nb = Mathf.Clamp(Mathf.CeilToInt((amax - amin) / 0.12f), 4, 80);
+            var lo = new float[nb]; var hi = new float[nb];
+            for (int k = 0; k < nb; k++) { lo[k] = float.MinValue; hi[k] = float.MaxValue; }
+            foreach (var p in pts)
+            {
+                int k = Mathf.Clamp((int)((p.x - amin) / (amax - amin) * nb), 0, nb - 1);
+                float s = p.y - mid;
+                // the inside skin is the crossing nearest the keel line on each side
+                if (s < 0) lo[k] = Mathf.Max(lo[k], s); else hi[k] = Mathf.Min(hi[k], s);
+            }
+            var v = new List<Vector3>(); var t = new List<int>();
+            bool first = true;
+            for (int k = 0; k < nb; k++)
+            {
+                if (lo[k] == float.MinValue || hi[k] == float.MaxValue) continue;
+                float al = first ? amin : (k == nb - 1 ? amax : amin + (k + 0.5f) * (amax - amin) / nb);
+                first = false;
+                Vector3 P(float along, float across) => alongX ? new Vector3(along, h, mid + across) : new Vector3(mid + across, h, along);
+                v.Add(P(al, lo[k])); v.Add(P(al, hi[k]));
+                if (v.Count >= 4) { int s0 = v.Count - 4; t.AddRange(new[] { s0, s0 + 1, s0 + 2, s0 + 1, s0 + 3, s0 + 2 }); }
+            }
+            if (t.Count == 0) return;
+            // stretch the last row to the end of the slice so no gap is left at the stern/bow board
+            {
+                var last = v[v.Count - 1]; var last2 = v[v.Count - 2];
+                if (alongX) { last.x = amax; last2.x = amax; } else { last.z = amax; last2.z = amax; }
+                v[v.Count - 1] = last; v[v.Count - 2] = last2;
+            }
+            lidMesh = new Mesh { name = "RF_BoatLid" };
+            lidMesh.SetVertices(v); lidMesh.SetTriangles(t, 0); lidMesh.RecalculateBounds();
+            lid = new GameObject("WaterLid");
+            lid.transform.SetParent(mf.transform, false);
+            lid.AddComponent<MeshFilter>().sharedMesh = lidMesh;
+            var r = lid.AddComponent<MeshRenderer>();
+            r.sharedMaterial = lidMat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+            r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off; r.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+        }
 
         void Measure()
         {

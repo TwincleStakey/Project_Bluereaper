@@ -683,11 +683,17 @@ namespace Reeds
         }
 
         // The deep river along the south: from just inside the arena edge to past the far bank, one row of quads.
+        // 11-14 (Kido: the cut-off water edge showed): the river surface now runs from 7 m inside the arena (it also
+        // covers the wading shallows, so no seam between two water shaders) to well past the far bank, where the
+        // ground has risen above the water; the River shader fades out near both mesh edges (_RiverZ.zw).
+        public float RiverMeshNear => -arena.y * 0.5f + 7f;
+        public float RiverMeshFar => -arena.y * 0.5f - riverWidth - 12f;
+        public Vector4 RiverParams => new Vector4(RiverZ.x, RiverZ.y, transform.position.z + RiverMeshNear, transform.position.z + RiverMeshFar);
         public Vector2 RiverZ => new Vector2(transform.position.z - arena.y * 0.5f + 1.0f, transform.position.z - arena.y * 0.5f - riverWidth - 2.5f);
         public Mesh BuildRiverMesh()
         {
             var full = FullSize;
-            float z0 = -arena.y * 0.5f + 1.0f, z1 = -arena.y * 0.5f - riverWidth - 3.5f;
+            float z0 = RiverMeshNear, z1 = RiverMeshFar;
             var v = new List<Vector3>(); var t = new List<int>();
             int n = Mathf.CeilToInt(full.x / 4f);
             for (int i = 0; i <= n; i++)
@@ -723,13 +729,7 @@ namespace Reeds
                 v.Add(new Vector3(p.x - n.x * half, waterLevel, p.y - n.y * half));
                 if (i > 0) { int s = v.Count - 4; t.AddRange(new[] { s, s + 2, s + 1, s + 1, s + 2, s + 3 }); }
             }
-            // The river along the south edge: one wide strip across the whole scene.
-            var full = FullSize;
-            float z0 = -arena.y * 0.5f + 7f, z1 = -arena.y * 0.5f + 1.0f;   // ends where the deep river surface starts (BuildRiverMesh); 11-13 QA: they overlapped 3.5 m, 1 cm apart
-            int b0 = v.Count;
-            v.Add(new Vector3(-full.x * 0.5f, waterLevel, z0)); v.Add(new Vector3(full.x * 0.5f, waterLevel, z0));
-            v.Add(new Vector3(-full.x * 0.5f, waterLevel, z1)); v.Add(new Vector3(full.x * 0.5f, waterLevel, z1));
-            t.AddRange(new[] { b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2 });
+            // (the south strip that used to sit in front of the river is gone: the river surface covers the shallows now)
             // Make every triangle face up.
             for (int i = 0; i < t.Count; i += 3)
             {

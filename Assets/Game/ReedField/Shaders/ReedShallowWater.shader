@@ -42,6 +42,7 @@ Shader "ReedField/ShallowWater"
             #include "ReedCommon.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "RFWaterSurface.hlsl"
 
             TEXTURE2D(_SurfaceMap); SAMPLER(sampler_SurfaceMap);
             TEXTURE2D(_FoamTex); SAMPLER(sampler_FoamTex);
@@ -65,15 +66,12 @@ Shader "ReedField/ShallowWater"
                 return o;
             }
 
-            float3 SurfaceNormal(float2 xz)
+            // 11-14: shared non-repeating surface (RFWaterSurface.hlsl), drifting slowly with the wind
+            float3 SurfaceNormal(float2 xz, float eye)
             {
-                float2 wind = _RF_Wind.xy;
-                float t = _RF_Time * _FlowSpeed;
-                float2 uv1 = xz / _SurfaceScale + wind * t;
-                float2 uv2 = float2(xz.y, -xz.x) / (_SurfaceScale * 1.7) + float2(-wind.y, wind.x) * t * 0.7;
-                float3 n1 = UnpackNormal(SAMPLE_TEXTURE2D(_SurfaceMap, sampler_SurfaceMap, uv1));
-                float3 n2 = UnpackNormal(SAMPLE_TEXTURE2D(_SurfaceMap, sampler_SurfaceMap, uv2));
-                float2 nxy = (n1.xy + n2.xy) * 0.5 * _NormalStrength;
+                float2 drift = _RF_Wind.xy * _RF_Time * _FlowSpeed * _SurfaceScale;
+                float2 nxy = RFWaterSlope(TEXTURE2D_ARGS(_SurfaceMap, sampler_SurfaceMap), xz, drift, _SurfaceScale, _RF_Time);
+                nxy *= _NormalStrength * lerp(0.35, 1.0, RFWaterPatch(xz, _RF_Time)) * RFWaterNear(eye);
                 return normalize(float3(nxy.x, 1, nxy.y));
             }
 
@@ -86,23 +84,23 @@ Shader "ReedField/ShallowWater"
                 float3 v = normalize(_WorldSpaceCameraPos - i.ws);
                 float depth = max(sceneEye - surfEye, 0) * saturate(v.y + 0.05);
 
-                float3 n = SurfaceNormal(i.ws.xz);
+                float3 n = SurfaceNormal(i.ws.xz, surfEye);
                 // Ripples from the WaterFX buffer (world normals + strength), as in URP_Water / BoatAttack.
                 float4 fx = SAMPLE_TEXTURE2D(_WaterFXTexture, sampler_WaterFXTexture, suv);
                 n = normalize(lerp(n, normalize(n + float3(fx.x, 0, fx.z) * 2.0), saturate(fx.a * _RippleStrength)));
 
                 Light ml = GetMainLight();
-                float fres = pow(1 - saturate(dot(n, v)), 4);
+                // calmer normal for the mirrored sky, one broad dull moon sheen: no pin-point glints (11-14, white specks)
+                float3 nr = normalize(float3(n.x * 0.5, 1, n.z * 0.5));
+                float fres = pow(1 - saturate(dot(nr, v)), 4);
                 float murk = smoothstep(_ClearDepth, _MurkDepth, depth);
                 float3 col = lerp(_ShallowCol.rgb, _DeepCol.rgb, murk) * (0.35 + 0.65 * ml.color);
-                // Mirror of the sky, distorted by the ripples.
-                float2 ruv = float2(suv.x + n.x * 0.05, 1 - saturate(0.5 + n.z * 0.3 + fres * 0.5));
+                float2 ruv = float2(suv.x + nr.x * 0.04, 1 - saturate(0.5 + nr.z * 0.2 + fres * 0.5));
                 float3 sky = SAMPLE_TEXTURE2D(_PlanarReflectionTexture, sampler_PlanarReflectionTexture, ruv).rgb;
-                float refl = saturate(_Reflection * (0.25 + fres * 1.5));
+                float refl = saturate(_Reflection * (0.2 + fres * 1.3));
                 col = lerp(col, sky, refl);
                 float3 r = reflect(-v, n);
-                col += ml.color * pow(saturate(dot(r, ml.direction)), 180) * _Glint;
-                col += ml.color * pow(saturate(dot(r, ml.direction)), 24) * 0.08 * _Glint;
+                col += ml.color * pow(saturate(dot(r, ml.direction)), 28) * 0.035 * _Glint;
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = i.ws;
@@ -110,7 +108,7 @@ Shader "ReedField/ShallowWater"
                 uint count = GetAdditionalLightsCount();
                 LIGHT_LOOP_BEGIN(count)
                     Light add = GetAdditionalLight(lightIndex, i.ws, half4(1, 1, 1, 1));
-                    col += add.color * add.distanceAttenuation * pow(saturate(dot(r, add.direction)), 60) * 1.2;
+                    col += add.color * add.distanceAttenuation * pow(saturate(dot(r, add.direction)), 24) * 0.35;
                 LIGHT_LOOP_END
 
                 float foam = 0;

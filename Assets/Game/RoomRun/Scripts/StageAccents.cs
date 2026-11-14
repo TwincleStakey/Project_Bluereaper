@@ -171,7 +171,7 @@ namespace RoomRun
             }
 
             // wisps: along the edges and in the corners, just inside the arena (they float, nothing to bump into)
-            for (int i = 0; i < look.wisps; i++)
+            for (int i = 0, tries = 0; i < look.wisps && tries < look.wisps * 8; tries++)
             {
                 float u, v;
                 if (i % 3 == 0) { u = (R() < 0.5f ? -1f : 1f) * (0.8f + R() * 0.12f); v = (R() < 0.5f ? -1f : 1f) * (0.75f + R() * 0.12f); }      // corners
@@ -180,7 +180,11 @@ namespace RoomRun
                 else { do { u = R() * 1.6f - 0.8f; v = R() * 1.6f - 0.8f; } while (u * u + v * v < 0.12f); }   // loose in the field, never on the start spot
                 var a = new Vector3(c.x + u * hx, 0, c.z + v * hz);
                 a.y = Ground.Sample(a, c.y);
+                // 11-14 (Kido: "물속에 왜 들어있어"): the reed field's south edge is river; a wisp anchored on the river bed
+                // sat under the water with its glow pool lighting the water. Only dry ground (not well below the arena floor).
+                if (a.y < c.y - 0.3f) continue;
                 wisps.Add(new Wisp { anchor = a, seed = R() * 100f, roam = 1.2f + R() * 1.8f });
+                i++;
             }
             // 11-14 review: core near white-mint (#D8FFF4), body teal (#5FD6C0), halo the deep edge teal (#2E8F86), halo only ~2x the core
             if (wispHalo) { wispHalo.SetColor("_Color", new Color(0.18f, 0.56f, 0.52f) * look.wispGlow * 0.5f); wispCore.SetColor("_Color", Color.Lerp(look.wisp, Color.white, 0.35f) * look.wispGlow * 1.3f); wispFlame.SetColor("_Color", look.wisp * look.wispGlow * 1.0f); }
