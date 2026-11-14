@@ -50,6 +50,8 @@ namespace BlueReaper.DebugTools
 
         void Spawn(Enemy prefab)
         {
+            // 멀티에선 적을 호스트만 만든다 (팀원 PC에서 만들면 나한테만 보이는 가짜 적이 생김)
+            if (Network.StageNetwork.IsRemoteClient) return;
             Vector3 position = player.transform.position + player.transform.forward * spawnDistance;
             Quaternion rotation = Quaternion.LookRotation(-player.transform.forward);
             // 스테이지를 거쳐야 풀 사용 + 플레이어 목록 주입이 된다

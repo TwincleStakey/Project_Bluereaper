@@ -19,22 +19,37 @@ namespace BlueReaper.UI
 
         public void Init(Health target)
         {
-            if (targetHealth) targetHealth.Damaged -= OnHealthChanged;
+            if (targetHealth) Unsubscribe();
             targetHealth = target;
-            if (targetHealth && isActiveAndEnabled) targetHealth.Damaged += OnHealthChanged;
+            if (targetHealth && isActiveAndEnabled) Subscribe();
             OnHealthChanged(0f);
         }
 
         private void OnEnable()
         {
-            if (targetHealth) targetHealth.Damaged += OnHealthChanged;
+            if (targetHealth) Subscribe();
             OnHealthChanged(0f);
         }
 
         private void OnDisable()
         {
-            if (targetHealth) targetHealth.Damaged -= OnHealthChanged;
+            if (targetHealth) Unsubscribe();
         }
+
+        // 부활(구조)하면 HP가 0에서 다시 차므로 Revived도 받아야 바가 갱신된다
+        private void Subscribe()
+        {
+            targetHealth.Damaged += OnHealthChanged;
+            targetHealth.Revived += OnRevived;
+        }
+
+        private void Unsubscribe()
+        {
+            targetHealth.Damaged -= OnHealthChanged;
+            targetHealth.Revived -= OnRevived;
+        }
+
+        private void OnRevived() => OnHealthChanged(0f);
 
         private void OnHealthChanged(float damage)
         {

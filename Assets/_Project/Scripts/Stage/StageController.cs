@@ -6,6 +6,7 @@ using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
 using BlueReaper.Data;
 using BlueReaper.HitBox;
+using BlueReaper.Network;
 using BlueReaper.Player;
 using BlueReaper.UI;
 using UnityEngine;
@@ -32,6 +33,7 @@ namespace BlueReaper.Stage
             public bool CountsForClear;
             public bool Dead;
             public Action OnDied;
+            public Action OnRevived;
             public Action OnPresentationFinished;
         }
 
@@ -47,6 +49,8 @@ namespace BlueReaper.Stage
         private int fieldKills;
         private bool bossesOnly;
         private bool fieldComplete;
+        // [네트워크] 씬에 NetworkManager가 있을 때만 붙는다. 없으면 null → 예전과 똑같이 혼자 진행
+        private StageNetwork network;
 
         private void OnEnable()
         {
@@ -66,6 +70,8 @@ namespace BlueReaper.Stage
 
         private void Start()
         {
+            // [네트워크] NetworkManager는 자기 OnEnable에서 준비되므로, 모든 오브젝트가 깨어난 뒤인 Start에서 확인한다
+            if (StageNetwork.HasNetwork) network = gameObject.AddComponent<StageNetwork>();
             foreach (Health player in players)
             {
                 if (!player || !player.isActiveAndEnabled || player.IsDead || alivePlayers.Contains(player.transform))
@@ -75,7 +81,59 @@ namespace BlueReaper.Stage
             }
 
             if (playerCamera && alivePlayers.Count > 0) playerCamera.SetTarget(alivePlayers[0]);
-            if (stageData) stageRoutine = StartCoroutine(RunStage());
+            if (stageData) stageRoutine = StartCoroutine(network ? RunStageAsHost() : RunStage());
+        }
+
+        /// <summary>
+        /// [네트워크] 방이 열릴 때까지 기다렸다가 호스트만 스테이지를 진행한다.
+        /// 팀원 PC는 진행하지 않고, 호스트가 알려 주는 필드(ShowFieldForClient)와 호스트가 만든 적을 보여 주기만 한다.
+        /// </summary>
+        private IEnumerator RunStageAsHost()
+        {
+            while (!StageNetwork.IsHost)
+            {
+                if (StageNetwork.IsRemoteClient)
+                {
+                    stageRoutine = null;
+                    yield break;
+                }
+                yield return null;
+            }
+            yield return RunStage();
+        }
+
+        /// <summary>
+        /// [네트워크] 실행 중에 들어온 플레이어(팀원)를 적의 추적 대상에 넣는다. 호스트의 PlayerSpawner가 부른다.
+        /// 인스펙터의 players 목록은 시작할 때 씬에 있던 플레이어만 담을 수 있어서 따로 필요하다.
+        /// </summary>
+        public void AddPlayer(Health player)
+        {
+            // 나간 팀원(파괴된 오브젝트)은 목록에서 정리
+            alivePlayers.RemoveAll(alive => !alive);
+            if (!player || player.IsDead || alivePlayers.Contains(player.transform)) return;
+            alivePlayers.Add(player.transform);
+            RegisterUnit(player.GetComponent<Unit>(), null);
+        }
+
+        /// <summary>
+        /// [네트워크] 팀원 PC 전용: 호스트가 깐 필드를 똑같이 깐다 (index -1이면 치우기만).
+        /// 필드에 미리 놓인 적은 지운다 — 적은 호스트가 네트워크로 만들어 보내 준다.
+        /// </summary>
+        internal void ShowFieldForClient(int index)
+        {
+            UnloadCurrentField();
+            if (!stageData || stageData.Fields == null || index < 0 || index >= stageData.Fields.Length || !stageData.Fields[index])
+                return;
+
+            currentField = Instantiate(stageData.Fields[index], transform.position, transform.rotation, transform);
+            foreach (Unit unit in currentField.PlacedUnits)
+                if (unit && unit.GetComponent<Enemy>()) Destroy(unit.gameObject);
+
+            // 내 캐릭터는 내 PC가 위치를 정하므로(NetworkTransform 주인 권한) 입구로 옮기는 것도 내 PC에서 한다
+            var manager = Unity.Netcode.NetworkManager.Singleton;
+            var me = manager.LocalClient?.PlayerObject;
+            if (me && currentField.Entrance)
+                TeleportPlayer(me.transform, currentField.Entrance, (int)(manager.LocalClientId % 3), 3);
         }
 
         private IEnumerator RunStage()
@@ -97,6 +155,7 @@ namespace BlueReaper.Stage
                 }
 
                 currentField = Instantiate(prefab, transform.position, transform.rotation, transform);
+                if (network) network.SetField(index); // [네트워크] 팀원 PC도 같은 필드를 깔게 알림
                 if (!currentField.isActiveAndEnabled || !currentField.TryGetClearTarget(out requiredKills, out bossesOnly))
                 {
                     AbortStage($"Field {prefab.name} has an invalid entrance or spawn plan.");
@@ -115,6 +174,7 @@ namespace BlueReaper.Stage
                         yield break;
                     }
                     var enemy = unit.GetComponent<Enemy>();
+                    if (enemy) StageNetwork.Spawn(unit.gameObject); // [네트워크] 팀원 PC에도 생기게
                     if (enemy) InitEnemy(enemy);
                     else RegisterUnit(unit, currentField);
                     if (!isActiveAndEnabled) yield break;
@@ -148,19 +208,26 @@ namespace BlueReaper.Stage
         {
             for (int i = 0; i < alivePlayers.Count; i++)
             {
-                Transform player = alivePlayers[i];
-                Vector3 position = entrance.transform.position;
-                if (i > 0)
-                {
-                    float spacing = Mathf.Max(1f, entrance.SpawnRadius / alivePlayers.Count);
-                    float offset = (i + 1) / 2 * (i % 2 == 1 ? 1f : -1f) * spacing;
-                    position += entrance.transform.right * offset;
-                }
-
-                var motor = player.GetComponent<PlayerMotor>();
-                if (motor) motor.Teleport(position, entrance.transform.rotation);
-                else player.SetPositionAndRotation(position, entrance.transform.rotation);
+                // [네트워크] 나간 팀원은 오브젝트가 파괴돼 있을 수 있다
+                if (!alivePlayers[i]) continue;
+                TeleportPlayer(alivePlayers[i], entrance, i, alivePlayers.Count);
             }
+        }
+
+        // (기존 MovePlayers 안의 코드를 그대로 뺀 것. 팀원 PC가 자기 캐릭터만 옮길 때도 같은 배치를 쓰려고 분리)
+        private static void TeleportPlayer(Transform player, PlayerSpawnEntry entrance, int i, int count)
+        {
+            Vector3 position = entrance.transform.position;
+            if (i > 0)
+            {
+                float spacing = Mathf.Max(1f, entrance.SpawnRadius / count);
+                float offset = (i + 1) / 2 * (i % 2 == 1 ? 1f : -1f) * spacing;
+                position += entrance.transform.right * offset;
+            }
+
+            var motor = player.GetComponent<PlayerMotor>();
+            if (motor) motor.Teleport(position, entrance.transform.rotation);
+            else player.SetPositionAndRotation(position, entrance.transform.rotation);
         }
 
         private bool SpawnWave(StageField field)
@@ -244,6 +311,7 @@ namespace BlueReaper.Stage
         public Enemy SpawnEnemy(Enemy prefab, Vector3 position, Quaternion rotation, bool countsForClear = true)
         {
             var enemy = ObjectPool.Spawn(prefab.gameObject, position, rotation).GetComponent<Enemy>();
+            StageNetwork.Spawn(enemy.gameObject); // [네트워크] 호스트에서 만든 적을 팀원 PC에도 생기게
             InitEnemy(enemy, countsForClear);
             return enemy;
         }
@@ -274,6 +342,12 @@ namespace BlueReaper.Stage
             {
                 record.OnDied = () => OnUnitDied(record);
                 record.Health.Died += record.OnDied;
+                // [네트워크·구조] 플레이어는 빈사 때 목록에서 빠지므로, 구조되면 다시 넣는다
+                if (field is null && !record.Enemy)
+                {
+                    record.OnRevived = () => OnPlayerRevived(record);
+                    record.Health.Revived += record.OnRevived;
+                }
             }
             if (record.AI)
             {
@@ -309,6 +383,13 @@ namespace BlueReaper.Stage
             }
 
             if (!record.AI || !record.AI.isActiveAndEnabled) ReleaseUnit(record);
+        }
+
+        private void OnPlayerRevived(StageUnitRecord record)
+        {
+            if (!IsRegistered(record) || !record.Dead) return;
+            record.Dead = false;
+            if (!alivePlayers.Contains(record.Unit.transform)) alivePlayers.Add(record.Unit.transform);
         }
 
         private bool IsRegistered(StageUnitRecord record) =>
@@ -373,6 +454,7 @@ namespace BlueReaper.Stage
             if (!IsRegistered(record)) return;
             units.Remove(record.Unit);
             if (record.Health) record.Health.Died -= record.OnDied;
+            if (record.Health && record.OnRevived != null) record.Health.Revived -= record.OnRevived;
             if (record.AI)
             {
                 record.AI.DeathPresentationFinished -= record.OnPresentationFinished;
@@ -381,6 +463,7 @@ namespace BlueReaper.Stage
             if (record.Field is null && !record.Enemy) return;
             if (hudBoss == record.Health) HideBossHUD();
             if (!record.Unit) return;
+            StageNetwork.Despawn(record.Unit.gameObject); // [네트워크] 팀원 PC에서도 사라지게 (호스트는 풀에서 재사용)
             record.Unit.gameObject.SetActive(false);
             ObjectPool.Despawn(record.Unit.gameObject);
         }
@@ -431,6 +514,7 @@ namespace BlueReaper.Stage
         private void UnloadCurrentField()
         {
             if (!currentField) return;
+            if (network) network.SetField(-1); // [네트워크] 팀원 PC도 필드를 치우게
             currentField.gameObject.SetActive(false);
             Destroy(currentField.gameObject);
             currentField = null;
@@ -448,6 +532,21 @@ namespace BlueReaper.Stage
         }
 
         private void OnBossDefeated(Health boss)
+        {
+            if (hudBoss == boss) HideBossHUD();
+        }
+
+        /// <summary>[네트워크] 팀원 PC 전용: 호스트가 만든 보스가 내 화면에 생기면 보스 HP 바를 띄운다.</summary>
+        internal void ShowRemoteBoss(Enemy boss)
+        {
+            hudBoss = boss.GetComponent<Health>();
+            if (!bossHUD) return;
+            bossHUD.Init(boss);
+            bossHUD.Show();
+        }
+
+        /// <summary>[네트워크] 팀원 PC 전용: 보스가 사라지면 HP 바를 숨긴다.</summary>
+        internal void HideRemoteBoss(Health boss)
         {
             if (hudBoss == boss) HideBossHUD();
         }

@@ -1,3 +1,5 @@
+using BlueReaper.Core;
+using BlueReaper.Stage;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -33,6 +35,10 @@ namespace BlueReaper.Network
             Vector3 position = hostPlayer.position + hostPlayer.right * spacing * slot;
             var player = Instantiate(playerPrefab, position, hostPlayer.rotation);
             player.SpawnAsPlayerObject(clientId, destroyWithScene: true);
+
+            // 적이 이 팀원도 쫓도록 스테이지에 등록 (스테이지가 없는 테스트 씬이면 건너뜀)
+            var stage = FindAnyObjectByType<StageController>();
+            if (stage) stage.AddPlayer(player.GetComponent<Health>());
         }
     }
 }
