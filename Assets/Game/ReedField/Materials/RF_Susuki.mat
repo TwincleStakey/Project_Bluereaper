@@ -25,8 +25,10 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _AOStrength: 0.9
     - _GustSheen: 0.6
     - _IsReed: 0
+    - _TopLight: 0.5
     - _Translucency: 1.6
     - _Variation: 0.35
     - _Wrap: 0.5
@@ -34,8 +36,8 @@ Material:
     - _Ambient: {r: 0.34, g: 0.22, b: 0.14, a: 1}
     - _LeafCol: {r: 0.26, g: 0.2, b: 0.12, a: 1}
     - _LeafTip: {r: 0.58, g: 0.42, b: 0.22, a: 1}
-    - _PlumeCol: {r: 0.62, g: 0.48, b: 0.32, a: 1}
-    - _PlumeTip: {r: 0.88, g: 0.74, b: 0.54, a: 1}
+    - _PlumeCol: {r: 0.49600002, g: 0.384, b: 0.256, a: 0.8}
+    - _PlumeTip: {r: 0.704, g: 0.592, b: 0.432, a: 0.8}
     - _ReedPlumeCol: {r: 0.35999998, g: 0.27999997, b: 0.23999995, a: 1}
     - _RootCol: {r: 0.07, g: 0.045, b: 0.03, a: 1}
     - _StemCol: {r: 0.44, g: 0.31, b: 0.16, a: 1}

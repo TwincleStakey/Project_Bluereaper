@@ -13,6 +13,33 @@ public static class SPRemote
 {
     static readonly string Dir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource", "SnowPlague");
     static double next;
+    // 11-14 (two editor freezes, 11-13 23:23 and 00:54: a remote command started a scene build / Play while Play was
+    // still entering or exiting). Shared by every *_cmd remote (same code copied into each): nothing starts while Play
+    // changes, for 15 s after any Play change or domain reload, while compiling or importing, or while another remote
+    // holds ArtSource/remote_play.lock (its Play run; a lock older than 10 min counts as stale).
+    static class Gate
+    {
+        static double lastChange = EditorApplication.timeSinceStartup;
+        static Gate() { EditorApplication.playModeStateChanged += _ => lastChange = EditorApplication.timeSinceStartup; }
+        static string LockPath => Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource", "remote_play.lock");
+        public static bool Ready(string me)
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return false;
+            if (EditorApplication.timeSinceStartup - lastChange < 15.0) return false;
+            try
+            {
+                if (File.Exists(LockPath) && !File.ReadAllText(LockPath).StartsWith(me + " ")
+                    && (System.DateTime.Now - File.GetLastWriteTime(LockPath)).TotalMinutes < 10) return false;
+            }
+            catch (IOException) { return false; }
+            return true;
+        }
+        public static void Take(string me) { try { File.WriteAllText(LockPath, me + " " + System.DateTime.Now.ToString("HH:mm:ss")); } catch (IOException) { } }
+        public static void Release(string me)
+        {
+            try { if (File.Exists(LockPath) && File.ReadAllText(LockPath).StartsWith(me + " ")) File.Delete(LockPath); } catch (IOException) { }
+        }
+    }
 
     static SPRemote() { EditorApplication.update += Tick; }
 
@@ -23,11 +50,12 @@ public static class SPRemote
         if (EditorApplication.timeSinceStartup < next) return;
         next = EditorApplication.timeSinceStartup + 1.0;
         var cmdPath = Path.Combine(Dir, "sp_cmd.txt");
-        if (!File.Exists(cmdPath) || EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode) return;
+        if (!File.Exists(cmdPath) || !Gate.Ready("sp")) return;
         var cmd = File.ReadAllText(cmdPath).Trim();
         File.Delete(cmdPath);
+        Gate.Take("sp");
         var active = EditorSceneManager.GetActiveScene();
-        if (active.isDirty && active.path != SPBuilder.ScenePath) { Log("ABORT unsaved changes in " + active.path); return; }
+        if (active.isDirty && active.path != SPBuilder.ScenePath) { Log("ABORT unsaved changes in " + active.path); Gate.Release("sp"); return; }
         var prev = active.path;
         try
         {
@@ -42,6 +70,7 @@ public static class SPRemote
             if (parts[0].Contains("shots")) Shots(parts.Length > 1 ? parts[1] : Path.Combine(Dir, "shots"));
             if (parts[0] == "importpkg" && parts.Length > 1) ImportPkg(parts[1].Trim().Trim('"'));
             if (parts[0] == "probe") Probe();
+            if (parts[0] == "r15probe") SPBuilder.R15Probe();
             if (parts[0] == "casters") Casters();
             if (parts[0] == "open")
             {
@@ -54,6 +83,7 @@ public static class SPRemote
         finally
         {
             ShaderUtil.allowAsyncCompilation = true;
+            Gate.Release("sp");   // before reopening the scene, so a throw there cannot leave the shared lock held
             if (!string.IsNullOrEmpty(prev) && prev != SPBuilder.ScenePath && EditorSceneManager.GetActiveScene().path != prev) EditorSceneManager.OpenScene(prev, OpenSceneMode.Single);
         }
     }
@@ -266,6 +296,7 @@ public static class SPRemote
             if (kl0) shotList.Add(("19_lantern", new Vector3(kl0.position.x - 1.5f, 0, kl0.position.z + 1.2f), 0.4f, false));
         }
         shotList.Add(("20_hero_corner", new Vector3(SPBuilder.HCView.x, 0, SPBuilder.HCView.z), SPBuilder.HCView.y, false));   // tr36: ss5 layout - bridge + gate top-left, lanterns mid, corpses right
+        if (outDir.Contains("r15only")) { shotList.Clear(); shotList.AddRange(SPBuilder.R15Views()); }   // r15: edge survey only
         foreach (var v in shotList)
         {
             if (v.zoom <= 0f) { cam.transform.SetPositionAndRotation(new Vector3(0, 330f, 0), Quaternion.Euler(90f, 0f, 0f)); }

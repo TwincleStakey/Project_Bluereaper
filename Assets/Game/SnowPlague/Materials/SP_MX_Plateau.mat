@@ -25,11 +25,11 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 8c0c3979789611b4ea0e8e7780840449, type: 3}
+        m_Texture: {fileID: 2800000, guid: 5310b3521ca652d4ba7cded782705d43, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
-        m_Texture: {fileID: 2800000, guid: 0321ba2732a48d143ac0f49956f56d1b, type: 3}
+        m_Texture: {fileID: 2800000, guid: 871dcb2c949015944b0d1ddd57cb53bf, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -39,19 +39,19 @@ Material:
     - _Desaturate: 0.55
     - _Flicker: 0
     - _GroundMelt: 0
-    - _NormalStrength: 1.4
+    - _NormalStrength: 0.9
     - _SeeThrough: 0
-    - _Smoothness: 0.12
-    - _SnowBias: 0.3
+    - _Smoothness: 0.06
+    - _SnowBias: 0.15
     - _SnowCap: 0
-    - _TriScale: 4
+    - _TriScale: 6
     - _Triplanar: 1
     - _VColAlbedo: 0
     - _VertexFrost: 0
     - _Wetness: 0
     m_Colors:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _Tint: {r: 1.35, g: 1.31, b: 1.26, a: 1}
-    - _TintVar: {r: 1.04, g: 0.98, b: 0.92, a: 0.12}
+    - _Tint: {r: 0.46, g: 0.47, b: 0.5, a: 1}
+    - _TintVar: {r: 1, g: 1, b: 1, a: 0.06}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

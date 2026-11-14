@@ -64,10 +64,10 @@ Shader "LookStudy/StageWater"
             // Two phases of advected noise blended so flow never visibly resets.
             float FlowHeight(float2 xz, float2 dir, float speed)
             {
-                float t = _LSTime * 0.55;
+                float t = _LSTime * 0.3;   // 11-14 Kido: the middle ran far too fast for a mountain pool
                 float a = frac(t), b = frac(t + 0.5);
                 float w = abs(1.0 - 2.0 * a);
-                float2 adv = dir * speed * 1.6;
+                float2 adv = dir * speed * 0.9;
                 // 11-13 fix (Kido: streaks blinked on and off): each phase must be invisible at the moment it jumps
                 // back (a = 0 shows only B, b = 0 shows only A); the weights were swapped, so the visible layer reset
                 // twice a cycle. The mix is also renormalised so its contrast (and the foam thresholds on it) stays even.
@@ -86,7 +86,7 @@ Shader "LookStudy/StageWater"
                 float h0 = FlowHeight(ws.xz, dir, speed);
                 float hx = FlowHeight(ws.xz + float2(e, 0), dir, speed);
                 float hz = FlowHeight(ws.xz + float2(0, e), dir, speed);
-                float amp = lerp(0.045, 0.2, speed);
+                float amp = lerp(0.04, 0.11, speed);
                 float2 slope = float2(hx - h0, hz - h0) / e * amp;
 
                 // Expanding rings from footsteps.
@@ -156,7 +156,9 @@ Shader "LookStudy/StageWater"
                 float edge = smoothstep(0.1, 0.0, depth * vy + (fn - 0.5) * 0.07);
                 float foam = edge * smoothstep(0.32, 0.62, fn + edge * 0.3);
                 float rapids = speed * smoothstep(0.66, 0.86, FlowHeight(float2(dot(ws.xz, dir) * 0.45, dot(ws.xz, float2(-dir.y, dir.x)) * 2.4) + 11.0, float2(1, 0), speed * 1.6)) * 0.3;
-                foam = saturate(foam + rapids + rings * 0.9);
+                // 11-14 Kido: real valley water has no white band along the banks and no white rapid streaks: only a faint
+                // broken foam right at rocks and the shore, plus the footstep rings
+                foam = saturate(foam * 0.18 + rapids * 0.0 + rings * 0.9);
                 col = lerp(col, _Foam.rgb * (ambient * 0.8 + 0.04), foam * 0.6);
 
                 col = StageFog(col, ws);

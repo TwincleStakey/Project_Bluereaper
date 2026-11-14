@@ -55,6 +55,11 @@ namespace BambooArena
         public Mesh[] clumps;
         public Mesh farClump;
         public Material bambooMat;
+        [Tooltip("Near-black copy of the bamboo material for the camera-side (south) wall: foreground silhouettes (11-13, Kido's Hades 2 ref).")]
+        public Material silhouetteMat;
+        [Range(0.4f, 2f)] public float silhouetteHeight = 0.75f;
+        [Tooltip("Spots kept free of bamboo (x, z, radius): the landmark clearings outside the arena edge.")]
+        public List<Vector3> clearings = new List<Vector3>();
         [Tooltip("Low plants in the clearing (instanced, no colliders).")]
         public Mesh groundCover;
         public Material groundCoverMat;
@@ -73,8 +78,8 @@ namespace BambooArena
         void OnEnable()
         {
             inst = GetComponent<ReedInstancer>(); dirty = true;
-            // floor clutter (pebbles, sticks, twigs) is built at play time only (BAGroundDebris)
-            if (Application.isPlaying && !GetComponent<BAGroundDebris>()) gameObject.AddComponent<BAGroundDebris>();
+            // 11-13 redo: the play-time clutter (BAGroundDebris: octahedron pebbles and box sticks) read as spiky pyramids
+            // and sticks everywhere (Kido). The floor dressing is now Megascans scans placed by BABuilder.
         }
         void OnValidate() { dirty = true; }
 
@@ -123,10 +128,20 @@ namespace BambooArena
                     var p = new Vector2(x + (R() - 0.5f) * step * 0.9f, z + (R() - 0.5f) * step * 0.9f);
                     float o = Outside(p);
                     if (o < 0.3f) continue;
+                    // r4: the ragged edge only pushes outward (bamboo inside the arena rectangle stood where the player walks)
+                    if (Mathf.Max(Mathf.Abs(p.x) - arena.x * 0.5f, Mathf.Abs(p.y) - arena.y * 0.5f) < 0.4f) continue;
                     bool inner = o < wallDepth;
                     if (far == inner) continue;
                     // a few gaps so the wall is not a hedge
                     if (!far && Mathf.PerlinNoise(p.x * 0.3f + 40, p.y * 0.3f) < 0.12f && o > 4f) continue;
+                    // 11-13 redo (Kido: bamboo sprinkled too evenly): groves and bays. Where the grove noise is low the
+                    // front of the wall recedes (a bay of bare floor, rocks and roots), where it is high the culms crowd.
+                    bool cleared = false;
+                    foreach (var cl in clearings) { float dx = p.x - cl.x, dz = p.y - cl.y, rr = cl.z * (0.85f + 0.3f * R()); if (dx * dx + dz * dz < rr * rr) { cleared = true; break; } }
+                    if (cleared) continue;
+                    float grove = Mathf.PerlinNoise(p.x * 0.07f + 13f, p.y * 0.07f + 29f);
+                    if (!far && grove < 0.38f && o < Mathf.Lerp(7f, 1f, grove / 0.38f)) continue;
+                    if (!far && R() > Mathf.Lerp(0.55f, 1f, Mathf.InverseLerp(0.25f, 0.6f, grove))) continue;
                     Vector2 inward = -new Vector2(Mathf.Clamp(p.x, -arena.x * 0.5f, arena.x * 0.5f) == p.x ? 0 : Mathf.Sign(p.x),
                                                    Mathf.Clamp(p.y, -arena.y * 0.5f, arena.y * 0.5f) == p.y ? 0 : Mathf.Sign(p.y));
                     if (inward == Vector2.zero) inward = -p.normalized;
@@ -136,14 +151,22 @@ namespace BambooArena
                     var axis = Vector3.Cross(Vector3.up, new Vector3(inward.x, 0, inward.y));
                     var rot = Quaternion.AngleAxis(lean, axis) * Quaternion.Euler(0, R() * 360f, 0);
                     // shorter first row so the arena edge reads, then full height
-                    float h = heightScale * Mathf.Lerp(0.8f, 1.15f, R()) * Mathf.Lerp(0.85f, 1f, Mathf.Clamp01(o / 4f));
+                    float h = heightScale * Mathf.Lerp(0.75f, 1.25f, R()) * Mathf.Lerp(0.85f, 1f, Mathf.Clamp01(o / 4f)) * Mathf.Lerp(0.9f, 1.12f, grove);
                     var mesh = far ? farClump : clumps[rnd.Next(clumps.Length)];
+                    // camera side: a near-black, taller wall that frames the bottom of the screen
+                    // 11-13 r2: the first tall silhouettes leaned in over the south strip and blacked out the player; the
+                    // camera-side wall is now low near the edge (stays see-through), the black silhouettes stand further out
+                    // and lean away, so they only rise into the bottom of the screen
+                    float southOut = -arena.y * 0.5f - p.y;
+                    bool sil = silhouetteMat && southOut > 9f;
+                    if (southOut > 0f && southOut <= 9f) continue;   // r3: nothing tall between the south edge and the silhouettes (it covered the player)
+                    if (sil) { h *= silhouetteHeight; rot = Quaternion.AngleAxis(-4f, axis) * Quaternion.Euler(0, R() * 360f, 0); }
                     if (!mesh) continue;
                     var pos = origin + new Vector3(p.x, 0, p.y);
                     var m = Matrix4x4.TRS(pos, rot, Vector3.one * h);
                     float tall = mesh.bounds.max.y * h;
                     var wb = new Bounds(pos + Vector3.up * tall * 0.5f, new Vector3(tall * 0.6f + 4f, tall + 1f, tall * 0.6f + 4f));
-                    inst.Add(mesh, bambooMat, m, wb);
+                    inst.Add(mesh, sil ? silhouetteMat : bambooMat, m, wb);
                     placed.Add(new Vector3(p.x, p.y, far ? 0.6f : 1f));
                 }
             }
@@ -164,13 +187,13 @@ namespace BambooArena
             for (float x = -arena.x * 0.5f; x < arena.x * 0.5f; x += step)
             for (float z = -arena.y * 0.5f; z < arena.y * 0.5f; z += step)
             {
-                var p = new Vector2(x + (R() - 0.5f) * step, z + (R() - 0.5f) * step);
+                var p = new Vector2(x + (R() - 0.5f) * step * 2.2f, z + (R() - 0.5f) * step * 2.2f);   // r12 (QA: tufts in rows): jitter past the grid cell
                 float o = Outside(p);
                 if (o > 0.5f) continue;
                 if (Trail(p) > 0.2f) continue;
                 float cluster = Mathf.PerlinNoise(p.x * 0.16f + 31, p.y * 0.16f + seed);
                 float edge = Mathf.InverseLerp(-6f, -0.5f, o);        // undergrowth mostly toward the bamboo
-                if (cluster * 0.6f + edge * 0.7f < 0.62f + R() * 0.12f) continue;
+                if (cluster * 0.95f + edge * 0.55f < 0.7f + R() * 0.12f) continue;   // r4: some clumps out in the clearing too (B2), still knee high
                 float s = groundCoverScale * Mathf.Lerp(0.6f, 1.05f, R()) * Mathf.Lerp(0.8f, 1.1f, edge);
                 var pos = origin + new Vector3(p.x, 0, p.y);
                 inst.Add(groundCover, groundCoverMat, Matrix4x4.TRS(pos, Quaternion.Euler(0, R() * 360f, 0), Vector3.one * s),
@@ -207,10 +230,16 @@ namespace BambooArena
 
         // A narrow mountain-trail footpath (packed earth), winding through the clearing from the south bamboo to the
         // north bamboo, a little wider and narrower along the way. 0..1, flush with the ground (ground shader only).
-        public float TrailX(float z) => Mathf.Sin(z * 0.075f + 0.6f) * 11f + (Mathf.PerlinNoise(z * 0.035f, 5) - 0.5f) * 8f;   // wider swings for the 88 x 72 clearing
+        // r27 (Kido 11-14: objects inside are ok now, bring the shrine to the middle, the path was odd): a stone-paved
+        // shrine court inside the clearing; the path winds from the south edge through the court to the north edge.
+        public Vector2 shrine = new Vector2(2f, 9f);
+        public float shrineRadius = 8.5f;
+        float RawX(float z) => Mathf.Sin(z * 0.06f + 0.6f) * 9f + (Mathf.PerlinNoise(z * 0.035f, 5) - 0.5f) * 6f;
+        public float TrailX(float z) => RawX(z) - RawX(shrine.y) + shrine.x;
+        public float Court(Vector2 p) => 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(shrineRadius - 1.5f, shrineRadius + 1.2f, Vector2.Distance(p, shrine) + (Mathf.PerlinNoise(p.x * 0.4f, p.y * 0.4f) - 0.5f) * 2f));   // wider swings for the 88 x 72 clearing
         public float Trail(Vector2 p)
         {
-            float half = 0.75f + 0.3f * Mathf.PerlinNoise(p.y * 0.2f, 17);
+            float half = 1.5f + 0.5f * Mathf.PerlinNoise(p.y * 0.09f, 17);   // 11-13: a real path (B2), not a goat track
             float d = Mathf.Abs(p.x - TrailX(p.y));
             float t = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(half * 0.6f, half + 0.6f, d));
             return t * (1f - Mathf.Clamp01((Outside(p) - 2f) / 3f));   // runs on into the bamboo, then fades

@@ -47,7 +47,7 @@ namespace RoomRun
             Debug.Log("[EdgeFeatures] baked prefabs into " + OutDir);
         }
 
-        static void Make(string name, string srcPath, float height, Vector3 front, string lmFolder, string dropMats = null)
+        internal static void Make(string name, string srcPath, float height, Vector3 front, string lmFolder, string dropMats = null)
         {
             var src = AssetDatabase.LoadAssetAtPath<GameObject>(srcPath);
             if (!src) { Debug.LogWarning("[EdgeFeatures] missing " + srcPath); return; }
@@ -58,7 +58,7 @@ namespace RoomRun
             foreach (var c in inst.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
             if (dropMats != null)
                 foreach (var r in inst.GetComponentsInChildren<Renderer>(true))
-                    if (r.sharedMaterials.All(m => m && m.name.StartsWith(dropMats)))
+                    if (r.sharedMaterials.All(m => m && dropMats.Split('|').Any(d => m.name.StartsWith(d))))   // "a|b": any of these prefixes
                     {
                         var mf = r.GetComponent<MeshFilter>();
                         Object.DestroyImmediate(r); if (mf) Object.DestroyImmediate(mf);

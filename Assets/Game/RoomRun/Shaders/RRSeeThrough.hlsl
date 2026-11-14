@@ -3,7 +3,7 @@
 //
 // A screen-space radial falloff around each player's screen position (aspect-corrected, radius already converted from
 // metres by RoomRun.SeeThroughFX so it follows the camera zoom):
-//     cut = (1 - smoothstep(inner, outer, dist)) * (1 - minVisibility) * heightRamp
+//     cut = (1 - smoothstep(inner, outer, dist))^curve *(1 - minVisibility) * heightRamp
 // applied as a dithered clip (interleaved gradient noise, opaque queue: no sorting, depth stays right). The centre keeps
 // minVisibility of the occluder, so a tree thins out around the player instead of a hollow hole with a hard rim.
 // Only fragments closer to the camera than the player (depth margin) and higher than the player's knees (height ramp)
@@ -17,6 +17,7 @@ float4 _PlayerScreenPos[3]; // xy: viewport 0..1 (y up, Camera.WorldToViewportPo
 #endif
 float4 _RR_SeeShape;        // x: inner radius, y: outer radius (fraction of screen height), z: min visibility, w: depth margin (m). y = 0: off
 float4 _RR_SeeShape2;       // x: player feet height (world y), y/z: fade starts/full this far above the feet, w: temporal dither frame (0 = static)
+float4 _RR_SeeShape3;       // x: falloff curve exponent applied after the smoothstep (0 = unset -> 1)
 
 bool RRSeeThroughActive() { return _RR_SeeShape.y > 0; }
 
@@ -32,7 +33,9 @@ float RRSeeFadeOne(float2 uv, float eye, float4 p, float aspect)
 {
     if (p.w < 0.5 || eye > p.z - _RR_SeeShape.w) return 0;
     float2 d = uv - p.xy; d.x *= aspect;
-    return 1 - smoothstep(_RR_SeeShape.x, _RR_SeeShape.y, length(d));
+    float t = 1 - smoothstep(_RR_SeeShape.x, _RR_SeeShape.y, length(d));
+    float curve = _RR_SeeShape3.x > 1e-3 ? _RR_SeeShape3.x : 1;   // 11-13: >1 = long gentle tail, no ring at the edge
+    return pow(t, curve);
 }
 
 float RRSeeHeight(float wsY) { return smoothstep(_RR_SeeShape2.y, _RR_SeeShape2.z, wsY - _RR_SeeShape2.x); }

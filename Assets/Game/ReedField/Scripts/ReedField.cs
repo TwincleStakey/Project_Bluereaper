@@ -98,6 +98,7 @@ namespace Reeds
         public Texture2D propShadowSunset, propShadowMoonlit;
         [Range(0f, 1f)] public float reedShadowStrength = 0.55f;
         public const float ShadowCell = 0.5f;
+        [Range(0.4f, 1.2f)] public float plumeTone = 0.8f;
         public Volume volume;
 
         // Enemies or other movers can register here (x, z, 0, radius); the shader parts the reeds around them. Empty for now.
@@ -141,7 +142,7 @@ namespace Reeds
             ambient = new Color(0.12f, 0.14f, 0.20f), fog = new Color(0.13f, 0.15f, 0.20f),
             plume = new Color(0.52f, 0.49f, 0.43f), tip = new Color(0.80f, 0.75f, 0.64f), leaf = new Color(0.20f, 0.22f, 0.17f), leafTip = new Color(0.42f, 0.38f, 0.28f),
             stem = new Color(0.38f, 0.34f, 0.26f), root = new Color(0.035f, 0.04f, 0.035f), sky = new Color(0.10f, 0.12f, 0.17f),
-            wisp = new Color(0.55f, 1.1f, 1.4f, 1) * 2.2f, translucency = 1.2f,
+            wisp = new Color(0.5f, 0.95f, 0.6f, 1) * 1.4f,   /* 11-14 QA: white-cyan read as bullets */ translucency = 1.2f,
             saturation = -28f, contrast = 16f, exposure = 0.15f, temperature = 0f, bloom = 0.75f,
             peat = new Color(0.07f, 0.065f, 0.05f), mud = new Color(0.12f, 0.105f, 0.08f), moss = new Color(0.13f, 0.14f, 0.09f), path = new Color(0.17f, 0.15f, 0.12f),
         };
@@ -154,12 +155,72 @@ namespace Reeds
             if (!Application.isPlaying) return;
             PlayTweaked = false;
             // Hook the LookStudy trample map so the player flattens the reeds (LookStudyTrampleFeed feeds it the player).
+            if (!GetComponent<RFMoonShafts>()) gameObject.AddComponent<RFMoonShafts>();
+            // 11-14 (Kido's arena rule, QA: the boardwalk deck and props in the arena could catch the player): nothing
+            // inside the arena collides any more; the pieces stay as flat scenery. The ground keeps its collider.
+            int off = 0;
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                if (root.name != "Landmarks" && root.name != "Boardwalk") continue;
+                foreach (var c in root.GetComponentsInChildren<Collider>())
+                {
+                    var p = c.bounds.center - transform.position;
+                    if (InArena(new Vector2(p.x, p.z), -1f)) { c.enabled = false; off++; }
+                }
+            }
+            if (off > 0) Debug.Log($"[ReedField] {off} prop colliders inside the arena turned off");
+            // 11-14: the boardwalk's soft contact-shadow quads (ReedField/Blob, multiply) stayed on the path where the
+            // deck above them is gone or hidden: those were the dark rounded rectangles on the clearing floor
+            // (Kido's first screenshot). A blob only stays where a deck renderer above it is drawn.
+            int blobs = 0;
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+                foreach (var br in root.GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    if (!br.sharedMaterial || br.sharedMaterial.shader.name != "ReedField/Blob" || !br.transform.parent) continue;
+                    bool deck = false;
+                    foreach (var r in br.transform.parent.GetComponentsInChildren<MeshRenderer>())
+                        if (r != br && r.enabled && r.gameObject.activeInHierarchy && r.sharedMaterial && r.sharedMaterial.shader.name != "ReedField/Blob") { deck = true; break; }
+                    if (!deck || InArena(new Vector2(br.transform.position.x - transform.position.x, br.transform.position.z - transform.position.z), -1f)) { br.enabled = false; blobs++; }
+                }
+            if (blobs > 0) Debug.Log($"[ReedField] {blobs} contact-shadow blobs turned off");
+            // 11-14 QA: the 장승 standing inside the arena read from the top camera as dark capsule figures, easy to take
+            // for enemies. Hidden there; the ones on the banks outside the edge stay (EdgeFeatures).
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                if (root.name != "Landmarks") continue;
+                foreach (Transform t in root.transform)
+                {
+                    // 11-14 (Kido on the coded 폐촌 dead trees: "너가 만든 저 이상한 나무들 빼봐"): hidden everywhere, with the
+                    // crows perched on them; the banks get downloaded snags and dead conifers instead (EdgeFeatures)
+                    if (t.name.Contains("DeadTree") || t.name.Contains("Crow")) { t.gameObject.SetActive(false); continue; }
+                    if (!t.name.Contains("Jangseung")) continue;
+                    var lp = t.position - transform.position;
+                    if (InArena(new Vector2(lp.x, lp.z), -1f)) t.gameObject.SetActive(false);
+                }
+            }
             if (!LookStudyTrail.Instance) LookStudyTrail.Ensure(new Vector2(transform.position.x, transform.position.z), Mathf.Max(arena.x, arena.y) + 8f);
+        }
+
+        // 11-14: static props in this field (landmarks, 장승, edge trees placed later by RoomRun) cast realtime shadows
+        // that the low sun stretched into big soft dark lobes across the clearings (Kido's "dark rectangle"). The field
+        // has its own baked shade; only moving things keep realtime shadows. Re-checked every 2 s for late arrivals.
+        float nextShadowSweep;
+        void SweepPropShadows()
+        {
+            if (Time.time < nextShadowSweep) return;
+            nextShadowSweep = Time.time + 2f;
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+                foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
+                {
+                    if (r.shadowCastingMode == ShadowCastingMode.Off) continue;
+                    if (r.GetComponentInParent<Animator>() || r.GetComponentInParent<CharacterController>() || r.GetComponentInParent<Rigidbody>()) continue;
+                    r.shadowCastingMode = ShadowCastingMode.Off;
+                }
         }
 
         void Update()
         {
-            if (Application.isPlaying) Keys();
+            if (Application.isPlaying) { Keys(); SweepPropShadows(); }
             if (dirty) { dirty = false; Generate(); ApplyMood(); BakeReedShadow(); }
             SetGlobals();
         }
@@ -335,11 +396,24 @@ namespace Reeds
                 if (!reedHere)
                 {
                     // A few muted tufts only: the open floor stays calm and readable for combat.
-                    if (lowGrass && grassMat && !inWater && R() < 0.12f)
+                    // 11-14 (Kido on a clearing: "이런대 좀 심심해"): the open floor gets low dry-grass patches (clumped by
+                    // noise, not an even sprinkle) and a few small, short islands of reeds. Nothing collides.
+                    float tuft = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.42f, 0.72f, Mathf.PerlinNoise(p.x * 0.22f + 71f, p.y * 0.22f + seed)));
+                    float isle = Mathf.InverseLerp(0.6f, 0.76f, Mathf.PerlinNoise(p.x * 0.11f + 19f, p.y * 0.11f + seed * 0.7f));
+                    if (susuki != null && susuki.Length > 0 && susukiMat && !inWater && pd > 1.6f && isle > 0f && R() < isle * 0.7f)
                     {
-                        float gs = Mathf.Lerp(0.6f, 1.05f, R());
+                        float ih = height * Mathf.Lerp(0.35f, 0.6f, R()) * Mathf.Lerp(0.7f, 1f, isle);
+                        Put(susuki[rnd.Next(susuki.Length)], susukiMat, origin, rot0, new Vector3(p.x, y - 0.02f, p.y), R() * 360f, Mathf.Lerp(0.9f, 1.2f, R()), ih);
+                    }
+                    else if (lowGrass && grassMat && !inWater && R() < Mathf.Lerp(0.06f, 0.5f, tuft))
+                    {
+                        float gs = Mathf.Lerp(0.6f, 1.05f, R()) * Mathf.Lerp(1f, 1.6f, tuft);   // 11-14: bigger in the patches, so they read from the camera
                         Put(lowGrass, grassMat, origin, rot0, new Vector3(p.x, y, p.y), R() * 360f, gs * 1.2f, gs);
                     }
+                    // 11-13 (Kido: the clearings look bare): fallen stalks and broken plumes lying flat (a few cm high,
+                    // no collider), denser toward the reed edge so the clearing floor reads as part of the marsh.
+                    else if (litter && susukiMat && !inWater && R() < 0.08f * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.25f, 0.6f, clear))))   // 11-14 QA: only along the reed fringe, open clearings stay clean
+                        Put(litter, susukiMat, origin, rot0, new Vector3(p.x, y + 0.01f, p.y), R() * 360f, Mathf.Lerp(0.8f, 1.2f, R()), 1f);
 
                     continue;
                 }
@@ -455,7 +529,9 @@ namespace Reeds
             var toSun = -(Quaternion.Euler(p.pitch, p.yaw, 0) * Vector3.forward);
             var d = new Vector2(toSun.x, toSun.z).normalized;
             float maxH = 0; foreach (var v in heightGrid) maxH = Mathf.Max(maxH, v);
-            float maxDist = Mathf.Min(maxH / tanE, 14f);
+            // 11-14: was 14 m. With the low sunset sun the reed walls threw 8-14 m shade lobes across the clearings, which
+            // read as dark blotches/rectangles on the open floor from the top-down camera (Kido, QA). Short shade only.
+            float maxDist = Mathf.Min(maxH / tanE, 4.5f);
             int steps = Mathf.CeilToInt(maxDist / ShadowCell);
             var full = FullSize;
             var occ = new float[gw * gh];
@@ -501,6 +577,73 @@ namespace Reeds
             var px = new byte[gw * gh];
             for (int i = 0; i < px.Length; i++) px[i] = (byte)Mathf.RoundToInt(255f * (1f - occ[i] * reedShadowStrength));
             reedShadowTex.SetPixelData(px, 0); reedShadowTex.Apply(false);
+            BakeReedAO();
+        }
+
+        // 11-13 (Kido: reeds read flat, no self shadow): mass occlusion for the reed shader (RFMass). Per 0.5 m cell:
+        // R = share of the ground within ~1.6 m covered by clumps taller than 0.6 m, G = their mean height / 8 m.
+        Texture2D reedAOTex;
+        public void BakeReedAO()
+        {
+            if (heightGrid == null) return;
+            var full = FullSize;
+            var cov = new float[gw * gh]; var hgt = new float[gw * gh];
+            for (int z = 0; z < gh; z++)
+            for (int x = 0; x < gw; x++)
+            {
+                int i = z * gw + x;
+                if (heightGrid[i] <= 0) continue;
+                var wp = new Vector2(-full.x * 0.5f + (x + 0.5f) * ShadowCell, -full.y * 0.5f + (z + 0.5f) * ShadowCell);
+                float h = heightGrid[i] - GroundHeight(wp);
+                if (h < 0.6f) continue;
+                cov[i] = 1; hgt[i] = h;
+            }
+            const int r = 3; // cells: ~1.6 m box
+            var c2 = new float[cov.Length]; var h2 = new float[cov.Length];
+            BoxBlur(cov, c2, gw, gh, r); BoxBlur(hgt, h2, gw, gh, r);
+            if (!reedAOTex || reedAOTex.width != gw || reedAOTex.height != gh)
+            {
+                if (reedAOTex) DestroyImmediate(reedAOTex);
+                reedAOTex = new Texture2D(gw, gh, TextureFormat.RGBA32, false, true) { name = "RF_ReedAO (runtime)", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave };
+            }
+            var px = new Color32[gw * gh];
+            for (int i = 0; i < px.Length; i++)
+            {
+                float c = c2[i];
+                float mean = c > 0.01f ? h2[i] / c : 0f;   // mean height of the covered cells only
+                px[i] = new Color32((byte)Mathf.RoundToInt(255f * Mathf.Clamp01(c)), (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(mean / 8f)), 0, 255);
+            }
+            reedAOTex.SetPixels32(px); reedAOTex.Apply(false);
+        }
+
+        // separable box blur (sum / count) with a radius in cells
+        static void BoxBlur(float[] src, float[] dst, int w, int h, int r)
+        {
+            var tmp = new float[src.Length];
+            for (int z = 0; z < h; z++)
+            {
+                float s = 0; int n = 0;
+                for (int x = -r; x <= r; x++) if (x >= 0 && x < w) { s += src[z * w + x]; n++; }
+                for (int x = 0; x < w; x++)
+                {
+                    tmp[z * w + x] = s / n;
+                    int add = x + r + 1, rem = x - r;
+                    if (add < w) { s += src[z * w + add]; n++; }
+                    if (rem >= 0) { s -= src[z * w + rem]; n--; }
+                }
+            }
+            for (int x = 0; x < w; x++)
+            {
+                float s = 0; int n = 0;
+                for (int z = -r; z <= r; z++) if (z >= 0 && z < h) { s += tmp[z * w + x]; n++; }
+                for (int z = 0; z < h; z++)
+                {
+                    dst[z * w + x] = s / n;
+                    int add = z + r + 1, rem = z - r;
+                    if (add < h) { s += tmp[add * w + x]; n++; }
+                    if (rem >= 0) { s -= tmp[rem * w + x]; n--; }
+                }
+            }
         }
 
         // ------------------------------------------------------------------ meshes the builder bakes
@@ -610,11 +753,15 @@ namespace Reeds
             Shader.SetGlobalVectorArray(ID_Stalk, stalkerArr);
             var fog = Current.fog;
             Shader.SetGlobalVector(ID_FogCol, new Vector4(fog.r, fog.g, fog.b, groundFogHeight));
-            Shader.SetGlobalVector(ID_FogP, new Vector4(groundFog, distanceFog, 0.6f, hazeStart));
+            // 11-14: fog noise 0.6 -> 0.2. The ground fog thickness varied over ~16 m blobs, which on the open floor read
+            // as light/dark blotches around the player (Kido's "dark rectangle", QA "dirt patches")
+            Shader.SetGlobalVector(ID_FogP, new Vector4(groundFog, distanceFog, 0.2f, hazeStart));
             Shader.SetGlobalVector("_RF_FogArena", new Vector4(transform.position.x, transform.position.z, arena.x * 0.5f, arena.y * 0.5f));
             var prop = mood == Mood.Sunset ? propShadowSunset : propShadowMoonlit;
             Shader.SetGlobalFloat("_RF_ShadowOn", reedShadowTex ? 1f : 0f);
             if (reedShadowTex) Shader.SetGlobalTexture("_RF_ReedShadow", reedShadowTex);
+            Shader.SetGlobalFloat("_RF_AOOn", reedAOTex ? 1f : 0f);
+            if (reedAOTex) Shader.SetGlobalTexture("_RF_ReedAO", reedAOTex);
             Shader.SetGlobalTexture("_RF_PropShadow", prop ? prop : Texture2D.whiteTexture);
             Shader.SetGlobalVector("_RF_ShadowRect", ShadowRect);
             Shader.SetGlobalFloat("_RF_WaterLevel", transform.position.y + waterLevel);
@@ -627,8 +774,11 @@ namespace Reeds
             {
                 if (!m) continue;
                 m.SetColor("_Ambient", p.ambient);
-                m.SetColor("_PlumeCol", p.plume);
-                m.SetColor("_PlumeTip", p.tip);
+                // 11-13 (Kido: "너무 쨍하지 않게 누르고"): the plumes were the brightest thing on screen; the light now
+                // comes from the moon shafts, wisps and lanterns instead
+                m.SetColor("_PlumeCol", p.plume * plumeTone);
+                m.SetColor("_PlumeTip", p.tip * plumeTone);
+                m.SetFloat("_AOStrength", 0.9f); m.SetFloat("_TopLight", 0.5f);
                 m.SetColor("_LeafCol", p.leaf);
                 m.SetColor("_LeafTip", p.leafTip);
                 m.SetColor("_StemCol", p.stem);
@@ -668,7 +818,9 @@ namespace Reeds
                 waterMat.SetFloat("_MaxAlpha", 0.72f);
                 waterMat.SetFloat("_MurkDepth", 0.7f);
             }
-            if (fogMat) fogMat.SetColor("_Color", new Color(p.fog.r, p.fog.g, p.fog.b, mood == Mood.Sunset ? 0.10f : 0.13f));
+            // 11-14: the fog sheets lying on the clearings were the "dark rectangles / blotches" (light sheet patches with dark gaps
+            // and card edges, from the top-down camera): much fainter, they only soften the reed tops now
+            if (fogMat) fogMat.SetColor("_Color", new Color(p.fog.r, p.fog.g, p.fog.b, mood == Mood.Sunset ? 0.035f : 0.045f));
             if (wispMat) wispMat.SetColor("_Color", p.wisp);
             foreach (var wt in FindObjectsByType<RFWater>(FindObjectsSortMode.None)) wt.UpdateSky();
             foreach (var w in FindObjectsByType<RFWisp>(FindObjectsSortMode.None))
@@ -707,6 +859,8 @@ namespace Reeds
 
         void OnDisable()
         {
+            // the bamboo arena's ground cover uses the reed shader too: no reed-field AO outside this field
+            Shader.SetGlobalFloat("_RF_AOOn", 0f);
             // Remember what was set with the keys so the editor can keep it after Play (RFPlaySettings).
             if (!Application.isPlaying || !PlayTweaked) return;
             PlayerPrefs.SetString("ReedField.PlayTweak", JsonUtility.ToJson(new Tweak { height = height, windStrength = windStrength, mood = (int)mood }));

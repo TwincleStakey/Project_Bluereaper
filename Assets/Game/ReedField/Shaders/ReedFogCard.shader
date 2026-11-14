@@ -30,7 +30,7 @@ Shader "ReedField/FogCard"
                 float n = RFNoise(p) * 0.6 + RFNoise(p * 2.7 + 3.1) * 0.3 + RFNoise(p * 6.1 - 1.7) * 0.1;
                 float m = smoothstep(0.35, 0.8, n);
                 float2 e = abs(i.uv - 0.5) * 2;
-                float edge = (1 - smoothstep(0.55, 1.0, e.x)) * (1 - smoothstep(0.55, 1.0, e.y));
+                float edge = (1 - smoothstep(0.2, 1.0, e.x)) * (1 - smoothstep(0.2, 1.0, e.y));   // 11-14: no card edges
                 return half4(_Color.rgb, _Color.a * m * edge);
             }
             ENDHLSL

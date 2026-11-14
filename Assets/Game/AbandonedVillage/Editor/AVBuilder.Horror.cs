@@ -43,6 +43,23 @@ public static partial class AVBuilder
         go.transform.position += Vector3.up * (go.transform.position.y - b.min.y) * 0.85f;   // rest on the ground
     }
 
+    // world height from the meshes themselves (Renderer.bounds lags a transform change inside one editor call)
+    static float MeshHeight(GameObject go)
+    {
+        float lo = float.MaxValue, hi = float.MinValue;
+        foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+        {
+            if (!mf.sharedMesh) continue;
+            var b = mf.sharedMesh.bounds; var m = mf.transform.localToWorldMatrix;
+            for (int i = 0; i < 8; i++)
+            {
+                var c = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                float y = m.MultiplyPoint3x4(c).y; lo = Mathf.Min(lo, y); hi = Mathf.Max(hi, y);
+            }
+        }
+        return hi > lo ? hi - lo : 0f;
+    }
+
     static void HorrorVignette(int kind, Vector2 c, float yaw, System.Func<float, float, float> G, Material[] bloods, Material leaves, Transform root)
     {
         Vector3 At(float x, float z, float sink = 0.02f) => new Vector3(x, G(x, z) - sink, z);
@@ -52,6 +69,17 @@ public static partial class AVBuilder
         {
             var go = Place($"MS:{folder}/AV_MS_{folder}", At(p.x, p.y), R(0, 360), s, root);
             if (go && tip) go.transform.rotation = Quaternion.Euler(R(70, 110), R(0, 360), R(-10, 10));
+            if (go && (folder == "KWinnow" || folder == "KSieve" || folder == "KBasket" || folder == "KSoban" || folder == "KLid" || folder == "KTileBird" || folder == "KTileFace"))
+            {
+                // 11-13 r8: flat things stood on edge as black half-discs; lay them on their thinnest side
+                var best = go.transform.rotation; float bh = MeshHeight(go);
+                foreach (var e in new[] { new Vector3(90, 0, 0), new Vector3(0, 0, 90), new Vector3(-90, 0, 0) })
+                {
+                    go.transform.rotation = Quaternion.Euler(0, R(0, 360), 0) * Quaternion.Euler(e);
+                    float h = MeshHeight(go); if (h < bh) { bh = h; best = go.transform.rotation; }
+                }
+                go.transform.rotation = best * Quaternion.Euler(R(-6, 6), 0, R(-6, 6));
+            }
             if (go && loggedK.Add(folder)) System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Directory.GetParent(Application.dataPath).FullName, "ArtSource/AbandonedVillage/av_log.txt"), $"KPROP {folder} raw {ModelBounds(go).size}\n");
             KeepLow(go, maxH);
             return go;
@@ -64,8 +92,9 @@ public static partial class AVBuilder
                 P("Sack", lump, 1.4f, 0.32f);                                                                     // the body under the mat
                 var mat = Place("MS:KStrawMat/AV_MS_KStrawMat", At(lump.x, lump.y, -0.12f), yaw + 90f + R(-10, 10), R(0.55f, 0.7f), root);
                 if (mat) mat.transform.rotation *= Quaternion.Euler(R(-4, 4), 0, R(-4, 4));
-                Blood(2, c.x + R(-0.5f, 0.5f), c.y + R(-0.5f, 0.5f), R(3.2f, 4.2f));
-                for (int i = 0; i < 3; i++) { var p = Off(R(1.5f, 4f), R(-1.5f, 1.5f)); Blood(0, p.x, p.y, R(0.9f, 1.4f), 0.033f); }
+                // 11-13 r8: one big gory pool from under the mat and a drag trail off it ending in a single small handprint
+                BloodPool(root, bloods, c.x + R(-0.5f, 0.5f), c.y + R(-0.5f, 0.5f), R(2.6f, 3.4f), G, false);
+                { var d = Off(1f, R(-0.4f, 0.4f)) - c; DragTrail(root, bloods, c + d.normalized * 1.2f, d, R(3f, 4.5f), G, true); }
                 var s = Off(R(-2.5f, -1.5f), R(1f, 2f)); P("KSickle", s, 1f, 0.15f);
                 break;
             }
@@ -77,7 +106,7 @@ public static partial class AVBuilder
                 var sp = Off(R(-1f, 1f), R(-1.6f, -0.8f)); P("KSpoon", sp, 1f, 0.06f);
                 var gd = Off(R(-2.4f, -1.4f), R(-0.5f, 0.8f)); P("KGourd", gd, 1f, 0.25f, true);
                 var ld = Off(R(1.6f, 2.4f), R(1f, 2f)); P("KLid", ld, 1f, 0.15f);
-                for (int i = 0; i < 4; i++) { var p = Off(R(-2.5f, 2.5f), R(-2.5f, 2.5f)); P("KStraw", p, 1f, 0.15f); }
+                for (int i = 0; i < 0; i++)   /* r10: loose straw read as black X stamps */ { var p = Off(R(-2.5f, 2.5f), R(-2.5f, 2.5f)); P("KStraw", p, 1f, 0.15f); }
                 for (int i = 0; i < 3; i++) { var p = Off(R(-2.5f, 2.5f), R(-2.5f, 2.5f)); Blood(1, p.x, p.y, R(0.8f, 1.4f), 0.033f); }
                 Decal(root, leaves, c.x + R(-1, 1), c.y + R(-1, 1), R(2.5f, 3.5f), G, 0.015f);
                 break;
@@ -88,8 +117,8 @@ public static partial class AVBuilder
                 for (int i = 0; i < 5; i++)
                 {
                     var p = Off(R(-3f, 3f), R(-3f, 3f));
-                    var t = tools[rng.Next(tools.Length)];
-                    P(t, p, 1f, t == "KStrawBag" || t == "KBasket" ? 0.4f : 0.15f, t == "KBasket" || t == "KSieve");
+                    var t = tools[(i * 3 + rng.Next(2)) % tools.Length];   // r11 QA: never the same tool twice in one spot
+                    P(t, p, 1f, t == "KStrawBag" || t == "KBasket" ? 0.4f : 0.15f, false);   // 11-13 r8: tipped-up baskets/sieves stood as black half-discs
                 }
                 var bl = Off(R(-1, 1), R(-1, 1)); Blood(3, bl.x, bl.y, R(1.8f, 2.6f));
                 break;
@@ -100,7 +129,7 @@ public static partial class AVBuilder
                 for (int i = 0; i < 2; i++) { var p = Off(R(-1.5f, 1.5f), R(-1.5f, 1.5f)); P("Skulls", p, 1f, 0.3f); }
                 for (int i = 0; i < 3; i++) { var p = Off(R(-2.5f, 2.5f), R(-2.5f, 2.5f)); P("Planks", p, 1f, 0.12f); }
                 Blood(3, c.x + R(-1, 1), c.y + R(-1, 1), R(2f, 3f));
-                for (int i = 0; i < 4; i++) { var p = Off(R(-2.5f, 2.5f), R(-2.5f, 2.5f)); Place("MS:Tile/AV_MS_Tile", At(p.x, p.y), R(0, 360), R(0.9f, 1.3f), root); }
+                for (int i = 0; i < 2; i++) { var p = Off(R(-2.5f, 2.5f), R(-2.5f, 2.5f)); Place("MS:Tile/AV_MS_Tile", At(p.x, p.y), R(0, 360), R(0.9f, 1.3f), root); }
                 break;
             }
         }

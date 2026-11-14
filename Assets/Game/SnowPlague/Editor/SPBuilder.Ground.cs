@@ -225,13 +225,14 @@ public static partial class SPBuilder
             // straw mats, rags, smashed pot shards, bones, a few toppled lantern pieces, fallen pine branches, in clusters
             // (straw mats / rags dropped: their snow-capped flat cards read as grey rectangles at the game camera)
             // (pot shards, bones and lantern pieces dropped too: Kido "바닥에 이 이상한것들 뭐야" - dark bowls / squares read as fake)
-            ("MS:fallen_pine_branches_rfecm_mid", 80, 1.0f, 1.8f, 0.3f, 0f, 3, 0.1f),
+            ("MS:fallen_pine_branches_rfecm_mid", 0, 1.0f, 1.8f, 0.3f, 0f, 3, 0.1f),   // r15 (Kido 11-13 "안어울리는 프랍"): off - the needle cards read as dark angular chunks with a brown face in the arena
         };
         const float ClutterScale = 1.8f;   // v14b (ss5 has ~2x our small detail)
         const int SetTriBudget = 450000;   // per set (all instances, before culling)
         int total = 0; long tris = 0;
         foreach (var p in plan)
         {
+            if (p.n <= 0) continue;   // r15: count 0 = off (the MS: piles were still placed once each)
             List<ClutterSrc> srcs;
             if (p.m.StartsWith("LEAF"))
             {

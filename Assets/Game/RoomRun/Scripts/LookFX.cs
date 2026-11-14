@@ -177,12 +177,12 @@ namespace RoomRun
             { "reeds", new RoomPost { saturation = -46f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 6f, exposureAdd = 0.3f,
                 filter = new Color(0.95f, 0.94f, 0.95f), splitShadows = new Color(0.36f, 0.4f, 0.48f), splitHighlights = new Color(0.86f, 0.68f, 0.5f), splitBalance = 10f,
                 veil = new Color(0.33f, 0.31f, 0.3f), veilFar = new Color(0.13f, 0.11f, 0.11f), veilDensity = 0.03f, veilMax = 0.7f, highlightPull = -0.15f } },
-            { "bamboo", new RoomPost { saturation = -45f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.15f,
-                filter = new Color(0.9f, 0.95f, 0.95f), splitShadows = new Color(0.38f, 0.45f, 0.45f), splitHighlights = new Color(0.74f, 0.74f, 0.66f), splitBalance = 10f,
-                veil = new Color(0.27f, 0.3f, 0.29f), veilFar = new Color(0.1f, 0.12f, 0.11f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.15f } },
-            { "grass", new RoomPost { saturation = -45f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.2f,
-                filter = new Color(0.94f, 0.95f, 0.94f), splitShadows = new Color(0.38f, 0.44f, 0.46f), splitHighlights = new Color(0.78f, 0.74f, 0.64f), splitBalance = 10f,
-                veil = new Color(0.27f, 0.3f, 0.29f), veilFar = new Color(0.1f, 0.12f, 0.11f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.15f } },
+            { "bamboo", new RoomPost { saturation = -18f, bloomThreshold = 1.3f, bloomIntensity = 0.7f, flashScale = 0.5f, press = true, contrast = 14f, exposureAdd = 0.1f,   // 11-13 redo: StageMood already greys it; the cyan filter tinted the stone landmarks
+                filter = new Color(0.98f, 0.97f, 0.96f), splitShadows = new Color(0.36f, 0.42f, 0.5f), splitHighlights = new Color(0.8f, 0.74f, 0.62f), splitBalance = 10f,
+                veil = new Color(0.2f, 0.22f, 0.25f), veilFar = new Color(0.07f, 0.08f, 0.09f), veilDensity = 0.02f, veilMax = 0.5f, highlightPull = -0.15f } },
+            { "grass", new RoomPost { saturation = -55f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 8f, exposureAdd = 0.2f,
+                filter = new Color(0.91f, 0.93f, 0.97f), splitShadows = new Color(0.38f, 0.44f, 0.46f), splitHighlights = new Color(0.78f, 0.74f, 0.64f), splitBalance = 10f,
+                veil = new Color(0.27f, 0.3f, 0.29f), veilFar = new Color(0.1f, 0.12f, 0.11f), veilDensity = 0.024f, veilMax = 0.6f, highlightPull = -0.35f } },   // 11-14 overnight: the meadow green and the pale bushes still read loud -> -55, cool grey filter, highlights pulled
             // 폐촌 (the 폐촌 thread owns the scene; only this entry): StageMood keeps its warm filter and moon; ACES fire pools were blowing out
             { "abandoned", new RoomPost { saturation = -38f, bloomThreshold = 1.35f, bloomIntensity = 0.7f, flashScale = 0.5f, press = true, contrast = 20f, exposureAdd = 0f,
                 filter = new Color(1f, 0.97f, 0.92f), splitShadows = new Color(0.36f, 0.4f, 0.48f), splitHighlights = new Color(0.8f, 0.7f, 0.58f), splitBalance = 0f,

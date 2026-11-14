@@ -1,0 +1,6 @@
+room,variant,fps_avg,ms_avg,ms_1pct_low,cpu_main_ms,cpu_render_ms,gpu_ms,draw_calls,batches,setpass,tris_k,cameras,lights
+reeds,base [enemies 0 bullets 0],233,4.29,8.80,3.46,1.34,3.79,215,215,133,5406,2,20
+reeds,rfold [enemies 0 bullets 0],238,4.21,8.38,3.53,1.40,3.78,436,436,134,5401,2,20
+reeds,foliage [enemies 0 bullets 0],337,2.97,8.27,2.31,1.19,1.56,207,206,125,673,2,20
+reeds,swarm:200 [enemies 200 bullets 3289],98,10.17,20.20,8.76,1.46,3.92,1184,1182,153,8532,2,32
+reeds,rfold [enemies 200 bullets 3129],82,12.15,26.74,10.52,1.63,3.77,1408,1403,156,8510,2,32

@@ -89,7 +89,8 @@ namespace RoomRun
             if (mouse != null)
             {
                 float wheel = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(wheel) > 0.01f) zoom = Mathf.Clamp(zoom * (wheel > 0 ? 0.85f : 1.18f), MinZoom, FixedZoom);
+                // over the dev tools panel the wheel scrolls the panel instead (11-13)
+                if (Mathf.Abs(wheel) > 0.01f && !LookStudyDevTools.PointerOverPanel) zoom = Mathf.Clamp(zoom * (wheel > 0 ? 0.85f : 1.18f), MinZoom, FixedZoom);
             }
             focus = Vector3.Lerp(focus, WantedFocus(), 1f - Mathf.Exp(-smooth * Time.deltaTime));
             Apply(Time.deltaTime);

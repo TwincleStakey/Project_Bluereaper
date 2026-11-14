@@ -12,3 +12,8 @@ Modified for this game: recoloured materials (the snow field's copies with snow 
 - "KCISA-수내동가옥_초가집02" by Korea Culture Information Service Agency (KCISA)
   https://sketchfab.com/3d-models/12f1375cfa8e4b22b1f07735cd4cd1a8
   EF_ThatchHouse (from SnowPlague/ThirdParty/Landmarks/ThatchHouse2)
+
+Grass / village depth trees (11-13, baked by Editor/EdgeDepthBake.cs), all CC BY 4.0:
+- "Coniferous Forest Assets Pack" by Dari
+  https://sketchfab.com/3d-models/coniferous-forest-assets-pack-240ce9cf0ad3474f809a59f9446e63cd
+  EF_TallPine / EF_Fir / EF_DeadConiferA (from SnowPlague/ThirdParty/Trees TR_Pine, TR_Fir, TR_DeadConifer_A)

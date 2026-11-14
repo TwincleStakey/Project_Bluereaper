@@ -936,7 +936,7 @@ public static partial class SPBuilder
         {
             Log($"VEG post: straw mat material {m.name} ({m.shader.name})");
             if (!m.shader.name.Contains("Prop")) continue;
-            m.SetColor("_Tint", Hex("#3a3328")); m.SetFloat("_Wetness", 0.55f); m.SetFloat("_SnowBias", -1f);
+            m.SetColor("_Tint", Hex("#3a3328")); m.SetFloat("_Wetness", m.name.Contains("Cloth") ? 0.15f : 0.1f); m.SetFloat("_SnowBias", -1f);   // 11-13 gloss pass (Kido: props too shiny): 0.55 -> 0.1 / 0.15
             m.SetFloat("_VertexFrost", 0f); m.SetFloat("_GroundMelt", 0f); m.SetFloat("_Desaturate", 0.35f); m.SetFloat("_SnowCap", 0f);
             EditorUtility.SetDirty(m);
         }
@@ -1031,7 +1031,7 @@ public static partial class SPBuilder
         if (mats.TryGetValue("SP_Clay", out var clay) && clay)
         {
             if (stone) clay.SetTexture("_BaseMap", stone);
-            clay.SetColor("_Tint", Hex("#6a4632")); clay.SetFloat("_Smoothness", 0.35f); clay.SetFloat("_Desaturate", 0.1f);
+            clay.SetColor("_Tint", Hex("#6a4632")); clay.SetFloat("_Smoothness", 0.18f); clay.SetFloat("_Desaturate", 0.1f);
             clay.SetFloat("_SnowCap", 0.45f); clay.SetFloat("_SnowBias", 0.2f); EditorUtility.SetDirty(clay);
         }
         if (mats.TryGetValue("SP_Wood", out var wood) && wood)

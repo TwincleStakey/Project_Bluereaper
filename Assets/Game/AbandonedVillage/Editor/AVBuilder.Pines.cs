@@ -24,8 +24,8 @@ public static partial class AVBuilder
         else m.CopyPropertiesFromMaterial(src);
         foreach (var p in new[] { "_SnowCover", "_SnowClump" }) if (m.HasProperty(p)) m.SetFloat(p, 0f);
         // 11-12 Kido: needles far too green -> mostly desaturated, darker, a little olive; see-through hole near the player
-        if (m.HasProperty("_Desat")) m.SetFloat("_Desat", 0.8f);
-        if (m.HasProperty("_Tint")) m.SetColor("_Tint", src.GetColor("_Tint") * new Color(0.85f, 0.78f, 0.74f, 1f));
+        if (m.HasProperty("_Desat")) m.SetFloat("_Desat", 0.97f);   // 11-14 Kido: needles still too green -> nearly grey, dark
+        if (m.HasProperty("_Tint")) m.SetColor("_Tint", src.GetColor("_Tint") * new Color(0.55f, 0.5f, 0.46f, 1f));
         SeeThroughOn(m);
         EditorUtility.SetDirty(m);
         return treeMats[src.name] = m;
@@ -90,6 +90,93 @@ public static partial class AVBuilder
         return go;
     }
 
+    // 11-14 (Kido: "take out those weird trees you made"): every kit dead tree (AV_DeadTree_*) is replaced by a free scan
+    // snag or dead fir from the snow thread's import; see-through near the player like the pines
+    // 11-14 (Kido: "why are the trees cut off halfway"): the snags are broken-topped trunks by design -> whole dead firs only;
+    // and no tree may grow through a roof: a tree whose bounds hit a building is nudged away, or dropped
+    static readonly string[] deadScans = { "TR_Pine", "TR_Fir", "TR_NobleFir", "TR_Pine" };   // 11-14 r2: the dead firs read as bare masts; whole conifers, needles greyed by AVTreeMat
+    static System.Collections.Generic.List<Bounds> houseBounds;
+    static Bounds WorldBounds(MeshFilter mf)
+    {
+        var b = mf.sharedMesh ? mf.sharedMesh.bounds : new Bounds(); var m = mf.transform.localToWorldMatrix;
+        var w = new Bounds(m.MultiplyPoint3x4(b.center), Vector3.zero);
+        for (int i = 0; i < 8; i++) w.Encapsulate(m.MultiplyPoint3x4(b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1))));
+        return w;
+    }
+    static Bounds TreeBounds(GameObject go)
+    {
+        var fs = go.GetComponentsInChildren<MeshFilter>(); if (fs.Length == 0) return new Bounds(go.transform.position, Vector3.one);
+        var b = WorldBounds(fs[0]); foreach (var f in fs) b.Encapsulate(WorldBounds(f));
+        // 11-14 r2 (Kido: trees and buildings still pierce each other): the whole crown must stay clear
+        return b;
+    }
+    // 11-14 (Kido: "not pines, dry trees; the trees alone ignore the fog"): bare dead broadleaf trees made from Poly Haven
+    // scans (Jacaranda Tree, Tree Small 02, CC0) with the leaves cut off and decimated in Blender
+    // (ThirdParty/PolyHaven/bare_trees). They use plain URP Lit materials, so the scene fog reaches them (the snow pack's
+    // vegetation shader only takes the reed field's own fog). scale 1 = about 10 m tall.
+    const string BareDir = Root + "/ThirdParty/PolyHaven/bare_trees/";
+    static Material bareBark, bareTwig, bareTrunkB;
+    static GameObject BareTree(Vector3 pos, float scale, Transform parent, bool big = false)
+    {
+        if (!bareBark) bareBark = Lit("AV_BareBark", TP(BareDir + "jacaranda_tree_trunk_diff_1k.png"), TP(BareDir + "jacaranda_tree_trunk_nor_gl_1k.png", true), Hex("#7a7068"), 1f, 0.08f);
+        if (!bareTrunkB) bareTrunkB = Lit("AV_BareTrunkB", TP(BareDir + "tree_small_02_diff_1k.jpg"), null, Hex("#7a7068"), 1f, 0.08f);
+        if (!bareTwig)
+        {
+            bareTwig = Lit("AV_BareTwig", TP(BareDir + "tree_small_02_branch_diff_1k.png"), TP(BareDir + "tree_small_02_branch_nor_gl_1k.png", true), Hex("#7a7068"), 1f, 0.05f, 1f, true);
+            bareTwig.SetFloat("_AlphaClip", 1f); bareTwig.SetFloat("_Cutoff", 0.4f); bareTwig.EnableKeyword("_ALPHATEST_ON"); EditorUtility.SetDirty(bareTwig);
+        }
+        bool a = big || rng.NextDouble() < 0.55;
+        var go = Place("P:" + BareDir + (a ? "AV_BareTree_A.fbx" : "AV_BareTree_B.fbx"), pos, R(0, 360), scale * (a ? 0.52f : 2.3f), parent);
+        if (!go) return null;
+        foreach (var r in go.GetComponentsInChildren<Renderer>())
+        {
+            var ms = r.sharedMaterials;
+            for (int k = 0; k < ms.Length; k++)
+            {
+                var n = ms[k] ? ms[k].name : "";
+                ms[k] = a ? bareBark : n.Contains("branch") ? bareTwig : bareTrunkB;
+            }
+            r.sharedMaterials = ms; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+        go.transform.rotation *= Quaternion.Euler(R(-3, 3), 0, R(-3, 3));
+        return go;
+    }
+
+    static GameObject DeadScan(Vector3 pos, float scale, Transform parent)
+    {
+        if (houseBounds == null)
+        {
+            houseBounds = new System.Collections.Generic.List<Bounds>();
+            var b = root.Find("Buildings");
+            if (b) foreach (var mf in b.GetComponentsInChildren<MeshFilter>()) { var hb = WorldBounds(mf); hb.Expand(new Vector3(1.5f, 0f, 1.5f)); houseBounds.Add(hb); }
+        }
+        return ClearOfHouses(BareTree(pos - Vector3.up * 0.05f, scale, parent));
+    }
+
+    static GameObject ClearOfHouses(GameObject go)
+    {
+        if (!go) return null;
+        if (houseBounds == null)
+        {
+            houseBounds = new System.Collections.Generic.List<Bounds>();
+            var hbRoot = root.Find("Buildings");
+            if (hbRoot) foreach (var mf in hbRoot.GetComponentsInChildren<MeshFilter>()) { var hb = WorldBounds(mf); hb.Expand(new Vector3(1.5f, 0f, 1.5f)); houseBounds.Add(hb); }
+        }
+        for (int t = 0; t < 12; t++)
+        {
+            var tb = TreeBounds(go); bool hit = false;
+            foreach (var hb in houseBounds) if (hb.Intersects(tb)) { hit = true; break; }
+            if (!hit) return go;
+            var d = Random.insideUnitCircle.normalized * 2.5f;
+            var p = go.transform.position + new Vector3(d.x, 0, d.y);
+            if (InArena(p.x, p.z, -1f)) continue;
+            p.y = Ground(Object.FindAnyObjectByType<Terrain>(), p.x, p.z) - 0.1f;
+            go.transform.position = p;
+        }
+        Object.DestroyImmediate(go);
+        return null;
+    }
+
     // a few hero pines where the camera can see them, cheaper pines and snags along the edges
     static void BuildPines(System.Func<float, float, float> G)
     {
@@ -98,15 +185,15 @@ public static partial class AVBuilder
         Vector3 At(float x, float z) => new Vector3(x, G(x, z) - 0.1f, z);
         // hero pines (156k tris each): 11-12 Kido "no trees inside the field" -> three just outside the arena corners
         foreach (var p in new[] { new Vector2(-49.5f, 39.5f), new Vector2(49.5f, 38f), new Vector2(49.5f, -46.5f) })
-            PlaceTree(rng.NextDouble() < 0.5 ? "TR_HeroPine_A" : "TR_HeroPine_B", At(p.x, p.y), R(0, 360), R(0.9f, 1.15f), pines, true);
+            ClearOfHouses(BareTree(At(p.x, p.y), R(1.4f, 1.7f), pines, true));   // 11-14 Kido: no pines, dry dead trees
         // (no hero pines on the south bank: the camera sits right above it and their canopy filled the frame, 11-12)
         // cheaper pines and dead conifers between the side house rows and on the north terrace edge
-        string[] edge = { "TR_Pine", "TR_DeadConifer_A", "TR_Snag_A", "TR_Pine", "TR_DeadConifer_B", "TR_Snag_C" };
+        string[] edge = { "TR_Pine", "TR_Fir", "TR_NobleFir", "TR_Pine", "TR_Fir", "TR_NobleFir" };   // 11-14: no broken-topped snags
         int i = 0;
         foreach (float sx in new[] { -1f, 1f })
             for (float z = -40f; z <= 36f; z += R(16f, 22f))
-                PlaceTree(edge[i++ % edge.Length], At(sx * R(48f, 50f), z), R(0, 360), R(0.9f, 1.3f), pines);
+                ClearOfHouses(BareTree(At(sx * R(48f, 50f), z), R(1.0f, 1.3f), pines)); i++;
         for (float x = -60f; x <= 60f; x += R(14f, 20f))
-            PlaceTree(edge[i++ % edge.Length].Replace("TR_Pine", "TR_Snag_B"), At(x, R(-62f, -58f)), R(0, 360), R(0.8f, 1.1f), pines);
+            ClearOfHouses(BareTree(At(x, R(-62f, -58f)), R(0.9f, 1.2f), pines)); i++;
     }
 }

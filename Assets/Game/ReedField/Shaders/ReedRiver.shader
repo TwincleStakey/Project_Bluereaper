@@ -138,7 +138,7 @@ Shader "ReedField/River"
                 float refl = saturate(_Reflection * (0.2 + fres * 1.5));
                 col = lerp(col, sky, refl);
                 float3 r = reflect(-v, n);
-                col += ml.color * pow(saturate(dot(r, ml.direction)), 160) * _Glint;
+                col += ml.color * pow(saturate(dot(r, ml.direction)), 160) * _Glint * 0.3;   // 11-14 QA: white glints read as bullets
                 col += ml.color * pow(saturate(dot(r, ml.direction)), 20) * 0.06 * _Glint;
 
 

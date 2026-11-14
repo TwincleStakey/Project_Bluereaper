@@ -13,7 +13,35 @@ public static class AVRemote
     static readonly string Dir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource", "AbandonedVillage");
     static double next;
 
-    static AVRemote() { EditorApplication.update += Tick; }
+    // av commands run synchronously, so after a domain reload none can be running: drop a lock a reload orphaned
+    // (11-14: a recompile right after an av command ate the delayCall release and held rr for 10 min)
+    static AVRemote() { EditorApplication.update += Tick; Gate.Release("av"); }
+
+    // 11-14 freeze guard, same as RoomRunRemote.Gate: nothing starts while Play changes, for 15 s after a Play change or
+    // domain reload, while compiling/importing, or while another remote holds ArtSource/remote_play.lock.
+    static class Gate
+    {
+        static double lastChange = EditorApplication.timeSinceStartup;
+        static Gate() { EditorApplication.playModeStateChanged += _ => lastChange = EditorApplication.timeSinceStartup; }
+        static string LockPath => Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource", "remote_play.lock");
+        public static bool Ready(string me)
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return false;
+            if (EditorApplication.timeSinceStartup - lastChange < 15.0) return false;
+            try
+            {
+                if (File.Exists(LockPath) && !File.ReadAllText(LockPath).StartsWith(me + " ")
+                    && (System.DateTime.Now - File.GetLastWriteTime(LockPath)).TotalMinutes < 10) return false;
+            }
+            catch (IOException) { return false; }
+            return true;
+        }
+        public static void Take(string me) { try { File.WriteAllText(LockPath, me + " " + System.DateTime.Now.ToString("HH:mm:ss")); } catch (IOException) { } }
+        public static void Release(string me)
+        {
+            try { if (File.Exists(LockPath) && File.ReadAllText(LockPath).StartsWith(me + " ")) File.Delete(LockPath); } catch (IOException) { }
+        }
+    }
 
     static void Log(string s)
     {
@@ -26,9 +54,11 @@ public static class AVRemote
         if (EditorApplication.timeSinceStartup < next) return;
         next = EditorApplication.timeSinceStartup + 1.0;
         var cmdPath = Path.Combine(Dir, "av_cmd.txt");
-        if (!File.Exists(cmdPath) || EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode) return;
+        if (!File.Exists(cmdPath) || !Gate.Ready("av")) return;
         var cmd = File.ReadAllText(cmdPath).Trim();
         File.Delete(cmdPath);
+        Gate.Take("av");
+        EditorApplication.delayCall += () => Gate.Release("av");   // the command runs synchronously in this tick
         var active = EditorSceneManager.GetActiveScene();
         if (active.isDirty && active.path != AVBuilder.ScenePath) { Log("ABORT unsaved changes in " + active.path); return; }
         var prev = active.path;
@@ -75,6 +105,34 @@ public static class AVRemote
                 int n = 0;
                 foreach (var g in roots) if (g) { Object.DestroyImmediate(g); n++; }
                 Log($"ORPHANS CLEARED {n} roots");
+            }
+            if (parts[0] == "matcount")
+            {
+                if (EditorSceneManager.GetActiveScene().path != AVBuilder.ScenePath) EditorSceneManager.OpenScene(AVBuilder.ScenePath, OpenSceneMode.Single);
+                var counts = new Dictionary<string, int>();
+                foreach (var r in Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+                {
+                    if (r.bounds.size.y > 0.6f) continue;
+                    string key = (r.sharedMaterial ? r.sharedMaterial.name : "null") + " <- " + r.transform.root.name + "/" + (r.transform.parent ? r.transform.parent.name : "");
+                    counts[key] = counts.TryGetValue(key, out var c) ? c + 1 : 1;
+                }
+                foreach (var kv in counts) if (kv.Value > 15) Log($"MAT {kv.Value} x {kv.Key}");
+                Log("MATCOUNT DONE");
+            }
+            if (parts[0] == "probe-at")
+            {
+                if (EditorSceneManager.GetActiveScene().path != AVBuilder.ScenePath) EditorSceneManager.OpenScene(AVBuilder.ScenePath, OpenSceneMode.Single);
+                var a = parts[1].Split(',');
+                float x0 = float.Parse(a[0]), z0 = float.Parse(a[1]), x1 = float.Parse(a[2]), z1 = float.Parse(a[3]);
+                var counts = new Dictionary<string, int>();
+                foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    var c = r.bounds.center; if (c.x < x0 || c.x > x1 || c.z < z0 || c.z > z1) continue;
+                    string key = r.gameObject.name + " / " + (r.sharedMaterial ? r.sharedMaterial.name : "null") + " <- " + (r.transform.parent ? r.transform.parent.name : "");
+                    counts[key] = counts.TryGetValue(key, out var n) ? n + 1 : 1;
+                }
+                foreach (var kv in counts) Log($"AT {kv.Value} x {kv.Key}");
+                Log("PROBE-AT DONE");
             }
             if (parts[0] == "open")
             {
@@ -127,6 +185,9 @@ public static class AVRemote
             new View { name = "02_game_north_steps", focus = new Vector3(-30f, 0, 24f), zoom = 1.6f },
             new View { name = "03_game_west", focus = new Vector3(30f, 0, -28f), zoom = 1.6f },
             new View { name = "04_game_east", focus = new Vector3(-28f, 0, -30f), zoom = 1.6f },
+            new View { name = "09_game_south_edge", focus = new Vector3(-6f, 0, -44f), zoom = 1.6f },
+            new View { name = "10_close_carnage", pos = new Vector3(7f, 4f, 21f), look = new Vector3(11f, 0f, 27f), fov = 50f },
+            new View { name = "11_close_body", pos = new Vector3(-3f, 4f, -41f), look = new Vector3(0f, 0f, -35f), fov = 50f },
             new View { name = "05_overview_zoomout", focus = new Vector3(0, 0, 4f), zoom = 2.3f },
             new View { name = "06_close_street", pos = new Vector3(-30f, 4f, 18f), look = new Vector3(-38f, 1.5f, 31f), fov = 50f },
             new View { name = "07_close_west", pos = new Vector3(-6f, 4.5f, -6f), look = new Vector3(-20f, 2.5f, 6f), fov = 50f },

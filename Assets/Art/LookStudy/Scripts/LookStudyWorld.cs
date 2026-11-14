@@ -369,24 +369,26 @@ public class LookStudyWorld : MonoBehaviour
         }
         var white = Color.white;
         // Flowers: a large yellow drift, scattered daisies, pockets of tinted and rare species.
-        var yel = Color.white;
+        // 11-14 overnight review: the yellow drifts read as loud orange dots over the dark meadow; dull ochre, about half as many
+        var yel = new Color(0.66f, 0.58f, 0.44f, 1f);
+        const float FlowerThin = 0.5f;
         // Flower drifts all over the field: big yellow patches, pockets of blue and pink, daisies everywhere.
-        Scatter(mYellow, fYellow, 230, 4f, -1.5f, 7.5f, 4.4f, 0.36f, 0.52f, FlowerTilt, yel, 0.1f, false, "RYellow");
+        Scatter(mYellow, fYellow, (int)(230 * FlowerThin), 4f, -1.5f, 7.5f, 4.4f, 0.36f, 0.52f, FlowerTilt, yel, 0.1f, false, "RYellow");
         for (int d = 0; d < 22; d++)
-            Scatter(mYellow, fYellow, rnd.Next(70, 170), R(rnd, -50, 50), R(rnd, -38, 38), R(rnd, 3f, 7f), R(rnd, 2.5f, 5f), 0.34f, 0.5f, FlowerTilt, yel, 0.1f, false, "RYellow");
+            Scatter(mYellow, fYellow, (int)(rnd.Next(70, 170) * FlowerThin), R(rnd, -50, 50), R(rnd, -38, 38), R(rnd, 3f, 7f), R(rnd, 2.5f, 5f), 0.34f, 0.5f, FlowerTilt, yel, 0.1f, false, "RYellow");
         for (int d = 0; d < 10; d++)
             Scatter(mWhite, fWhite, rnd.Next(60, 120), R(rnd, -50, 50), R(rnd, -38, 38), R(rnd, 3f, 5f), R(rnd, 2f, 4f), 0.2f, 0.3f, FlowerTilt, new Color(0.42f, 0.56f, 1.15f), 0.1f, false, "RBlue");
         for (int d = 0; d < 7; d++)
             Scatter(mWhite, fWhite, rnd.Next(40, 80), R(rnd, -50, 50), R(rnd, -38, 38), R(rnd, 2.5f, 4f), R(rnd, 2f, 3.5f), 0.24f, 0.34f, FlowerTilt, new Color(1.05f, 0.62f, 0.86f), 0.1f, false, "RPink");
         Scatter(mWhite, fWhite, 900, 0f, 0f, 56f, 44f, 0.34f, 0.5f, FlowerTilt, white, 0.06f, false, "RWhite");
-        Scatter(mLeaves, fLeaves, 600, 0f, 0f, 56f, 44f, 0.5f, 0.9f, 0f, new Color(1.25f, 1.3f, 1.0f), 0.12f, false, "RLeaves");
+        Scatter(mLeaves, fLeaves, 600, 0f, 0f, 56f, 44f, 0.5f, 0.9f, 0f, new Color(0.85f, 0.86f, 0.72f), 0.12f, false, "RLeaves");
         Scatter(mIvy, fIvy, 260, 0f, 0f, 56f, 44f, 0.8f, 1.15f, 0f, new Color(0.62f, 0.72f, 0.62f), 0.1f, false, "RIvy");
-        Scatter(mYellow, fYellow, 60, -9f, 8f, 4.5f, 3.5f, 0.32f, 0.46f, FlowerTilt, yel, 0.1f, false, "RYellow");
+        Scatter(mYellow, fYellow, (int)(60 * FlowerThin), -9f, 8f, 4.5f, 3.5f, 0.32f, 0.46f, FlowerTilt, yel, 0.1f, false, "RYellow");
         Scatter(mWhite, fWhite, 110, 0f, 0f, 24f, 15f, 0.34f, 0.5f, FlowerTilt, white, 0.06f, false, "RWhite");
         Scatter(mWhite, fWhite, 90, -7f, 9f, 4.5f, 2.8f, 0.2f, 0.3f, FlowerTilt, new Color(0.42f, 0.56f, 1.15f), 0.1f, false, "RBlue");
         Scatter(mWhite, fWhite, 50, 12f, 9f, 3.5f, 2.8f, 0.24f, 0.34f, FlowerTilt, new Color(1.05f, 0.62f, 0.86f), 0.1f, false, "RPink");
         Scatter(mRose, fRose, 10, 15f, -5f, 7f, 5f, 0.34f, 0.46f, FlowerTilt, white, 0.05f, false, "RRose");
-        Scatter(mLeaves, fLeaves, 90, 0f, 2f, 24f, 15f, 0.5f, 0.9f, 0f, new Color(1.25f, 1.3f, 1.0f), 0.12f, false, "RLeaves");
+        Scatter(mLeaves, fLeaves, 90, 0f, 2f, 24f, 15f, 0.5f, 0.9f, 0f, new Color(0.85f, 0.86f, 0.72f), 0.12f, false, "RLeaves");
         Scatter(mIvy, fIvy, 50, -3f, -2f, 22f, 14f, 0.8f, 1.15f, 0f, new Color(0.62f, 0.72f, 0.62f), 0.1f, false, "RIvy");
         Scatter(mVines, fVines, 16, -4f, 5f, 20f, 12f, 0.45f, 0.7f, 0f, new Color(0.92f, 1.05f, 0.9f), 0.1f, false, "RVines");
 
@@ -408,7 +410,7 @@ public class LookStudyWorld : MonoBehaviour
                     else if ((t -= 2 * hz) < 2 * hx) q = new Vector2(hx - t, hz);
                     else { t -= 2 * hx; q = new Vector2(-hx, hz - t); }
                     float x = VividX + q.x + R(rnd, -jitter, jitter), z = q.y + R(rnd, -jitter, jitter);
-                    var c = Color.white * R(rnd, 0.82f, 1.05f); c.a = 1;
+                    var c = HedgeTint * R(rnd, 0.82f, 1.05f); c.a = 1;   // 11-14: hedge was the brightest thing in the meadow
                     I(mBush, fBush, new Vector3(x, VividH(x, z) + 0.1f, z), Quaternion.Euler(0, R(rnd, 0, 360), 0), R(rnd, s0, s1), c);
                 }
             }
@@ -436,7 +438,7 @@ public class LookStudyWorld : MonoBehaviour
                                       new Vector3(18f, 10f, 1.8f), new Vector3(-24f, 14f, 2f), new Vector3(24f, -14f, 1.6f), new Vector3(9f, 17f, 1.4f), new Vector3(-27f, -12f, 1.8f), new Vector3(30f, 6f, 1.6f) })
             {
                 float x = VividX + t.x;
-                var c = Color.white * R(rnd, 0.93f, 1.08f); c.a = 1;
+                var c = HedgeTint * R(rnd, 0.93f, 1.08f); c.a = 1;
                 var bp = new Vector3(x, VividH(x, t.y) + 0.12f, t.y); var br = Quaternion.Euler(0, R(rnd, 0, 360), 0);
                 Stamp(batch, bs, bp, br, t.z, c, (float)rnd.NextDouble());
                 VegetationQuery.RegisterPlant(root.gameObject, mBush, fBush, Matrix4x4.TRS(bp, br, Vector3.one * t.z), c);   // 11-14: greatsword throws it when cut
@@ -445,6 +447,8 @@ public class LookStudyWorld : MonoBehaviour
         }
     }
     public static float FlowerTilt = -60f;
+    // meadow bushes and the edge hedge (11-14 overnight): a touch darker; the main change is LS_F_Bush remapped to dark olive
+    public static Color HedgeTint = new Color(0.9f, 0.88f, 0.86f, 1f);
 
     // ---------- sets
 

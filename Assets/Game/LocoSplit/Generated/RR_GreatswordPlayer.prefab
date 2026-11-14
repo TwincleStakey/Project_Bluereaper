@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 8835295408973848291}
   - component: {fileID: 5072865242205321135}
   - component: {fileID: 1418051379126668071}
+  - component: {fileID: 3169376397806264844}
   m_Layer: 0
   m_Name: RR_GreatswordPlayer
   m_TagString: Untagged
@@ -87,12 +88,63 @@ MonoBehaviour:
   depthScale: 0.78
   slitFromWaist: 0.12
   slitGapDeg: 4
-  maxSwing: 0.3
+  maxSwing: 0.2
   thighRadius: 0.06
   shinRadius: 0.05
-  stiffness: 0.9
-  bending: 0.15
-  damping: 0.12
+  stiffness: 1
+  bending: 0.9
+  damping: 0.6
+  velocityScale: 0.12
+  accelerationScale: 0.2
+  friction: 0.8
+--- !u!114 &3169376397806264844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101391765074587218}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36d9c72af7046914c9307dbbaf9c165b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LocoSplit.LSPoseFix
+  anim: {fileID: 7680774600580926858}
+  uprightIdleDeg: 14
+  hipsIdleDeg: 10
+  hipsRunDeg: 4
+  uprightRunDeg: 6
+  hatCenterXZ: {x: 0.000000029802322, y: -0.07597646}
+  hatYs:
+  - -0.01997837
+  - 0.038484108
+  - 0.09694659
+  - 0.15540907
+  - 0.21387155
+  - 0.272334
+  - 0.3307965
+  - 0.38925895
+  - 0.44772148
+  - 0.5061839
+  - 0.5646464
+  - 0.6231089
+  - 0.68157136
+  hatRs:
+  - 0.29948065
+  - 0.29948065
+  - 0.2959764
+  - 0.2959764
+  - 0.49677694
+  - 0.49677697
+  - 0.49677697
+  - 0.2836869
+  - 0.2767247
+  - 0.54563755
+  - 0.54563755
+  - 0.49325693
+  - 0.45105866
+  clearance: 0.05
+  maxTurnDeg: 60
 --- !u!1001 &4322613862923284507
 PrefabInstance:
   m_ObjectHideFlags: 0

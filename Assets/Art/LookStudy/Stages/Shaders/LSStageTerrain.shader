@@ -16,6 +16,7 @@ Shader "LookStudy/StageTerrain"
         _ForestTint("Forest tint", Color) = (0.62, 0.62, 0.5, 1)
         _RockScale("Rock texture scale", Float) = 0.11
         _DryGloss("Dry gloss scale (0 = matte dirt)", Range(0,2)) = 1
+        _AntiTile("Break up texture tiling (0 off, 1 on)", Range(0,1)) = 0
     }
     SubShader
     {
@@ -32,6 +33,7 @@ Shader "LookStudy/StageTerrain"
         float4 _ForestTint;
         float _RockScale;
         float _DryGloss;
+        float _AntiTile;
         CBUFFER_END
         ENDHLSL
         Pass
@@ -83,6 +85,20 @@ Shader "LookStudy/StageTerrain"
                 float3 pebble = S(_PebbleTex, uvP).rgb * _PebbleTint.rgb;
                 float3 gravel = S(_GravelTex, uvG).rgb * _PebbleTint.rgb;
                 float3 forest = S(_ForestTex, uvF).rgb * _ForestTint.rgb;
+                // 11-14 (Kido, 민가: "the floor reads as even square tiles"): opt-in per material. Each layer is also sampled
+                // rotated, at another scale and offset, and the two are blended by large noise, plus a broad light/dark
+                // wash, so the 4-5 m repeat of the textures stops showing as a grid. Off (0) = the old look exactly.
+                if (_AntiTile > 0.001)
+                {
+                    float2 q = ws.xz;
+                    float2 qr = float2(q.x * 0.766 - q.y * 0.643, q.x * 0.643 + q.y * 0.766) + float2(37.1, 11.7);
+                    float bl = smoothstep(0.32, 0.68, LSFbm(q * 0.05 + 3.1)) * _AntiTile;
+                    forest = lerp(forest, S(_ForestTex, qr * 0.15).rgb * _ForestTint.rgb, bl);
+                    gravel = lerp(gravel, S(_GravelTex, qr * 0.23).rgb * _PebbleTint.rgb, bl);
+                    pebble = lerp(pebble, S(_PebbleTex, qr * 0.19).rgb * _PebbleTint.rgb, bl);
+                    float wash = lerp(1.0, 0.72 + 0.56 * LSFbm(q * 0.028 + 7.3), _AntiTile);
+                    forest *= wash; gravel *= wash; pebble *= wash;
+                }
 
                 float brk = (LSFbm(ws.xz * 0.4) - 0.5) * 0.6;
                 float mP = smoothstep(0.35, 0.65, i.color.r + brk);
@@ -111,7 +127,8 @@ Shader "LookStudy/StageTerrain"
 
                 float wet = 1.0 - smoothstep(_LSWaterY + 0.05, _LSWaterY + 0.5, ws.y + brk * 0.3);
                 albedo *= lerp(1.0, 0.42, wet);
-                float gloss = lerp(0.08 * _DryGloss, 0.6, wet) + fp * 0.18 * _DryGloss;   // 11-13: per-material dry gloss (village dirt shone under wisps)
+                // 11-14 overnight: wet shore gloss 0.6 -> 0.2 (the bank read as a bright white sawtooth band under the moon)
+                float gloss = lerp(0.08 * _DryGloss, 0.2, wet) + fp * 0.18 * _DryGloss;   // 11-13: per-material dry gloss (village dirt shone under wisps)
                 float3 col = StageLight(albedo, n, ws, i.screen.xy / i.screen.w, gloss, 1.0);
                 col = StageFog(col, ws);
                 return half4(col, 1);

@@ -43,10 +43,13 @@ public class LookStudyRuins : MonoBehaviour
     public void Clear()
     {
         if (!root) return;
-        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true)) DestroyImmediate(mf.sharedMesh);
+        // generated meshes only: the village scan houses (VH_*) use the prefabs' asset meshes
+        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true)) if (mf.sharedMesh && !InScan(mf.transform)) DestroyImmediate(mf.sharedMesh);
         DestroyImmediate(root.gameObject);
         flicker.Clear();
     }
+
+    static bool InScan(Transform t) { for (; t; t = t.parent) if (t.name.StartsWith("VH_")) return true; return false; }
 
     public void Build()
     {
@@ -57,7 +60,10 @@ public class LookStudyRuins : MonoBehaviour
         root.gameObject.hideFlags = HideFlags.DontSave;
         byName.Clear();
         foreach (var p in parts) if (p != null) byName[p.name] = p;
-        if (kind == Kind.Palace) BuildPalace(); else BuildVillage();
+        burnCap = 1f; noColRect = null;
+        if (kind == Kind.Palace) { burnCap = 0.48f; noColRect = new Rect(-52f, -47f, 104f, 94f); BuildPalace(); }
+        else { burnCap = 0.48f; BuildVillage(); }   // 11-14 민가 abandoned: char stays, no glowing ember cracks
+        burnCap = 1f; noColRect = null;
     }
 
     // ---------- shared
@@ -108,13 +114,19 @@ public class LookStudyRuins : MonoBehaviour
     {
         if (!byName.TryGetValue(part, out var p)) { Debug.LogWarning("[LS] no kit part " + part); return; }
         var rot = Quaternion.Euler(tiltX, yaw, tiltZ);
-        Stamp(p.mesh, p.material, pos, rot, new Vector3(s, s, s), new Color(tint, tint, tint, burn));
+        Stamp(p.mesh, p.material, pos, rot, new Vector3(s, s, s), new Color(tint, tint, tint, Mathf.Min(burn, burnCap)));
+        if (noColRect.HasValue && noColRect.Value.Contains(new Vector2(pos.x, pos.z))) return;   // arena: nothing blocks
         if (System.Array.IndexOf(Blocking, part) >= 0)
         {
             var b = p.mesh.bounds;
             Col(pos + rot * (b.center * s), b.size * s, rot);
         }
     }
+    // 11-13 palace (Kido): glowing ember cracks on wood/stone with no fire on them read as a strange orange pattern.
+    // Burn above 0.5 switches those cracks on in LSStageRock, so the palace caps it: char stays, glow goes.
+    float burnCap = 1f;
+    // Arena rule: inside this rect (x, z) nothing gets a collider, so props never block movement or bullets.
+    Rect? noColRect;
     static readonly string[] Blocking = { "Choga_Base", "Choga_Wall", "Terrace_Stone", "Hall_Wall", "Gal_Wall", "Prop_Pot", "Prop_PotBroken", "Prop_Well", "Prop_Straw", "Prop_Cart", "Prop_Palanquin", "Prop_RankStone", "Prop_Basin", "Prop_Fence" };
 
     // Invisible blockers on the Default layer: they stop the player, enemies and bullets.
@@ -305,29 +317,35 @@ public class LookStudyRuins : MonoBehaviour
         K("Hall_Wall", top, 0, 0.7f); K("Hall_Pillar", top, 0, 0.72f); K("Hall_Bracket", top, 0, 0.72f);
         K("Hall_RoofLower", top, 0, 0.42f); K("Hall_RoofUpperHole", top, 0, 0.58f);
 
-        // Rank stones in two rows, some toppled.
+        // Rank stones (품계석) in two rows, 11-13: Kido found the even rows of posts too regular. Now about a third are
+        // gone, the rest have drifted, lean, sank or lie toppled, and sizes differ. No colliders (arena rule).
         for (int side = -1; side <= 1; side += 2)
         for (int i = 0; i < 17; i++)
         {
-            float z = -36f + i * 4.7f, x = side * 12f;
+            float z = -36f + i * 4.7f + R(r, -0.9f, 0.9f), x = side * (12f + R(r, -0.7f, 0.9f));
             var c = r.NextDouble();
-            if (c < 0.18) K("Prop_RankStone", new Vector3(x + R(r, -.4f, .4f), 0.12f, z + R(r, -.6f, .6f)), R(r, 0, 360), 0.3f, 1f, 1f, 86f);
-            else K("Prop_RankStone", new Vector3(x, PalaceH(x, z), z), R(r, -6, 6), c < 0.5 ? 0.45f : 0.1f, 1.05f);
+            if (c < 0.3) continue;                                                     // missing
+            float s = R(r, 0.82f, 1.08f);
+            if (c < 0.5) K("Prop_RankStone", new Vector3(x + R(r, -.6f, .6f), 0.12f, z), R(r, 0, 360), 0.3f, s * 0.95f, R(r, 0.8f, 1f), R(r, 80f, 92f));   // toppled
+            else if (c < 0.62) K("Prop_RankStone", new Vector3(x, PalaceH(x, z) - R(r, 0.25f, 0.5f), z), R(r, -25, 25), 0.2f, s, R(r, 0.8f, 1f), R(r, -14, 14), R(r, -14, 14));   // sunk and leaning
+            else K("Prop_RankStone", new Vector3(x, PalaceH(x, z) - R(r, 0f, 0.12f), z), R(r, -12, 12), c < 0.8 ? 0.4f : 0.1f, s, R(r, 0.85f, 1.05f), R(r, -5, 5), R(r, -5, 5));
         }
 
         // Galleries around the court: whole, scorched, burning, or only charred frames.
+        var fires = new List<Vector3>();
         void Gallery(float x, float z, float yaw, int state, bool low)
         {
             var p = new Vector3(x, 0.02f, z);
             if (!low) { K("Gal_Plinth", p, yaw, 0.2f); }
             else K("Gal_Plinth", p, yaw, 0.35f);
-            if (low) { if (r.NextDouble() < 0.5) K("Prop_TileHeap", p + Vector3.up * 0.2f, R(r, 0, 360), 0.2f, 1.1f); return; }
+            // 11-13: smaller, rarer tile spills (Kido: the heaps were bunched everywhere); the half-sunk lattice wall
+            // under bare rafters read as an unknown black structure, so a collapsed bay is now a plinth with a little rubble.
+            if (low) { if (r.NextDouble() < 0.3) K("Prop_TileHeap", p + Vector3.up * 0.15f, R(r, 0, 360), 0.2f, R(r, 0.55f, 0.8f)); return; }
             if (state == 0) { K("Gal_Post", p, yaw, 0.15f); K("Gal_Wall", p, yaw, 0.2f); K("Gal_Roof", p, yaw, 0.12f); }
             else if (state == 1) { K("Gal_Post", p, yaw, 0.75f); K("Gal_Wall", p, yaw, 0.65f); K("Gal_Roof", p, yaw, 0.68f); }
-            else if (state == 2) { K("Gal_Rafters", p, yaw, 0.95f); K("Gal_Wall", p - Vector3.up * 0.9f, yaw, 0.92f); K("Prop_TileHeap", p + Vector3.up * 0.2f, R(r, 0, 360), 0.3f, 1.2f); }
-            else { K("Prop_TileHeap", p + Vector3.up * 0.2f, R(r, 0, 360), 0.3f, 1.3f); K("Prop_Beam", p + new Vector3(0.4f, 0.3f, 0.2f), R(r, 0, 360), 0.95f); }
+            else if (state == 2) { K("Gal_Post", p, yaw, 0.6f); if (r.NextDouble() < 0.4) K("Prop_TileHeap", p + Vector3.up * 0.15f, R(r, 0, 360), 0.3f, R(r, 0.55f, 0.85f)); }
+            else { if (r.NextDouble() < 0.5) K("Prop_TileHeap", p + Vector3.up * 0.15f, R(r, 0, 360), 0.3f, R(r, 0.6f, 0.9f)); else K("Prop_Beam", p + new Vector3(0.4f, 0.12f, 0.2f), R(r, 0, 360), 0.95f, R(r, 0.6f, 0.9f)); }
         }
-        var fires = new List<Vector3>();
         for (int i = 0; i < 30; i++)
         {
             float z = -46.55f + i * 3.05f;     // runs right down to the south row, no gap at the corners
@@ -354,15 +372,8 @@ public class LookStudyRuins : MonoBehaviour
         K("Prop_Palanquin", new Vector3(PX(-11.5f), 0.05f, PZ(-4)), 28, 0.72f, 1.1f, 1f, 0, 13f);
         K("Prop_Palanquin", new Vector3(PX(13), 0.05f, PZ(14)), 200, 0.95f, 1f, 1f, 7f, -10f);
         K("Prop_Palanquin", new Vector3(-38f, 0.05f, -34f), 120, 0.8f, 1f, 1f, 5f, 9f);
-        K("Prop_Cart", new Vector3(PX(12.5f), 0.1f, PZ(-12)), 62, 0.5f, 1f, 1f, 6f, 10f);
-        K("Prop_Cart", new Vector3(-40f, 0.1f, 20f), 150, 0.6f, 1f, 1f, -5f, 8f);
-        for (int b = 0; b < 6; b++)
-        {
-            var c = new Vector3(new[] { PX(-15f), PX(16f), PX(-17f), 40f, -42f, 36f }[b], 0, new[] { PZ(12f), PZ(3f), PZ(-20f), -36f, -8f, 32f }[b]);
-            float yaw = R(r, 0, 180);
-            var d = Quaternion.Euler(0, yaw, 0);
-            for (int k = -1; k <= 1; k++) K("Prop_Fence", c + d * new Vector3(k * 3.4f, 0, 0), yaw + R(r, -10, 10), 0.45f, 1.1f, 1f, R(r, -10, 10), R(r, -8, 8));
-        }
+        // 11-13 (Kido): wooden fence barricades and farm carts do not belong in front of the throne hall; removed.
+        for (int b = 0; b < 6; b++) { R(r, 0, 180); for (int k = 0; k < 3; k++) { R(r, 0, 1); R(r, 0, 1); R(r, 0, 1); } }   // keep the random sequence so the rest stays put
         foreach (var f in new[] { new Vector3(PX(-20f), PZ(-9f), 30f), new Vector3(PX(18f), PZ(22f), 150f), new Vector3(PX(-5f), PZ(22f), 280f), new Vector3(PX(21f), PZ(-16f), 80f),
                                   new Vector3(-24f, -40f, 200f), new Vector3(46f, 6f, 320f), new Vector3(-46f, 30f, 110f) })
         {
@@ -373,24 +384,26 @@ public class LookStudyRuins : MonoBehaviour
         K("Prop_Basin", new Vector3(PX(-18), 0, PZ(24)), 0, 0.15f, 1.1f);
         K("Prop_Basin", new Vector3(PX(19), 0.5f, PZ(24)), 30, 0.2f, 1.1f, 1f, 110f);
         // debris: dense toward the galleries, the middle stays clear for bullets
+        // 11-13: loose single shards spread thin over the whole court instead of big heaps bunched at the edges.
         for (int i = 0; i < 104; i++)
         {
             float x = R(r, -51, 51), z = R(r, -46, 43);
-            if (Mathf.Abs(x) < 28f && z < 30f) continue;
-            if (r.NextDouble() < 0.5) K("Prop_TileHeap", new Vector3(x, 0.05f, z), R(r, 0, 360), 0.25f, R(r, 0.8f, 1.5f));
-            else K("Prop_Beam", new Vector3(x, 0.08f, z), R(r, 0, 360), 0.95f, R(r, 0.8f, 1.6f));
+            double c = r.NextDouble();
+            if (Mathf.Abs(x) < 24f && z < 30f && c < 0.55) continue;      // the middle stays clearer, not empty
+            if (c < 0.75) K("Prop_TileHeap", new Vector3(x, 0.03f, z), R(r, 0, 360), 0.25f, R(r, 0.28f, 0.5f), R(r, 0.75f, 1f), R(r, -6, 6), R(r, -6, 6));
+            else if (c < 0.93) K("Prop_Beam", new Vector3(x, 0.06f, z), R(r, 0, 360), 0.95f, R(r, 0.55f, 1f));
         }
         // Beyond the galleries: a broken outer palace wall, charred pines and rubble, so the edge does not open onto bare dirt.
         foreach (var side in new[] { -1f, 1f })
             for (float z = PalaceSouthZ - 6f; z < PalaceNorthZ + 10f; z += 3.05f)
             {
-                if (r.NextDouble() < 0.18) { K("Prop_TileHeap", new Vector3(side * (PalaceGalX + 9f), 0.05f, z), R(r, 0, 360), 0.3f, R(r, 1f, 1.4f)); continue; }
+                if (r.NextDouble() < 0.18) { K("Prop_TileHeap", new Vector3(side * (PalaceGalX + 9f), 0.05f, z), R(r, 0, 360), 0.3f, R(r, 0.6f, 0.9f)); continue; }
                 { var q = new Vector3(side * (PalaceGalX + 9f), 0.02f, z); float yw = side < 0 ? 90 : -90; K("Gal_Plinth", q, yw, 0.4f); K("Gal_Wall", q, yw, R(r, 0.72f, 0.95f), 1f, 0.8f); }
             }
         for (float x = -PalaceGalX - 9f; x <= PalaceGalX + 9f; x += 3.05f)
         {
             if (Mathf.Abs(x) < 4f) continue;   // the south gate's road
-            if (r.NextDouble() < 0.18) { K("Prop_TileHeap", new Vector3(x, 0.05f, PalaceSouthZ - 9f), R(r, 0, 360), 0.3f, R(r, 1f, 1.4f)); continue; }
+            if (r.NextDouble() < 0.18) { K("Prop_TileHeap", new Vector3(x, 0.05f, PalaceSouthZ - 9f), R(r, 0, 360), 0.3f, R(r, 0.6f, 0.9f)); continue; }
             { var q = new Vector3(x, 0.02f, PalaceSouthZ - 9f); K("Gal_Plinth", q, 180, 0.4f); K("Gal_Wall", q, 180, R(r, 0.72f, 0.95f), 1f, 0.8f); }
         }
         for (int i = 0; i < 90; i++)
@@ -398,8 +411,8 @@ public class LookStudyRuins : MonoBehaviour
             float x = R(r, -96, 96), z = R(r, -78, 90);
             if (Mathf.Abs(x) < PalaceGalX + 4f && z > PalaceSouthZ - 4f) continue;
             if (Mathf.Abs(x) < 5f && z < PalaceSouthZ) continue;
-            if (r.NextDouble() < 0.5) K("Prop_TileHeap", new Vector3(x, 0.05f, z), R(r, 0, 360), 0.35f, R(r, 0.9f, 1.6f));
-            else K("Prop_Beam", new Vector3(x, 0.08f, z), R(r, 0, 360), 0.95f, R(r, 0.8f, 1.6f));
+            if (r.NextDouble() < 0.5) K("Prop_TileHeap", new Vector3(x, 0.05f, z), R(r, 0, 360), 0.35f, R(r, 0.45f, 0.8f));
+            else K("Prop_Beam", new Vector3(x, 0.08f, z), R(r, 0, 360), 0.95f, R(r, 0.6f, 1.1f));
         }
         Flush(true);
         if (pineDead)
@@ -413,6 +426,37 @@ public class LookStudyRuins : MonoBehaviour
                 Stamp(pineDead, pineDeadMat, new Vector3(x, PalaceH(x, z) - 0.3f, z), Quaternion.Euler(R(r, -5, 5), R(r, 0, 360), R(r, -5, 5)), new Vector3(s, s, s), new Color(0.4f, 0.36f, 0.34f, 1));
             }
             Flush(true);
+        }
+
+        // 11-13 (Kido, Hades 2 ref): tall, near-black silhouettes along the camera-side (south) edge only, for depth.
+        // They sit between the low south gallery (z -49.5) and the outer wall, so they only rise into the bottom of the
+        // screen when the player is near the south edge, never over the fight. No shadows (they would darken the arena),
+        // no colliders, and the see-through shader thins them next to the player.
+        {
+            var fr = new System.Random(1311);
+            float x = -60f;
+            while (x < 60f)
+            {
+                x += R(fr, 7f, 15f);
+                if (Mathf.Abs(x) < 6f) continue;                        // keep the south gate open
+                float z = R(fr, -56f, -51.5f), ink = R(fr, 0.07f, 0.14f);
+                double c = fr.NextDouble();
+                if (c < 0.45)
+                {
+                    // a broken bay of a two-storey gate gallery: tall posts and a slab of eave
+                    float s = R(fr, 1.5f, 1.9f), yaw = 180f + R(fr, -6f, 6f);
+                    var q = new Vector3(x, 0f, z);
+                    K("Gal_Post", q, yaw, 0.4f, s, ink);
+                    if (fr.NextDouble() < 0.6) K("Gal_Roof", q + Vector3.up * R(fr, -0.4f, 0.2f), yaw, 0.35f, s, ink, R(fr, -4f, 4f), R(fr, -5f, 5f));
+                    if (fr.NextDouble() < 0.5) K("Gal_Post", q + new Vector3(R(fr, 2.5f, 3.5f), 0, R(fr, -1f, 1f)), yaw + R(fr, -8f, 8f), 0.4f, s * R(fr, 0.85f, 1.05f), ink, R(fr, -6f, 6f), R(fr, -6f, 6f));
+                }
+                else if (pineDead)
+                {
+                    float s = R(fr, 1.3f, 1.8f);
+                    Stamp(pineDead, pineDeadMat, new Vector3(x, PalaceH(x, z) - 0.3f, z - R(fr, 0f, 3f)), Quaternion.Euler(R(fr, -6, 6), R(fr, 0, 360), R(fr, -6, 6)), new Vector3(s, s, s), new Color(ink, ink * 0.95f, ink * 0.92f, 1));
+                }
+            }
+            Flush(false);
         }
 
         Fire(hall + new Vector3(-1.5f, 9.4f, 0.3f), 2.8f, 70f, 2.6f);
@@ -459,10 +503,11 @@ public class LookStudyRuins : MonoBehaviour
         return best;
     }
 
-    void House(System.Random r, Vector3 p, float yaw, int state, float s = 1f)
+    void House(System.Random r, Vector3 p, float yaw, int state, float s = 1f, int kind = 0)
     {
         // state 0 intact old thatch, 1 scorched with a hole, 2 burning, 3 only rafters.
         float t = R(r, 0.82f, 1.08f);
+        if (ScanHouse(p, yaw, state, s, t, kind)) return;
         K("Choga_Base", p, yaw, state >= 2 ? 0.35f : 0.05f, s);
         K("Choga_Wall", p, yaw, state == 3 ? 0.9f : state == 2 ? 0.55f : 0.12f, s, t);
         K("Choga_Wood", p, yaw, state >= 2 ? 0.95f : 0.2f, s);
@@ -470,6 +515,71 @@ public class LookStudyRuins : MonoBehaviour
         else if (state == 1) { K("Choga_RoofHole", p, yaw, 0.55f, s, t * 0.8f); K("Choga_Rafters", p, yaw, 0.85f, s); }
         else if (state == 2) { K("Choga_RoofHole", p, yaw, 0.8f, s, t * 0.65f); K("Choga_Rafters", p, yaw, 0.95f, s); }
         else { K("Choga_Rafters", p, yaw, 1f, s); }
+    }
+
+    // 11-14 (Kido: the code-built 민가 houses looked cheap; KCISA scans were tried, then "use the 폐촌 초가집"): the
+    // abandoned village's thatched kit houses, prefabs Resources/EdgeFeatures/VH_AV_Choga* (RoomRun Editor/EdgeDepthBake).
+    // The LookStudy fields light with their own globals, so the URP-lit materials are lifted x2 like the edge trees, kept
+    // matte, and darkened by how burnt the house is. Falls back to the code kit when the prefabs are missing.
+    // Dev: PlayerPrefs RR.VillageScans 0 = the old code houses.
+    static readonly Dictionary<(Material, int), Material> scanMats = new Dictionary<(Material, int), Material>();
+    bool ScanHouse(Vector3 p, float yaw, int state, float s, float t, int kind)
+    {
+        if (PlayerPrefs.GetInt("RR.VillageScans", 1) == 0) return false;
+        string name = kind == 4 ? "VH_AV_ChogaA" : kind == 5 ? "VH_AV_ChogaB" : kind == 6 ? "VH_AV_ChogaC" : "VH_AV_ChogaCollapsed";
+        var prefab = Resources.Load<GameObject>("EdgeFeatures/" + name);
+        if (!prefab) return false;
+        var go = Instantiate(prefab, root);
+        go.name = name; go.hideFlags = HideFlags.DontSave;
+        go.transform.SetPositionAndRotation(p, Quaternion.Euler(0, yaw, 0));
+        go.transform.localScale = Vector3.one * s;   // kit houses at their 폐촌 size (~7-9 x 5-6 m)
+        // 11-14 (Kido: "all of them must be abandoned houses, put the fires out"): every house is a dark, weathered ruin;
+        // state only varies how much soot is on it (lift x2, then darkened), cached per material
+        float k = 2f * t * (state == 0 ? 0.78f : state == 1 ? 0.66f : state == 2 ? 0.56f : 0.46f);
+        int key = Mathf.RoundToInt(k * 100f);
+        foreach (var rd in go.GetComponentsInChildren<Renderer>())
+        {
+            var ms = rd.sharedMaterials;
+            for (int i = 0; i < ms.Length; i++)
+            {
+                if (!ms[i]) continue;
+                if (!scanMats.TryGetValue((ms[i], key), out var m) || !m)
+                {
+                    m = new Material(ms[i]) { name = ms[i].name + " (village)", hideFlags = HideFlags.DontSave };
+                    string tp = m.HasProperty("_Tint") ? "_Tint" : m.HasProperty("_BaseColor") ? "_BaseColor" : null;   // kit houses: URP Lit
+                    if (tp != null) { var c = m.GetColor(tp); m.SetColor(tp, new Color(c.r * k, c.g * k, c.b * k, c.a)); }
+                    if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0f);   // matte (straw, wood, plaster, tile)
+                    if (m.HasProperty("_Wetness")) m.SetFloat("_Wetness", 0f);
+                    if (m.HasProperty("_RimScale")) m.SetFloat("_RimScale", 0f);
+                    // no lamplight in the windows: the glowing paper (AV_PaperGlow / AV_Glow) goes dark and dead
+                    if (ms[i].name.Contains("Glow"))
+                    {
+                        if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", Color.black);
+                        m.DisableKeyword("_EMISSION"); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+                        if (tp != null) m.SetColor(tp, new Color(0.16f, 0.14f, 0.12f, 1f));
+                    }
+                    scanMats[(ms[i], key)] = m;
+                }
+                ms[i] = m;
+            }
+            rd.sharedMaterials = ms;
+        }
+        // a box over the house body (not the eaves) blocks like the old walls did
+        var inv = Quaternion.Inverse(go.transform.rotation);
+        var lb = new Bounds(); bool lany = false;
+        foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+        {
+            if (!mf.sharedMesh) continue;
+            var mb = mf.sharedMesh.bounds;
+            for (int c = 0; c < 8; c++)
+            {
+                var w = mf.transform.TransformPoint(mb.center + Vector3.Scale(mb.extents, new Vector3((c & 1) == 0 ? -1 : 1, (c & 2) == 0 ? -1 : 1, (c & 4) == 0 ? -1 : 1)));
+                var q = inv * (w - p);
+                if (lany) lb.Encapsulate(q); else { lb = new Bounds(q, Vector3.zero); lany = true; }
+            }
+        }
+        if (lany) Col(p + go.transform.rotation * new Vector3(lb.center.x, 1.5f, lb.center.z), new Vector3(lb.size.x * 0.78f, 3f, lb.size.z * 0.72f), go.transform.rotation);
+        return true;
     }
 
     void BuildVillage()
@@ -484,44 +594,32 @@ public class LookStudyRuins : MonoBehaviour
             return new Color(dirt, 1f - dirt, 0, 1f - dirt * 0.9f + SS(0.58f, 0.72f, ash) * 0.2f);
         });
 
-        // Houses keep to the edges and the north hill, facing the yard.
+        // 11-14 (Kido: "too many houses, they block movement and from above they do not read as houses"): eight KCISA
+        // scan houses, all OUTSIDE the arena edge, four along the north edge and two on each side. No plot stone walls (too low to see, they snagged the player).
+        // x, z, yaw (0 = front faces south / the yard), state (0 intact, 1 scorched, 2 burning, 3 burnt out); kind 0
+        // 초가집01, 1 초가집02, 2 사랑채, 3 안채.
+        // 11-14 (Kido: "use the 폐촌 초가집, the village houses look odd"): the abandoned village's thatched kit houses
+        // (AV_Choga_A/B/C, ~7 x 4 m) replace the KCISA scans; twelve of them, all just OUTSIDE the arena edge, fronts to
+        // the south (camera). Kinds 4/5/6 = 초가 A/B/C, 7 = collapsed. 11-14: all abandoned (no fires, dark windows).
         var layout = new[]
         {
-            new Vector4(-18, -16, 40, 2), new Vector4(-25, -3, 75, 0), new Vector4(-21, 11, 112, 1), new Vector4(-10, 22, 150, 0),
-            new Vector4(10, 21, 208, 2), new Vector4(21, 10, 248, 0), new Vector4(26, -6, 285, 3), new Vector4(18, -18, 322, 0),
-            new Vector4(-35, 19, 110, 3), new Vector4(-24, 32, 140, 0), new Vector4(0, 34, 180, 1), new Vector4(25, 31, 214, 2),
-            new Vector4(37, 16, 240, 0), new Vector4(-38, -16, 65, 1), new Vector4(37, -22, 300, 3),
-            // the wider arena: more houses out on the east and west sides and in the south corners, facing in
-            new Vector4(-47, 2, 90, 0), new Vector4(48, -6, 270, 2), new Vector4(-46, -34, 50, 3), new Vector4(46, -36, 310, 1),
-            new Vector4(-22, -38, 20, 1), new Vector4(24, -39, 340, 0), new Vector4(-49, 26, 120, 1), new Vector4(49, 28, 235, 3),
+            (new Vector4(-46, 43.4f, 0, 0), 4), (new Vector4(-31, 43.2f, 0, 2), 7), (new Vector4(-16, 43.4f, 0, 1), 5),
+            (new Vector4(8, 43.4f, 0, 0), 4), (new Vector4(36, 43.2f, 0, 3), 6), (new Vector4(50, 43.4f, 0, 0), 5),
+            (new Vector4(-61, 22, 0, 0), 6), (new Vector4(-61, 4, 0, 2), 7), (new Vector4(-61, -22, 0, 1), 5),
+            (new Vector4(61, 24, 0, 1), 5), (new Vector4(61, -22, 0, 0), 6), (new Vector4(61, -36, 0, 2), 7),
         };
-        var fires = new List<Vector3>();
-        foreach (var h in layout)
+        var houseSpots = new List<Vector2>();
+        foreach (var (h, kind) in layout)
         {
             var p = new Vector3(h.x, VillageH(h.x, h.y) - 0.1f, h.y);
-            House(r, p, h.z, (int)h.w, R(r, 0.92f, 1.12f));
-            if ((int)h.w == 2) fires.Add(p + new Vector3(0.4f, 3.5f, -0.3f));
-            if ((int)h.w == 1 && r.NextDouble() < 0.5) fires.Add(p + new Vector3(-0.8f, 3.2f, 0.2f));
-            // Low stone walls around the plot, broken where the lane runs through.
+            houseSpots.Add(new Vector2(h.x, h.y));
+            House(r, p, h.z, (int)h.w, R(r, 0.92f, 1.08f), kind);
+            if ((int)h.w == 1) r.NextDouble();   // (was a roof fire roll; 11-14 abandoned: no fires)
+            // a jar stand beside the house, on the far side (outside the arena too)
             var rot = Quaternion.Euler(0, h.z, 0);
-            for (int side = 0; side < 3; side++)
-            {
-                var a = rot * (side == 0 ? new Vector3(-7, 0, 6) : side == 1 ? new Vector3(-7, 0, -5) : new Vector3(7, 0, -5));
-                var b = rot * (side == 0 ? new Vector3(-7, 0, -5) : side == 1 ? new Vector3(-1.5f, 0, -5) : new Vector3(7, 0, 6));
-                for (float t = 0; t <= 1f; t += 0.075f)
-                {
-                    if (r.NextDouble() < 0.14) continue;
-                    var q = p + Vector3.Lerp(a, b, t);
-                    q.y = VillageH(q.x, q.z);
-                    if (LaneDist(q.x, q.z) < 2.6f || new Vector2(q.x, q.z).magnitude < 12f) continue;
-                    RockAt(r, q + Vector3.up * 0.05f, R(r, 0.55f, 0.95f));
-                    if (r.NextDouble() < 0.7) RockAt(r, q + Vector3.up * 0.42f, R(r, 0.42f, 0.7f));
-                }
-            }
-            // Jar stand beside the house.
             if (r.NextDouble() < 0.6)
             {
-                var j = p + rot * new Vector3(R(r, -4.5f, -3f), 0, R(r, 2.8f, 3.8f));
+                var j = p + rot * new Vector3(R(r, -1f, 1f) > 0 ? 6.5f : -6.5f, 0, 2.5f);
                 for (int k = 0; k < r.Next(4, 9); k++)
                 {
                     var q = j + new Vector3(R(r, -1.1f, 1.1f), 0, R(r, -0.9f, 0.9f));
@@ -532,18 +630,12 @@ public class LookStudyRuins : MonoBehaviour
                 }
             }
         }
+        bool NearHouse(float x, float z) { foreach (var hs in houseSpots) if (Mathf.Abs(x - hs.x) < 6.5f && Mathf.Abs(z - hs.y) < 6f) return true; return false; }
         // Yard furniture stays sparse.
         K("Prop_Well", new Vector3(-6.5f, VillageH(-6.5f, 5), 5), 0, 0.05f, 1.05f);
         foreach (var s in new[] { new Vector3(7, -7, 1.1f), new Vector3(10, -4, 0.9f), new Vector3(-9, -7, 1f), new Vector3(13, 7, 1f), new Vector3(-14, 2, 0.8f) })
-            K("Prop_Straw", new Vector3(s.x, VillageH(s.x, s.y) - 0.05f, s.y), R(r, 0, 360), 0.14f, s.z, 0.92f);
-        K("Prop_Cart", new Vector3(4.5f, 0.1f, 7), 200, 0.35f, 1f, 0.9f, 7f, 11f);
-        for (int i = 0; i < 26; i++)
-        {
-            float a = R(r, 0, 6.28f), d = R(r, 12, 46);
-            var p = new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); p.y = VillageH(p.x, p.z);
-            if (LaneDist(p.x, p.z) < 3.2f || !InVillageArena(p.x, p.z, -3f)) continue;
-            K("Prop_Fence", p, R(r, 0, 360), R(r, 0.1f, 0.7f), 1f, 0.95f, R(r, -14, 14), R(r, -12, 12));
-        }
+            R(r, 0, 360);   // 11-13 Kido: no cone straw stacks (not Korean); the roll is kept so the rest of the layout stays put
+        // 11-14: the farm cart and the fence pieces are gone from the arena (they blocked movement)
         for (int i = 0; i < 60; i++)
         {
             float a = R(r, 0, 6.28f), d = R(r, 7, 48);
@@ -561,27 +653,7 @@ public class LookStudyRuins : MonoBehaviour
             Stamp(jangseung, jangseungMat, new Vector3(3.8f, VillageH(3.8f, -27) - 0.15f, -27), Quaternion.Euler(4, 200, -7), new Vector3(s, s, s), new Color(0.85f, 0.85f, 0.85f, 0.2f));
             Flush(true);
         }
-        // The arena edge: a low broken stone wall just inside the pine belt, gaps where the lanes leave.
-        {
-            void WallRun(Vector2 a, Vector2 b)
-            {
-                float L = Vector2.Distance(a, b);
-                for (float t = 0; t <= L; t += 0.75f)
-                {
-                    var q2 = Vector2.Lerp(a, b, t / L);
-                    if (LaneDist(q2.x, q2.y) < 2.8f || r.NextDouble() < 0.1) continue;
-                    var q = new Vector3(q2.x, VillageH(q2.x, q2.y), q2.y);
-                    RockAt(r, q + Vector3.up * 0.05f, R(r, 0.6f, 1.0f));
-                    if (r.NextDouble() < 0.75) RockAt(r, q + Vector3.up * 0.45f, R(r, 0.45f, 0.75f));
-                }
-            }
-            float wx = VillageHalfX + 1.2f, wz0 = VillageMinZ - 1.2f, wz1 = VillageMaxZ + 1.2f;
-            WallRun(new Vector2(-wx, wz0), new Vector2(wx, wz0));
-            WallRun(new Vector2(wx, wz0), new Vector2(wx, wz1));
-            WallRun(new Vector2(wx, wz1), new Vector2(-wx, wz1));
-            WallRun(new Vector2(-wx, wz1), new Vector2(-wx, wz0));
-            Flush(true);
-        }
+        // 11-14 (Kido): the low broken stone wall at the arena edge is gone (too low to read, it snagged the player).
         // Pine belt right behind the wall (with trunk colliders), then dead and living pines massed outside.
         for (int pass = 0; pass < 3; pass++)
         {
@@ -596,10 +668,11 @@ public class LookStudyRuins : MonoBehaviour
                 else { t -= 2 * hx; q = new Vector2(-hx, z1 - t); }
                 float x = q.x + R(r, -1f, 1f), z = q.y + R(r, -1f, 1f);
                 if (LaneDist(x, z) < 2.2f && pass == 0) continue;   // lanes run out between the trees
+                if (NearHouse(x, z)) continue;
                 float y = VillageH(x, z) - 0.25f, s = R(r, 0.75f, 1.2f);
                 var rot = Quaternion.Euler(R(r, -3, 3), R(r, 0, 360), R(r, -3, 3));
-                Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(0.42f, 0.36f, 0.34f, 1));
-                Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1));
+                Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(0.42f, 0.36f, 0.34f, 1), z));
+                Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1), z));
                 if (pass == 0) Col(new Vector3(x, y + 2f, z), new Vector3(0.8f * s, 4f, 0.8f * s), Quaternion.identity);
             }
             Flush(true);
@@ -607,11 +680,11 @@ public class LookStudyRuins : MonoBehaviour
         for (int i = 0; i < 900; i++)
         {
             float x = R(r, -100, 100), z = R(r, -92, 88);
-            if (InVillageArena(x, z, 12f)) continue;
+            if (InVillageArena(x, z, 12f) || NearHouse(x, z)) continue;
             float y = VillageH(x, z) - 0.25f, s = R(r, 0.65f, 1.15f);
             var rot = Quaternion.Euler(R(r, -3, 3), R(r, 0, 360), R(r, -3, 3));
-            Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(0.42f, 0.36f, 0.34f, 1));
-            Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1));
+            Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(0.42f, 0.36f, 0.34f, 1), z));
+            Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1), z));
         }
         foreach (var d in new[] { new Vector3(-6, -19, 1.1f), new Vector3(31, 7, 1f), new Vector3(-31, 7, 0.9f), new Vector3(17, 33, 1f), new Vector3(-16, 12, 0.7f), new Vector3(42, -20, 1f), new Vector3(-40, -26, 1.1f), new Vector3(-36, 32, 0.9f) })
             Stamp(pineDead, pineDeadMat, new Vector3(d.x, VillageH(d.x, d.y) - 0.3f, d.y), Quaternion.Euler(R(r, -5, 5), R(r, 0, 360), R(r, -5, 5)), new Vector3(d.z, d.z, d.z), new Color(0.52f, 0.48f, 0.45f, 1));
@@ -635,15 +708,21 @@ public class LookStudyRuins : MonoBehaviour
                 Flush(false);
             }
         }
-        foreach (var f in fires) Fire(f, 1.5f, 34f, 1.5f);
-        Fire(new Vector3(4.5f, 1.1f, 7), 0.55f, 11f, 0.4f);
         foreach (var w in new[] { new Vector3(0, 1.4f, -12), new Vector3(-13, 1.6f, -13), new Vector3(12, 1.6f, 14), new Vector3(-40, 1.6f, -10), new Vector3(40, 1.6f, 12), new Vector3(8, 1.5f, -36) }) Wisp(w);
-        AshFall(new Vector3(0, 15, -4), new Vector3(130, 6, 110), 50);
+        // 11-14 abandoned village: no burning roofs, so no falling ash either (the wisps stay: ghost lights in a dead village)
     }
 
     public static LookStudyWalker.Surface PalaceSurface(float x, float z)
     {
         return Mathf.Abs(x) > PalaceGalX + 1f || z < PalaceSouthZ - 1f ? LookStudyWalker.Surface.Dirt : LookStudyWalker.Surface.Stone;
+    }
+
+    // 11-13 (Kido, Hades 2 ref): the pines on the camera (south) side of the village are near-black foreground
+    // silhouettes, fading in over the first metres past the wall; the other sides keep their green.
+    static Color SouthSil(Color c, float z)
+    {
+        float k = Mathf.Lerp(1f, 0.03f, Mathf.InverseLerp(VillageMinZ - 1f, VillageMinZ - 4f, z));
+        return new Color(c.r * k, c.g * k, c.b * k, c.a);
     }
 
     public static float VillageGrass(float x, float z)

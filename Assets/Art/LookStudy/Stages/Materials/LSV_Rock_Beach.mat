@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: LSV_Rock_Beach
+  m_Shader: {fileID: 4800000, guid: 0bf7eafc811041a41ab32b088f769cb6, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: f6a70741ded39768df255dff1cbf33b0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MossTex:
+        m_Texture: {fileID: 2800000, guid: 5ec8c1d031406214c9a79611a47bf72b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalTex:
+        m_Texture: {fileID: 2800000, guid: 79d938305f9d33c0f242d6ffdba3a942, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _DryGloss: 0.5
+    - _BurnOn: 0
+    - _Cull: 2
+    - _MossAmt: 0.08
+    - _Remap: 0.35
+    - _Wet: 0.6
+    m_Colors:
+    - _Granite: {r: 0.5, g: 0.49, b: 0.46, a: 1}
+    - _MossTint: {r: 0.29, g: 0.31, b: 0.25, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -122,19 +122,19 @@ public static partial class AVBuilder
         Lit("AV_Plank", T("old_planks_02_diff_1k.jpg"), T("old_planks_02_nor_gl_1k.jpg", true), Hex("#aaa196"), 0.4f, 0.1f, 1.2f, true);
         Lit("AV_Thatch", T("ThatchedRoof001A_1K-JPG_Color.jpg"), T("ThatchedRoof001A_1K-JPG_NormalGL.jpg", true), Hex("#bdb19c"), 0.5f, 0.05f, 1.4f, true);
         Lit("AV_MudWall", T("plastered_stone_wall_diff_1k.jpg"), T("plastered_stone_wall_nor_gl_1k.jpg", true), Hex("#9a8f80"), 0.4f, 0.08f);
-        Lit("AV_Stone", T("rock_path_diff_2k.jpg"), T("rock_path_nor_gl_2k.jpg", true), Hex("#c4c2bc"), 0.35f, 0.2f, 1.3f);
+        Lit("AV_Stone", T("rock_path_diff_2k.jpg"), T("rock_path_nor_gl_2k.jpg", true), Hex("#c4c2bc"), 0.35f, 0.12f, 1.3f);
         Lit("AV_StoneWall", T("mossy_stone_wall_diff_1k.jpg"), T("mossy_stone_wall_nor_gl_1k.jpg", true), Hex("#a5a49c"), 0.6f, 0.15f, 1.3f);
-        Lit("AV_Tile", T("plastered_stone_wall_diff_1k.jpg"), T("plastered_stone_wall_nor_gl_1k.jpg", true), Hex("#5a5f68"), 0.6f, 0.35f, 0.6f, true);
+        Lit("AV_Tile", T("plastered_stone_wall_diff_1k.jpg"), T("plastered_stone_wall_nor_gl_1k.jpg", true), Hex("#5a5f68"), 0.6f, 0.2f, 0.6f, true);
         Lit("AV_Paper", T("Paper005_1K-JPG_Color.jpg"), T("Paper005_1K-JPG_NormalGL.jpg", true), Hex("#a99e86"), 1.2f, 0.05f, 1f, true);
         Emissive(Lit("AV_PaperGlow", T("Paper005_1K-JPG_Color.jpg"), null, Hex("#8a5a32"), 1.2f, 0.05f, 1f, true), Hex("#ff6a12") * 1.6f);
         Emissive(Lit("AV_Glow", null, null, Hex("#ffb060"), 1f, 0.2f), Hex("#ff7a20") * 3.5f);
         Lit("AV_Bark", T("bark_willow_diff_1k.jpg"), T("bark_willow_nor_gl_1k.jpg", true), Hex("#7a746c"), 0.7f, 0.08f, 1.4f);
         Lit("AV_Twig", T("bark_willow_diff_1k.jpg"), null, Hex("#8a7a66"), 2f, 0.05f, 1f, true);
         Lit("AV_Rope", T("ThatchedRoof001A_1K-JPG_Color.jpg"), null, Hex("#7a6e5a"), 3f, 0.05f);
-        Lit("AV_Onggi", null, T("plastered_stone_wall_nor_gl_1k.jpg", true), Hex("#3a2219"), 1.5f, 0.62f, 0.25f);
+        Lit("AV_Onggi", null, T("plastered_stone_wall_nor_gl_1k.jpg", true), Hex("#3a2219"), 1.5f, 0.22f, 0.25f);
         Lit("AV_DryGrass", T("AV_DryGrassGrad.png"), null, Hex("#f2e8d4"), 1f, 0.02f, 1f, true);   // 11-11: bleached straw, was reading as black spikes
         Lit("AV_Reed", null, null, Hex("#4a453d"), 1f, 0.05f, 1f, true);
-        Lit("AV_Crow", null, null, Hex("#0b0b0e"), 1f, 0.45f);
+        Lit("AV_Crow", null, null, Hex("#0b0b0e"), 1f, 0.3f);
         Lit("AV_Puddle", null, null, Hex("#1d2125"), 1f, 0.9f);   // 11-12: near black read as holes, blue-grey read as blue blobs
         Particle("AV_FogMat", T("AV_FogPuff.png"), new Color(0.42f, 0.48f, 0.56f, 0.22f), false);
         Particle("AV_WispMat", T("AV_Glow.png"), new Color(0.45f, 0.95f, 1f, 1f), true);
@@ -182,8 +182,8 @@ public static partial class AVBuilder
                     if (fn.Contains("_diff_") && (fn.StartsWith(key + "_diff") || (diff == null && names.Count == 1))) diff = dir + "/" + fn;
                     if (fn.Contains("_nor_gl_") && (fn.StartsWith(key + "_nor") || (nor == null && names.Count == 1))) nor = dir + "/" + fn;
                 }
-                var tint = n.Contains("grass") || n.Contains("shrub") || n.Contains("fern") ? Hex("#a89a80") : Color.white;
-                var mm = Lit("PH_" + n, TP(diff), TP(nor, true), tint, 1f, n.Contains("pot") ? 0.35f : 0.12f, 1f, n.Contains("grass") || n.Contains("fern") || n.Contains("shrub") || n.Contains("branches"));
+                var tint = n.Contains("grass") || n.Contains("shrub") || n.Contains("fern") ? Hex("#a89a80") : n.Contains("stump") || n.Contains("trunk") ? Hex("#6a5c4c") : n.Contains("rock") || n.Contains("fire_pit") ? Hex("#5e5952") : Hex("#8e857a");   // r11: pale wood props popped at night   // r10: stumps read as pale cylinders
+                var mm = Lit("PH_" + n, TP(diff), TP(nor, true), tint, 1f, n == "ceramic_pot" ? 0.18f : n.Contains("pot") ? 0.12f : 0.12f, 1f, n.Contains("grass") || n.Contains("fern") || n.Contains("shrub") || n.Contains("branches"));
                 if (n.Contains("grass") || n.Contains("fern") || n.Contains("shrub"))
                 {
                     mm.SetFloat("_AlphaClip", 1f); mm.SetFloat("_Cutoff", 0.4f); mm.EnableKeyword("_ALPHATEST_ON");
@@ -209,6 +209,25 @@ public static partial class AVBuilder
         go.transform.rotation = Quaternion.Euler(0, yaw + (model.StartsWith("PH:") || model.StartsWith("MS:") || model.StartsWith("P:") ? 0f : 180f), 0);
         go.transform.localScale = Vector3.one * scale;
         NormalizeMS(go, model);   // 11-12: downloaded scans come in at 1/100 or odd scales -> real size x scale
+        // r11 QA: household props inside the arena stay under knee height (jars were normalised to 1.5 m)
+        if (InArena(pos.x, pos.z, -1f) && (model.Contains("KJar") || model.Contains("KStrawJar") || model == "AV_OnggiBroken" || model.Contains("wicker_basket")
+            || model.Contains("wooden_stool") || model.Contains("wooden_bucket") || model.Contains("MS:Pot"))) KeepLow(go, 0.55f);
+        if (model.StartsWith("MS:"))
+        {
+            // 11-13 r8: some scans (sticks, skulls) kept the FBX's default white "Lit" material despite the remap and read as
+            // white bits on the ground; force the folder's material. The sticks pack drops all but 1-2 sticks (13 sticks
+            // crossed in one spot read as an X).
+            var folder = model.Substring(3, model.IndexOf('/') - 3);
+            var fm = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Materials/AV_MS_" + folder + ".mat");
+            if (fm) foreach (var r in go.GetComponentsInChildren<Renderer>()) { var ms = r.sharedMaterials; for (int i = 0; i < ms.Length; i++) if (!ms[i] || ms[i].name == "Lit") ms[i] = fm; r.sharedMaterials = ms; }
+            if (folder == "Sticks")
+            {
+                PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                var rs = go.GetComponentsInChildren<Renderer>();
+                int keep = rs.Length > 1 ? rng.Next(rs.Length) : -1, keep2 = rng.NextDouble() < 0.5 ? rng.Next(rs.Length) : keep;
+                for (int i = 0; i < rs.Length; i++) if (i != keep && i != keep2 && keep >= 0) Object.DestroyImmediate(rs[i].gameObject);
+            }
+        }
         foreach (var r in go.GetComponentsInChildren<Renderer>())
         {
             r.shadowCastingMode = ShadowCastingMode.On;
@@ -501,10 +520,11 @@ public static partial class AVBuilder
 
         // ---- ground braziers (low bowls with fire and embers), near the edge so the middle stays clear
         var braz = new GameObject("Braziers").transform; braz.SetParent(look, false);
-        foreach (var p0 in new[] { new Vector2(-38, -40), new Vector2(36, -38), new Vector2(-39, 30), new Vector2(38, 32), new Vector2(-6, -42), new Vector2(10, 35), new Vector2(-41, -6), new Vector2(40, 2) })
+        foreach (var p0 in new[] { new Vector2(-38, -40), new Vector2(38, 32), new Vector2(10, 35), new Vector2(-41, -6) })   // r13 (approver: fire pits read as stamped glowing coins): 8 -> 4
         {
             float y = G(p0.x, p0.y);
-            var bowl = Place("PH:stone_fire_pit", new Vector3(p0.x, y - 0.02f, p0.y), R(0, 360), 0.75f, braz);
+            var bowl = new GameObject("Brazier"); bowl.transform.SetParent(braz, false); bowl.transform.position = new Vector3(p0.x, y, p0.y);   // r16: no round pit (read as a coin)
+            for (int bi = 0; bi < 4; bi++) HalfRock(new Vector3(p0.x + R(-0.7f, 0.7f), y, p0.y + R(-0.7f, 0.7f)), R(0.3f, 0.55f), bowl.transform);
             var fire = new GameObject("Fire"); fire.transform.SetParent(bowl.transform, false); fire.transform.position = new Vector3(p0.x, y + 0.25f, p0.y);
             var ps = fire.AddComponent<ParticleSystem>();
             var main = ps.main; main.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 0.9f); main.startSpeed = new ParticleSystem.MinMaxCurve(0.6f, 1.3f);
@@ -527,7 +547,7 @@ public static partial class AVBuilder
             var en = es.noise; en.enabled = true; en.strength = 0.6f; en.frequency = 1.2f; en.quality = ParticleSystemNoiseQuality.Low;
             es.GetComponent<ParticleSystemRenderer>().sharedMaterial = emberMat;
             es.Play();
-            PointLight(new Vector3(p0.x, y + 0.7f, p0.y), Hex("#ff7a2a"), 2.4f, 3.6f, bowl.transform, false, true);   // ~4.7 m
+            PointLight(new Vector3(p0.x, y + 0.7f, p0.y), Hex("#e05a24"), 1.8f, 3.6f, bowl.transform, false, true);   // ~4.7 m
         }
 
         // ---- ground debris: pebbles and plank scraps, merged into 16 m chunk meshes (one draw per chunk and material,
@@ -734,11 +754,19 @@ public static partial class AVBuilder
         BuildMaterials();
         RemapModels();
         RemapMegascans();
+        // r12: the Poly Haven materials are made once at import, so the night tints are applied here on every build
+        foreach (var guid in AssetDatabase.FindAssets("PH_ t:Material", new[] { MatDir }))
+        {
+            var pm = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
+            if (!pm || pm.name.Contains("grass") || pm.name.Contains("fern") || pm.name.Contains("shrub")) continue;
+            var c = pm.name.Contains("stool") || pm.name.Contains("bucket") || pm.name.Contains("broom") ? Hex("#4e463c") : pm.name.Contains("stump") || pm.name.Contains("trunk") ? Hex("#6a5c4c") : pm.name.Contains("rock") || pm.name.Contains("fire_pit") ? Hex("#5e5952") : Hex("#8e857a");
+            pm.SetColor("_BaseColor", c); EditorUtility.SetDirty(pm);
+        }
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         root = new GameObject("AbandonedVillage").transform;
         root.gameObject.AddComponent<AVSeeThrough>();   // 11-12: see-through trees around the player
-        seeBark = seeTwig = null; treeMats.Clear();
+        seeBark = seeTwig = null; treeMats.Clear(); houseBounds = null; bareBark = bareTwig = bareTrunkB = null;
         var terrain = BuildTerrain();
         System.Func<float, float, float> G = (x, z) => Ground(terrain, x, z);
 
@@ -883,17 +911,17 @@ public static partial class AVBuilder
 
         // ---------------- trees: none in the arena
         var trees = Group("Trees");
-        var bigTree = Place("AV_DeadTree_A", new Vector3(-40f, TerraceY - 0.1f, 50f), 30f, 1.15f, trees);
-        Place("AV_DeadTree_B", new Vector3(-7f, TerraceY - 0.1f, 49.7f), 120f, 1f, trees);
-        Place("AV_DeadTree_C", new Vector3(-2f, G(-2f, sz - 1f) - 0.1f, sz - 1f), 200f, 1.1f, trees);
-        Place("AV_DeadTree_B", new Vector3(37f, TerraceY - 0.1f, 49.5f), 10f, 1.1f, trees);
-        Place("AV_DeadTree_C", new Vector3(48f, G(48f, sz - 1f) - 0.1f, sz - 1f), 75f, 1.0f, trees);
-        Place("AV_DeadTree_A", new Vector3(-53f, G(-53f, sz - 2.4f) - 0.1f, sz - 2.4f), 250f, 1.05f, trees);
+        var bigTree = DeadScan(new Vector3(-40f, TerraceY - 0.1f, 50f), 1.15f * 1.15f, trees);
+        DeadScan(new Vector3(-7f, TerraceY - 0.1f, 49.7f), 1f * 1.15f, trees);
+        DeadScan(new Vector3(-2f, G(-2f, sz - 1f) - 0.1f, sz - 1f), 1.1f * 1.15f, trees);
+        DeadScan(new Vector3(37f, TerraceY - 0.1f, 49.5f), 1.1f * 1.15f, trees);
+        DeadScan(new Vector3(48f, G(48f, sz - 1f) - 0.1f, sz - 1f), 1.0f * 1.15f, trees);
+        DeadScan(new Vector3(-53f, G(-53f, sz - 2.4f) - 0.1f, sz - 2.4f), 1.05f * 1.15f, trees);
         for (int i = 0; i < 68; i++)
         {
             float a = i / 68f * Mathf.PI * 2f + R(-0.04f, 0.04f), r = R(70f, 86f);
             float x = Mathf.Cos(a) * r, z = Mathf.Sin(a) * r;
-            Place(i % 3 == 0 ? "AV_DeadTree_A" : (i % 3 == 1 ? "AV_DeadTree_B" : "AV_DeadTree_C"), new Vector3(x, G(x, z) - 0.15f, z), R(0, 360), R(1.0f, 1.6f), trees);
+            DeadScan(new Vector3(x, G(x, z) - 0.15f, z), R(1.1f, 1.6f), trees);
         }
 
         // ---------------- dry grass: dense at the edges, sparse in the arena, none on the street
@@ -1009,7 +1037,7 @@ public static partial class AVBuilder
         Perch(new Vector3(0.6f, TerraceY + 9.4f, 55f), 160f);
         Perch(new Vector3(-1.4f, TerraceY + 9.35f, 54.9f), 200f);
         Perch(new Vector3(25.7f, TerraceY + 7.15f, 49.6f), 190f);
-        foreach (var r in bigTree.GetComponentsInChildren<MeshFilter>())
+        foreach (var r in bigTree ? new[] { bigTree.GetComponentInChildren<MeshFilter>() } : new MeshFilter[0])
         {
             var b = r.sharedMesh.bounds; var top = r.transform.TransformPoint(b.center + Vector3.up * b.extents.y * 0.55f);
             Perch(top + new Vector3(0.6f, 0, 0.2f), 140f);
@@ -1029,6 +1057,9 @@ public static partial class AVBuilder
         // shadows over cracked dirt full of pebbles and plank scraps, a purple energy wall closing the arena edge).
         BuildLook(G);
         { var veil = root.Find("Look/EdgeVeil"); if (veil) Object.DestroyImmediate(veil.gameObject); }   // 11-12 Kido: no purple border
+        // BuildPuddles: 11-13 r9b off, without real reflections the puddles read as black smudges in the game view
+        BuildAsh(root);
+        charMat = null; BuildBurntFootprints(G, root);   // r14: flat burnt-house remains in the yard
         BuildFloorDressing(G);   // 11-12: low Megascans pebbles, rocks, rubble, leaf and blood decals all over the arena
 
         // ---------------- fog
@@ -1060,6 +1091,7 @@ public static partial class AVBuilder
         moon.type = LightType.Directional; moon.color = Hex("#9fb3d6"); moon.intensity = 3.0f; moon.shadows = LightShadows.Soft; moon.shadowStrength = 0.85f;
         moon.transform.rotation = Quaternion.Euler(42f, -35f, 0f);
         RenderSettings.sun = moon;
+        MoonCookie(moon);   // 11-13 r9: cloud / branch shadow drifting over the ground
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = AmbientMode.Trilight;
         RenderSettings.ambientSkyColor = Hex("#46546a"); RenderSettings.ambientEquatorColor = Hex("#2c3440"); RenderSettings.ambientGroundColor = Hex("#171a20");

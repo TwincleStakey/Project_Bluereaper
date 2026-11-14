@@ -87,7 +87,7 @@ namespace LocoSplit
                 float s0 = robe.maxSwing, s1 = robe.stiffness, s2 = robe.damping;
                 robe.maxSwing = Slider("흔들림 한계", robe.maxSwing, 0.05f, 0.8f);
                 robe.stiffness = Slider("뻣뻣함", robe.stiffness, 0.1f, 1f);
-                robe.damping = Slider("감쇠", robe.damping, 0f, 0.6f);
+                robe.damping = Slider("감쇠", robe.damping, 0f, 1f);
                 if (s0 != robe.maxSwing || s1 != robe.stiffness || s2 != robe.damping) robe.ApplyClothSettings();
             }
             if (camRig)

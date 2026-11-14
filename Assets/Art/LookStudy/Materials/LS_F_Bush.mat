@@ -33,10 +33,10 @@ Material:
     - _CutWhole: 1
     - _Cutoff: 0.4
     - _LumScale: 1.6
-    - _Remap: 0
+    - _Remap: 1
     - _RemapDark: 1
     m_Colors:
-    - _Dark: {r: 0.049999982, g: 0.29999998, b: 0.16999996, a: 1}
-    - _Light: {r: 0.41999996, g: 0.82, b: 0.24999997, a: 1}
+    - _Dark: {r: 0.045, g: 0.12, b: 0.06, a: 1}
+    - _Light: {r: 0.33, g: 0.47, b: 0.21, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

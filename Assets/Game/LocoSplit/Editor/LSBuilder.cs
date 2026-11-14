@@ -461,7 +461,9 @@ namespace LocoSplit
             rig.anim = anim; rig.swordPrefab = sword; rig.robeMaterial = robeMat;
             var robe = root.AddComponent<LSRobeCloth>();
             robe.anim = anim; robe.material = robeMat;
-            robe.thighRadius = 0.06f; robe.shinRadius = 0.05f; robe.maxSwing = 0.3f;
+            robe.thighRadius = 0.06f; robe.shinRadius = 0.05f; robe.maxSwing = 0.2f;   // heavy cloth (11-13), see LSRobeCloth
+            var fix = root.AddComponent<LSPoseFix>();   // upright idle + blade clears the hat (11-13)
+            fix.anim = anim;
 
             string pp = $"{GenDir}/RR_GreatswordPlayer.prefab";
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, pp);

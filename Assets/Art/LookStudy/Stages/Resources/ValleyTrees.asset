@@ -24,3 +24,12 @@ MonoBehaviour:
   - {fileID: 2100000, guid: e80d8d623b744395731b9d9c60cd98bc, type: 2}
   - {fileID: 2100000, guid: f07c2afe2d62ee5a5b0ecc67701f357d, type: 2}
   - {fileID: 2100000, guid: bdc0c7b45974983e8e2299d48b14effd, type: 2}
+  riverRocks:
+  - {fileID: 919132149155446097, guid: 21285393d2d047d0ddf0cfbde493b0e2, type: 3}
+  - {fileID: 919132149155446097, guid: 581c2195af586a93d0399577462639b0, type: 3}
+  riverMats:
+  - {fileID: 2100000, guid: 53703ba6af5a9b11de9c652734a563bc, type: 2}
+  - {fileID: 2100000, guid: 36648a93a1e3e8f8ab8f6025d119784c, type: 2}
+  cascadeMat: {fileID: 2100000, guid: b869f23b778ab3022e4cc10a73872358, type: 2}
+  cliff: {fileID: 919132149155446097, guid: dcfdacefbc1212142b21dd6a7d59d2d1, type: 3}
+  cliffMat: {fileID: 2100000, guid: 3f7e9e00fc7dba25de6e9f5450b15a9b, type: 2}

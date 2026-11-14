@@ -68,7 +68,7 @@ public static class LookStudyValleyEditor
         m.SetTexture("_NormalTex", T(Models + texBase + "_nor_gl.png"));
         m.SetTexture("_MossTex", T(Tex + "mossy_rock_diff.jpg"));
         m.SetColor("_Granite", Hex("#e2d9c8")); m.SetFloat("_Remap", 0.8f);
-        m.SetColor("_MossTint", Hex("#55703a")); m.SetFloat("_MossAmt", 0.3f); m.SetFloat("_Wet", 0.6f);
+        m.SetColor("_MossTint", Hex("#4a4f40")); m.SetFloat("_MossAmt", 0.08f); m.SetFloat("_Wet", 0.6f);   // 11-14 Kido: no green on the boulders, only a hint
         return m;
     }
 

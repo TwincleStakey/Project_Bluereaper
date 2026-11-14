@@ -108,6 +108,25 @@ public class LookStudyValley : MonoBehaviour
         float shelf = 1f - SS(0.8f, 1.25f, new Vector2((x + 19f) / 9.5f, (z - 7f) / 6.5f).magnitude + (N(x * 0.3f, z * 0.3f) - 0.5f) * 0.25f);
         h = Mathf.Lerp(h, Mathf.Max(1.5f, h * 0.2f) + (N(x * 0.5f, z * 0.5f) - 0.5f) * 0.14f, shelf);
 
+        // 11-14 (Kido: "여기에 폭포를 웅장하게", the granite shelf by the west gate under the tall west hillside): a plunge
+        // pool cut into the shelf's north-west corner, fed by the big fall down the hillside (BuildGrandFall), and a shallow
+        // channel that carries its water across the shelf to the stream.
+        {
+            var bq = new Vector2((x - GrandPool.x) / 5.6f, (z - GrandPool.y) / 4.6f);
+            float bm = 1f - SS(0.5f, 1.0f, bq.magnitude + (N(x * 0.35f, z * 0.35f) - 0.5f) * 0.45f + (N(x * 1.1f, z * 1.1f) - 0.5f) * 0.15f);
+            if (bm > 0f) h = Mathf.Lerp(h, Mathf.Min(h, -2.8f + (N(x * 0.6f, z * 0.6f) - 0.5f) * 0.6f), bm);
+            var ca = GrandPool; var cb = new Vector2(-4f, 3.5f); var cab = cb - ca;
+            float ct = Mathf.Clamp01(Vector2.Dot(new Vector2(x, z) - ca, cab) / cab.sqrMagnitude);
+            float cd = Vector2.Distance(new Vector2(x, z), ca + cab * ct) + (N(x * 0.25f, z * 0.25f) - 0.5f) * 1.6f + (N(x * 0.9f, z * 0.9f) - 0.5f) * 0.5f;
+            float cm = 1f - SS(1.3f, 2.6f, cd);
+            if (cm > 0f) h = Mathf.Lerp(h, Mathf.Min(h, -0.22f), cm);
+            // r8: an alcove bitten into the hillside behind the pool, so the fall drops down a sheer face (the scanned cliff
+            // stands against it) instead of sliding down the slope
+            var ap = new Vector2(x, z) - GrandPool;
+            float aAlong = Vector2.Dot(ap, GrandUp), aAcross = Mathf.Abs(Vector2.Dot(ap, new Vector2(GrandUp.y, -GrandUp.x)));
+            float am = (1f - SS(4.5f, 6.5f, aAcross + (N(x * 0.5f, z * 0.5f) - 0.5f) * 1.2f)) * (1f - SS(GrandBack + 4.5f, GrandBack + 6f, aAlong)) * SS(-1f, 1f, aAlong);
+            if (am > 0f) h = Mathf.Lerp(h, Mathf.Min(h, -2.2f), am);
+        }
         // Cliff wall that closes the valley behind the waterfall.
         var f = new Vector2(x - 37f, z - 41f);
         float behind = Vector2.Dot(f, new Vector2(0.62f, 0.78f));
@@ -161,7 +180,9 @@ public class LookStudyValley : MonoBehaviour
             float pebble = 1f - SS(w * 0.85f, w + 1.2f, d);
             float gravel = 1f - SS(w + 1.5f, w + 6.5f, d);
             float forest = SS(w + 4f, w + 9f, d);
-            c[j * nx + i] = new Color(pebble, gravel, Mathf.Max(shelf, SS(7f, 12f, h)), forest);
+            // r7: the hillside around the big fall is bare granite (a rock gorge, as in the Diablo IV references), not turf
+            float gorge = GorgeMask(x, z);
+            c[j * nx + i] = new Color(pebble * (1f - gorge), gravel * (1f - gorge), Mathf.Max(Mathf.Max(shelf, SS(7f, 12f, h)), gorge), forest * (1f - gorge));
         }
         var t = new int[(nx - 1) * (nz - 1) * 6];
         int k = 0;
@@ -279,93 +300,319 @@ public class LookStudyValley : MonoBehaviour
     // 11-13 (Kido: "여기 폭포", the middle pool by the south gate): a low granite ledge standing in the deep part of the pool's
     // north-west side, water spilling off it in a few uneven strands, with a churn of spray and mist where it lands.
     // The ledge stands where the pool fence already stops the player, so it blocks nothing; it has no collider.
-    public static bool PoolFallOn = true;
+    public static bool PoolFallOn = false;   // 11-14: replaced by the big fall by the west gate (BuildGrandFall)
     // r2 (overview shots 11-14): the pool by the south gate is the lower one, (-3, -9.5); its upper-left bank faces the
     // wisp at (-13.5, -6), so the water comes off the west bank and pours east-south-east into it.
     static Vector2 PoolC = new Vector2(-3f, -9.5f), PoolOut = new Vector2(-0.89f, 0.46f);
-    static Material poolFallMat;
+
+    // 11-14 r5 (Kido: "여기에 폭포를 좀 웅장하게 ... 왜 이렇게 코딱지만하게"): the big fall. It comes off the west hillside
+    // above the granite shelf by the west gate: a wide curtain sliding down the steep face, then dropping the last metres
+    // into a plunge pool cut into the shelf (see Height), with huge rounded boulders framing both sides, white churn and a
+    // tall mist plume. Everything is on the hillside or inside the fenced plunge pool, so nothing blocks the fight.
+    public static readonly Vector2 GrandPool = new Vector2(-24.5f, 10.5f);
+    static readonly Vector2 GrandUp = new Vector2(-0.62f, 0.78f);   // from the pool up the hillside
+    const float GrandBack = 4.5f;   // how far behind the pool centre the sheer face stands
+
+    // Granite around the big fall: a band either side of its line up the hillside, widening with height, ragged.
+    public static float GorgeMask(float x, float z)
+    {
+        var p = new Vector2(x, z) - GrandPool;
+        float along = Vector2.Dot(p, GrandUp), acrossD = Mathf.Abs(Vector2.Dot(p, new Vector2(GrandUp.y, -GrandUp.x)));
+        if (along < -6f || along > 34f) return 0f;
+        float w = 7.5f + Mathf.Max(0f, along) * 0.25f + (N(x * 0.18f, z * 0.18f) - 0.5f) * 5f;
+        return (1f - SS(w * 0.7f, w, acrossD)) * SS(-6f, -2f, along) * (1f - SS(28f, 34f, along));
+    }
+
+    void BuildGrandFall()
+    {
+        // r8 (11-14, Kido: "자리는 굿, 퀄리티 배드, 왜 저 위에 바위를 올려놔 ... 너가 하지 말고 받어"): a downloaded scanned cliff
+        // (Megascans Granite Cliff via Fab) stands at the back of the plunge pool, set into the hillside; the water drops
+        // free off its top edge in front of the face into the pool. No boulders on top any more; a few at the pool's foot.
+        var mat = trees ? trees.cascadeMat : null;
+        var dn = new Vector3(-GrandUp.x, 0, -GrandUp.y);           // the way the fall faces (toward the pool)
+        var side = new Vector3(GrandUp.y, 0, -GrandUp.x);
+        var front = new Vector3(GrandPool.x, 0, GrandPool.y) - dn * GrandBack;   // where the sheer face meets the pool
+        var topAt = new Vector3(GrandPool.x, 0, GrandPool.y) - dn * (GrandBack + 3f);
+        float lipY = Mathf.Max(6f, Height(topAt.x, topAt.z) - 0.3f);
+        if (trees && trees.cliff && trees.cliffMat)
+        {
+            var go = Instantiate(trees.cliff, root, false);
+            go.name = "GrandFallCliff";
+            foreach (var tr in go.GetComponentsInChildren<Transform>(true)) tr.gameObject.hideFlags = HideFlags.DontSave;
+            foreach (var c in go.GetComponentsInChildren<Collider>(true)) DestroyImmediate(c);
+            var mr = go.GetComponentInChildren<MeshRenderer>(true);
+            var mf = go.GetComponentInChildren<MeshFilter>(true);
+            if (mr && mf && mf.sharedMesh)
+            {
+                mr.sharedMaterial = trees.cliffMat;
+                mr.lightProbeUsage = LightProbeUsage.Off; mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
+                // which way does the scanned face look? average its normals, turn that toward the pool
+                var ns = mf.sharedMesh.normals;
+                var avg = Vector3.zero;
+                for (int i = 0; i < ns.Length; i += 7) avg += ns[i];
+                var faceDir = mf.transform.TransformDirection(avg); faceDir.y = 0;
+                if (faceDir.sqrMagnitude > 1e-4f) go.transform.Rotate(0, Vector3.SignedAngle(faceDir.normalized, dn, Vector3.up), 0, Space.World);
+                // height: from just under the pool to the hill's rim above the alcove
+                float rim = lipY + 0.3f;
+                var b = mr.bounds;
+                float s = (rim + 1.5f - (Water - 1.8f)) / Mathf.Max(0.01f, b.size.y);
+                go.transform.localScale *= s;
+                // put its front-most scanned vertex just in front of the sheer terrain face, centred across the fall,
+                // and its bottom just under the pool
+                var vs = mf.sharedMesh.vertices;
+                float maxF = -1e9f, minY = 1e9f; Vector3 sum = Vector3.zero; int n = 0;
+                var l2w = mf.transform.localToWorldMatrix;
+                for (int i = 0; i < vs.Length; i += 5)
+                {
+                    var w = l2w.MultiplyPoint3x4(vs[i]);
+                    maxF = Mathf.Max(maxF, Vector3.Dot(w, dn)); minY = Mathf.Min(minY, w.y);
+                    sum += w; n++;
+                }
+                var mid = sum / Mathf.Max(1, n);
+                float acrossOff = Vector3.Dot(front - mid, side);
+                float fwdOff = (Vector3.Dot(front, dn) + 0.8f) - maxF;
+                go.transform.position += side * acrossOff + dn * fwdOff + Vector3.up * ((Water - 1.8f) - minY);
+                lipY = rim - 0.8f;
+                if (Application.isPlaying) Debug.Log($"[Valley] grand fall cliff bounds {mr.bounds} lip {lipY:0.0} front {front}");
+            }
+        }
+        // a few boulders at the foot of the face, in and around the pool (none on top)
+        var set = river ?? bigRocks;
+        var r = new System.Random(1414);
+        if (set != null && set.Length > 0)
+        {
+            foreach (var o in new[] { new Vector3(4.6f, 0.4f, 3.4f), new Vector3(-4.2f, 0.6f, 3.8f), new Vector3(3.0f, 2.4f, 1.6f), new Vector3(-3.4f, 2.0f, 1.4f) })
+            {
+                var at = front + side * o.x + dn * o.y;
+                var p = set[r.Next(set.Length)];
+                float sc = o.z / Mathf.Max(p.mesh.bounds.size.x, p.mesh.bounds.size.z);
+                Stamp(p, new Vector3(at.x, Water - 0.35f * p.mesh.bounds.size.y * sc, at.z), Quaternion.Euler(R(r, -6, 6), R(r, 0, 360), R(r, -6, 6)), new Vector3(sc, sc * 0.8f, sc), Tint(r));
+                rockSpots.Add(new Vector3(at.x, at.z, o.z * 0.5f));
+            }
+            FlushBatches(true);
+        }
+        if (!mat) return;
+
+        if (Application.isPlaying) Debug.Log($"[Valley] grand fall: cliff={(trees ? trees.cliff : null)} mat={mat} lip {lipY:0.0}");
+        // the curtain: drops free from the cliff's top edge, a little in front of the face, widening toward the pool
+        var v = new List<Vector3>(); var uv = new List<Vector2>(); var col = new List<Color>(); var t = new List<int>();
+        const int Seg = 22, Cols = 16;
+        var lip = front + dn * 0.6f; lip.y = lipY;
+        for (int s = 0; s <= Seg; s++)
+        {
+            float f = s / (float)Seg;
+            float y = Mathf.Lerp(lipY, Water + 0.05f, f * f * 0.65f + f * 0.35f);
+            float hw = Mathf.Lerp(2.4f, 3.6f, f);
+            float hwL = hw * (0.8f + 0.4f * Mathf.PerlinNoise(f * 2.3f, 1.7f)), hwR = hw * (0.8f + 0.4f * Mathf.PerlinNoise(f * 2.1f + 5f, 3.1f));
+            var c = new Vector3(lip.x, y, lip.z) + dn * (1.4f * Mathf.Sqrt(f));
+            for (int q = 0; q <= Cols; q++)
+            {
+                float u = q / (float)Cols;
+                v.Add(c + side * (u < 0.5f ? (u * 2f - 1f) * hwL : (u * 2f - 1f) * hwR));
+                uv.Add(new Vector2((u * 2f - 1f) * hw, f * 2.2f));   // a long drop: streaks repeat twice down it
+                float e = Mathf.Min(u, 1f - u) * 2f;
+                col.Add(new Color(e, e, 0, 1));
+            }
+            if (s < Seg)
+                for (int q = 0; q < Cols; q++)
+                {
+                    int a = s * (Cols + 1) + q, b = a + 1, cc = a + Cols + 1, d = cc + 1;
+                    t.Add(a); t.Add(cc); t.Add(b); t.Add(b); t.Add(cc); t.Add(d);
+                }
+        }
+        var foot = new Vector3(lip.x, Water, lip.z) + dn * 1.6f;
+        {
+            const int Rings = 7, RSeg = 32; const float Rad = 4.4f;
+            int b0 = v.Count;
+            for (int ri = 0; ri <= Rings; ri++)
+            {
+                float f = ri / (float)Rings;
+                for (int q = 0; q <= RSeg; q++)
+                {
+                    float a = q / (float)RSeg * Mathf.PI * 2f;
+                    float rr = f * Rad * (0.8f + 0.4f * Mathf.PerlinNoise(Mathf.Cos(a) * 1.5f + 3f, Mathf.Sin(a) * 1.5f));
+                    var off = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * rr + dn * (f * 1.2f);
+                    v.Add(new Vector3(foot.x, Water + 0.04f, foot.z) + off);
+                    uv.Add(new Vector2(Vector3.Dot(off, side) * 1.2f, Mathf.Lerp(0.7f, 0.98f, f)));
+                    col.Add(new Color(1, 1, Mathf.Max(0.001f, (1f - f * f) * 0.75f), 1));
+                }
+                if (ri < Rings)
+                    for (int q = 0; q < RSeg; q++)
+                    {
+                        int a = b0 + ri * (RSeg + 1) + q, b = a + 1, cc = a + RSeg + 1, d = cc + 1;
+                        t.Add(a); t.Add(b); t.Add(cc); t.Add(b); t.Add(d); t.Add(cc);
+                    }
+            }
+        }
+        var m = new Mesh { indexFormat = IndexFormat.UInt32, hideFlags = HideFlags.DontSave };
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetColors(col); m.SetTriangles(t, 0);
+        m.RecalculateBounds(); m.RecalculateNormals();
+        Add("GrandFall", m, mat, false);
+
+        if (!mistMat) return;
+        var churn = Particle(root, "GrandFallChurn", mistMat, 90, 0.8f, 1.8f, 1.2f, 2.6f, Vector3.up * 1.0f, 0.4f, 60f, true);
+        churn.transform.position = foot + Vector3.up * 0.2f;
+        var sh = churn.shape; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 1.8f;
+        FadeAlpha(churn, new Color(0.9f, 0.94f, 0.94f), 0.5f);
+        churn.Play();
+        var plume = Particle(root, "GrandFallPlume", mistMat, 60, 4f, 8f, 3.5f, 7f, new Vector3(0, 0.9f, 0), 0.15f, 9f, true);
+        plume.transform.position = foot + Vector3.up * 0.8f;
+        var sh2 = plume.shape; sh2.shapeType = ParticleSystemShapeType.Sphere; sh2.radius = 2.5f;
+        FadeAlpha(plume, new Color(0.62f, 0.72f, 0.74f), 0.16f);
+        plume.Play();
+    }
 
     void BuildPoolFall()
     {
         if (!PoolFallOn || bigRocks == null || bigRocks.Length == 0) return;
-        // walk out from the pool centre to where the fence runs, and stand the ledge just inside it
+        // r3 (11-14, Kido: "이게 무슨 폭포야", game references in ArtSource/refs_waterfall, Diablo IV rock-cleft falls): a wide
+        // cascade in three short steps over rounded boulders, as wide as a stream, coming off the bank into the pool.
+        // Each step is a soft streaky sheet (LookStudy/StageCascade); the brightest part is the white churn and mist at each
+        // foot. The source is hidden behind a big boulder on the bank.
         float reach = 1f;
         while (reach < 12f && PoolField(PoolC.x + PoolOut.x * reach, PoolC.y + PoolOut.y * reach) < 0f) reach += 0.25f;
-        var lip2 = PoolC + PoolOut * (reach - 1.3f);
         var r = new System.Random(4711);
         var across = new Vector2(PoolOut.y, -PoolOut.x);
-        // ledge: a tall boulder behind, two shoulders either side, a flat cap the water pours from
-        void Rock(Vector2 at, float size, float sy, float sink)
+        var down2 = -PoolOut;
+        var edge2 = PoolC + PoolOut * reach;              // where the fence runs
+        var set = river ?? bigRocks;
+        void Rock(Vector2 at, float size, float topY, float squash)
         {
-            var p = bigRocks[r.Next(bigRocks.Length)];
+            var p = set[r.Next(set.Length)];
             float s = size / Mathf.Max(p.mesh.bounds.size.x, p.mesh.bounds.size.z);
-            float y = Mathf.Max(Height(at.x, at.y), Water - 1.6f) - p.mesh.bounds.size.y * s * sy * sink;
-            Stamp(p, new Vector3(at.x, y, at.y), Quaternion.Euler(R(r, -6, 6), R(r, 0, 360), R(r, -6, 6)), new Vector3(s, s * sy, s), Tint(r));
+            float sy = s * squash;
+            var b = p.mesh.bounds;
+            // place so the rock's top sits at topY
+            float y = topY - (b.max.y * sy);
+            Stamp(p, new Vector3(at.x, y, at.y), Quaternion.Euler(R(r, -5, 5), R(r, 0, 360), R(r, -5, 5)), new Vector3(s, sy, s), Tint(r));
             rockSpots.Add(new Vector3(at.x, at.y, size * 0.5f));
+            // rocks standing on the bank (outside the pool fence) are solid, like the other boulders
+            if (PoolField(at.x, at.y) >= 0f && size >= 1.5f) Col(new Vector3(at.x, y + b.center.y * sy, at.y), new Vector3(b.size.x * s * 0.8f, b.size.y * sy, b.size.z * s * 0.8f), Quaternion.identity);
         }
-        Rock(lip2 + PoolOut * 1.6f, 5.2f, 1.25f, 0.1f);
-        Rock(lip2 + PoolOut * 0.6f + across * 2.4f, 3.8f, 1.1f, 0.18f);
-        Rock(lip2 + PoolOut * 0.7f - across * 2.6f, 4.2f, 1.0f, 0.2f);
-        Rock(lip2 + PoolOut * 0.3f + across * 0.4f, 3.0f, 0.55f, 0.05f);
-        Rock(lip2 - PoolOut * 1.6f + across * 1.7f, 1.3f, 0.6f, 0.4f);   // broken stone in the plunge
+        // r4 (review vs refs): one main drop (3 m) under a short top step, fed by a visible run of water coming out between
+        // the boulders; rocks overlap both sides of the curtain so no sheet edge shows; a white churn disc lies on the pool
+        // where it lands, mist rises from there.
+        float[] lipY = { 3.55f, 3.0f };
+        float[] lipOut = { 0.15f, 0.85f };
+        float[] halfW = { 1.15f, 1.55f };
+        Rock(edge2 + PoolOut * 1.7f, 5.4f, 4.7f, 0.85f);                                     // source boulder behind
+        Rock(edge2 + PoolOut * 0.6f + across * 2.6f, 3.8f, 4.1f, 0.95f);                     // shoulders
+        Rock(edge2 + PoolOut * 0.7f - across * 2.7f, 4.0f, 3.9f, 0.9f);
+        for (int k = 0; k < 2; k++)
+        {
+            var at = edge2 + down2 * lipOut[k];
+            Rock(at - down2 * 0.6f, 2.6f + k * 0.4f, lipY[k], 0.75f);                         // the ledge it rolls over
+            Rock(at + across * (halfW[k] + 0.55f) + down2 * 0.2f, 1.9f + k * 0.5f, lipY[k] + 0.35f, 0.85f);   // cheeks that hide the sheet edges
+            Rock(at - across * (halfW[k] + 0.5f) + down2 * 0.25f, 1.8f + k * 0.5f, lipY[k] + 0.25f, 0.85f);
+        }
+        Rock(edge2 + down2 * 0.9f + across * (halfW[1] + 1.4f), 2.2f, 1.8f, 0.8f);           // lower cheeks down to the water
+        Rock(edge2 + down2 * 1.0f - across * (halfW[1] + 1.3f), 2.0f, 1.6f, 0.8f);
+        Rock(edge2 + down2 * 3.9f + across * 1.9f, 1.1f, 0.22f, 0.6f);                      // a stone in the plunge
         FlushBatches(true);
 
-        if (!fall) return;
-        // strands: one wide sheet and two narrow ones, each with its own lean and width so the curtain is uneven
-        float top = 2.35f;
-        var down = new Vector3(-PoolOut.x, 0, -PoolOut.y);
+        var mat = trees ? trees.cascadeMat : null;
+        if (!mat) return;
+        var v = new List<Vector3>(); var uv = new List<Vector2>(); var col = new List<Color>(); var t = new List<int>();
         var side = new Vector3(across.x, 0, across.y);
-        var lip = new Vector3(lip2.x, top, lip2.y);
-        var v = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
-        // 11-13 r2 (Kido: thinner, see-through, splitting): many narrow strands leaving the ledge at different points and
-        // heights, each with its own throw and width; a see-through copy of the fall material with no sheet between streaks.
-        var rs = new System.Random(77);
-        void Strand(float offset, float w0, float w1, float push, float topY)
+        var dn = new Vector3(down2.x, 0, down2.y);
+        void Grid(System.Func<float, float, Vector3> pos, int seg, int cols, float hw, float y0, float y1, float u0)
         {
-            const int Seg = 14;
             int b0 = v.Count;
-            float h = topY - Water + 0.1f;
-            var start = new Vector3(lip.x, topY, lip.z) + side * offset;
-            for (int s = 0; s <= Seg; s++)
+            for (int s = 0; s <= seg; s++)
             {
-                float f = s / (float)Seg;
-                // falls off the lip with a little forward throw, curving down under gravity, wobbling sideways a touch
-                var p = start + down * (push * Mathf.Sqrt(f) + 0.12f) + side * (Mathf.Sin(f * 5f + offset * 3f) * 0.06f) + Vector3.down * (h * f * f * 0.85f + h * f * 0.15f);
-                float w = Mathf.Lerp(w0, w1, f * f);
-                v.Add(p - side * w); uv.Add(new Vector2(0, f));
-                v.Add(p + side * w); uv.Add(new Vector2(1, f));
-                if (s < Seg) { int b = b0 + s * 2; t.Add(b); t.Add(b + 1); t.Add(b + 2); t.Add(b + 1); t.Add(b + 3); t.Add(b + 2); }
+                float f = s / (float)seg;
+                for (int q = 0; q <= cols; q++)
+                {
+                    float u = q / (float)cols;
+                    v.Add(pos(f, u));
+                    uv.Add(new Vector2((u * 2f - 1f) * hw + u0, Mathf.Lerp(y0, y1, f)));
+                    float e = Mathf.Min(u, 1f - u) * 2f;
+                    col.Add(new Color(e, e, 0, 1));
+                }
+                if (s < seg)
+                    for (int q = 0; q < cols; q++)
+                    {
+                        int a = b0 + s * (cols + 1) + q, b = a + 1, cc = a + cols + 1, d = cc + 1;
+                        t.Add(a); t.Add(cc); t.Add(b); t.Add(b); t.Add(cc); t.Add(d);
+                    }
             }
         }
-        foreach (var o in new[] { -1.55f, -1.1f, -0.62f, -0.2f, 0.18f, 0.55f, 0.98f, 1.4f })
+        // falling sheets: roll over the lip, fall with a little throw
+        Vector3 impact = Vector3.zero;
+        for (int k = 0; k < 2; k++)
         {
-            if (rs.NextDouble() < 0.15) continue;
-            float w = (float)(0.07 + rs.NextDouble() * 0.2);
-            Strand(o + (float)(rs.NextDouble() - 0.5) * 0.2f, w, w * (1.6f + (float)rs.NextDouble()), 0.45f + (float)rs.NextDouble() * 0.7f, top - (float)rs.NextDouble() * 0.55f);
+            var lip = edge2 + down2 * lipOut[k];
+            float top = lipY[k] + 0.05f, bot = k == 0 ? lipY[1] : Water, thr = k == 0 ? 0.3f : 0.75f, hw0 = halfW[k], hw1 = halfW[k] * 1.15f;
+            var lip3 = new Vector3(lip.x, top, lip.y);
+            System.Func<float, float, Vector3> P = (fy, u) =>
+            {
+                float drop = top - bot;
+                float wob = (Mathf.PerlinNoise(u * 3.1f + top, 0.3f) - 0.5f) * 0.3f * fy;
+                return lip3 + dn * (thr * Mathf.Sqrt(fy) + 0.05f + wob) + Vector3.down * (drop * fy * fy * 0.8f + drop * fy * 0.2f + 0.02f)
+                     + side * ((u * 2f - 1f) * Mathf.Lerp(hw0, hw1, fy));
+            };
+            Grid(P, 14, 10, Mathf.Lerp(hw0, hw1, 0.5f), 0f, 1f, lip.x * 0.37f);
+            if (k == 1) impact = lip3 + dn * (thr + 0.1f) + Vector3.down * (top - bot);
         }
-        Strand(-0.05f, 0.32f, 0.55f, 0.75f, top + 0.05f);   // the main pour
+        // the feed: a run of water from between the boulders to the top lip, rising a little behind
+        {
+            var lip = edge2 + down2 * lipOut[0];
+            var from = lip + PoolOut * 1.9f;
+            System.Func<float, float, Vector3> P = (fy, u) =>
+            {
+                var c2 = Vector2.Lerp(from, lip, fy);
+                return new Vector3(c2.x, Mathf.Lerp(lipY[0] + 0.25f, lipY[0] + 0.06f, fy), c2.y) + side * ((u * 2f - 1f) * Mathf.Lerp(0.6f, halfW[0], fy));
+            };
+            Grid(P, 6, 8, 0.9f, -1.6f, 0f, 0f);   // uv.y < 0: before the lip, the shader keeps it glassy (lip term)
+        }
+        // white churn lying on the pool where the main drop lands, spreading out and fading
+        {
+            const int Rings = 6, Seg = 28; const float Rad = 2.2f;
+            int b0 = v.Count;
+            for (int ri = 0; ri <= Rings; ri++)
+            {
+                float f = ri / (float)Rings;
+                for (int q = 0; q <= Seg; q++)
+                {
+                    float a = q / (float)Seg * Mathf.PI * 2f;
+                    float rr = f * Rad * (0.85f + 0.3f * Mathf.PerlinNoise(Mathf.Cos(a) * 1.5f + 7f, Mathf.Sin(a) * 1.5f));
+                    var off = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * rr + dn * (f * 0.9f);   // drawn out downstream
+                    v.Add(new Vector3(impact.x, Water + 0.03f, impact.z) + off);
+                    uv.Add(new Vector2(Vector3.Dot(off, side) * 1.2f, Mathf.Lerp(0.7f, 0.98f, f)));
+                    float e = 1f - f * f;
+                    col.Add(new Color(1, 1, Mathf.Max(0.001f, e * 0.6f), 1));
+                }
+                if (ri < Rings)
+                    for (int q = 0; q < Seg; q++)
+                    {
+                        int a = b0 + ri * (Seg + 1) + q, b = a + 1, cc = a + Seg + 1, d = cc + 1;
+                        t.Add(a); t.Add(b); t.Add(cc); t.Add(b); t.Add(d); t.Add(cc);
+                    }
+            }
+        }
         var m = new Mesh { hideFlags = HideFlags.DontSave };
-        m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(t, 0);
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetColors(col); m.SetTriangles(t, 0);
         m.RecalculateBounds(); m.RecalculateNormals();
-        if (!poolFallMat) poolFallMat = new Material(fall) { name = "LS_PoolFall", hideFlags = HideFlags.DontSave };
-        poolFallMat.SetFloat("_Alpha", 0.62f); poolFallMat.SetFloat("_Fill", -0.05f); poolFallMat.SetFloat("_Speed", 1.7f);
-        Add("PoolFall", m, poolFallMat, false);
+        Add("PoolFall", m, mat, false);
 
-        var foot = lip + down * 1.1f; foot.y = Water + 0.15f;
-        if (mistMat)
-        {
-            var churn = Particle(root, "PoolFallChurn", mistMat, 50, 0.8f, 1.6f, 0.7f, 1.6f, Vector3.up * 0.9f, 0.4f, 34f, true);
-            churn.transform.position = foot;
-            var sh = churn.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(2.8f, 0.2f, 1.2f);
-            churn.transform.rotation = Quaternion.LookRotation(down);
-            FadeAlpha(churn, new Color(0.8f, 0.88f, 0.88f), 0.35f);
-            churn.Play();
-            var mist = Particle(root, "PoolFallMist", mistMat, 30, 3f, 6f, 2.5f, 4.5f, new Vector3(-PoolOut.x * 0.25f, 0.25f, -PoolOut.y * 0.25f), 0.1f, 6f, true);
-            mist.transform.position = foot + Vector3.up * 0.3f;
-            var sh2 = mist.shape; sh2.shapeType = ParticleSystemShapeType.Sphere; sh2.radius = 1.6f;
-            FadeAlpha(mist, new Color(0.62f, 0.72f, 0.72f), 0.14f);
-            mist.Play();
-        }
+        if (!mistMat) return;
+        var churnP = Particle(root, "PoolFallChurn", mistMat, 60, 0.7f, 1.5f, 0.8f, 1.8f, Vector3.up * 0.7f, 0.3f, 40f, true);
+        churnP.transform.position = impact + Vector3.up * 0.15f;
+        var sh = churnP.shape; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 1.1f;
+        FadeAlpha(churnP, new Color(0.9f, 0.94f, 0.94f), 0.45f);
+        churnP.Play();
+        var topChurn = Particle(root, "PoolFallStep", mistMat, 24, 0.5f, 1.0f, 0.4f, 0.9f, Vector3.up * 0.4f, 0.2f, 14f, true);
+        var l1 = edge2 + down2 * (lipOut[1] - 0.1f);
+        topChurn.transform.position = new Vector3(l1.x, lipY[1] + 0.1f, l1.y);
+        var sh1 = topChurn.shape; sh1.shapeType = ParticleSystemShapeType.Box; sh1.scale = new Vector3(halfW[1] * 1.8f, 0.1f, 0.4f);
+        topChurn.transform.rotation = Quaternion.LookRotation(dn);
+        FadeAlpha(topChurn, new Color(0.85f, 0.9f, 0.9f), 0.3f);
+        topChurn.Play();
+        var mist = Particle(root, "PoolFallMist", mistMat, 36, 3f, 6f, 2.2f, 4.5f, new Vector3(down2.x * 0.08f, 0.45f, down2.y * 0.08f), 0.08f, 7f, true);
+        mist.transform.position = impact + Vector3.up * 0.4f;
+        var sh2 = mist.shape; sh2.shapeType = ParticleSystemShapeType.Sphere; sh2.radius = 1.4f;
+        FadeAlpha(mist, new Color(0.62f, 0.72f, 0.74f), 0.15f);
+        mist.Play();
     }
 
     void BuildFall()
@@ -452,9 +699,10 @@ public class LookStudyValley : MonoBehaviour
     static float R(System.Random r, float a, float b) => a + (float)r.NextDouble() * (b - a);
     static Color Tint(System.Random r, float k = 0.1f) { float t = R(r, 1f - k, 1f + k); return new Color(t, t, t, 1); }
 
-    void Big(System.Random r, float x, float z, float size, float sink = 0.22f)
+    void Big(System.Random r, float x, float z, float size, float sink = 0.22f, Prop[] set = null)
     {
-        var p = bigRocks[r.Next(bigRocks.Length)];
+        set = set ?? river ?? bigRocks;   // 11-14 Kido: valley boulders are rounded too
+        var p = set[r.Next(set.Length)];
         float h = Height(x, z);
         float base0 = p.mesh.bounds.size.y;
         float s = size / Mathf.Max(p.mesh.bounds.size.x, p.mesh.bounds.size.z);
@@ -482,7 +730,8 @@ public class LookStudyValley : MonoBehaviour
 
     void Cobble(System.Random r, float x, float z, float size)
     {
-        var p = smallRocks[r.Next(smallRocks.Length)];
+        var src = river ?? smallRocks;   // 11-14 Kido: valley stones are water-worn and round, not angular
+        var p = src[r.Next(src.Length)];
         float s = size / Mathf.Max(p.mesh.bounds.size.x, p.mesh.bounds.size.z);
         Stamp(p, new Vector3(x, Height(x, z) - p.mesh.bounds.size.y * s * 0.3f, z), RandY(r, 22f), new Vector3(s, s * R(r, 0.7f, 1.1f), s), Tint(r, 0.14f));
     }
@@ -623,11 +872,29 @@ public class LookStudyValley : MonoBehaviour
         FlushBatches(true);
     }
 
+    // Water-worn stones (Megascans via Fab, see ThirdParty/Megascans/CREDITS.txt) for the cobbles, shallows and stepping
+    // stones; null when the tree set has none, then the old scanned rocks are used.
+    Prop[] river;
+    void LoadRiverRocks()
+    {
+        river = null;
+        if (!trees || trees.riverRocks == null || trees.riverMats == null) return;
+        var list = new List<Prop>();
+        for (int i = 0; i < trees.riverRocks.Length && i < trees.riverMats.Length; i++)
+        {
+            var go = trees.riverRocks[i];
+            var mf = go ? go.GetComponentInChildren<MeshFilter>(true) : null;
+            if (mf && mf.sharedMesh && mf.sharedMesh.isReadable && trees.riverMats[i]) list.Add(new Prop { mesh = mf.sharedMesh, material = trees.riverMats[i] });
+        }
+        if (list.Count > 0) river = list.ToArray();
+    }
+
     void BuildProps()
     {
         rockSpots.Clear();
         mixR = new System.Random(1113);
         trees = Resources.Load<LookStudyValleyTrees>("ValleyTrees");
+        LoadRiverRocks();
         heroesLeft = HeroCap;
         var r = new System.Random(2025);
         Random.InitState(2025);
@@ -645,13 +912,14 @@ public class LookStudyValley : MonoBehaviour
             Big(r, b.x, b.y, b.z);
         // Rocks breaking the surface of the shallows raise foam Vs.
         foreach (var b in new[] { new Vector3(21, 18, 1.3f), new Vector3(16, 15.5f, 0.9f), new Vector3(12, 11, 1.2f), new Vector3(-10, -15, 1.1f), new Vector3(-17, -18, 1.4f), new Vector3(-25, -19, 1.0f), new Vector3(-31, -25, 1.2f) })
-            Big(r, b.x, b.y, b.z, 0.35f);
+            Big(r, b.x, b.y, b.z, 0.35f, river);
         // Stepping stones over each run.
         foreach (var b in new[] { new Vector3(11, 15.6f, 2.2f), new Vector3(12.6f, 12.9f, 2.4f), new Vector3(14.1f, 10.2f, 2.2f), new Vector3(-20, -16, 2.2f), new Vector3(-21, -19, 2.4f), new Vector3(-22, -22, 2.2f) })
         {
-            var p = bigRocks[r.Next(bigRocks.Length)];
+            var set = river ?? bigRocks;
+            var p = set[r.Next(set.Length)];
             float s = b.z / Mathf.Max(p.mesh.bounds.size.x, p.mesh.bounds.size.z);
-            Stamp(p, new Vector3(b.x, -0.28f, b.y), Quaternion.Euler(0, R(r, 0, 360), 0), new Vector3(s, 0.42f * s, s), Tint(r));
+            Stamp(p, new Vector3(b.x, -0.28f, b.y), Quaternion.Euler(0, R(r, 0, 360), 0), new Vector3(s, (river != null ? 0.6f : 0.42f) * s, s), Tint(r));
             rockSpots.Add(new Vector3(b.x, b.y, b.z * 0.5f));
         }
         // Rounded cobbles along the shoreline, thicker near the water.
@@ -747,6 +1015,7 @@ public class LookStudyValley : MonoBehaviour
         FlushBatches(true);
 
         BuildPoolFall();
+        BuildGrandFall();
         BuildDepth(new System.Random(1314));
         BuildBankGrass(r);
         // Older sparse pass kept off: dense banks replace it.
@@ -778,6 +1047,7 @@ public class LookStudyValley : MonoBehaviour
         Nearest(x, z, out float d, out float w, out _, out _, out _);
         float h = Height(x, z);
         if (h < 0.06f || h > 8f) return 0f;
+        if (GorgeMask(x, z) > 0.25f) return 0f;
         if (new Vector2((x + 19f) / 9.5f, (z - 7f) / 6.5f).magnitude < 1.02f) return 0f;
         float bank = SS(w + 0.2f, w + 1.4f, d) * (1f - SS(w + 7f, w + 12f, d));
         float patch = SS(0.48f, 0.62f, N(x * 0.09f + 3f, z * 0.09f));

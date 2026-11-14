@@ -98,10 +98,10 @@ public static partial class SPBuilder
         Texture2D A(string n) => Tex(ArchTex + n + "_diff_1k.jpg", false, false, false, 1024);
         Texture2D N(string n) => Tex(ArchTex + n + "_nor_gl_1k.jpg", true, false, false, 1024);
         // dull, weathered lacquer red (#8e1a17 blood stays the only saturated red)
-        Prop("SP_Arch_RedWood", A("rough_wood"), N("rough_wood"), Hex("#7a3128"), 0.22f, 0.2f);
+        Prop("SP_Arch_RedWood", A("rough_wood"), N("rough_wood"), Hex("#7a3128"), 0.15f, 0.2f);
         Prop("SP_Arch_Timber", A("rough_wood"), N("rough_wood"), Hex("#6f675f"), 0.12f, 0.45f);
         Prop("SP_Arch_Deck", A("weathered_planks"), N("weathered_planks"), Hex("#8a847c"), 0.12f, 0.45f);
-        Prop("SP_Arch_RoofTile", A("roof_tiles_14"), N("roof_tiles_14"), Hex("#6b7178"), 0.25f, 0.8f);
+        Prop("SP_Arch_RoofTile", A("roof_tiles_14"), N("roof_tiles_14"), Hex("#6b7178"), 0.15f, 0.8f);
         Prop("SP_Arch_WallStone", A("japanese_stone_wall"), N("japanese_stone_wall"), Hex("#a3a7ab"), 0.12f, 0.45f);
         Prop("SP_Arch_Rock01", A("rock_face_01"), N("rock_face_01"), Hex("#a6abb2"), 0.1f, 0.6f);
         Prop("SP_Arch_Rock02", A("rock_face_02"), N("rock_face_02"), Hex("#a6abb2"), 0.1f, 0.6f);

@@ -56,6 +56,20 @@ public class LookStudyDevTools : MonoBehaviour
     Light sun;
     Bloom bloom; ColorAdjustments color; Vignette vignette;
     Canvas canvas; GameObject panel; Text fpsText;
+    // 11-13: the panel grew past the screen bottom. `panel` is now the content of a wheel-scrolled view (panelRoot)
+    // whose height is capped at the screen; while the cursor is over it the RoomRun camera skips its wheel zoom.
+    RectTransform panelRoot, canvasRt;
+    static LookStudyDevTools current;
+
+    public static bool PointerOverPanel
+    {
+        get
+        {
+            if (!current || !current.panelRoot || !current.panelRoot.gameObject.activeInHierarchy) return false;
+            var m = Mouse.current;
+            return m != null && RectTransformUtility.RectangleContainsScreenPoint(current.panelRoot, m.position.ReadValue(), null);
+        }
+    }
     Font font;
     RawImage screen; RenderTexture lowRes; Camera blackCam; Material pixelMat;
     int lightIndex, gradeIndex, pixelIndex;
@@ -102,8 +116,11 @@ public class LookStudyDevTools : MonoBehaviour
         fieldKeysText.GetComponent<LayoutElement>().minHeight = 18 * fieldKeys.Split('\n').Length;
     }
 
+    void OnEnable() => current = this;
+
     void Start()
     {
+        current = this;
         world = FindAnyObjectByType<LookStudyWorld>();
         cam = Camera.main;
         sun = RenderSettings.sun ? RenderSettings.sun : FindAnyObjectByType<Light>();
@@ -142,6 +159,7 @@ public class LookStudyDevTools : MonoBehaviour
 
     void OnDisable()
     {
+        if (current == this) current = null;
         SetPixel(0);
         foreach (var kv in savedColors)
             if (kv.Key) foreach (var c in kv.Value) kv.Key.SetColor(c.Key, c.Value);
@@ -157,6 +175,15 @@ public class LookStudyDevTools : MonoBehaviour
             fpsText.text = $"{fpsN / fpsT:0} FPS   {fpsT / fpsN * 1000f:0.0} ms";
             fpsT = 0; fpsN = 0;
         }
+    }
+
+    // the scroll view is as tall as its content, up to the space left below its top edge
+    void LateUpdate()
+    {
+        if (!panelRoot || !panelRoot.gameObject.activeSelf || !canvasRt) return;
+        float maxH = canvasRt.rect.height - 56f - 14f;
+        float h = Mathf.Min(LayoutUtility.GetPreferredHeight((RectTransform)panel.transform), maxH);
+        if (!Mathf.Approximately(panelRoot.sizeDelta.y, h)) panelRoot.sizeDelta = new Vector2(panelRoot.sizeDelta.x, h);
     }
 
     // ---------- effects
@@ -304,7 +331,7 @@ public class LookStudyDevTools : MonoBehaviour
         trt.anchorMin = trt.anchorMax = trt.pivot = new Vector2(0, 1);
         trt.anchoredPosition = new Vector2(14, -14); trt.sizeDelta = new Vector2(130, 36);
         byName["개발자 도구"] = toggleBtn;
-        toggleBtn.onClick.AddListener(() => panel.SetActive(!panel.activeSelf));
+        toggleBtn.onClick.AddListener(() => panelRoot.gameObject.SetActive(!panelRoot.gameObject.activeSelf));
 
         var fgo = new GameObject("FPS", typeof(Text));
         fgo.transform.SetParent(cgo.transform, false);
@@ -314,12 +341,22 @@ public class LookStudyDevTools : MonoBehaviour
         frt.anchoredPosition = new Vector2(156, -22); frt.sizeDelta = new Vector2(220, 24);
         fgo.AddComponent<Shadow>();
 
-        panel = new GameObject("Panel", typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-        panel.transform.SetParent(cgo.transform, false);
-        panel.GetComponent<Image>().color = new Color(0.07f, 0.09f, 0.1f, 0.88f);
+        canvasRt = (RectTransform)cgo.transform;
+        var root = new GameObject("Panel", typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
+        root.transform.SetParent(cgo.transform, false);
+        root.GetComponent<Image>().color = new Color(0.07f, 0.09f, 0.1f, 0.88f);
+        panelRoot = (RectTransform)root.transform;
+        panelRoot.anchorMin = panelRoot.anchorMax = panelRoot.pivot = new Vector2(0, 1);
+        panelRoot.anchoredPosition = new Vector2(14, -56); panelRoot.sizeDelta = new Vector2(372, 400);
+
+        panel = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        panel.transform.SetParent(root.transform, false);
         var prt = (RectTransform)panel.transform;
-        prt.anchorMin = prt.anchorMax = prt.pivot = new Vector2(0, 1);
-        prt.anchoredPosition = new Vector2(14, -56); prt.sizeDelta = new Vector2(372, 10);
+        prt.anchorMin = new Vector2(0, 1); prt.anchorMax = Vector2.one; prt.pivot = new Vector2(0, 1);
+        prt.anchoredPosition = Vector2.zero; prt.sizeDelta = new Vector2(0, 10);
+        var sr = root.GetComponent<ScrollRect>();
+        sr.content = prt; sr.viewport = panelRoot; sr.horizontal = false; sr.vertical = true;
+        sr.movementType = ScrollRect.MovementType.Clamped; sr.scrollSensitivity = 12f; sr.inertia = false;
         var lay = panel.GetComponent<VerticalLayoutGroup>();
         lay.padding = new RectOffset(12, 12, 10, 12); lay.spacing = 5;
         lay.childControlWidth = true; lay.childControlHeight = true; lay.childForceExpandHeight = false; lay.childForceExpandWidth = true;
@@ -366,6 +403,11 @@ public class LookStudyDevTools : MonoBehaviour
         {
             PlayerPrefs.SetInt("RR.SeeThroughTemporal", PlayerPrefs.GetInt("RR.SeeThroughTemporal", 0) == 0 ? 1 : 0); RefreshToggles();
         });
+        // 11-13 r2: live shape of the soft see-through (RoomRun.SeeThroughFX reads these keys; defaults must match it)
+        MakeSlider("안쪽 반경", 0f, 3f, PlayerPrefs.GetFloat("RR.See.Inner", 0.7f), v => PlayerPrefs.SetFloat("RR.See.Inner", v));
+        MakeSlider("바깥 반경", 2f, 10f, PlayerPrefs.GetFloat("RR.See.Outer", 5.8f), v => PlayerPrefs.SetFloat("RR.See.Outer", v));
+        MakeSlider("중앙 남김", 0f, 0.8f, PlayerPrefs.GetFloat("RR.See.Min", 0.22f), v => PlayerPrefs.SetFloat("RR.See.Min", v));
+        MakeSlider("외곽 부드럽게", 1f, 4f, PlayerPrefs.GetFloat("RR.See.Curve", 1.8f), v => PlayerPrefs.SetFloat("RR.See.Curve", v));
         Section("빛");
         r = NewRow();
         for (int i = 0; i < Lights.Length; i++) { int k = i; if (i == 3) r = NewRow(); Toggle(r, Lights[i].name, () => lightIndex == k, () => { lightIndex = k; lightTouched = true; ApplyAll(); }); }
@@ -499,9 +541,9 @@ public class LookStudyDevTools : MonoBehaviour
         log.Add("click 노을 -> lightIndex=" + lightIndex);
         yield return Shot(dir, "01_click_dusk", log);
         yield return Click(byName["개발자 도구"], mouse);
-        log.Add("click toggle -> panelActive=" + panel.activeSelf);
+        log.Add("click toggle -> panelActive=" + panelRoot.gameObject.activeSelf);
         yield return Click(byName["개발자 도구"], mouse);
-        log.Add("click toggle -> panelActive=" + panel.activeSelf);
+        log.Add("click toggle -> panelActive=" + panelRoot.gameObject.activeSelf);
 
         int n = 2;
         foreach (var name in new[] { "한낮", "아침", "밤", "흐림", "영상 톤" }) { byName[name].onClick.Invoke(); yield return Shot(dir, $"{n++:00}_light_{name}", log); }

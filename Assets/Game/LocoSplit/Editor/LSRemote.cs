@@ -17,6 +17,36 @@ namespace LocoSplit
     [InitializeOnLoad]
     public static class LSRemote
     {
+
+        // 11-14 freeze guard (two editor freezes 11-13: a remote command opened a scene / started Play while Play was still
+        // entering or exiting). Same code in every *_cmd remote (see RoomRunRemote.Gate): nothing starts while Play changes,
+        // for 15 s after a Play change or domain reload, while compiling/importing, or while another remote holds
+        // ArtSource/remote_play.lock (a lock older than 10 min counts as stale).
+        static class Gate
+        {
+            static double lastChange = UnityEditor.EditorApplication.timeSinceStartup;
+            static Gate() { UnityEditor.EditorApplication.playModeStateChanged += _ => lastChange = UnityEditor.EditorApplication.timeSinceStartup; }
+            static string LockPath => System.IO.Path.Combine(System.IO.Directory.GetParent(UnityEngine.Application.dataPath).FullName, "ArtSource", "remote_play.lock");
+            public static bool Settled() => !UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode && !UnityEditor.EditorApplication.isCompiling
+                && !UnityEditor.EditorApplication.isUpdating && UnityEditor.EditorApplication.timeSinceStartup - lastChange >= 15.0;
+            public static bool Ready(string me)
+            {
+                if (!Settled()) return false;
+                try
+                {
+                    if (System.IO.File.Exists(LockPath) && !System.IO.File.ReadAllText(LockPath).StartsWith(me + " ")
+                        && (System.DateTime.Now - System.IO.File.GetLastWriteTime(LockPath)).TotalMinutes < 10) return false;
+                }
+                catch (System.IO.IOException) { return false; }
+                return true;
+            }
+            public static void Take(string me) { try { System.IO.File.WriteAllText(LockPath, me + " " + System.DateTime.Now.ToString("HH:mm:ss")); } catch (System.IO.IOException) { } }
+            public static void Release(string me)
+            {
+                try { if (System.IO.File.Exists(LockPath) && System.IO.File.ReadAllText(LockPath).StartsWith(me + " ")) System.IO.File.Delete(LockPath); } catch (System.IO.IOException) { }
+            }
+        }
+
         static readonly string Dir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "ArtSource", "LocoSplit");
         static string Cmd => Path.Combine(Dir, "ls_cmd.txt");
         static string Log => Path.Combine(Dir, "ls_log.txt");
@@ -661,6 +691,123 @@ namespace LocoSplit
             return "posetest saved " + outp + " rows: " + string.Join(",", states) + " (game angle, then side; bar = aim)";
         }
 
+        // Head + hat as a ring stack in the head frame (metres at character scale 1): verts weighted mostly to the head,
+        // binned by height; each boundary takes the wider of its two bins so interpolation never undercuts the mesh.
+        public static string MeasureHat(GameObject go, Animator anim, LSPoseFix fix)
+        {
+            var head = anim.GetBoneTransform(HumanBodyBones.Head);
+            var pts = new List<Vector3>();
+            foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                var mesh = smr.sharedMesh; if (!mesh) continue;
+                int hi = System.Array.IndexOf(smr.bones, head); if (hi < 0) continue;
+                var baked = new Mesh(); smr.BakeMesh(baked, true);
+                var bw = mesh.boneWeights; var v = baked.vertices;
+                for (int i = 0; i < v.Length && i < bw.Length; i++)
+                {
+                    float w = (bw[i].boneIndex0 == hi ? bw[i].weight0 : 0) + (bw[i].boneIndex1 == hi ? bw[i].weight1 : 0);
+                    if (w >= 0.5f) pts.Add(Quaternion.Inverse(head.rotation) * (smr.transform.TransformPoint(v[i]) - head.position) / go.transform.lossyScale.y);
+                }
+                Object.DestroyImmediate(baked);
+            }
+            if (pts.Count == 0) return "hat: no head verts";
+            Vector3 mn = pts[0], mx = pts[0];
+            foreach (var p in pts) { mn = Vector3.Min(mn, p); mx = Vector3.Max(mx, p); }
+            var cxz = new Vector2((mn.x + mx.x) * 0.5f, (mn.z + mx.z) * 0.5f);
+            const int nb = 12;
+            var binR = new float[nb];
+            foreach (var p in pts)
+            {
+                int b = Mathf.Clamp((int)((p.y - mn.y) / (mx.y - mn.y) * nb), 0, nb - 1);
+                binR[b] = Mathf.Max(binR[b], new Vector2(p.x - cxz.x, p.z - cxz.y).magnitude);
+            }
+            var ys = new float[nb + 1]; var rs = new float[nb + 1];
+            for (int k = 0; k <= nb; k++)
+            {
+                ys[k] = Mathf.Lerp(mn.y, mx.y, k / (float)nb);
+                rs[k] = Mathf.Max(k > 0 ? binR[k - 1] : 0f, k < nb ? binR[k] : 0f);
+            }
+            fix.hatCenterXZ = cxz; fix.hatYs = ys; fix.hatRs = rs;
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            return $"hat: {pts.Count} verts, centre xz {cxz.x:0.000},{cxz.y:0.000}, profile y:r " +
+                   string.Join(" ", ys.Select((y, k) => string.Format(ci, "{0:0.00}:{1:0.00}", y, rs[k])));
+        }
+
+        // idletest: base-layer poses (idle, walk, runs) without / with LSPoseFix, 55° game camera from behind and from the
+        // front, plus a side view, to idletest.png. Logs spine lean and the blade-to-hat gap per pose.
+        static string IdleTest()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(LSBuilder.Root + "/Generated/RR_GreatswordPlayer.prefab");
+            var swordPf = AssetDatabase.LoadAssetAtPath<GameObject>(LSBuilder.Root + "/Generated/Greatsword.prefab");
+            if (!prefab || !swordPf) return "idletest: no prefab";
+            var log = new List<string>();
+            var poses = new (string name, float x, float z, float t)[] {
+                ("idle", 0, 0, 0.0f), ("idle", 0, 0, 0.5f), ("walkF", 0, 0.35f, 0.3f), ("runF", 0, 1, 0.25f), ("runF", 0, 1, 0.75f),
+                ("runB", 0, -1, 0.3f), ("runL", -1, 0, 0.3f), ("runR", 1, 0, 0.3f) };
+            const int cw = 180, ch = 220, views = 3;
+            int W = cw * poses.Length, H = ch * views * 2;
+            var sheet = new Texture2D(W, H, TextureFormat.RGB24, false);
+            var scene = EditorSceneManager.NewPreviewScene();
+            var light = new GameObject("L").AddComponent<Light>(); light.type = LightType.Directional; light.intensity = 1.5f;
+            light.transform.rotation = Quaternion.Euler(50, -30, 0);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(light.gameObject, scene);
+            var go = (GameObject)Object.Instantiate(prefab);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, scene);
+            foreach (var mb in go.GetComponentsInChildren<MonoBehaviour>()) mb.enabled = false;
+            var anim = go.GetComponentInChildren<Animator>();
+            var fix = go.GetComponent<LSPoseFix>() ?? go.AddComponent<LSPoseFix>();
+            fix.anim = anim;
+            var rH = anim.GetBoneTransform(HumanBodyBones.RightHand); var lH = anim.GetBoneTransform(HumanBodyBones.LeftHand);
+            var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
+            var neck = anim.GetBoneTransform(HumanBodyBones.Neck) ?? anim.GetBoneTransform(HumanBodyBones.Head);
+
+            void Pose((string name, float x, float z, float t) ps)
+            {
+                anim.Rebind();
+                anim.SetFloat("MoveX", ps.x); anim.SetFloat("MoveZ", ps.z);
+                anim.Play("Locomotion", 0, ps.t); anim.Update(0f);
+            }
+            Pose(poses[0]);
+            log.Add(MeasureHat(go, anim, fix));
+            log.Add($"upright chain {fix.ChainLength} bones, idle {fix.uprightIdleDeg} run {fix.uprightRunDeg}");
+            // LSRig's auto grip, from the idle pose
+            var gripRot = Quaternion.LookRotation(rH.InverseTransformDirection((rH.position - lH.position).normalized), Vector3.right);
+            var sw = (GameObject)Object.Instantiate(swordPf, rH); sw.name = "Greatsword";
+
+            var camGo = new GameObject("Cam"); UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(camGo, scene);
+            var cam = camGo.AddComponent<Camera>(); cam.scene = scene; cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.25f, 0.27f, 0.3f); cam.fieldOfView = 30;
+            var rt = new RenderTexture(cw, ch, 24); cam.targetTexture = rt;
+            var tile = new Texture2D(cw, ch, TextureFormat.RGB24, false);
+            for (int pi = 0; pi < poses.Length; pi++)
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    var ps = poses[pi];
+                    Pose(ps);
+                    sw.transform.localPosition = new Vector3(0, 0.07f, 0); sw.transform.localRotation = gripRot;
+                    float turn = pass == 1 ? fix.PreviewApply(new Vector2(ps.x, ps.z).magnitude) : fix.PreviewApply(0f, false, false);
+                    Vector3 up = go.transform.InverseTransformDirection(neck.position - hips.position);
+                    float lean = Mathf.Atan2(up.z, up.y) * Mathf.Rad2Deg;
+                    log.Add($"{ps.name}@{ps.t:0.00} {(pass == 0 ? "orig " : "fixed")}: lean {lean:0.0} deg fwd, blade-hat gap {fix.MinHatGap(sw.transform):0.000} m, sword turn {turn:0.0}");
+                    for (int view = 0; view < views; view++)
+                    {
+                        if (view == 0) { cam.transform.position = new Vector3(0, 1.0f + 4.1f, -2.9f); cam.transform.rotation = Quaternion.Euler(55, 0, 0); }
+                        else if (view == 1) { cam.transform.position = new Vector3(0, 1.0f + 4.1f, 2.9f); cam.transform.rotation = Quaternion.Euler(55, 180, 0); }
+                        else { cam.transform.position = new Vector3(4.6f, 1.1f, 0.1f); cam.transform.rotation = Quaternion.Euler(2, -90, 0); }
+                        cam.Render();
+                        RenderTexture.active = rt; tile.ReadPixels(new Rect(0, 0, cw, ch), 0, 0); RenderTexture.active = null;
+                        int row = view * 2 + pass;
+                        sheet.SetPixels(pi * cw, H - (row + 1) * ch, cw, ch, tile.GetPixels());
+                    }
+                }
+            cam.targetTexture = null; Object.DestroyImmediate(rt); Object.DestroyImmediate(tile);
+            EditorSceneManager.ClosePreviewScene(scene);
+            string outp = Path.Combine(Dir, "idletest.png");
+            File.WriteAllBytes(outp, sheet.EncodeToPNG()); Object.DestroyImmediate(sheet);
+            log.Add("idletest saved " + outp + " (row pairs orig/fixed: game cam behind, game cam front, side)");
+            return string.Join("\n", log);
+        }
+
         static void Tick()
         {
             if (EditorApplication.timeSinceStartup < next) return;
@@ -683,15 +830,15 @@ namespace LocoSplit
             // After the demo, reopen the scene that was open before it.
             if (state == "restore")
             {
-                if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling) return;
+                if (!Gate.Settled()) return;   // 11-14: opening a scene right as Play exits froze the editor
                 SessionState.SetString(KeyState, "");
                 string prev = SessionState.GetString("LocoSplit.PrevScene", "");
                 if (prev != "" && prev != LSBuilder.ScenePath && File.Exists(prev)) { EditorSceneManager.OpenScene(prev); Note("reopened " + prev); }
                 return;
             }
             // Another thread's import/reload can cancel the play request: ask again once the editor is idle.
-            if (state == "demo" && !EditorApplication.isPlayingOrWillChangePlaymode &&
-                !EditorApplication.isCompiling && !EditorApplication.isUpdating && !File.Exists(Cmd))
+            if (state == "" && !EditorApplication.isPlayingOrWillChangePlaymode) Gate.Release("lsr");
+            if (state == "demo" && Gate.Ready("lsr") && !File.Exists(Cmd))
             {
                 if (EditorApplication.timeSinceStartup - retryAt < 4) return;
                 retryAt = EditorApplication.timeSinceStartup;
@@ -714,8 +861,9 @@ namespace LocoSplit
                 Note("stop");
                 return;
             }
-            if (EditorApplication.isPlaying || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
+            if (!Gate.Ready("lsr")) return;
             File.Delete(Cmd);
+            Gate.Take("lsr");
             Note("got " + cmd);
             Debug.Log("[LocoSplit] command " + cmd);
 
@@ -772,6 +920,39 @@ namespace LocoSplit
                 // posetest [state ...]: RR_GreatswordPlayer posed through each attack state, game angle + side, to posetest.png
                 try { Note(PoseTest(cmd.Length > 9 ? cmd.Substring(9).Trim().Split(' ') : new[] { "SweepA", "SweepB", "SweepC", "Spin" })); }
                 catch (System.Exception e) { Note("posetest failed: " + e); }
+            }
+            else if (cmd.StartsWith("posefix"))
+            {
+                // posefix [idleDeg runDeg]: add/tune LSPoseFix on RR_GreatswordPlayer.prefab, hat profile measured from the mesh
+                try
+                {
+                    string pp = LSBuilder.Root + "/Generated/RR_GreatswordPlayer.prefab";
+                    // measure on a throwaway copy so the prefab's bones are never saved posed
+                    var tmp = (GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(pp));
+                    tmp.hideFlags = HideFlags.HideAndDontSave;
+                    foreach (var mb in tmp.GetComponentsInChildren<MonoBehaviour>()) mb.enabled = false;
+                    var tAnim = tmp.GetComponentInChildren<Animator>();
+                    var tFix = tmp.GetComponent<LSPoseFix>() ?? tmp.AddComponent<LSPoseFix>();
+                    tAnim.Rebind(); tAnim.Play("Locomotion", 0, 0f); tAnim.Update(0f);
+                    string hat = MeasureHat(tmp, tAnim, tFix);
+                    var cxz = tFix.hatCenterXZ; var ys = tFix.hatYs; var rs = tFix.hatRs;
+                    Object.DestroyImmediate(tmp);
+
+                    var root = PrefabUtility.LoadPrefabContents(pp);
+                    var fix = root.GetComponent<LSPoseFix>() ?? root.AddComponent<LSPoseFix>();
+                    fix.anim = root.GetComponentInChildren<Animator>();
+                    fix.hatCenterXZ = cxz; fix.hatYs = ys; fix.hatRs = rs;
+                    var a = cmd.Split(' ').Skip(1).Where(s => s != "").Select(s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                    if (a.Length >= 2) { fix.uprightIdleDeg = a[0]; fix.uprightRunDeg = a[1]; }
+                    PrefabUtility.SaveAsPrefabAsset(root, pp);
+                    PrefabUtility.UnloadPrefabContents(root);
+                    Note($"posefix: idle {fix.uprightIdleDeg} run {fix.uprightRunDeg}; {hat}");
+                }
+                catch (System.Exception e) { Note("posefix failed: " + e); }
+            }
+            else if (cmd == "idletest")
+            {
+                try { Note(IdleTest()); } catch (System.Exception e) { Note("idletest failed: " + e); }
             }
             else if (cmd == "rrplayer")
             {

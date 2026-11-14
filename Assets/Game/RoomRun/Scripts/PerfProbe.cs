@@ -79,10 +79,10 @@ namespace RoomRun
                 "PreUpdate.PhysicsUpdate", "PostLateUpdate.FinishFrameRendering", "PostLateUpdate.UpdateAllRenderers", "PreLateUpdate.ParticleSystemBeginUpdateAll",
                 "PostLateUpdate.ParticleSystemEndUpdateAll", "PostLateUpdate.UpdateAllSkinnedMeshes", "Update.DirectorUpdate", "PostLateUpdate.PlayerSendFrameComplete",
                 "PreLateUpdate.DirectorUpdateAnimationBegin", "Update.ScriptRunDelayedDynamicFrameRate", "PostLateUpdate.UpdateAudio", "EditorLoop" };
-            markerNames = markerNames.Concat(new[] { "Enemy.Separation", "Enemy.Ground", "Enemy.Move" }).ToArray();
+            markerNames = markerNames.Concat(new[] { "Enemy.Separation", "Enemy.Ground", "Enemy.Move", "Reed.Draw" }).ToArray();
             var markers = new ProfilerRecorder[markerNames.Length];
             for (int i = 0; i < markers.Length; i++)
-                markers[i] = markerNames[i].StartsWith("Enemy.") ? ProfilerRecorder.StartNew(ProfilerCategory.Scripts, markerNames[i]) : ProfilerRecorder.StartNew(ProfilerCategory.Internal, markerNames[i]);
+                markers[i] = (markerNames[i].StartsWith("Enemy.") || markerNames[i].StartsWith("Reed.")) ? ProfilerRecorder.StartNew(ProfilerCategory.Scripts, markerNames[i]) : ProfilerRecorder.StartNew(ProfilerCategory.Internal, markerNames[i]);
 
             foreach (var room in rooms)
             {
@@ -302,6 +302,15 @@ namespace RoomRun
                         .Where(b => b.enabled && (b.GetType().Name == "ReedInstancer" || b.GetType().Name == "LookStudyInstancer")).ToList();
                     foreach (var b in bs) b.enabled = false;
                     return () => { foreach (var b in bs) if (b) b.enabled = true; };
+                }
+                case "rfold":
+                {
+                    // 11-13 A/B: the reed field's old per-chunk RenderMeshInstanced path instead of the one GPU buffer
+                    var bs = All<MonoBehaviour>(run).Where(b => b.enabled && b.GetType().Name == "ReedInstancer").ToList();
+                    var fld = bs.Count > 0 ? bs[0].GetType().GetField("gpuBuffer") : null;
+                    if (fld == null) return null;
+                    foreach (var b in bs) fld.SetValue(b, false);
+                    return () => { foreach (var b in bs) if (b) fld.SetValue(b, true); };
                 }
                 case "cams":
                 {

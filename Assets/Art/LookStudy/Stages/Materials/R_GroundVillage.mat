@@ -57,6 +57,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AntiTile: 1
     - _DryGloss: 0.15
     - _RockScale: 0.11
     m_Colors:

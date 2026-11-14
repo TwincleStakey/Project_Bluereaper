@@ -16,16 +16,50 @@ namespace RoomRun
     {
         // what: prefab name; u,v: -1..1 across the arena (x, z; corners at +-1); out: metres outside the edge (negative =
         // inside); yaw: extra turn (deg); scale. A house uses out as how far its corner pokes in.
-        struct F { public string what; public float u, v, outM, yaw, scale; public F(string w, float u, float v, float o, float yaw = 0, float s = 1) { what = w; this.u = u; this.v = v; outM = o; this.yaw = yaw; scale = s; } }
+        // dark: a near-black foreground silhouette (11-13, Kido's Hades 2 ref: very tall black shapes on the camera-side edge only).
+        struct F { public string what; public float u, v, outM, yaw, scale; public bool dark; public F(string w, float u, float v, float o, float yaw = 0, float s = 1, bool dark = false) { what = w; this.u = u; this.v = v; outM = o; this.yaw = yaw; scale = s; this.dark = dark; } }
 
         static readonly Dictionary<string, F[]> Layout = new Dictionary<string, F[]>
         {
-            ["grass"] = new[] { new F("EF_PineA", -0.82f, -1f, 0.8f, 0, 0.85f), new F("EF_PineB", 1f, 0.78f, 1.2f, 60), new F("EF_Jangseung", -0.52f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", -0.45f, 1f, 0.5f, 8, 1.25f) },
+            // 11-13 grass/village depth (Kido, Hades 2 ref: very tall, near-black silhouettes only along the bottom (camera)
+            // edge, outside the fight area; tall trees around the sides). dark = a
+            // foreground silhouette (see Silhouette). Doors: grass north centre, village east centre (kept clear).
+            ["grass"] = new[] { new F("EF_PineA", -0.82f, -1f, 0.8f, 0, 0.85f), new F("EF_PineB", 1f, 0.78f, 1.2f, 60), new F("EF_Jangseung", -0.52f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", -0.45f, 1f, 0.5f, 8, 1.25f),
+                // bottom (camera) edge: dark pine silhouettes rising into the lower part of the screen only (no shadows into the
+                // arena), branchy dead conifers at the corners; spaced so the middle of the screen stays open
+                new F("EF_PineB", -0.62f, -1f, 5f, 200, 1.05f, true), new F("EF_PineA", -0.25f, -1f, 4f, 300, 1.0f, true), new F("EF_PineB", 0.1f, -1f, 5.5f, 30, 1.1f, true),
+                new F("EF_PineA", 0.42f, -1f, 4.5f, 80, 1.1f, true), new F("EF_PineB", 0.75f, -1f, 5f, 260, 1.0f, true),
+                new F("EF_DeadConiferA", -0.95f, -1f, 4f, 150, 1.4f, true), new F("EF_DeadConiferA", 0.96f, -1f, 4f, 30, 1.35f, true),
+                // sides: tall firs and pines over the hedge (on screen when the player is near that side)
+                new F("EF_Fir", -1f, 0.42f, 4f, 0, 1.3f), new F("EF_TallPine", -1f, 0.05f, 6f, 70, 1.1f), new F("EF_PineB", -1f, -0.35f, 3f, 130, 1.25f), new F("EF_DeadConiferA", -1f, -0.66f, 4f, 240, 1.1f),
+                new F("EF_Fir", 1f, 0.35f, 4.5f, 160, 1.25f), new F("EF_TallPine", 1f, -0.1f, 4f, 20, 1.15f), new F("EF_DeadConiferA", 1f, -0.5f, 3.5f, 300), new F("EF_PineA", 1f, -0.78f, 3f, 50, 1.2f) },
             ["valley"] = new[] { new F("EF_PineB", -0.8f, -1f, 0.8f, 30), new F("EF_PineA", 0.6f, 1f, 1.5f, 200, 0.9f), new F("EF_Jangseung", -1f, 0.55f, 0.6f, -70, 1.25f) },
-            ["village"] = new[] { new F("EF_Jangseung", 0.42f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", 0.49f, 1f, 0.5f, -8, 1.25f), new F("EF_PineA", 1f, 0.8f, 1.2f, 140) },
-            ["palace"] = new[] { new F("EF_PineA", -0.78f, -1f, 0.9f, 0, 0.9f), new F("EF_PineB", 0.8f, -1f, 0.9f, 110, 0.85f) },
-            ["reeds"] = new[] { new F("EF_PineB", -1f, 0.75f, 1.0f, 250), new F("EF_Jangseung", 0.55f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", 0.62f, 1f, 0.5f, -10, 1.25f) },
-            ["bamboo"] = new[] { new F("EF_Jangseung", -0.5f, 1f, 0.4f, 0, 1.25f), new F("EF_Jangseung", -0.42f, 1f, 0.4f, 10, 1.25f), new F("EF_Jangseung", 1f, -0.55f, 0.4f, -80, 1.25f) },
+            ["village"] = new[] { new F("EF_Jangseung", 0.42f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", 0.49f, 1f, 0.5f, -8, 1.25f), new F("EF_PineA", 1f, 0.8f, 1.2f, 140),
+                // bottom (camera) edge: the pine belt there is darkened to silhouettes by LookStudyRuins.SouthSil; a
+                // pair of 장승 like pillars where the south lane leaves
+                new F("EF_Jangseung", -0.06f, -1f, 1.8f, 190, 2.2f, true), new F("EF_Jangseung", 0.06f, -1f, 1.8f, 170, 2.2f, true),
+                // sides (east centre is the door): tall trees over the belt, clear of the village houses that stand just
+                // outside the north and side edges (LookStudyRuins.BuildVillage, 11-14)
+                new F("EF_Fir", -1f, -0.75f, 5f, 30, 1.3f), new F("EF_TallPine", -1f, 0.85f, 5f, 220, 1.1f),
+                new F("EF_TallPine", 1f, 0.2f, 5f, 80, 1.15f), new F("EF_Fir", 1f, -0.95f, 5f, 10, 1.25f), new F("EF_DeadConiferA", 1f, 0.88f, 4f, 140, 1.1f) },
+            // 11-13 (Kido, all fields: the fight area lacked big things for depth): tall pines between the galleries (x +-54)
+            // and the outer wall (+-63) and flanking the hall, crowns towering over the gallery roofs. All outside the arena.
+            ["palace"] = new[] { new F("EF_PineA", -0.78f, -1f, 0.9f, 0, 0.9f), new F("EF_PineB", 0.8f, -1f, 0.9f, 110, 0.85f),
+                new F("EF_PineB", -1f, 0.55f, 6f, 20, 1.25f), new F("EF_PineA", -1f, -0.15f, 7.5f, 140, 1.4f), new F("EF_PineB", -1f, -0.72f, 5.5f, 250, 1.15f),
+                new F("EF_PineA", 1f, 0.35f, 6.5f, 80, 1.35f), new F("EF_PineB", 1f, -0.45f, 5.5f, 200, 1.2f),
+                new F("EF_PineA", -0.55f, 1f, 9f, 30, 1.45f), new F("EF_PineB", 0.62f, 1f, 8f, 300, 1.35f) },
+            // 11-13 night pass (Kido: the pine in the reeds was round at the bottom and did not fit): no pines; all outside the edge.
+            ["reeds"] = new[] { new F("EF_Jangseung", 0.55f, 1f, 0.5f, 0, 1.25f), new F("EF_Jangseung", 0.62f, 1f, 0.5f, -10, 1.25f),
+                                // 11-14 (Kido: the coded 폐촌 dead trees looked "weird", remove): downloaded dead conifers and snags only
+                                new F("EF_DeadConiferA", -1f, 0.72f, 3.0f, 250, 1.1f), new F("EF_RF_Snag_A", -1f, 0.2f, 2.5f, 40, 4.0f), new F("EF_RF_DeadConifer_B", -1f, -0.45f, 3.0f, 130, 1.2f),
+                                new F("EF_RF_DeadConifer_B", 1f, 0.55f, 3.0f, 300, 1.25f), new F("EF_DeadConiferA", 1f, 0.05f, 4.0f, 160, 1.15f), new F("EF_RF_Snag_C", 1f, -0.5f, 2.5f, 220, 3.8f),
+                                new F("EF_RF_Snag_D", -0.3f, 1f, 3.0f, 70, 4.2f), new F("EF_DeadConiferA", 0.15f, 1f, 4.5f, 10, 1.2f), new F("EF_RF_DeadConifer_B", 0.95f, 1f, 3.0f, 200, 1.3f),
+                                // camera side: tall near-black snags (thin, no crown: 5.5-6 m out is fine) and dead conifers 8-9 m out (closer put
+                                // crowns over the player and cost FPS)
+                                new F("EF_RF_Snag_A", -0.75f, -1f, 5.5f, 15, 6.0f, true), new F("EF_RF_DeadConifer_B", -0.38f, -1f, 8.5f, 130, 1.5f, true),
+                                new F("EF_RF_Snag_D", 0.08f, -1f, 5.5f, 250, 6.5f, true), new F("EF_DeadConiferA", 0.45f, -1f, 9f, 60, 1.4f, true),
+                                new F("EF_RF_Snag_C", 0.8f, -1f, 6f, 300, 6.0f, true) },
+            // bamboo: no entry since the 11-13 redo; BABuilder.Landmarks places its own 서낭당 landmarks and silhouettes
         };
 
         // the LookStudy fields shade with their own globals (painterly sun colour), not the URP light the SP materials
@@ -45,7 +79,11 @@ namespace RoomRun
             if (n.StartsWith("EF_HeroNeedles"))
             {
                 m.SetFloat("_Desat", 0.94f);
-                m.SetColor("_Tint", new Color(1.0f, 1.04f, 0.70f));   // after the x2 lift: dark grey olive (0.5 read black)
+                // 11-13 Kido: "푸른 소나무 색감을 맞춰봐 아니면 은행나무같은거": 0 = old dark olive, 1 = dry reed tan
+                // (matches the field), 2 = golden autumn larch (낙엽송, the ginkgo-yellow option). Dev: RR.ReedPineLook.
+                int look = PlayerPrefs.GetInt("RR.ReedPineLook", 1);
+                m.SetColor("_Tint", look == 2 ? new Color(1.55f, 1.18f, 0.42f) : look == 1 ? new Color(1.22f, 1.0f, 0.64f)
+                                               : new Color(1.0f, 1.04f, 0.70f));   // after the x2 lift (0.5 read black)
                 m.SetFloat("_RimScale", 0f);
                 m.SetFloat("_Smoothness", 0f);
                 m.SetFloat("_Wrap", 0.3f);
@@ -58,6 +96,17 @@ namespace RoomRun
                 if (m.HasProperty("_RimScale")) m.SetFloat("_RimScale", 0.15f);
                 if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0f);
             }
+        }
+
+        // foreground silhouette: almost black, no rim or gloss, so it frames the screen without pulling the eye
+        static void Silhouette(Material m)
+        {
+            string c = m.HasProperty("_Tint") ? "_Tint" : "_BaseColor";
+            var t = m.GetColor(c);
+            m.SetColor(c, new Color(t.r * 0.13f, t.g * 0.12f, t.b * 0.12f, t.a));
+            if (m.HasProperty("_Desat")) m.SetFloat("_Desat", 0.9f);
+            if (m.HasProperty("_RimScale")) m.SetFloat("_RimScale", 0f);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0f);
         }
 
         public static bool Enabled => PlayerPrefs.GetInt("RR.EdgeFeatures", 1) != 0;
@@ -99,24 +148,28 @@ namespace RoomRun
             var p = new Vector3(c.x + f.u * hx, c.y, c.z + f.v * hz);
             var go = Instantiate(prefab, parent);
             go.name = f.what;
-            if (lift != 1f || field == "reeds")
+            if (lift != 1f || field == "reeds" || f.dark)
                 foreach (var r in go.GetComponentsInChildren<Renderer>())
                 {
                     var ms = r.sharedMaterials;
                     for (int i = 0; i < ms.Length; i++)
                     {
-                        if (!ms[i] || !ms[i].HasProperty("_Tint")) continue;
-                        if (!lifted.TryGetValue((ms[i], field), out var lm) || !lm)
+                        // _Tint: the snow-field prop shaders (lifted per field); _BaseColor (URP Lit scans): silhouettes only
+                        if (!ms[i] || !(ms[i].HasProperty("_Tint") || (f.dark && ms[i].HasProperty("_BaseColor")))) continue;
+                        string lk = field + PlayerPrefs.GetInt("RR.ReedPineLook", 1) + (f.dark ? "/dark" : "");
+                        if (!lifted.TryGetValue((ms[i], lk), out var lm) || !lm)
                         {
                             lm = new Material(ms[i]) { name = ms[i].name + " (" + field + ")" };
-                            var t = lm.GetColor("_Tint"); lm.SetColor("_Tint", new Color(t.r * lift, t.g * lift, t.b * lift, t.a));
+                            if (lm.HasProperty("_Tint")) { var t = lm.GetColor("_Tint"); lm.SetColor("_Tint", new Color(t.r * lift, t.g * lift, t.b * lift, t.a)); }
                             FieldLook(field, lm);
-                            lifted[(ms[i], field)] = lm;
+                            if (f.dark) Silhouette(lm);
+                            lifted[(ms[i], lk)] = lm;
                         }
                         ms[i] = lm;
                     }
                     r.sharedMaterials = ms;
                 }
+            if (f.dark && (field == "grass" || field == "village")) foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             go.transform.rotation = Quaternion.Euler(0, f.yaw, 0);
             go.transform.localScale = Vector3.one * f.scale;
             go.transform.position = p;

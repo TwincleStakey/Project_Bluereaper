@@ -34,11 +34,11 @@ Material:
     m_Ints: []
     m_Floats:
     - _AOStrength: 0.8
-    - _Cull: 2
+    - _Cull: 0
     - _Desaturate: 0.35
     - _Flicker: 0
     - _GroundMelt: 0.1
-    - _NormalStrength: 1
+    - _NormalStrength: 0.12
     - _SeeThrough: 0
     - _Smoothness: 0.12
     - _SnowBias: 0.8

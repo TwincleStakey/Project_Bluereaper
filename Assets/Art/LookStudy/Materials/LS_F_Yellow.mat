@@ -30,12 +30,13 @@ Material:
     m_Ints: []
     m_Floats:
     - _Bend: 0.1
+    - _CutWhole: 0
     - _Cutoff: 0.4
     - _LumScale: 1.25
     - _Remap: 0.82
     - _RemapDark: 0
     m_Colors:
     - _Dark: {r: 0.9098039, g: 0.627451, b: 0.07058824, a: 1}
-    - _Light: {r: 1, g: 0.9019608, b: 0.2509682, a: 1}
+    - _Light: {r: 1, g: 0.9019608, b: 0.2509626, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

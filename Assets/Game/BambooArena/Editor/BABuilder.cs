@@ -13,7 +13,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-public static class BABuilder
+public static partial class BABuilder
 {
     public const string Root = "Assets/Game/BambooArena";
     public const string ScenePath = Root + "/BambooArena.unity";
@@ -22,6 +22,7 @@ public static class BABuilder
     const string Gen = Root + "/Generated";
     const string Mats = Root + "/Materials";
     const string AV = "Assets/Game/AbandonedVillage/Models/";
+    const string AVMS = "Assets/Game/AbandonedVillage/ThirdParty/Megascans";
 
     static Material Mat(string name, string shader, System.Action<Material> init = null)
     {
@@ -84,7 +85,26 @@ public static class BABuilder
         });
     }
 
+    // 11-13: the editor is shared with other threads: build in the bamboo scene opened additively, then put the scene
+    // setup back the way it was (BuildKeepScenes; the old Build replaced whatever was open).
     [MenuItem("Tools/Dev/Bamboo Arena/Build Scene")]
+    public static void BuildKeepScenes()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) { Debug.LogError("[Bamboo] ABORT: in play mode"); return; }
+        var setup = EditorSceneManager.GetSceneManagerSetup();
+        var s = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(ScenePath);
+        bool wasOpen = s.IsValid() && s.isLoaded;
+        if (!wasOpen) s = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
+        var prevActive = EditorSceneManager.GetActiveScene();
+        EditorSceneManager.SetActiveScene(s);
+        try { Build(); }
+        finally
+        {
+            if (setup.Length > 0) EditorSceneManager.RestoreSceneManagerSetup(setup);
+            else if (prevActive.IsValid()) EditorSceneManager.SetActiveScene(prevActive);
+        }
+    }
+
     public static void Build()
     {
         var active = EditorSceneManager.GetActiveScene();
@@ -94,38 +114,56 @@ public static class BABuilder
         ImportSettings();
 
         // ---------------------------------------------------------------- materials
-        var bamboo = Mat("BA_Bamboo", "BambooArena/Bamboo");
+        // 11-13 C mood (Sekiro bamboo thicket at night): older, grey-green culms, dark heavy leaves
+        void BambooCols(Material m, float k)
+        {
+            m.SetColor("_CulmCol", new Color(0.30f, 0.34f, 0.21f) * k); m.SetColor("_CulmTop", new Color(0.38f, 0.42f, 0.24f) * k);
+            m.SetColor("_NodeCol", new Color(0.15f, 0.15f, 0.10f) * k); m.SetColor("_LeafCol", new Color(0.05f, 0.085f, 0.06f) * k);
+            m.SetColor("_LeafTip", new Color(0.10f, 0.15f, 0.10f) * k); m.SetColor("_RootCol", new Color(0.03f, 0.03f, 0.025f) * k);
+            m.SetColor("_Ambient", new Color(0.10f, 0.12f, 0.15f) * k);
+        }
+        var bamboo = Mat("BA_Bamboo", "BambooArena/Bamboo", m => { BambooCols(m, 1f); m.SetFloat("_Translucency", 0.5f); });
+        // camera-side foreground: the same bamboo, near black, no backlight (Kido's Hades 2 ref)
+        var bambooSil = Mat("BA_BambooSil", "BambooArena/Bamboo", m => { BambooCols(m, 0.16f); m.SetFloat("_Translucency", 0f); });
         // Flush floor only (dry bamboo leaves, a packed-earth trail, pebbles, moss, damp patches, dappled light).
         Texture2D RF(string n) => AssetDatabase.LoadAssetAtPath<Texture2D>($"Assets/Game/ReedField/Textures/{n}_2k.jpg");
+        // 11-13 redo (Kido: "the floor is green, not soil"; picked the Wukong bamboo-grove floor, ref B2): dark forest
+        // earth, dry bamboo straw and dead-leaf litter in big regions, a packed-earth path with old stone slabs, roots,
+        // gravel, moss only in the shade. No green tint over everything.
         var ground = Mat("BA_Ground", "BambooArena/Floor", m =>
         {
-            m.SetTexture("_SoilTex", Tex("forest_ground_04_diff")); m.SetTexture("_SoilNrm", Tex("forest_ground_04_nor_gl"));
-            m.SetTexture("_LeafTex", RF("brown_mud_leaves_01_diff")); m.SetTexture("_LeafNrm", RF("brown_mud_leaves_01_nor_gl"));
-            m.SetTexture("_PathTex", RF("brown_mud_02_diff")); m.SetTexture("_PathNrm", RF("brown_mud_02_nor_gl"));   // packed earth
-            m.SetTexture("_PebbleTex", RF("river_small_rocks_diff")); m.SetTexture("_PebbleNrm", RF("river_small_rocks_nor_gl"));
+            m.SetTexture("_SoilTex", Tex("mud_forest_diff")); m.SetTexture("_SoilNrm", Tex("mud_forest_nor_gl"));
+            m.SetTexture("_LeafTex", Tex("ms_forestfloor_diff")); m.SetTexture("_LeafNrm", Tex("ms_forestfloor_nor_gl"));
+            m.SetTexture("_Leaf2Tex", Tex("ms_leaves_diff")); m.SetTexture("_Leaf2Nrm", Tex("ms_leaves_nor_gl"));
+            m.SetTexture("_PathTex", Tex("ms_tracks_diff")); m.SetTexture("_PathNrm", Tex("ms_tracks_nor_gl"));
+            m.SetTexture("_SlabTex", Tex("stone_pathway_diff")); m.SetTexture("_SlabNrm", Tex("stone_pathway_nor_gl"));
+            m.SetTexture("_PebbleTex", Tex("ms_gravel_diff")); m.SetTexture("_PebbleNrm", Tex("ms_gravel_nor_gl"));
+            m.SetTexture("_RootTex", Tex("ms_roots_diff")); m.SetTexture("_RootNrm", Tex("ms_roots_nor_gl"));
             m.SetTexture("_MossTex", Tex("mossy_rock_diff"));
-            m.SetFloat("_SoilTile", 2.4f); m.SetFloat("_Calm", 0.4f);   // 11-10: bare soil pulled toward the leaf palette (it read as a red-brown patch on the bigger floor) m.SetFloat("_NormalStrength", 0.9f);   // 11-10: crisper floor
-            m.SetFloat("_Leaves", 0.95f); m.SetFloat("_Moss", 0.5f); m.SetFloat("_Pebbles", 0.5f); m.SetFloat("_Damp", 0.5f); m.SetFloat("_Dapple", 0.45f);
-            m.SetColor("_LeafCol", new Color(0.86f, 0.72f, 0.44f));   // straw drifts that read against the darker soil
-            m.SetColor("_Tint", new Color(0.92f, 1.0f, 0.86f));
-            m.SetColor("_Shade", new Color(0.06f, 0.075f, 0.05f));
-            m.SetColor("_Ambient", new Color(0.20f, 0.25f, 0.21f));
+            m.SetFloat("_SoilTile", 7f); m.SetFloat("_Calm", 0.12f); m.SetFloat("_NormalStrength", 1.0f);
+            m.SetFloat("_Leaves", 0.85f); m.SetFloat("_Moss", 0.75f); m.SetFloat("_Pebbles", 0.55f); m.SetFloat("_Roots", 0.7f);
+            m.SetFloat("_Slabs", 0.85f); m.SetFloat("_Damp", 0.55f); m.SetFloat("_Dapple", 0.9f);
+            m.SetColor("_LeafCol", new Color(0.66f, 0.6f, 0.5f));   // r9: straw value down (it carried the frame)
+            m.SetColor("_MossCol", new Color(0.095f, 0.135f, 0.04f));   // r27: B2 moss, yellow-olive   // r25: survives the -42 sat grade as green
+            m.SetColor("_Tint", new Color(1f, 1f, 1f));   // r28: the r27 floor carries its own value
+            m.SetColor("_Shade", new Color(0.05f, 0.05f, 0.055f));
+            m.SetColor("_Ambient", new Color(0.16f, 0.17f, 0.2f));
         });
         // low ground cover (the reed field's low grass mesh, in bamboo-floor greens)
         var coverMat = Mat("BA_GroundCover", "ReedField/Reed", m =>
         {
-            m.SetColor("_LeafCol", new Color(0.13f, 0.18f, 0.09f)); m.SetColor("_LeafTip", new Color(0.30f, 0.36f, 0.17f));
+            m.SetColor("_LeafCol", new Color(0.17f, 0.19f, 0.13f)); m.SetColor("_LeafTip", new Color(0.30f, 0.32f, 0.22f));   // r9: dark olive-grey, not black stars
             m.SetColor("_RootCol", new Color(0.07f, 0.08f, 0.05f)); m.SetColor("_StemCol", new Color(0.18f, 0.20f, 0.12f));
             m.SetFloat("_Translucency", 0.3f); m.SetFloat("_GustSheen", 0.1f);
         });
         var stone = LitTex("BA_Stone", "mossy_rock", new Color(0.82f, 0.86f, 0.78f), 0.45f);
         var stone2 = LitTex("BA_Stone2", "rock_pitted_mossy", new Color(0.55f, 0.58f, 0.54f), 0.6f);
-        var stump = Mat("BA_Stump", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.46f, 0.44f, 0.24f)); m.SetFloat("_Smoothness", 0.25f); });
+        var stump = Mat("BA_Stump", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.46f, 0.44f, 0.24f)); m.SetFloat("_Smoothness", 0.12f); });
         var stumpCut = Mat("BA_StumpCut", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.72f, 0.64f, 0.44f)); m.SetFloat("_Smoothness", 0.1f); });
-        var fallenMat = Mat("BA_Fallen", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.52f, 0.46f, 0.30f)); m.SetFloat("_Smoothness", 0.15f); });
-        var shootMat = Mat("BA_Shoot", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.40f, 0.33f, 0.20f)); m.SetFloat("_Smoothness", 0.22f); });
+        var fallenMat = Mat("BA_Fallen", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.30f, 0.27f, 0.19f)); m.SetFloat("_Smoothness", 0.1f); });   // r10: moonlit pale culms read as white lines
+        var shootMat = Mat("BA_Shoot", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.40f, 0.33f, 0.20f)); m.SetFloat("_Smoothness", 0.12f); });
         var rootMat = Mat("BA_Root", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.24f, 0.18f, 0.11f)); m.SetFloat("_Smoothness", 0.12f); });
-        var mist = Mat("BA_Mist", "ReedField/FogCard", m => { m.SetColor("_Color", new Color(0.70f, 0.78f, 0.70f, 0.12f)); m.SetFloat("_Scale", 0.1f); m.SetFloat("_Speed", 0.35f); });
+        var mist = Mat("BA_Mist", "ReedField/FogCard", m => { m.SetColor("_Color", new Color(0.42f, 0.50f, 0.58f, 0.11f)); m.SetFloat("_Scale", 0.1f); m.SetFloat("_Speed", 0.35f); });
         var shaftMat = Mat("BA_Shaft", "BambooArena/LightShaft");
         var leafMat = Mat("BA_Leaf", "ReedField/Fluff", m => { m.SetColor("_Color", new Color(0.62f, 0.68f, 0.36f, 0.9f)); m.SetFloat("_Backlight", 1.4f); });
         AssetDatabase.SaveAssets();
@@ -154,6 +192,13 @@ public static class BABuilder
         field.clumps = new[] { FbxMesh("BA_Bamboo_A"), FbxMesh("BA_Bamboo_B"), FbxMesh("BA_Bamboo_C") };
         field.farClump = FbxMesh("BA_Bamboo_Far");
         field.bambooMat = bamboo; field.sunLight = sun;
+        field.silhouetteMat = bambooSil; field.silhouetteHeight = 0.55f;   // ~13 m, 9+ m out: only the bottom quarter of the screen
+        // 11-13 redo (Kido: bamboo too short and sprinkled evenly; C mood): much taller groves leaning in over the edge,
+        // a ragged wall with bays, and a cold moon instead of the warm afternoon sun
+        field.heightScale = 1.8f; field.leanIn = 11f; field.edgeNoise = 3.2f; field.spacing = 1.0f; field.wallDepth = 14f;
+        field.lightColor = new Color(0.7f, 0.78f, 0.96f); field.lightIntensity = 1.8f; field.sun = new Vector2(48f, 150f);
+        field.ambient = new Color(0.15f, 0.16f, 0.19f); field.fog = new Color(0.07f, 0.09f, 0.10f);
+        field.groundFog = 0.16f; field.groundFogHeight = 1.6f; field.distanceFog = 0.05f; field.hazeStart = 26f; field.canopyShade = 0.75f;
         field.groundCover = AssetDatabase.LoadAllAssetsAtPath("Assets/Game/ReedField/Models/RF_LowGrass.fbx").OfType<Mesh>().FirstOrDefault();
         field.groundCoverMat = coverMat; field.groundCoverScale = 1.1f;
         field.seeThroughTarget = null;
@@ -168,6 +213,7 @@ public static class BABuilder
         GameObject Place(GameObject src, Vector3 pos, float yaw, float scale, params Material[] mats)
         {
             if (!src) return null;
+            if (field.Court(new Vector2(pos.x, pos.z)) > 0.05f) return null;   // r27: the shrine court stays paved and clear
             var go = (GameObject)PrefabUtility.InstantiatePrefab(src, props);
             go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
             go.transform.localScale = Vector3.one * scale;
@@ -210,38 +256,97 @@ public static class BABuilder
             return Vector3.zero;
         }
         Vector3 Jit(Vector3 c, float r) => c + new Vector3((Rn() * 2 - 1) * r, 0, (Rn() * 2 - 1) * r);
-        // cut stumps in small groups at the bamboo edge, with a shoot or two and roots beside them
-        for (int i = 0; i < 9 * E; i++)
+        // 11-13 redo (Kido: spiky stones, sticks everywhere; ref B2): the clearing itself stays open floor. Dressing sits
+        // at the foot of the bamboo and in the bays of the wall: cut stumps, roots, mossy boulders in groups, a few
+        // fallen culms and piles, Megascans debris/stick/rock patches and low ferns. Nothing in the middle stands up.
+        float Out(Vector3 p) => field.Outside(new Vector2(p.x, p.z));
+        Vector3 Foot(float outMin, float outMax)   // a spot at the bamboo foot: outMin..outMax metres outside the edge line
         {
-            var c = NearEdge(0.2f, 2.5f);
+            for (int k = 0; k < 60; k++)
+            {
+                var p = NearEdge(-outMax, outMax - outMin + 0.01f);
+                float o = Out(p);
+                if (o >= outMin && o <= outMax && !OnTrail(p)) return p;
+            }
+            return NearEdge(0.2f, 1f);
+        }
+        GameObject PlaceH(GameObject src, Vector3 pos, float yaw, float height, Material mat = null)
+        {
+            var go = mat ? Place(src, pos, yaw, 1f, mat) : Place(src, pos, yaw, 1f);
+            if (!go) return null;
+            var b = new Bounds(pos, Vector3.zero); bool any = false;
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) { if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds); }
+            if (any && b.size.y > 0.001f) go.transform.localScale = Vector3.one * (height / b.size.y);
+            return go;
+        }
+        GameObject MS(string f, string v = "") => AssetDatabase.LoadAssetAtPath<GameObject>($"{AVMS}/{f}/AV_MS_{f}{v}.fbx");
+        Material MSMat(string f) => AssetDatabase.LoadAssetAtPath<Material>($"Assets/Game/AbandonedVillage/Materials/AV_MS_{f}.mat");
+        // cut stumps in small groups at the bamboo foot, roots beside them
+        for (int i = 0; i < 6 * E; i++)
+        {
+            var c = Foot(0.3f, 2.5f);   // r12 (QA): standing props strictly outside the edge
             Place(Fbx("BA_Stumps"), c, Rn() * 360, 0.9f + Rn() * 0.6f, stump, stumpCut);
-            Rn();   // (a shoot used to go here; keeps the rest of the layout seeded the same)
-            if (Rn() < 0.5f) Place(Fbx("BA_Roots"), Jit(c, 0.6f), Rn() * 360, 0.9f + Rn() * 0.4f, rootMat);
+            if (Rn() < 0.6f) Place(Fbx("BA_Roots"), Jit(c, 0.6f), Rn() * 360, 0.9f + Rn() * 0.4f, rootMat);
         }
-        // no bamboo shoots: from the RoomRun camera they read as odd brown cones (Kido 11-10)
-        // roots surfacing from the bamboo wall
-        for (int i = 0; i < 8 * E; i++) Place(Fbx("BA_Roots"), NearEdge(0.0f, 1.5f), Rn() * 360, 1f + Rn() * 0.6f, rootMat);
-        // fallen culms spread naturally: lone ones and small groups of 2-3 lying at different angles, more toward the
-        // bamboo, a couple of small piles at the foot of the wall (one heap in the open read as a bundle of sticks)
-        for (int i = 0; i < 8 * E; i++) Place(Fbx("BA_Fallen"), NearEdge(0.6f, 4f), Rn() * 360, 0.8f + Rn() * 0.35f, fallenMat);
-        for (int i = 0; i < 2 * E; i++) Place(Fbx("BA_FallenPile"), NearEdge(0.4f, 1.5f), Rn() * 360, 0.8f, fallenMat);
-        for (int g = 0; g < 5 * A; g++)
+        for (int i = 0; i < 8 * E; i++) Place(Fbx("BA_Roots"), Foot(0.1f, 2f), Rn() * 360, 1f + Rn() * 0.6f, rootMat);
+        // fallen culms: a few lone ones and three piles, all at the foot of the wall
+        for (int i = 0; i < 4 * E; i++) Place(Fbx("BA_Fallen"), Foot(0.3f, 3f), Rn() * 360, 0.8f + Rn() * 0.35f, fallenMat);
+        for (int i = 0; i < 3; i++) Place(Fbx("BA_FallenPile"), Foot(0.5f, 2.5f), Rn() * 360, 0.9f + Rn() * 0.2f, fallenMat);
+        // mossy boulders in groups (one big, two to four smaller), half sunk, at the foot and in the bays
+        for (int g = 0; g < 9 * E; g++)
         {
-            var c = Inside(5f); float yaw = Rn() * 360;
-            int n = 1 + rs.Next(3);
-            for (int k = 0; k < n; k++) Place(Fbx("BA_Fallen"), Jit(c, 1.4f), yaw + (Rn() * 2 - 1) * 35f, 0.7f + Rn() * 0.4f, fallenMat);
+            var c = Foot(0.9f, 4f);
+            int n = 2 + rs.Next(4);
+            for (int k = 0; k < n; k++)
+            {
+                bool bigOne = k == 0;
+                var src = AssetDatabase.LoadAssetAtPath<GameObject>(bigOne && Rn() < 0.6f
+                    ? $"Assets/Art/LookStudy/Stages/Models/Rock_boulder0{(Rn() < 0.5f ? 1 : 3)}.fbx"
+                    : $"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx");
+                var p = bigOne ? c : Jit(c, 1.6f);
+                if (!bigOne && Out(p) < 0.3f) p = c + (c - p) * 0.6f;   // small ones stay at the wall, never out in the open
+                float h = bigOne ? 0.9f + Rn() * 0.9f : 0.25f + Rn() * 0.35f;
+                var go = PlaceH(src, p + Vector3.down * h * 0.25f, Rn() * 360, h, Rn() < 0.5f ? stone : stone2);
+                if (go) go.transform.rotation = Quaternion.Euler(Rn() * 16 - 8, Rn() * 360, Rn() * 16 - 8);
+            }
         }
-        for (int i = 0; i < 6 * A; i++) Place(Fbx("BA_Fallen"), Inside(4f), Rn() * 360, 0.6f + Rn() * 0.4f, fallenMat);
-        // split and broken bits scattered about, a few in the open
-        for (int i = 0; i < 7 * A; i++) Place(Fbx("BA_Split"), Inside(3f), Rn() * 360, 0.8f + Rn() * 0.3f, fallenMat);
-        for (int i = 0; i < 5 * E; i++) Place(Fbx("BA_Split"), NearEdge(0.5f), Rn() * 360, 1f, fallenMat);
-        // small mossy rocks half sunk at the bamboo foot (LookStudy rock set)
-        for (int i = 0; i < 8 * E; i++)
+        // Megascans floor scans: debris / sticks / small rocks / pebbles patches, flat, mostly toward the wall, a few in the open
+        string[] patches = { "Debris", "Pebbles", "Debris", "RubblePatch" };   // r12 (QA): no stick patches (read as sticks again)
+        for (int i = 0; i < 12 * E; i++)
         {
-            var rock = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx");
-            var go = Place(rock, NearEdge(0.0f, 2f) + Vector3.down * 0.08f, Rn() * 360, 0.25f + Rn() * 0.3f, Rn() < 0.5f ? stone : stone2);
-            if (go) go.transform.rotation = Quaternion.Euler(Rn() * 20 - 10, Rn() * 360, Rn() * 20 - 10);
+            string f = patches[rs.Next(patches.Length)];
+            Vector3 p = Rn() < 0.55f ? Foot(-4f, 0.5f) : Inside(6f);
+            var go = Place(MS(f), p, Rn() * 360, 0.8f + Rn() * 0.5f, MSMat(f));
+            if (go) foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
         }
+        // low ferns and shrubs (knee high at most) in drifts at the foot of the bamboo
+        string[] plantVars = { "_VarA", "_VarB", "_VarC", "_VarD", "_VarE", "_VarF", "_VarG", "_VarH" };
+        for (int g = 0; g < 10 * E; g++)
+        {
+            var c = Foot(-1.5f, 2f);
+            string f = Rn() < 0.6f ? "shrubs" : "WildGreen";
+            int n = 2 + rs.Next(4);
+            for (int k = 0; k < n; k++)
+            {
+                var p = Jit(c, 1.8f);
+                if (Out(p) < -2.5f || OnTrail(p)) continue;
+                PlaceH(MS(f, plantVars[rs.Next(plantVars.Length)]), p, Rn() * 360, 0.35f + Rn() * 0.5f, MSMat(f));
+            }
+        }
+        // r5: low clumps out in the clearing as well (B2: grass and fern tufts on the leaf litter), shin high, never on the path
+        for (int g = 0; g < 0; g++)   // r28: Megascans grass cards read as black crosses from the top camera; none in the open
+        {
+            var c = Inside(8f);
+            string f = Rn() < 0.75f ? "WildGreen" : "shrubs";
+            int n = 3 + rs.Next(4);
+            for (int k = 0; k < n; k++)
+            {
+                var p = Jit(c, 1.3f);
+                if (OnTrail(p)) continue;
+                PlaceH(MS(f, plantVars[rs.Next(plantVars.Length)]), p, Rn() * 360, 0.35f + Rn() * 0.3f, MSMat(f));
+            }
+        }
+        Landmarks(field, props, rs);
 
         // ---------------------------------------------------------------- ground
         var gm = BuildGround(field, drifts); SaveMesh(gm, "BA_Ground");
@@ -289,12 +394,14 @@ public static class BABuilder
         shaftMesh = AssetDatabase.LoadAssetAtPath<Mesh>($"{Gen}/BA_ShaftQuad.asset");
         var sunDir = -(Quaternion.Euler(field.sun.x, field.sun.y, 0) * Vector3.forward);
         shaftMat.SetVector("_SunDir", sunDir);
-        shaftMat.SetColor("_Color", new Color(1.0f, 0.88f, 0.62f)); shaftMat.SetFloat("_Intensity", 0.16f);
+        // 11-13 C mood: cold moonlight shafts, at the bamboo edge and a few falling across the clearing (Kido: "달빛 줄기")
+        shaftMat.SetColor("_Color", new Color(0.62f, 0.74f, 1.0f)); shaftMat.SetFloat("_Intensity", 0.09f);
         var shafts = new GameObject("LightShafts").transform;
         var sr = new System.Random(field.seed + 23);
-        for (int i = 0; i < 8 * E; i++)
+        for (int i = 0; i < 0; i++)   // 11-13 r2: the stretched quads read as white sticks from the top-down camera; moonlight is the dappled floor instead
         {
-            var p = NearEdgeShaft(field, sr);
+            var p = i < 8 * E ? NearEdgeShaft(field, sr)
+                              : new Vector2((float)(sr.NextDouble() - 0.5) * field.arena.x * 0.8f, (float)(sr.NextDouble() - 0.5) * field.arena.y * 0.8f);
             var go = new GameObject("Shaft");
             go.transform.SetParent(shafts, false);
             go.transform.position = new Vector3(p.x, 0, p.y);
@@ -316,7 +423,7 @@ public static class BABuilder
             main.startSizeY = new ParticleSystem.MinMaxCurve(0.04f, 0.07f);
             main.startSizeZ = 1f;
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.85f, 0.9f, 0.55f, 0.9f), new Color(0.55f, 0.62f, 0.3f, 0.8f));
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.55f, 0.58f, 0.40f, 0.85f), new Color(0.32f, 0.36f, 0.22f, 0.75f));
             main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = 120; main.gravityModifier = 0f;
             var em = ps.emission; em.rateOverTime = 9f;
             var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Box; shape.scale = new Vector3(40f, 3f, 30f);
@@ -333,6 +440,86 @@ public static class BABuilder
             r.sharedMaterial = leafMat; r.renderMode = ParticleSystemRenderMode.Billboard;
             r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
             go.AddComponent<BAAirLeaves>();
+            ps.Play();
+        }
+
+        // ---------------------------------------------------------------- fireflies (r12, final review: the middle needs a warm glow)
+        // Small warm-green glows drifting low over the whole clearing, more toward the bamboo; additive, picked up by bloom.
+        {
+            var ffMat = Mat("BA_Firefly", "Universal Render Pipeline/Particles/Unlit", m =>
+            {
+                m.SetTexture("_BaseMap", AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd"));
+                m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 2f);
+                m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha); m.SetFloat("_DstBlend", (float)BlendMode.One); m.SetFloat("_ZWrite", 0f);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue = 3000;
+                m.SetColor("_BaseColor", Color.white);
+            });
+            var go = new GameObject("Fireflies");
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true; main.prewarm = true; main.duration = 10f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(6f, 11f);
+            main.startSpeed = 0f; main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.55f);   // r13: 0.1 m was ~3 px at the game zoom
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1.5f, 1.25f, 0.35f, 1f), new Color(1.0f, 1.45f, 0.4f, 1f));   // r15: under the bloom threshold so they stay yellow-green
+            main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = 260; main.gravityModifier = 0f;
+            var em = ps.emission; em.rateOverTime = 28f;
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Box; shape.scale = new Vector3(field.arena.x + 6f, 1.2f, field.arena.y + 6f);
+            go.transform.position = new Vector3(0, 1.1f, 0);
+            var noise = ps.noise; noise.enabled = true; noise.strength = 0.6f; noise.frequency = 0.25f; noise.scrollSpeed = 0.15f; noise.quality = ParticleSystemNoiseQuality.Medium;
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                         new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.2f), new GradientAlphaKey(0.15f, 0.45f), new GradientAlphaKey(1, 0.65f), new GradientAlphaKey(0, 1) });   // a slow blink
+            col.color = grad;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = ffMat; r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+            ps.Play();
+        }
+
+        // ---------------------------------------------------------------- 도깨비불 (r25: a warm accent for the open clearing)
+        // A handful of slow warm wisps drifting high over the clearing (3-4 m, never in the way), each lighting the floor
+        // under it through the particle Lights module (max 6 real lights), flickering.
+        {
+            var wispMat = Mat("BA_Wisp", "Universal Render Pipeline/Particles/Unlit", m =>
+            {
+                m.SetTexture("_BaseMap", AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd"));
+                m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 2f);
+                m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha); m.SetFloat("_DstBlend", (float)BlendMode.One); m.SetFloat("_ZWrite", 0f);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue = 3001;
+                m.SetColor("_BaseColor", Color.white);
+            });
+            var go = new GameObject("Dokkaebibul");
+            go.transform.position = new Vector3(0, 2.3f, 0);
+            var lightTpl = new GameObject("WispLight");
+            lightTpl.transform.SetParent(go.transform, false);
+            var lt = lightTpl.AddComponent<Light>();
+            lt.type = LightType.Point; lt.range = 5f; lt.intensity = 3.4f; lt.color = new Color(1f, 0.74f, 0.38f);   // r26: amber, tighter (rust smudges) lt.shadows = LightShadows.None;
+            lightTpl.SetActive(false);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true; main.prewarm = true; main.duration = 20f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(16f, 24f);
+            main.startSpeed = 0f; main.startSize = new ParticleSystem.MinMaxCurve(0.7f, 1.0f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(2.2f, 0.95f, 0.35f, 1f), new Color(2.0f, 0.75f, 0.3f, 1f));
+            main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = 6;
+            var em = ps.emission; em.rateOverTime = 0.33f;
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Box; shape.scale = new Vector3(field.arena.x * 0.85f, 0.8f, field.arena.y * 0.85f);
+            var noise = ps.noise; noise.enabled = true; noise.strength = 1.4f; noise.frequency = 0.08f; noise.scrollSpeed = 0.05f; noise.quality = ParticleSystemNoiseQuality.Medium;
+            var sz = ps.sizeOverLifetime; sz.enabled = true;
+            sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0, 0.85f), new Keyframe(0.25f, 1.1f), new Keyframe(0.5f, 0.9f), new Keyframe(0.75f, 1.05f), new Keyframe(1, 0.8f)));
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                         new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.1f), new GradientAlphaKey(1, 0.9f), new GradientAlphaKey(0, 1) });
+            col.color = grad;
+            var lights = ps.lights; lights.enabled = true; lights.light = lt; lights.ratio = 1f; lights.maxLights = 6;
+            lights.useParticleColor = false; lights.sizeAffectsRange = false; lights.alphaAffectsIntensity = true; lights.intensityMultiplier = 1f; lights.rangeMultiplier = 1f;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = wispMat; r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
             ps.Play();
         }
 
@@ -411,7 +598,7 @@ public static class BABuilder
             float drift = Mathf.Clamp01(Mathf.InverseLerp(-5f, 0f, o));
             foreach (var d in drifts) drift = Mathf.Max(drift, 1f - Mathf.Clamp01(Vector2.Distance(p, new Vector2(d.x, d.y)) / d.z));
             float under = f.UnderCanopy(p);
-            v.Add(new Vector3(x, y, z)); c.Add(new Color(drift, path, under, 1));
+            v.Add(new Vector3(x, y, z)); c.Add(new Color(drift, path, under, 1f - f.Court(p)));   // a = 1 - shrine court (paved)
         }
         for (int j = 0; j < nz; j++)
         for (int i = 0; i < nx; i++)

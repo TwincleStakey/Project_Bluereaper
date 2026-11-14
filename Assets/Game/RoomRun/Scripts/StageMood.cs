@@ -36,7 +36,7 @@ namespace RoomRun
         {
             { "grass",      new Mood { exposure = -0.9f, saturation = -62f, filter = new Color(0.80f, 0.82f, 0.80f), fog = new Color(0.09f, 0.10f, 0.09f), fogDensity = 0.02f } },
             { "valley",     new Mood { exposure = -0.5f, saturation = -50f } },
-            { "village",    new Mood { exposure = -0.3f, saturation = -50f } },
+            { "village",    new Mood { exposure = -0.3f, saturation = -50f, firePools = 0 } },   // 11-14 Kido: 민가 is abandoned, no lit lanterns
             { "palace",     new Mood { exposure = -0.3f, saturation = -50f } },
             // the underworld drives its own fog every frame (UWEnvironment), so it keeps it; ghost-fire pools are cold blue
             { "underworld", new Mood { exposure = 0.5f, sun = 1.0f, ambient = 1.0f, saturation = -50f, filter = new Color(0.80f, 0.80f, 0.86f), fogDensity = 0f, firePools = 0, fire = new Color(0.45f, 0.75f, 1f) } },   // 11-13 quality pass: no block lanterns, the stage lights its own 26 lanterns (Underworld/UWLook grades above this)
@@ -44,9 +44,11 @@ namespace RoomRun
             // 11-12 Kido: much more contrast, darks very dark -> high contrast, low ambient (shade goes near black), moon keeps lit ground readable
             // 11-13 (Kido: "nothing like POE2"): the grey filter and greyed moon flattened the new Megascans ground to one
             // grey; neutral-warm filter, the moon keeps its cold colour against the warm lantern pools
-            { "abandoned",  new Mood { exposure = 0.5f, saturation = -40f, contrast = 40f, filter = new Color(1f, 0.97f, 0.92f), sun = 1.2f, sunGrey = 0.2f, ambient = 0.55f, ambientGrey = 0.3f, firePools = 0, fog = new Color(0.16f, 0.18f, 0.21f), fogDensity = 0.009f } },
+            { "abandoned",  new Mood { exposure = 0.8f, /* 11-14 폐촌 r14: refs median luminance 0.10-0.14, ours ~0.06 */ saturation = -40f, contrast = 40f, filter = new Color(1f, 0.97f, 0.92f), sun = 1.2f, sunGrey = 0.2f, ambient = 0.55f, ambientGrey = 0.3f, firePools = 0, fog = new Color(0.16f, 0.18f, 0.21f), fogDensity = 0.009f } },
             { "reeds",      new Mood { exposure = -1.05f, saturation = -66f, filter = new Color(0.84f, 0.83f, 0.82f) } },
-            { "bamboo",     new Mood { exposure = -0.6f, saturation = -58f, filter = new Color(0.80f, 0.84f, 0.84f) } },
+            // 11-13 bamboo redo (Kido: C mood, Sekiro bamboo at night): darker materials and a cold moon in the scene, so the
+            // grade only lifts it; the old -0.6 EV / -58 sat / green-grey filter turned the floor into one olive mush
+            { "bamboo",     new Mood { exposure = 0.15f, saturation = -42f, filter = new Color(0.95f, 0.96f, 0.99f), fire = new Color(0.95f, 0.6f, 0.38f) } },   // r9: darker, softer lantern colour
             // snow plague: has its own stone lanterns and full-screen height fog (SPField), so no fire pools, own fog kept
             // 11-11 redo: the default dim moon (x0.45) and -0.5 EV crushed the snow to dark grey; snow must stay the brightest thing on screen
             { "snow",       new Mood { exposure = 1.35f, saturation = -40f, contrast = 24f, filter = new Color(0.96f, 0.955f, 0.925f), sun = 1f, sunGrey = 0.15f, ambient = 0.55f, ambientGrey = 0.25f, firePools = 0, fogDensity = 0f } },   // d14 (Kido "설원 너무 밝아졌는데 ... 다크 판타지 색감", match TARAE ss5: p50 95, p95 200, snow grey-neutral [187,186,179]; ours read p50 115-140, p95 236-252, warm [231,219,209]): exposure 1.3 -> 0.75, warm filter -> neutral grey, saturation -22 -> -32, contrast 50 -> 42 (ss5 low-mids p25 55, ours 30), filter a touch warm (ours read lilac). v14 (Kido "타래는 눌려있고 안개 낀 느낌, 우리는 너무 쨍해"): contrast 42 -> 24, saturation -40, exposure 0.75 -> 1.35 (the lower contrast and the dirty grey snow albedo; v14b: 1.15 left no bright snow, ss5 ~15 %).   // look6 (11-12): 1.3 (look2: 0.7 -> 1.0, look4 1.15, look5 1.25), contrast 50 had sunk the snow peaks to ~145 (ss5 ~190). r10 (ss5): lighter sepia filter (0.92/0.8 turned the snow beige; the warmth now comes from SP_PostFX split toning on the darks), red kept by SP_PostFX curves

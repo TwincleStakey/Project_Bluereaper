@@ -164,7 +164,7 @@ public static partial class SPBuilder
         Prop("SP_Rope", strawA, null, Hex("#6f6452"), 0.05f, 0.4f);
         Prop("SP_Cloth", clothA, clothN, Hex("#7d776d"), 0.08f, 0.55f, true).SetFloat("_SnowBias", -0.5f);
         Prop("SP_Iron", null, null, Hex("#2a2d31"), 0.42f, 0.2f);
-        Prop("SP_Clay", null, rockN, Hex("#3a2620"), 0.5f, 0.15f);              // onggi jars
+        Prop("SP_Clay", null, rockN, Hex("#3a2620"), 0.18f, 0.15f);             // onggi jars
         Prop("SP_Stone", rockA, rockN, Hex("#9aa0a6"), 0.12f, 0.5f);
         Prop("SP_StoneLantern", rockA, rockN, Hex("#a5a9ad"), 0.12f, 0.5f);
         Prop("SP_Bone", null, null, Hex("#c9c2b2"), 0.2f, 0.3f);
@@ -324,6 +324,7 @@ public static partial class SPBuilder
     // ------------------------------------------------------------------ build
     public static void Build()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) { Log("ABORT build: play mode (another thread is playing) - retry later"); return; }   // r15: a build started during play threw in NewScene after touching materials/importers
         var active = EditorSceneManager.GetActiveScene();
         if (active.isDirty && active.path != ScenePath) { Log("ABORT unsaved changes in " + active.path); return; }
         rng = new System.Random(2611);
@@ -361,6 +362,7 @@ public static partial class SPBuilder
         CorpseSwap();         // tr41: covered-body models in place of the flat straw-mat lumps
         BorderRocks();        // tr44: irregular rock clusters along the edges instead of the straight wall rows (Kido)
         R13Pass();          // r13 (11-13): skewed bridges, blood redo, KCISA houses at the edges (SPBuilder.R13.cs)
+        R15Pass();          // r15 (11-13): misfit props out, two-sided bridge, no boundary line, tall dark trees on the camera-side edge (SPBuilder.R15.cs)
         ArenaCheck();       // arena rule: no colliders inside, list anything tall that is not vegetation
         VgLineShadowProbe();   // tr20: finds and un-shadows the caster of the long line shadow in view 02
         LMGateFill();            // tr21: soft warm fill on the 솟을삼문 front (it stands in the moon shadow)

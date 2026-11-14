@@ -25,7 +25,9 @@ namespace LocoSplit
         [Header("Cloth")]
         public float maxSwing = 0.45f;
         public float thighRadius = 0.095f, shinRadius = 0.075f;
-        public float stiffness = 0.9f, bending = 0.15f, damping = 0.12f;
+        // 11-13 Kido: "too silky": heavy cotton/hemp. Stiff, well damped, barely driven by the body's motion.
+        public float stiffness = 1f, bending = 0.9f, damping = 0.6f;
+        public float velocityScale = 0.12f, accelerationScale = 0.2f, friction = 0.8f;
 
         SkinnedMeshRenderer smr;
         Cloth cloth;
@@ -47,9 +49,9 @@ namespace LocoSplit
             cloth = r.gameObject.AddComponent<Cloth>();
             cloth.capsuleColliders = caps.ToArray();
             cloth.useGravity = true;
-            cloth.worldVelocityScale = 0.4f;
-            cloth.worldAccelerationScale = 0.7f;
-            cloth.friction = 0.3f;
+            cloth.worldVelocityScale = velocityScale;
+            cloth.worldAccelerationScale = accelerationScale;
+            cloth.friction = friction;
             cloth.clothSolverFrequency = 180;
             cloth.useTethers = true;
             // swing limit grows with distance below the skirt's top ring (character-space height)
@@ -82,6 +84,11 @@ namespace LocoSplit
             cloth.stretchingStiffness = stiffness;
             cloth.bendingStiffness = bending;
             cloth.damping = damping;
+            cloth.worldVelocityScale = velocityScale;
+            cloth.worldAccelerationScale = accelerationScale;
+            cloth.friction = friction;
+            cloth.randomAcceleration = Vector3.zero;
+            cloth.externalAcceleration = Vector3.zero;
             var co = cloth.coefficients;
             for (int i = 0; i < co.Length; i++)
                 co[i].maxDistance = maxDist[i] * maxSwing;
@@ -214,9 +221,9 @@ namespace LocoSplit
             cloth = go.AddComponent<Cloth>();
             cloth.capsuleColliders = caps.ToArray();
             cloth.useGravity = true;
-            cloth.worldVelocityScale = 0.4f;
-            cloth.worldAccelerationScale = 0.7f;
-            cloth.friction = 0.3f;
+            cloth.worldVelocityScale = velocityScale;
+            cloth.worldAccelerationScale = accelerationScale;
+            cloth.friction = friction;
             cloth.clothSolverFrequency = 180;
             cloth.useTethers = true;
 

@@ -40,9 +40,13 @@ public static partial class AVBuilder
     // stretched drift; sparse grass toward the edges.
     static TerrainLayer[] GroundLayers() => new[]
     {
-        GLayer("AV_G_Tracks", "Tracks", new Vector2(5f, 5f), new Color(0.78f, 0.72f, 0.68f, 1), 1.2f, 0.6f),
-        GLayer("AV_G_DrySoil", "DrySoil", new Vector2(6f, 6f), new Color(0.5f, 0.47f, 0.44f, 1), 0.8f, 0.4f, 0.5f),
+        GLayer("AV_G_Tracks", "Tracks", new Vector2(5f, 5f), new Color(0.52f, 0.55f, 0.5f, 1), 1.2f, 0.6f),   // r11: still mauve in game, cooler; r10: less red, the base read mauve
+        GLayer("AV_G_Gravel", "Gravel", new Vector2(3.6f, 3.6f), new Color(0.5f, 0.5f, 0.5f, 1), 1.2f, 0.5f),   // r10: grey ash and gravel zones (reviewer: one dirt everywhere)
         GLayer("AV_G_Grass", "SparseGrass", new Vector2(1.8f, 1.8f), new Color(0.75f, 0.72f, 0.66f, 1), 1.0f, 0.4f),
+        // 11-13 r9 (dark-fantasy refs: Tarae / POE2 / D4 floors are broken into stone, mud and litter zones, never one
+        // dirt sheet): old cobbled paving along the streets and in broken islands, half sunk into the mud
+        Layer("AV_G_Paving", "stone_pathway_diff_2k.jpg", "stone_pathway_nor_gl_2k.jpg", 3.4f, new Color(0.42f, 0.4f, 0.38f, 1), 0.2f),   // r9b: was pale blue-white, read as a river
+        GLayer("AV_G_Floor", "ForestFloor", new Vector2(8f, 8f), new Color(0.55f, 0.6f, 0.5f, 1), 1.0f, 0.4f),   // r10: dark moss / forest litter along the rim and in shade
     };
 
     static TerrainLayer[] GroundLayersR4() => new[]
@@ -80,10 +84,19 @@ public static partial class AVBuilder
         float dry = Mathf.Clamp01((Fbm(x * 0.45f, z, 0.05f, 17f, 91f) + jit * 0.5f - 0.5f) * 2.5f) * 0.55f * Mathf.Clamp01(sd / 4f);
         // r7 (Kido: "the earlier floor with a little grass texture in it was nicer"): sparse grass mixed into the dirt
         // almost everywhere at a low, varying share, denser toward the edges, worn off the streets
-        float grass = Mathf.Clamp01(0.15f + (Fbm(x, z, 0.06f, 71f, 13f) - 0.45f) * 1.6f + jit + Mathf.Clamp01((edge - 30f) / 16f) * 0.35f)
+        float grass = Mathf.Max(Mathf.Clamp01(Mathf.Pow(GrassCover(x, z), 0.6f) * 1.3f), 0.5f * Mathf.Clamp01(0.15f + (Fbm(x, z, 0.06f, 71f, 13f) - 0.45f) * 1.6f + jit + Mathf.Clamp01((edge - 30f) / 16f) * 0.35f))   // 11-14: the turf under the grass patches
                       * Mathf.Clamp01((sd - 1.2f) / 2.5f) * (1f - dry * 0.6f) * 0.9f;
-        w[0] = 1f; w[1] = dry; w[2] = grass;
-        float s = w[0] + w[1] + w[2]; for (int i = 0; i < 3; i++) w[i] /= s;
+        // r9: paving - the street cores (ragged, with gaps where the stones are gone) plus broken islands of old yard
+        // paving near the ruins and here and there in the open; grass grows over its edges
+        float pave = Band(1.6f - sd + (Fbm(x, z, 0.35f, 3f, 77f) - 0.5f) * 2.2f, 0.5f, 0.25f) * Band(Fbm(x, z, 0.18f, 19f, 5f), 0.36f, 0.06f);
+        float isl = Band(Fbm(x, z, 0.045f, 140f, 61f) + jit * 0.8f + 0.12f * IslandNear(x, z), 0.66f, 0.03f) * Band(Fbm(x, z, 0.4f, 7f, 9f), 0.4f, 0.08f);
+        pave = Mathf.Max(pave, isl) * (1f - Mathf.Clamp01((edge - 50f) / 6f));
+        // r10 zones (reviewer, refs Tarae ash field / POE2): grey ash-gravel in ragged 2-5 m patches, dark moss toward the
+        // rim and around the ruins, both breaking the packed earth
+        float ash = Band(Fbm(x, z, 0.09f, 301f, 17f) + jit * 0.9f, 0.6f, 0.04f) * (1f - pave);
+        float moss = Band(Fbm(x, z, 0.07f, 55f, 220f) + jit + Mathf.Clamp01((edge - 30f) / 14f) * 0.3f + 0.15f * IslandNear(x, z), 0.64f, 0.04f) * (1f - pave) * (1f - ash);
+        w[0] = 1f; w[1] = ash * 1.6f; w[2] = grass * (1f - pave * 0.8f) * (1f - ash); w[3] = pave * 1.4f; w[4] = moss * 1.6f;
+        float s = w[0] + w[1] + w[2] + w[3] + w[4]; for (int i = 0; i < 5; i++) w[i] /= s;
     }
 
     // weights: wet leaves (base), roots/packed dirt, dry forest floor, gravel

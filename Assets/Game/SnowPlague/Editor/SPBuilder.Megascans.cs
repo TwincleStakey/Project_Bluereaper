@@ -416,7 +416,7 @@ public static partial class SPBuilder
             MXProp("SP_MX_Bridge", "japanese_arched_wooden_bridge_veqhdjt_mid", new Color(1.2f, 1.1f, 1.0f), 0.12f, 0.35f, 0.8f, 0.1f), 0);   // tr21/22: snow on the deck planks
         { var dm = AssetDatabase.LoadAssetAtPath<Material>($"{MatDir}/SP_MX_Bridge.mat"); if (dm) { dm.SetFloat("_SnowCap", 0.92f); EditorUtility.SetDirty(dm); }   /* tr30 (QA #14): 0.75 -> 0.92 */ else Log("MX bridge: no SP_MX_Bridge.mat for the snow cap"); }   // tr23: bias alone left the planks bare - patchy cap ~60% white
         // tr14 (ss5 hero prop): vermilion railings on both sides of the deck; faded lacquer, snow on the top rail
-        var railMat = MXProp("SP_MX_BridgeRail", "japanese_bridge_railing_vdkfcdc_mid", new Color(1.12f, 0.62f, 0.62f), 0.3f, 0.3f, 0.1f, 0f);
+        var railMat = MXProp("SP_MX_BridgeRail", "japanese_bridge_railing_vdkfcdc_mid", new Color(1.12f, 0.62f, 0.62f), 0.15f, 0.3f, 0.1f, 0f);
         var rail = MXLoad("BridgeRail", MXFind("japanese_bridge_railing_vdkfcdc_mid", ".fbx"), railMat, 0);
         if (rail != null && bridge != null)
         {

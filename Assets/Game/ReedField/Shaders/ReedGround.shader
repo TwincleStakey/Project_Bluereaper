@@ -79,13 +79,21 @@ Shader "ReedField/Ground"
                 float big = RFNoise(xz * 0.045 + 11.0), mid = RFNoise(xz * 0.21 + 2.0), fine = RFNoise(xz * 1.3);
 
                 float path = saturate(i.color.g), under = saturate(i.color.b);
+                // 11-14: the baked vertex "under the reeds" mask follows the layout functions, not the clumps actually
+                // placed (noise holes, keep-outs): dark peat showed as blotches on open floor. Use the reed coverage
+                // baked from the real clumps (RFMass texture) where it exists.
+                if (_RF_AOOn > 0.5)
+                {
+                    float2 auv = (xz - _RF_ShadowRect.xy) / _RF_ShadowRect.zw;
+                    if (all(auv > 0) && all(auv < 1)) under = smoothstep(0.15, 0.7, SAMPLE_TEXTURE2D_LOD(_RF_ReedAO, sampler_RF_ReedAO, auv, 0).r);
+                }
                 // Wetness from the height above the water: dry bank -> damp band -> glossy wet line -> submerged.
                 float above = i.ws.y - _RF_WaterLevel;
                 float wet = 1 - smoothstep(0.02, 0.85, above);          // damp band, wide and soft
                 float sheen = 1 - smoothstep(-0.02, 0.14, above);      // thin glossy film right at the waterline
                 float sunk = 1 - smoothstep(-0.25, 0.0, above);        // under the water: dark settled mud
                 // Weights first, then only the layers that show here are sampled (most pixels need one or two).
-                float wDry = saturate(smoothstep(0.55, 0.75, big + (mid - 0.5) * 0.4) * (1 - wet) + path * 0.8);
+                float wDry = saturate(smoothstep(0.3, 0.95, big + (mid - 0.5) * 0.4) * 0.7 * (1 - wet) + path * 0.45);   // 11-14: was 0.55-0.75 and path 0.8: hard-edged light/dark ground lobes read as blotches from the top camera
                 float wMud = smoothstep(0.25, 0.75, wet + (mid - 0.5) * 0.5);
                 // River gravel: clumps along the waterline (from the shallows up the wet band), thinning out up the bank,
                 // broken up by noise so it never reads as a stripe.
@@ -124,8 +132,8 @@ Shader "ReedField/Ground"
                 col *= _Tint.rgb * (0.92 + 0.16 * big);
 
                 // Puddles: flat, dark, glossy patches in the wet zone.
-                float puddle = smoothstep(0.62, 0.68, RFNoise(xz * 0.35 + 7.0) * 0.7 + mid * 0.3) * smoothstep(0.35, 0.7, wet) * _Puddles;
-                col = lerp(col, col * 0.35, puddle);
+                float puddle = smoothstep(0.6, 0.76, RFNoise(xz * 0.35 + 7.0) * 0.7 + mid * 0.3) * smoothstep(0.35, 0.7, wet) * _Puddles;
+                col = lerp(col, col * 0.7, puddle);   // 11-14: was 0.35; the sharp dark puddle shapes on low clearing ground read as dark rectangles/blotches (Kido, QA)
                 // damp darkening, wet film and submerged mud, all wide soft gradients
                 col *= lerp(1.0, 0.62, smoothstep(0.0, 1.0, wet));
                 col *= lerp(1.0, 0.75, sheen);
@@ -133,15 +141,21 @@ Shader "ReedField/Ground"
                 nxy *= (1 - puddle) * _NormalStrength;
 
                 float4 tr = RFTrail(xz);
-                col *= 1 - tr.g * 0.45;   // footprints
-                col *= 1 - tr.r * 0.12;   // flattened reeds lying on it
+                // 11-14: footprints were 0.45; from the top-down camera the trample brush read as big dark blobs
+                // around the player (Kido's "dark rectangle in the clearing", QA "dirt patches")
+                col *= 1 - tr.g * 0.15;   // footprints
+                col *= 1 - tr.r * 0.05;   // flattened reeds lying on it
 
                 float3 n0 = normalize(i.n);
                 float3 n = normalize(n0 + float3(nxy.x, 0, nxy.y));
                 Light ml = GetMainLight(TransformWorldToShadowCoord(i.ws));
                 // Realtime shadows now come only from moving things (players, enemies); the field itself is baked.
                 ml.shadowAttenuation *= RFStaticShadow(xz);
-                float3 lit = _Ambient.rgb + ml.color * saturate(dot(n, ml.direction)) * ml.shadowAttenuation;
+                // 11-14: the low moon/sunset light grazes the gentle ground swells, and their lit/unlit sides read as big
+                // dark blotches on the open floor from the top-down camera (Kido's "dark rectangle"). The broad shape
+                // lights as if nearly flat; the texture normal detail stays.
+                float3 nl = normalize(lerp(n, float3(0, 1, 0) + (n - n0), 0.75));
+                float3 lit = _Ambient.rgb + ml.color * saturate(dot(nl, ml.direction)) * ml.shadowAttenuation;
                 float3 v = normalize(_WorldSpaceCameraPos - i.ws);
                 float3 h = normalize(ml.direction + v);
                 float gloss = max(max(wet * 0.25, puddle), sheen);
@@ -158,6 +172,9 @@ Shader "ReedField/Ground"
                     Light add = GetAdditionalLight(lightIndex, i.ws, half4(1, 1, 1, 1));
                     c += col * add.color * add.distanceAttenuation * saturate(dot(n, add.direction));
                 LIGHT_LOOP_END
+                // 11-13 moonlight shafts: a pool of moonlight where a beam lands, broken up by the baked reed shade
+                float shaft = RFShaftLight(i.ws);
+                if (shaft > 0) c += (col * 2.2 + 0.035) * _RF_ShaftCol.rgb * shaft * (0.45 + 0.55 * RFStaticShadow(xz)) + _RF_ShaftCol.rgb * spec * shaft * 2.0;
                 // low fog measured from y = 0, so the sunken channel bed is not whitened under the water
                 return half4(RFFog(c, float3(i.ws.x, max(i.ws.y, 0), i.ws.z)), 1);
             }
