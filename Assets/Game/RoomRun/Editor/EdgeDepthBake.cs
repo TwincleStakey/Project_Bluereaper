@@ -11,7 +11,7 @@ namespace RoomRun
     [InitializeOnLoad]
     static class EdgeDepthBake
     {
-        const int Version = 5;   // v5: + EF_HanokWall (대전 앞 court walls, 11-14); v2: KCISA village houses (dropped); v3: 폐촌 thatched houses AV_Choga_A/B/C for 민가; v4: + the collapsed one
+        const int Version = 6;   // v6: + VH_BareTreeA/B (민가 side belt); v5: + EF_HanokWall (대전 앞 court walls, 11-14); v2: KCISA village houses (dropped); v3: 폐촌 thatched houses AV_Choga_A/B/C for 민가; v4: + the collapsed one
         const string OutDir = "Assets/Game/RoomRun/Resources/EdgeFeatures";
         const string Trees = "Assets/Game/SnowPlague/ThirdParty/Trees/Prefabs/", LM = "Assets/Game/SnowPlague/ThirdParty/Landmarks/";
 
@@ -25,6 +25,34 @@ namespace RoomRun
                 try { Bake(); File.WriteAllText(marker, "EdgeDepthBake v" + Version); AssetDatabase.ImportAsset(marker); }
                 catch (System.Exception e) { Debug.LogError("[EdgeFeatures] depth bake failed: " + e); }
             };
+        }
+
+        static void BareTree(string name, string file, float scale, bool a)
+        {
+            const string Dir = "Assets/Game/AbandonedVillage/ThirdParty/PolyHaven/bare_trees/", Mats = "Assets/Game/AbandonedVillage/Materials/";
+            var src = AssetDatabase.LoadAssetAtPath<GameObject>(Dir + file);
+            var bark = AssetDatabase.LoadAssetAtPath<Material>(Mats + "AV_BareBark.mat");
+            var trunkB = AssetDatabase.LoadAssetAtPath<Material>(Mats + "AV_BareTrunkB.mat");
+            var twig = AssetDatabase.LoadAssetAtPath<Material>(Mats + "AV_BareTwig.mat");
+            if (!src || !bark || !trunkB || !twig) { Debug.LogWarning("[EdgeFeatures] bare tree sources missing for " + name); return; }
+            var root = new GameObject(name);
+            var inst = (GameObject)PrefabUtility.InstantiatePrefab(src);
+            PrefabUtility.UnpackPrefabInstance(inst, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            inst.transform.SetParent(root.transform, false);
+            inst.transform.localScale *= scale;
+            foreach (var c in inst.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
+            var b = new Bounds(); bool any = false;
+            foreach (var r in inst.GetComponentsInChildren<Renderer>(true))
+            {
+                var ms = r.sharedMaterials;
+                for (int k = 0; k < ms.Length; k++) ms[k] = a ? bark : (ms[k] && ms[k].name.Contains("branch")) ? twig : trunkB;
+                r.sharedMaterials = ms; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                if (any) b.Encapsulate(r.bounds); else { b = r.bounds; any = true; }
+            }
+            inst.transform.localPosition -= new Vector3(b.center.x, b.min.y, b.center.z);
+            PrefabUtility.SaveAsPrefabAsset(root, OutDir + "/" + name + ".prefab");
+            Object.DestroyImmediate(root);
+            Debug.Log($"[EdgeFeatures] {name}: {b.size.x:0.0} x {b.size.y:0.0} x {b.size.z:0.0} m from {file}");
         }
 
         static void Bake()
@@ -45,6 +73,10 @@ namespace RoomRun
             // v5 (Kido 11-14 on the coded 대전 앞 galleries: "quality is awful, download something"): the downloaded tiled hanok
             // wall ("Korea Traditional House_House Wall", chrishong, CC BY 4.0) rings the court instead; face on -Z, 3 m tall
             EdgeFeaturesBake.Make("EF_HanokWall", LM + "HanokWall/SKF_HanokWall.fbx", 3.0f, Vector3.back, "HanokWall");
+            // v6 (Kido 11-14: the 민가 side pines must go, dry dead trees instead): the 폐촌 bare trees (Poly Haven, CC0) with
+            // the 폐촌 materials and scale, as prefabs LookStudyRuins places along the village belt
+            BareTree("VH_BareTreeA", "AV_BareTree_A.fbx", 0.52f * 1.5f, true);
+            BareTree("VH_BareTreeB", "AV_BareTree_B.fbx", 2.3f * 1.5f, false);
             AssetDatabase.SaveAssets();
             Debug.Log("[EdgeFeatures] depth features baked into " + OutDir);
         }

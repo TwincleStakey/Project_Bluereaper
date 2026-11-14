@@ -522,6 +522,43 @@ public class LookStudyRuins : MonoBehaviour
     // matte, and darkened by how burnt the house is. Falls back to the code kit when the prefabs are missing.
     // Dev: PlayerPrefs RR.VillageScans 0 = the old code houses.
     static readonly Dictionary<(Material, int), Material> scanMats = new Dictionary<(Material, int), Material>();
+    int beltSpot; bool bareOk;
+
+    // 11-14: a 폐촌 bare tree (Resources/EdgeFeatures/VH_BareTreeA/B, baked by RoomRun EdgeDepthBake) on a belt spot; lifted
+    // x2 for the LookStudy lighting and then darkened toward the camera side like the old pines (SouthSil). Returns false
+    // when this spot stays empty (place = false) or the prefabs are missing (then the pines are kept).
+    bool BareTree(Vector3 p, Quaternion rot, float s, bool place)
+    {
+        var a = Resources.Load<GameObject>("EdgeFeatures/VH_BareTreeA"); var b = Resources.Load<GameObject>("EdgeFeatures/VH_BareTreeB");
+        bareOk = a && b;
+        if (!bareOk || !place) return false;
+        bool useA = (beltSpot % 5) == 0;
+        var go = Instantiate(useA ? a : b, root);
+        go.hideFlags = HideFlags.DontSave;
+        go.transform.SetPositionAndRotation(p, rot);
+        go.transform.localScale = Vector3.one * s * (useA ? 1f : 0.9f);
+        var sil = SouthSil(new Color(1f, 1f, 1f, 1f), p.z);
+        float k = 2f * 0.55f * (sil.r / 0.3f);   // same darkening curve as the belt, normalised to the side value
+        int key = 1000 + Mathf.RoundToInt(k * 100f);
+        foreach (var rd in go.GetComponentsInChildren<Renderer>())
+        {
+            var ms = rd.sharedMaterials;
+            for (int i = 0; i < ms.Length; i++)
+            {
+                if (!ms[i]) continue;
+                if (!scanMats.TryGetValue((ms[i], key), out var m) || !m)
+                {
+                    m = new Material(ms[i]) { name = ms[i].name + " (village belt)", hideFlags = HideFlags.DontSave };
+                    if (m.HasProperty("_BaseColor")) { var c = m.GetColor("_BaseColor"); m.SetColor("_BaseColor", new Color(c.r * k, c.g * k, c.b * k, c.a)); }
+                    if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0f);
+                    scanMats[(ms[i], key)] = m;
+                }
+                ms[i] = m;
+            }
+            rd.sharedMaterials = ms;
+        }
+        return true;
+    }
     bool ScanHouse(Vector3 p, float yaw, int state, float s, float t, int kind)
     {
         if (PlayerPrefs.GetInt("RR.VillageScans", 1) == 0) return false;
@@ -672,6 +709,14 @@ public class LookStudyRuins : MonoBehaviour
                 // 11-14: the north belt (top of the screen) is taller, so its crowns fill the top edge as dark volume
                 if (z > VillageMaxZ) s *= 1.35f + pass * 0.15f;
                 var rot = Quaternion.Euler(R(r, -3, 3), R(r, 0, 360), R(r, -3, 3));
+                // 11-14 (Kido: the side pines must go, "dry dead trees"): the two inner rings on the sides and the camera
+                // side are the downloaded 폐촌 bare trees (every other spot); the far north ring and the outer mass stay dark pine volume
+                if (pass < 2 && z < VillageMaxZ && BareTree(new Vector3(x, y + 0.2f, z), rot, s, (beltSpot++ & 1) == 0))
+                {
+                    if (pass == 0) Col(new Vector3(x, y + 2f, z), new Vector3(0.6f * s, 4f, 0.6f * s), Quaternion.identity);
+                    continue;
+                }
+                if (pass < 2 && z < VillageMaxZ && bareOk) continue;
                 Stamp(pineTrunk, pineTrunkMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(0.42f, 0.36f, 0.34f, 1), z));
                 Stamp(pineBranch, pineBranchMat, new Vector3(x, y, z), rot, new Vector3(s, s, s), SouthSil(new Color(R(r, 0.3f, 0.42f), R(r, 0.38f, 0.5f), R(r, 0.38f, 0.48f), 1), z));
                 if (pass == 0) Col(new Vector3(x, y + 2f, z), new Vector3(0.8f * s, 4f, 0.8f * s), Quaternion.identity);
