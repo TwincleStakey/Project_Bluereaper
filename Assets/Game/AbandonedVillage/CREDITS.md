@@ -50,3 +50,6 @@ Downloads and Blender work files stay local in `ArtSource/AbandonedVillage/` (gi
 ## 11-13 ground (Fab only, Kido)
 - Quixel Megascans via Fab (Standard License, free): Forest Floor, Ground Roots, Moist Fallen Leaves, Gravel on Soil (`ThirdParty/Megascans/Ground/`; normals flipped to GL, mask maps from AO + displacement + gloss). Terrain height-blends them (`Editor/AVBuilder.Ground.cs`); `Shaders/AVMacro.shader` adds big light/colour patches over the tiling.
 
+
+## 11-14 dirt road (Kido: path should be dirt, not marble)
+- Quixel Megascans via Fab (Standard License, free): Dirt Ground xdhhefr (`ThirdParty/Megascans/Ground/AV_FG_DirtRoad_*`; normal flipped to GL, mask from AO + displacement + gloss). Replaces the Poly Haven stone_pathway layer on the streets. Source zip unpacked in `ArtSource/AbandonedVillage/fab_ground3`.
