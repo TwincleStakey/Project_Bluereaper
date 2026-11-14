@@ -25,6 +25,13 @@ namespace RoomRun
         public const string InnerKey = "RR.See.Inner", OuterKey = "RR.See.Outer", MinKey = "RR.See.Min", CurveKey = "RR.See.Curve";
         public const float DefInner = 0.7f, DefOuter = 5.8f, DefMin = 0.22f, DefCurve = 1.8f;
 
+        /// <summary>Back to the default v2 shape: drops the slider overrides so the Def* values above apply again.</summary>
+        public static void ResetV2()
+        {
+            PlayerPrefs.DeleteKey(InnerKey); PlayerPrefs.DeleteKey(OuterKey);
+            PlayerPrefs.DeleteKey(MinKey); PlayerPrefs.DeleteKey(CurveKey);
+        }
+
         [Tooltip("Inside this radius (m around the player) the occluder is at its thinnest.")]
         public float innerRadius = DefInner;
         [Tooltip("Beyond this radius (m) the occluder is untouched; between inner and outer it fades smoothly.")]
