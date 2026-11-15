@@ -3,6 +3,11 @@
 // patches .. ~70 % dense banks, tens of metres across) that drifts slowly, so the stone tiles read through everywhere.
 // Where DCMist's mask says the player has walked the haze is gone, with a wide feathered, blotchy edge (low-frequency
 // noise, no outline ring, no flecks) and at most a faint violet glow; the cleared stone gets a small grey-violet lift.
+// 11-15 shared use (저승): with _SURFACE on (UW_CorruptMist) the quad draws with ZTest Always and puts the mist on the
+// scene surface it covers (camera depth -> world position), only where that surface lies within a thin band around the
+// quad height (the walkable floor): never over the lava sea below the plaza, walls, props or the upper body of
+// characters; it also thins out over bright warm pixels of the opaque colour (lava rivers glow through).
+// DarkCrypt keeps the keyword off and looks exactly as before.
 Shader "DarkCrypt/MistOverlay"
 {
     Properties
@@ -20,6 +25,11 @@ Shader "DarkCrypt/MistOverlay"
         _ClearLift ("Cleared floor lift (linear)", Color) = (0.022, 0.02, 0.028, 1)
         _BorderFade ("Border fade (m)", Float) = 3
         _NoiseOffset ("Density noise offset (m, xz)", Vector) = (0, 0, 0, 0)
+        [Toggle(_SURFACE)] _Surface ("Lie on the scene floor (depth band + glow mask)", Float) = 0
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("ZTest", Float) = 4
+        _BandBelow ("Floor band below the quad (m)", Float) = 0.6
+        _BandAbove ("Floor band above the quad (m)", Float) = 0.7
+        _GlowCut ("Glow mask: warm brightness start, full", Vector) = (0.05, 0.25, 0, 0)
     }
     SubShader
     {
@@ -30,16 +40,23 @@ Shader "DarkCrypt/MistOverlay"
             Tags { "LightMode" = "UniversalForward" }
             Blend One OneMinusSrcAlpha
             ZWrite Off
+            ZTest [_ZTest]
             Cull Off
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
+            #pragma shader_feature_local _SURFACE
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #if defined(_SURFACE)
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
+            #endif
 
             CBUFFER_START(UnityPerMaterial)
             float4 _Deep, _Mid, _Glow, _Rim, _ClearLift, _NoiseOffset;
-            float _MinDensity, _MaxDensity, _Scale, _Drift, _EdgeScale, _Feather, _BorderFade;
+            float _MinDensity, _MaxDensity, _Scale, _Drift, _EdgeScale, _Feather, _BorderFade, _BandBelow, _BandAbove, _Surface, _ZTest;
+            float4 _GlowCut;
             CBUFFER_END
             TEXTURE2D(_DC_MistMask); SAMPLER(sampler_DC_MistMask);
             float4 _DC_MistRect;
@@ -68,6 +85,25 @@ Shader "DarkCrypt/MistOverlay"
             half4 frag(V i) : SV_Target
             {
                 float2 w = i.w.xz;
+                float surf = 1;
+            #if defined(_SURFACE)
+                float2 suv = GetNormalizedScreenSpaceUV(i.pos);
+                #if UNITY_REVERSED_Z
+                float rawD = SampleSceneDepth(suv);
+                #else
+                float rawD = lerp(UNITY_NEAR_CLIP_VALUE, 1, SampleSceneDepth(suv));
+                #endif
+                float3 sp = ComputeWorldSpacePosition(suv, rawD, UNITY_MATRIX_I_VP);
+                float dy = sp.y - i.w.y;
+                // floor band: fades out below (plaza lip / lava sea) and above (walls, props, bodies)
+                surf = smoothstep(-_BandBelow, -_BandBelow * 0.4, dy) * (1 - smoothstep(_BandAbove * 0.3, _BandAbove, dy));
+                // lava / fire on the floor: warm bright opaque pixels show through
+                float3 oc = SampleSceneColor(suv);
+                float warm = max(oc.r - oc.b * 1.3, 0) + max(oc.r + oc.g - 0.6, 0) * 0.5;
+                surf *= 1 - smoothstep(_GlowCut.x, _GlowCut.y, warm);
+                w = sp.xz;
+                if (surf <= 0.001) return 0;
+            #endif
                 float t = _Time.y * _Drift;
                 // large banks: domain-warped, drifting very slowly
                 float2 q = (w + _NoiseOffset.xy) * _Scale;
@@ -98,6 +134,7 @@ Shader "DarkCrypt/MistOverlay"
                 float2 e = hx - abs(w - c);
                 float border = saturate(min(e.x, e.y) / max(_BorderFade, 0.01));
 
+                border *= surf;
                 float alpha = density * (1 - clear) * border;
                 float3 rgb = col * alpha + _Rim.rgb * edge * border + _ClearLift.rgb * clear * border;
                 rgb = lerp(unity_FogColor.rgb * alpha, rgb, saturate(ComputeFogIntensity(i.fog)));

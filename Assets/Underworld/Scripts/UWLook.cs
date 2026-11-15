@@ -147,6 +147,21 @@ namespace Underworld
                     if (t.name == "Ghosts") { t.gameObject.SetActive(false); Debug.Log("UWLook: decorative ghosts hidden"); }
             Lights();
             Declutter();
+            CorruptMist();
+        }
+
+        // 11-15 (Kido): DarkCrypt's violet corruption mist over the plaza floor, cleared in blotches where the player walks
+        // and creeping back (DarkCrypt.DCMist, shared). UW_CorruptMist draws it on the scene floor only (depth band), so it
+        // never covers the lava sea, the rim props or the lava rivers. One mask RT pair, no lights, no colliders.
+        public bool corruptMist = true;
+        void CorruptMist()
+        {
+            if (!corruptMist) return;
+            var ov = Resources.Load<Material>("UW_CorruptMist");
+            var br = Resources.Load<Material>("UW_CorruptMistBrush");
+            if (!ov || !br) { Debug.LogWarning("UWLook: corruption mist materials missing"); return; }
+            var r = plazaRect; r.xMin -= 2f; r.yMin -= 2f; r.xMax += 2f; r.yMax += 2f;   // the shader's border fade starts 2 m inside
+            DarkCrypt.DCMist.Spawn(transform, r, 0.035f, ov, br);
         }
 
         void OnDestroy()

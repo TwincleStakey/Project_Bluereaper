@@ -54,6 +54,29 @@ namespace DarkCrypt
 
         static void Release(ref RenderTexture rt) { if (rt) { rt.Release(); Destroy(rt); } rt = null; }
 
+        // Shared use by other stages at play time (11-15, 저승): a flat quad over the world rectangle at height y with
+        // this component on it. The brush material is copied (Update writes into it); the overlay material is used as is.
+        public static DCMist Spawn(Transform parent, Rect area, float y, Material overlay, Material brushAsset, float radius = 2.6f)
+        {
+            var g = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            g.name = "CorruptionMist";
+            var col = g.GetComponent<Collider>(); if (col) Destroy(col);
+            g.transform.SetParent(parent, false);
+            g.transform.SetPositionAndRotation(new Vector3(area.center.x, y, area.center.y), Quaternion.Euler(90, 0, 0));
+            g.transform.localScale = new Vector3(area.width, area.height, 1f);
+            var mr = g.GetComponent<MeshRenderer>(); mr.sharedMaterial = overlay;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
+            var mist = g.AddComponent<DCMist>();
+            mist.rect = new Vector4(area.xMin, area.yMin, area.width, area.height);
+            mist.resolution = Mathf.Clamp(Mathf.RoundToInt(area.width * 10f), 256, 1024);
+            mist.brush = new Material(brushAsset) { name = brushAsset.name + " (runtime)" };
+            mist.ownsBrush = true;
+            mist.radius = radius; mist.stampSeconds = 0.8f; mist.spacing = 0.6f;
+            return mist;
+        }
+        [System.NonSerialized] public bool ownsBrush;
+        void OnDestroy() { if (ownsBrush && brush) Destroy(brush); }
+
         RenderTexture Make()
         {
             int h = Mathf.Max(16, Mathf.RoundToInt(resolution * rect.w / Mathf.Max(1f, rect.z)));
