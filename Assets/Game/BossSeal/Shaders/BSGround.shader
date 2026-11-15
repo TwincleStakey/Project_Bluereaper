@@ -47,13 +47,13 @@ Shader "BossSeal/Ground"
         _Hawk("Samdumae lines", 2D) = "black" {}
         _Text("Woodblock text grooves", 2D) = "black" {}
         _Lotus("Seal plate relief (Goryeo lotus roof-end tile, 0.5 = flat)", 2D) = "grey" {}
-        _Plate("Seal plate: radius m, buried edge m, relief strength, groove glow", Vector) = (18.5, 4.0, 1.6, 0.012)
+        _Plate("Seal plate: radius m, buried edge m, relief strength, groove glow", Vector) = (18.5, 4.0, 1.0, 0.012)
 
         _R1("Radii: seal, band1 out, talisman out, band2 out", Vector) = (6.3, 6.9, 11.1, 11.6)
         _R2("Radii: text out, rim out, chamfer out, seal mask width", Vector) = (14.2, 14.8, 15.6, 11.6)
         _Tiles("Talisman tiles, text tiles, talisman width m, text width m", Vector) = (12, 28, 3.0, 1.75)
 
-        _MudTint("Ground tint", Color) = (1.0, 0.92, 0.85, 1)
+        _MudTint("Ground tint", Color) = (1.0, 0.94, 0.9, 1)
         _StoneTint("Seal stone tint", Color) = (0.8, 0.58, 0.5, 1)
         _TrimTint("Ring block tint", Color) = (0.55, 0.38, 0.32, 1)
         _MetalTint("Metal tint", Color) = (0.62, 0.42, 0.34, 1)
@@ -172,7 +172,7 @@ Shader "BossSeal/Ground"
                 // macro value / hue variation (large soft patches), damp patches darker but still matte, cavity darkening
                 float mv = FBM(w * 0.028 + 21.3), mh = FBM(w * 0.05 + 33.7);
                 // ref palette: orange-brown dirt (the scans are brick red): keep their luminance detail, move the hue
-                alb = lerp(alb, Luma(alb) * float3(1.55, 1.0, 0.6), 0.65) * _MudTint.rgb;
+                alb = lerp(alb, Luma(alb) * float3(1.32, 1.0, 0.78), 0.75) * _MudTint.rgb;   // 11-16: ash brown (Kido: match the carved plate's grey-brown), not red-orange
                 alb *= 0.88 + 0.22 * mv;
                 alb *= lerp(float3(1, 1, 1), float3(1.08, 0.9, 0.82), smoothstep(0.35, 0.7, mh));
                 float damp = smoothstep(0.56, 0.7, FBM(w * 0.05 + 13.0)) * (1 - gw.z);
@@ -197,19 +197,19 @@ Shader "BossSeal/Ground"
                     // 11-16 (Kido: "패턴이랑 바닥색이 너무 달라 ... 그라데이션처럼"): same orange-brown as the dirt, a touch darker,
                     // a wide soft fade (no blotchy edge); the motif reads from the carved shading and a faint groove glow only
                     float edgeN = (FBM(w * 0.12 + 3.3) - 0.5) * 1.5;
-                    float wP = (1 - smoothstep(_Plate.x - _Plate.y * 2.2, _Plate.x, r + edgeN)) * smoothstep(_R2.z - 0.2, _R2.z + 0.2, r);
+                    float wP = (1 - smoothstep(_Plate.x - _Plate.y * 3.0, _Plate.x + 1.0, r + edgeN)) * smoothstep(_R2.z - 0.2, _R2.z + 0.2, r);
                     wP *= 1 - 0.25 * smoothstep(0.6, 0.85, FBM(w * 0.2 + 8.1));   // a little dirt drifted over it
                     float2 uvP = w / 3.6;
                     float3 plateStone = SG(_Stone, uvP, ddx(uvP), ddy(uvP)).rgb;
-                    float3 plate = alb * (0.78 + 0.25 * (Luma(plateStone) - 0.2));   // the dirt colour, slightly darker, stone grain
+                    float3 plate = alb * (0.93 + 0.12 * (Luma(plateStone) - 0.2));   // 11-16: the dirt colour itself (Kido: the grey-ash plate stood apart), stone grain only
 
-                    plate *= saturate(0.86 + lh * 0.9);
+                    plate *= saturate(0.95 + lh * 0.6);
                     float groove = smoothstep(0.12, 0.28, -lh);
-                    plate = lerp(plate, plate * 0.62, groove);
+                    plate = lerp(plate, plate * 0.72, groove);
                     float3 plateN = normalize(TS(SG(_StoneN, uvP, ddx(uvP), ddy(uvP))) + float3(-lhx, -lhy, 0) * _Plate.z * 6);
                     alb = lerp(alb, plate, wP);
                     nts = normalize(lerp(nts, plateN, wP));
-                    emis = lerp(emis, _Glow.rgb * _Plate.w * groove, wP);
+                    emis = emis + _Glow.rgb * _Plate.w * groove * wP;   // keep the warm bounce on the plate too (no colour step at its edge)
                 }
                 float face = smoothstep(-0.02, -1.5, ws.y); alb *= 1 - 0.85 * face; emis *= 1 - face;
 
