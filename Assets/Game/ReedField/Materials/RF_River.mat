@@ -34,16 +34,16 @@ Material:
     m_Ints: []
     m_Floats:
     - _Flow: 2.4
-    - _Glint: 1.4
+    - _Glint: 1
     - _MurkDepth: 1.4
-    - _NormalStrength: 0.9
-    - _Reflection: 0.45
-    - _Streaks: 0.55
-    - _SurfaceScale: 4
+    - _NormalStrength: 0.75
+    - _Reflection: 0.3
+    - _Streaks: 0.35
+    - _SurfaceScale: 4.5
     m_Colors:
-    - _DeepCol: {r: 0.025, g: 0.035, b: 0.04, a: 1}
-    - _FoamCol: {r: 0.95, g: 0.88, b: 0.76, a: 1}
-    - _RiverZ: {r: -43, g: -60.5, b: 0, a: 0}
-    - _ShallowCol: {r: 0.25999996, g: 0.19999996, b: 0.11999995, a: 1}
+    - _DeepCol: {r: 0.016, g: 0.02, b: 0.022, a: 1}
+    - _FoamCol: {r: 0.5, g: 0.47, b: 0.42, a: 1}
+    - _RiverZ: {r: -43, g: -60.5, b: -37, a: -70}
+    - _ShallowCol: {r: 0.19, g: 0.145, b: 0.09, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

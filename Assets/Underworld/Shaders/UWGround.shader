@@ -57,6 +57,7 @@ Shader "Underworld/Ground"
         _LavaWidth("Rift half-width (m)", Range(0.05, 2.0)) = 1.0
         _LavaScale("Lava crust/sea feature scale", Range(0.3, 6)) = 1.0
         _SeaMode("Lava sea mode (all molten)", Range(0, 1)) = 0.0
+        _CodeFX("Coded lava rifts / veins / plate seams (0 = downloaded scans only)", Range(0, 1)) = 1.0
         _ClearZone("River-free zone (x, z, radius m, fade m)", Vector) = (-2, -2, 5, 2.5)
         _Lane0("River-free lane 0 (x1, z1, x2, z2)", Vector) = (0, 0, 0, 0)
         _Lane1("River-free lane 1 (x1, z1, x2, z2)", Vector) = (0, 0, 0, 0)
@@ -93,6 +94,7 @@ Shader "Underworld/Ground"
         float4 _LavaColHot, _LavaColMid, _LavaColCool;
         float4 _ClearZone, _EdgeRect, _Lane0, _Lane1, _LaneWidth;
             float SegD(float2 p, float4 s) { float2 a = s.xy, b = s.zw, ab = b - a; float t = saturate(dot(p - a, ab) / max(dot(ab, ab), 1e-4)); return length(p - a - ab * t); }
+        float _CodeFX;
         float _LavaScale, _SeaMode, _LavaAmt, _LavaWidth, _LavaIntensity, _LavaPulse, _LavaFlow, _LavaBounce, _ScorchAmt, _ObsAmt;
         CBUFFER_END
         ENDHLSL
@@ -331,6 +333,7 @@ Shader "Underworld/Ground"
                     cR *= smoothstep(0.02, 0.15, hwR);   // tapered-away tips vanish cleanly
                     float cV = saturate(1.0 - dV / max(hwV, 0.005)) * smoothstep(0.02, 0.07, hwV) * 0.3;   // caps veins at dim red-orange
                     float lavaCore = max(cR, cV);                                       // 0 at bank .. 1 at centre line
+                    lavaCore *= _CodeFX;   // 11-14 Kido: no coded glowing lines on the floor
                     // pass 4 (final_03 #3, ruler-straight plaza edges): a jagged glowing fissure runs 0.8-3.5 m inside the rim and
                     // the strip outside it is charred and crumbling, so the edge reads as broken-off rock over the lava sea
                     float crumble = 0;
@@ -342,7 +345,7 @@ Shader "Underworld/Ground"
                         float segE = smoothstep(0.42, 0.58, GN(p * 0.09 + 41.0));       // broken into separate cracks, not one line
                         float cE = saturate(1.0 - abs(eL) / hwE) * smoothstep(-1.0, 4.0, dE) * (1.0 - sea) * segE;
                         lavaCore = max(lavaCore, cE * 0.0);   // fissure off: even broken, a crack parallel to the rim still read as a ruler line
-                        crumble = smoothstep(0.2, -0.6, eL) * (1.0 - sea);
+                        crumble = smoothstep(0.2, -0.6, eL) * (1.0 - sea) * _CodeFX;
                     }
                     // lava sea mode: the whole surface is molten, brightness drifting slowly
                     // sea = glowing channels along the 0.5 contour of a warped gradient-noise field, everything else is dark crust islands
@@ -369,21 +372,24 @@ Shader "Underworld/Ground"
                     bounceFall *= bounceFall * presence * (1.0 - sea);
                     halo *= 1.0 - sea;
                     halo *= halo;
+                    halo *= _CodeFX; bounceFall *= _CodeFX;
 
                     // heat-cracked basalt plates: polygonal slabs ~2.6 m (voronoi border distance is continuous), dark seams
                     float bdR = UWVoronoi(q * 0.38).y;
-                    float rockSeam = 1.0 - smoothstep(0.03, 0.12, bdR);
-                    float plateLight = smoothstep(0.0, 0.45, bdR);
+                    float rockSeam = (1.0 - smoothstep(0.03, 0.12, bdR)) * _CodeFX;   // coded voronoi plate web: off with _CodeFX 0
+                    float plateLight = lerp(0.57, smoothstep(0.0, 0.45, bdR), _CodeFX);
 
                     // ---- 5. coal debris along the banks (only sampled near cracks)
                     float bank = halo * (1.0 - lavaMask);
                     float rubGate = bank * _RubAmt;   // noise-only gate (no hex-derived edge)
+                    // scans-only floor: coal debris in large soft drifts instead of along the (now absent) lava banks
+                    rubGate += (1.0 - _CodeFX) * _RubAmt * smoothstep(0.64, 0.8, 0.65 * GN(q * 0.05 + 17.0) + 0.35 * GN2(q * 0.13 + 3.0));   // gradient noise: value-noise contours snapped to the grid (square patches)
                     if (rubGate > 0.04)
                     {
                         float2 ur = p / _Tiles.z;
                         L lr = Hex(_RubAH, _RubNRA, ur, dpx / _Tiles.z, dpy / _Tiles.z, 1.2, float2(_HeightLo.z, _HeightHi.z));
                         lr.a = Desat(lr.a, _Sat) * _RubTint.rgb;
-                        float rubN = UWNoise(p * 1.1 + 9.0);
+                        float rubN = GN(p * 1.1 + 9.0);   // 11-14: gradient noise (value noise made square-edged patches)
                         float rubW = smoothstep(0.2, 0.8, rubGate * (0.55 + rubN) * 1.6 + (lr.h - 0.5) * 0.6 * saturate(rubGate * 3.0));
                         g = Lerp(g, lr, rubW * (1.0 - lavaMask));
                     }
@@ -450,6 +456,7 @@ Shader "Underworld/Ground"
                     glowReg = max(glowReg, 0.6 * hub);
                     float fleck = smoothstep(lerp(0.72, 0.66, hub), lerp(0.86, 0.8, hub), GN(p * 0.35 + 19.0)) * smoothstep(0.6, 1.0, rockSeam);   // sparse short seam flecks
                     bounceEm += _LavaColCool.rgb * (0.04 * rockSeam * glowReg + 0.12 * fleck) * _LavaIntensity * (1.0 - lavaMask) * (1.0 - sea) * pulse;
+                    bounceEm *= _CodeFX;
 
                     topAlb = g.a;
                     float2 tn = g.n * _NrmStr;
@@ -476,6 +483,7 @@ Shader "Underworld/Ground"
                     float ux = (ws.x + ws.z) * 0.6;
                     float drip = smoothstep(0.6, 0.78, GN(float2(ux, ws.y * 0.08 + 7.0))) * smoothstep(-1.2, -2.2, ws.y);   // only the real cliff, not the low rim step ~3 m inside the edge
                     drip *= 0.6 + 0.4 * GN(float2(ux * 3.0, ws.y * 0.6 - _UWTime * 0.4));
+                    drip *= _CodeFX;
                     emission += _LavaColMid.rgb * 1.1 * drip * (1.0 - top) * (_LavaIntensity / 3.5);
                 }
                 if (_CrackAmt > 0.001 && top > 0.001)

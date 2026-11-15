@@ -74,10 +74,10 @@ namespace RoomRun
         Vector3 WantedFocus()
         {
             if (!Target) return focus;
-            // the lean toward the aim shrinks with the zoom, so a close-up stays on the character; aim at chest height
-            // when close so the body, not the feet, sits in the middle of the screen
+            // 11-14 (Kido, all maps): the character stays locked at screen centre; no lean toward the mouse cursor.
+            // Aim at chest height when close so the body, not the feet, sits in the middle of the screen.
             float close = Mathf.Clamp01(zoom);
-            var p = Target.transform.position + Target.AimDir * aimLean * close + Vector3.up * (1f - close) * 1.0f;
+            var p = Target.transform.position + Vector3.up * (1f - close) * 1.0f;
             p.x = Mathf.Clamp(p.x, center.x - clamp.x, center.x + clamp.x);
             p.z = Mathf.Clamp(p.z, center.z - clamp.y, center.z + clamp.y);
             return p;
@@ -92,7 +92,8 @@ namespace RoomRun
                 // over the dev tools panel the wheel scrolls the panel instead (11-13)
                 if (Mathf.Abs(wheel) > 0.01f && !LookStudyDevTools.PointerOverPanel) zoom = Mathf.Clamp(zoom * (wheel > 0 ? 0.85f : 1.18f), MinZoom, FixedZoom);
             }
-            focus = Vector3.Lerp(focus, WantedFocus(), 1f - Mathf.Exp(-smooth * Time.deltaTime));
+            // locked on the character (no smoothing lag, which let it drift off centre while moving)
+            focus = WantedFocus();
             Apply(Time.deltaTime);
         }
 

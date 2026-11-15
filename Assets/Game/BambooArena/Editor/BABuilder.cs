@@ -117,9 +117,10 @@ public static partial class BABuilder
         // 11-13 C mood (Sekiro bamboo thicket at night): older, grey-green culms, dark heavy leaves
         void BambooCols(Material m, float k)
         {
-            m.SetColor("_CulmCol", new Color(0.30f, 0.34f, 0.21f) * k); m.SetColor("_CulmTop", new Color(0.38f, 0.42f, 0.24f) * k);
-            m.SetColor("_NodeCol", new Color(0.15f, 0.15f, 0.10f) * k); m.SetColor("_LeafCol", new Color(0.05f, 0.085f, 0.06f) * k);
-            m.SetColor("_LeafTip", new Color(0.10f, 0.15f, 0.10f) * k); m.SetColor("_RootCol", new Color(0.03f, 0.03f, 0.025f) * k);
+            // r29 (Kido 11-14: "색이 너무 초록초록해"): culms and leaves pulled to a dark, low-saturation grey-green
+            m.SetColor("_CulmCol", new Color(0.25f, 0.26f, 0.205f) * k); m.SetColor("_CulmTop", new Color(0.30f, 0.31f, 0.245f) * k);
+            m.SetColor("_NodeCol", new Color(0.14f, 0.135f, 0.11f) * k); m.SetColor("_LeafCol", new Color(0.05f, 0.06f, 0.052f) * k);
+            m.SetColor("_LeafTip", new Color(0.095f, 0.11f, 0.095f) * k); m.SetColor("_RootCol", new Color(0.03f, 0.03f, 0.025f) * k);
             m.SetColor("_Ambient", new Color(0.10f, 0.12f, 0.15f) * k);
         }
         var bamboo = Mat("BA_Bamboo", "BambooArena/Bamboo", m => { BambooCols(m, 1f); m.SetFloat("_Translucency", 0.5f); });
@@ -372,12 +373,16 @@ public static partial class BABuilder
         {
             float x = (float)(fr.NextDouble() - 0.5) * (field.arena.x + 24f), z = (float)(fr.NextDouble() - 0.5) * (field.arena.y + 24f);
             float o = field.Outside(new Vector2(x, z));
-            if (o < 1.5f) continue;   // 11-10: none over the clearing; mist only lies in the bamboo
+            float y = Mathf.Lerp(0.8f, 3.5f, (float)fr.NextDouble()), yawM = (float)fr.NextDouble() * 360f, size = Mathf.Lerp(8f, 14f, (float)fr.NextDouble());
+            // r29 (Kido 11-14: pale hazy blotches over the floor): the 8-14 m sheets centred just 1.5 m into the bamboo
+            // reached ~6 m over the clearing and read as white smears from the top-down camera. Keep each whole sheet
+            // (its half-diagonal) at least 2 m inside the bamboo.
+            if (o < size * 0.71f + 2f) continue;
             var go = new GameObject("MistSheet");
             go.transform.SetParent(fogRoot, false);
-            go.transform.position = new Vector3(x, Mathf.Lerp(0.8f, 3.5f, (float)fr.NextDouble()), z);
-            go.transform.rotation = Quaternion.Euler(90, (float)fr.NextDouble() * 360f, 0);
-            go.transform.localScale = Vector3.one * Mathf.Lerp(8f, 14f, (float)fr.NextDouble());
+            go.transform.position = new Vector3(x, y, z);
+            go.transform.rotation = Quaternion.Euler(90, yawM, 0);
+            go.transform.localScale = Vector3.one * size;
             go.AddComponent<MeshFilter>().sharedMesh = quad;
             var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = mist; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
             made++;

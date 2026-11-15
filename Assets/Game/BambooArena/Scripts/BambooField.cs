@@ -60,6 +60,8 @@ namespace BambooArena
         [Range(0.4f, 2f)] public float silhouetteHeight = 0.75f;
         [Tooltip("Spots kept free of bamboo (x, z, radius): the landmark clearings outside the arena edge.")]
         public List<Vector3> clearings = new List<Vector3>();
+        [Tooltip("r29: landmark feet for the ground shader (x, z relative to the field, radius, strength): soil/moss heaped round the base.")]
+        public List<Vector4> contacts = new List<Vector4>();
         [Tooltip("Low plants in the clearing (instanced, no colliders).")]
         public Mesh groundCover;
         public Material groundCoverMat;
@@ -263,6 +265,9 @@ namespace BambooArena
             Shader.SetGlobalTexture("_RF_PropShadow", Texture2D.whiteTexture);
             Shader.SetGlobalVector("_RF_ShadowRect", ShadeRect);
             Shader.SetGlobalFloat("_RF_WaterLevel", transform.position.y - 50f);   // no water here
+            var ca = new Vector4[12];
+            for (int k = 0; k < ca.Length && k < contacts.Count; k++) ca[k] = contacts[k] + new Vector4(transform.position.x, transform.position.z, 0, 0);
+            Shader.SetGlobalVectorArray("_BA_Contact", ca);
         }
 
         void ApplyLight()
