@@ -111,7 +111,7 @@ namespace RoomRun
 
         // ---------- dev field keys: F1..F6 jump to a field in config order, F7 goes back to the previous one.
         // The field is played fresh: its waves and boss start again, a downed player stands back up.
-        static readonly Key[] FieldKeys = { Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F8, Key.F9, Key.F11 };
+        static readonly Key[] FieldKeys = { Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F8, Key.F9, Key.F11, Key.F12 };   // F12: DarkCrypt (11-14)
         string previousRoomId;
 
         public string FieldKeyHelp()

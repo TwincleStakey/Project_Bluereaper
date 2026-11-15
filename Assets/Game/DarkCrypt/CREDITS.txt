@@ -1,0 +1,21 @@
+DarkCrypt (타락한 묘역) - third-party assets
+
+CC BY 4.0 (attribution required)
+- "Crystal Cluster 2 (Free)" by chrismartin1337, Sketchfab
+  https://sketchfab.com/3d-models/crystal-cluster-2-free-b1bed3164820477894d4f76307a26a13
+  License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Used as: Source/SF_CrystalCluster2 (mesh as downloaded; recoloured by the DarkCrypt/Crystal shader)
+- "Violet Crystal Formation, Glowing Rock Cluster" by Pigcraft, Sketchfab
+  https://sketchfab.com/3d-models/violet-crystal-formation-glowing-rock-cluster-c47d070023f043b290c07d2db8937383
+  License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Used as: Source/SF_VioletCrystalFormation (mesh decimated from ~2M to ~40k triangles; recoloured by the DarkCrypt/Crystal shader)
+
+Quixel Megascans via Fab (Fab Standard License)
+- castle_floor_stone_tdblbcyt, castle_wall_sbxuw, stone_pillar_selvF, historic_medieval_farm_candle_beeswax_burnt_02_xmnnffi,
+  Debris decal phhh0kp2 (Source/Fab_Debris)
+
+Poly Haven, CC0 1.0
+- large_iron_gate, painted_wooden_bench, wooden_candlestick
+
+poly.pizza, CC0 1.0
+- Source/Crystals (iPoly3D, Quaternius) - kept in the project, no longer placed (v3)

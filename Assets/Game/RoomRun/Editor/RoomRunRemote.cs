@@ -154,6 +154,18 @@ namespace RoomRun
                     else Note($"orphans {roots.Count} roots");
                     return;
                 }
+                if (parts[0] == "call" && parts.Length > 1)
+                {
+                    // call Namespace.Type.StaticMethod -> invokes a public static parameterless editor method (no menu items needed)
+                    string full = parts[1]; int dot = full.LastIndexOf('.');
+                    string tn = dot > 0 ? full.Substring(0, dot) : ""; string mn = full.Substring(dot + 1);
+                    var t = System.AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType(tn)).FirstOrDefault(x => x != null);
+                    var m = t?.GetMethod(mn, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, null, System.Type.EmptyTypes, null);
+                    if (m == null) { Note($"call {full}: not found"); return; }
+                    try { m.Invoke(null, null); Note($"call {full}: done"); }
+                    catch (System.Exception e) { var x = e.InnerException ?? e; Note($"call {full}: {x.GetType().Name} {x.Message}"); }
+                    return;
+                }
                 if (parts[0] == "menu")
                 {
                     string item = string.Join(" ", parts, 1, parts.Length - 1);

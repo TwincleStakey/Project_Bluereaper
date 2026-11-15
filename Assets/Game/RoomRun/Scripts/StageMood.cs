@@ -46,6 +46,9 @@ namespace RoomRun
             // grey; neutral-warm filter, the moon keeps its cold colour against the warm lantern pools
             { "abandoned",  new Mood { exposure = 0.8f, /* 11-14 폐촌 r14: refs median luminance 0.10-0.14, ours ~0.06 */ saturation = -40f, contrast = 40f, filter = new Color(1f, 0.97f, 0.92f), sun = 1.2f, sunGrey = 0.2f, ambient = 0.55f, ambientGrey = 0.3f, firePools = 0, fog = new Color(0.16f, 0.18f, 0.21f), fogDensity = 0.009f } },
             { "reeds",      new Mood { exposure = -1.05f, saturation = -66f, filter = new Color(0.84f, 0.83f, 0.82f) } },
+            // DarkCrypt (11-14): the scene is built dark (violet-black fog, dim moon, candle/crystal lights), so its own fog,
+            // moon and ambient stay; no stone-lantern fire pools (the candles are the fire)
+            { "crypt",      new Mood { exposure = 1.7f, saturation = -25f, contrast = 7f, filter = new Color(0.93f, 0.91f, 0.96f), sun = 1f, sunGrey = 0f, ambient = 1f, ambientGrey = 0f, fogDensity = 0f, firePools = 0 } },
             // 11-13 bamboo redo (Kido: C mood, Sekiro bamboo at night): darker materials and a cold moon in the scene, so the
             // grade only lifts it; the old -0.6 EV / -58 sat / green-grey filter turned the floor into one olive mush
             { "bamboo",     new Mood { exposure = 0.15f, saturation = -42f, filter = new Color(0.95f, 0.96f, 0.99f), fire = new Color(0.95f, 0.6f, 0.38f) } },   // r9: darker, softer lantern colour

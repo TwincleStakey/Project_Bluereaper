@@ -224,6 +224,22 @@ MonoBehaviour:
     bossOffset: {x: 0, y: 0, z: 0}
     bossHp: 60
     devOnly: 1
+  - id: crypt
+    displayName: "\uD0C0\uB77D\uD55C \uBB18\uC5ED"
+    mapCell: {x: 8, y: 0}
+    scenePath: Assets/Game/DarkCrypt/DarkCrypt.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 112, y: 88}
+    fitToStage: 0
+    floorColor: {r: 0.101960786, g: 0.08627451, b: 0.13333334, a: 1}
+    pillarCount: 0
+    doors: []
+    waves: []
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 1
   enemies:
   - id: shade
     prefab: {fileID: 141494584402590501, guid: a777c57e70632414996f325b9bec82ff, type: 3}

@@ -15,7 +15,7 @@ namespace RoomRun
 {
     public sealed class FieldLighting : MonoBehaviour
     {
-        public static readonly HashSet<string> DarkRooms = new HashSet<string> { "grass", "valley", "village", "palace", "underworld", "abandoned", "reeds", "bamboo", "snow" };   // every field is dark since 11-11 (StageMood)
+        public static readonly HashSet<string> DarkRooms = new HashSet<string> { "grass", "valley", "village", "palace", "underworld", "abandoned", "reeds", "bamboo", "snow", "crypt" };   // every field is dark since 11-11 (StageMood)
         public const int MaxBulletLights = 12;
 
         [Header("Player light pool")]
@@ -79,12 +79,13 @@ namespace RoomRun
 
         // per-stage light scale (11-13, Kido: snow too bright, glow blob round the player): the white snow returns these
         // lights at full strength, so on snow the player key/foot lights and the bullet lights run at half
-        float stageScale = 1f;
+        float stageScale = 1f, playerScale = 1f;
 
         void Enter(bool dark)
         {
             Active = dark;
             stageScale = run.Room != null && run.Room.id == "snow" ? 0.5f : 1f;
+            playerScale = run.Room != null && run.Room.id == "crypt" ? 0f : 1f;   // DarkCrypt (11-15): no light pool under the player
             EnemyRim = dark ? rimMat : null;
             // the stage scene set its own ambient when it loaded; dim it once for this visit
             if (dark)
@@ -124,13 +125,13 @@ namespace RoomRun
             {
                 var (main, foot) = playerLights[i];
                 bool on = i < players.Length && players[i];
-                main.enabled = foot.enabled = on;
+                main.enabled = foot.enabled = on && playerScale > 0f;
                 if (!on) continue;
                 var p = players[i].transform.position;
                 main.transform.position = p + Vector3.up * playerHeight;
-                main.color = playerLight; main.range = playerRange; main.intensity = playerIntensity * stageScale;
+                main.color = playerLight; main.range = playerRange; main.intensity = playerIntensity * stageScale * playerScale;
                 foot.transform.position = p + Vector3.up * 0.9f;
-                foot.color = playerLight; foot.range = footRange; foot.intensity = footIntensity * stageScale;
+                foot.color = playerLight; foot.range = footRange; foot.intensity = footIntensity * stageScale * playerScale;
             }
         }
 
