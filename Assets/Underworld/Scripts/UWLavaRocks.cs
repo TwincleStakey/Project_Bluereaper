@@ -36,6 +36,7 @@ namespace Underworld
             float seaY = sea.transform.position.y;
             Build(root, plaza, seaY);
             PortalFix(root.Find(RootName), sea.scene);
+            GateFix(root.Find(RootName), root, plaza);
         }
 
         static void Build(Transform parent, Rect plaza, float seaY)
@@ -83,17 +84,28 @@ namespace Underworld
         // Kido 11-15: the exit swirl was cut off by the coded octagon dais under it, and the dais + floating black shards
         // (UW_PortalFrame, a first-draft model) read fake. Hide that frame, stand the swirl on a downloaded Megascans basalt
         // ledge with two volcanic spires either side, and lift the swirl (with its sparks / lights) clear of the rock.
-        const float PortalLift = 2.4f;
+        // 18:45: the raised box platform and its box steps under the swirl read as "네모네모" too: both hidden (the walk
+        // surface is the flat plaza anyway, there is no collider on them), the chains that hung off the old frame go too.
+        // The swirl now stands at plaza level on the basalt ledge, and the back edge of the old platform becomes basalt
+        // cliffs rising out of the lava.
+        const float PortalLift = 1.2f;
+        static readonly string[] PortalHide = { "UW_PortalFrame", "UW_PlatformBack", "UW_Steps", "UW_Chain" };
         static void PortalFix(Transform set, UnityEngine.SceneManagement.Scene scene)
         {
             if (!set) return;
             Vector3 frame = new Vector3(20f, 1.2f, 29.6f);
-            bool found = false;
+            bool found = false; int hid = 0;
             foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
             {
                 if (r.gameObject.scene != scene) continue;
                 for (var t = r.transform; t; t = t.parent)
-                    if (t.name.StartsWith("UW_PortalFrame")) { frame = t.position; r.enabled = false; found = true; break; }
+                {
+                    bool hit = false;
+                    foreach (var h in PortalHide) if (t.name.StartsWith(h)) { hit = true; break; }
+                    if (!hit) continue;
+                    if (t.name.StartsWith("UW_PortalFrame")) { frame = t.position; found = true; }
+                    r.enabled = false; hid++; break;
+                }
             }
             foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
             {
@@ -103,11 +115,45 @@ namespace Underworld
                     t.position += Vector3.up * PortalLift;
             }
             if (!found) return;
+            var g = new Vector3(frame.x, 0f, frame.z);   // plaza level
             var p = new GameObject("UW portal rocks").transform; p.SetParent(set, false);
-            Put(p, "LR_L11", frame + new Vector3(0f, 0f, 0.6f), 180f, 1.7f, 0.65f);
-            Put(p, "LR_Spire", frame + new Vector3(-6.8f, 0f, 0.8f), 75f, 1.15f, 0.1f);
-            Put(p, "LR_Spire", frame + new Vector3(6.9f, 0f, 1.2f), 250f, 1.05f, 0.1f);
-            Debug.Log($"UWLavaRocks: portal frame replaced at {frame}, swirl lifted {PortalLift} m");
+            Put(p, "LR_L11", g + new Vector3(0f, 0f, 0.6f), 180f, 1.7f, 0.82f);
+            Put(p, "LR_Spire", g + new Vector3(-6.8f, 0f, 0.8f), 75f, 1.15f, 0.1f);
+            Put(p, "LR_Spire", g + new Vector3(6.9f, 0f, 1.2f), 250f, 1.05f, 0.1f);
+            // basalt cliffs rising out of the lava behind and beside the swirl, tops just above plaza level
+            float sea = -6f;
+            float[,] cliffs = { { -9f, 3.5f, 20f }, { 0f, 5.2f, 185f }, { 9f, 3.8f, 340f }, { -13f, -1.5f, 95f }, { 13.5f, -0.5f, 265f } };
+            for (int i = 0; i < cliffs.GetLength(0); i++)
+                Put(p, "LR_L11", new Vector3(g.x + cliffs[i, 0], sea, g.z + cliffs[i, 1]), cliffs[i, 2], 3.0f, 0.02f);
+            Debug.Log($"UWLavaRocks: portal area rebuilt at {frame}, hid {hid} box renderers, swirl lifted {PortalLift} m");
+        }
+
+        // 18:45 Kido: the gate hall ("집같은거") looked clumsy: fire puffs were parked inside its roof, the two front fires
+        // burned through the pillars, one red spot light flattened the whole hall, and the hall stood on the lava like a box.
+        // Roof fires off, front fires pulled clear of the pillars, the roof light halved, basalt cliffs under its footing.
+        static void GateFix(Transform set, Transform hellRoot, Rect plaza)
+        {
+            if (!set) return;
+            float gx = plaza.center.x, gz = plaza.yMax + 10f;
+            int roof = 0, moved = 0;
+            foreach (Transform t in hellRoot)
+            {
+                if (t.name == "HellFire" && Mathf.Abs(t.position.x - gx) < 12f && Mathf.Abs(t.position.z - gz) < 6f)
+                {
+                    if (t.position.y > 3f) { t.gameObject.SetActive(false); roof++; }
+                    else { t.position += new Vector3(Mathf.Sign(t.position.x - gx) * 1.5f, 0f, -3f); moved++; }
+                }
+                else if (t.name == "GateRoofLight")
+                {
+                    var l = t.GetComponent<Light>(); if (l) { l.intensity *= 0.5f; l.color = new Color(1f, 0.55f, 0.3f); }
+                }
+            }
+            var p = new GameObject("UW gate footing").transform; p.SetParent(set, false);
+            float sea = -6f;
+            float[,] cliffs = { { -14f, 2f, 10f }, { 14f, 3f, 200f }, { -9f, 8f, 160f }, { 8f, 9f, 350f } };
+            for (int i = 0; i < cliffs.GetLength(0); i++)
+                Put(p, "LR_L11", new Vector3(gx + cliffs[i, 0], sea, gz + cliffs[i, 1]), cliffs[i, 2], 3.0f, 0.06f);
+            Debug.Log($"UWLavaRocks: gate fixed, {roof} roof fires off, {moved} front fires moved");
         }
 
         static void Put(Transform set, string name, Vector3 pos, float yaw, float scale, float sinkFrac)
