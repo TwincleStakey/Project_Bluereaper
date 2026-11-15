@@ -86,6 +86,8 @@ namespace SnowPlague
             silPass = new SilhouettePass { renderPassEvent = RenderPassEvent.AfterRenderingSkybox + 1 };
             RenderPipelineManager.beginCameraRendering += Inject;
             SetGlobals(Camera.main);
+            // 11-14: temporal AA + no film grain while this field is live (twig shimmer, SPTemporalAA.cs)
+            if (Application.isPlaying && !GetComponent<SPTemporalAA>()) gameObject.AddComponent<SPTemporalAA>();
         }
 
         void OnDisable()

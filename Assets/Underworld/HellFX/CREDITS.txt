@@ -1,0 +1,19 @@
+저승 hell fire pass (2026-11-14) - third-party assets used here (all free downloads)
+
+Lava sea surface (Textures/T_Lava04_*.png, 4K TGA downscaled to 2K):
+  "Lava Texture & Material Vol. 04" by ehsan vaezi - Fab, CC BY 4.0
+  https://www.fab.com/listings/d5f9c52b-ce79-4654-b155-605bcada41da
+
+Fire flipbook / smoke / spark sprites (Textures/T_Fire*.png, flipbook converted to greyscale and halved):
+  "Fire VFX - Lite - Surface Burning" by Skulmovski Studio - Fab, Fab Standard License
+  https://www.fab.com/listings/507c61a0-e984-4758-a922-b3794a5344b1
+
+Burnt corpses (Models/Corpse_*.fbx posed lying in Blender, decimated; Textures/T_CorpseBurn.png):
+  "Zombie: The Burnt" by CatBYTE Studio (@K3NMA) - Sketchfab, CC BY 4.0
+  https://sketchfab.com/3d-models/zombie-the-burnt-263514e15f3c4ef792796399876ca8a8
+
+Floor rock (Assets/Underworld/Textures/Ground/T_UWG_Lava_*.png, packed AH/NRA):
+  "Hawaiian Lava Stone" by Quixel Megascans - Fab, Fab Standard License (4 x 4 m scan)
+  https://www.fab.com/listings/a3c6ff99-d81e-446c-bbfc-4b44b74bec4f
+
+Scripts: ArtSource/uw_quality/hellfx_tex.py (texture prep), pose_corpse.py (Blender posing), packone.py (scan packing).
