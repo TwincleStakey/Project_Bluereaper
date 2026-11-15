@@ -19,11 +19,9 @@ namespace Underworld
             var go = new GameObject("UWLavaRocks");
             DontDestroyOnLoad(go);
             go.AddComponent<UWLavaRocks>();
-            Debug.Log("UWLavaRocks: boot");
         }
 
         float nextCheck;
-        bool logged;
 
         void Update()
         {
@@ -32,12 +30,12 @@ namespace Underworld
             var sea = GameObject.Find(SeaName);
             if (!sea) return;
             var root = sea.transform.parent;
-            if (!logged) { logged = true; Debug.Log("UWLavaRocks: found lava sea under " + (root ? root.name : "none")); }
             if (!root || root.Find(RootName)) return;
             var look = sea.GetComponentInParent<UWLook>();
             Rect plaza = look ? look.plazaRect : new Rect(-44f, -29f, 88f, 56f);
             float seaY = sea.transform.position.y;
             Build(root, plaza, seaY);
+            PortalFix(root.Find(RootName), sea.scene);
         }
 
         static void Build(Transform parent, Rect plaza, float seaY)
@@ -82,6 +80,36 @@ namespace Underworld
             Debug.Log($"UWLavaRocks: {set.childCount} rocks in the lava sea (sea y {seaY})");
         }
 
+        // Kido 11-15: the exit swirl was cut off by the coded octagon dais under it, and the dais + floating black shards
+        // (UW_PortalFrame, a first-draft model) read fake. Hide that frame, stand the swirl on a downloaded Megascans basalt
+        // ledge with two volcanic spires either side, and lift the swirl (with its sparks / lights) clear of the rock.
+        const float PortalLift = 2.4f;
+        static void PortalFix(Transform set, UnityEngine.SceneManagement.Scene scene)
+        {
+            if (!set) return;
+            Vector3 frame = new Vector3(20f, 1.2f, 29.6f);
+            bool found = false;
+            foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (r.gameObject.scene != scene) continue;
+                for (var t = r.transform; t; t = t.parent)
+                    if (t.name.StartsWith("UW_PortalFrame")) { frame = t.position; r.enabled = false; found = true; break; }
+            }
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                if (t.gameObject.scene != scene) continue;
+                string n = t.name;
+                if (n == "PortalVortex" || n == "PortalSpiral" || n == "PortalKey" || n == "PortalBack" || n == "PortalHaze")
+                    t.position += Vector3.up * PortalLift;
+            }
+            if (!found) return;
+            var p = new GameObject("UW portal rocks").transform; p.SetParent(set, false);
+            Put(p, "LR_L11", frame + new Vector3(0f, 0f, 0.6f), 180f, 1.7f, 0.65f);
+            Put(p, "LR_Spire", frame + new Vector3(-6.8f, 0f, 0.8f), 75f, 1.15f, 0.1f);
+            Put(p, "LR_Spire", frame + new Vector3(6.9f, 0f, 1.2f), 250f, 1.05f, 0.1f);
+            Debug.Log($"UWLavaRocks: portal frame replaced at {frame}, swirl lifted {PortalLift} m");
+        }
+
         static void Put(Transform set, string name, Vector3 pos, float yaw, float scale, float sinkFrac)
         {
             var src = Resources.Load<GameObject>("LavaRocks/" + name);
@@ -102,7 +130,6 @@ namespace Underworld
             }
             foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
             if (any) go.transform.position += Vector3.up * (pos.y - b.min.y - b.size.y * sinkFrac);   // base sunk into the lava
-            if (set.childCount <= 3) Debug.Log($"UWLavaRocks: {name} at {go.transform.position} bounds {b.center} size {b.size} renderers {go.GetComponentsInChildren<Renderer>().Length} mat {(mat ? mat.shader.name : "none")}");
         }
     }
 }
