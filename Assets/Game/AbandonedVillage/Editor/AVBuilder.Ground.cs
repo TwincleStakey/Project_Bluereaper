@@ -45,7 +45,9 @@ public static partial class AVBuilder
         GLayer("AV_G_Grass", "SparseGrass", new Vector2(1.8f, 1.8f), new Color(0.75f, 0.72f, 0.66f, 1), 1.0f, 0.4f),
         // 11-13 r9 (dark-fantasy refs: Tarae / POE2 / D4 floors are broken into stone, mud and litter zones, never one
         // dirt sheet): old cobbled paving along the streets and in broken islands, half sunk into the mud
-        Layer("AV_G_Paving", "stone_pathway_diff_2k.jpg", "stone_pathway_nor_gl_2k.jpg", 3.4f, new Color(0.42f, 0.4f, 0.38f, 1), 0.2f),   // r9b: was pale blue-white, read as a river
+        // 11-14 (Kido: "a Joseon village path is a dirt road, not marble"): the stone_pathway paving is replaced by a
+        // free Fab Megascans scan, Dirt Ground xdhhefr (dry worn dirt road, 2x2 m scan; Standard License)
+        GLayer("AV_G_DirtRoad", "DirtRoad", new Vector2(4.6f, 4.6f), new Color(0.4f, 0.37f, 0.33f, 1), 1.0f, 0.35f),
         GLayer("AV_G_Floor", "ForestFloor", new Vector2(8f, 8f), new Color(0.55f, 0.6f, 0.5f, 1), 1.0f, 0.4f),   // r10: dark moss / forest litter along the rim and in shade
     };
 
@@ -88,9 +90,11 @@ public static partial class AVBuilder
                       * Mathf.Clamp01((sd - 1.2f) / 2.5f) * (1f - dry * 0.6f) * 0.9f;
         // r9: paving - the street cores (ragged, with gaps where the stones are gone) plus broken islands of old yard
         // paving near the ruins and here and there in the open; grass grows over its edges
-        float pave = Band(1.6f - sd + (Fbm(x, z, 0.35f, 3f, 77f) - 0.5f) * 2.2f, 0.5f, 0.25f) * Band(Fbm(x, z, 0.18f, 19f, 5f), 0.36f, 0.06f);
-        float isl = Band(Fbm(x, z, 0.045f, 140f, 61f) + jit * 0.8f + 0.12f * IslandNear(x, z), 0.66f, 0.03f) * Band(Fbm(x, z, 0.4f, 7f, 9f), 0.4f, 0.08f);
-        pave = Mathf.Max(pave, isl) * (1f - Mathf.Clamp01((edge - 50f) / 6f));
+        // 11-14: the dirt road follows the street cores with a wide ragged, feathered shoulder (no stone gaps, no paved
+        // islands); its strength wanders along the street so it fades into the trampled mud in places
+        float road = Mathf.Clamp01((2.4f - sd + (Fbm(x, z, 0.22f, 3f, 77f) - 0.5f) * 2.6f + jit * 2f) / 1.8f);
+        float pave = road * road * (3f - 2f * road) * Mathf.Lerp(0.55f, 1f, Fbm(x, z, 0.06f, 19f, 5f))
+                     * (1f - Mathf.Clamp01((edge - 50f) / 6f));
         // r10 zones (reviewer, refs Tarae ash field / POE2): grey ash-gravel in ragged 2-5 m patches, dark moss toward the
         // rim and around the ruins, both breaking the packed earth
         float ash = Band(Fbm(x, z, 0.09f, 301f, 17f) + jit * 0.9f, 0.6f, 0.04f) * (1f - pave);

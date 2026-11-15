@@ -91,6 +91,10 @@ public class LookStudyValley : MonoBehaviour
         }
     }
 
+    // r9: the granite shelf by the west gate was 1.5 m up (a hard second tier over the stream bank); now a step you walk up
+    const float ShelfH = 0.7f;
+    const float HeadH = 7.2f;   // r9: hillside head behind the big fall
+
     public static float Height(float x, float z)
     {
         float wob = (N(x * 0.07f, z * 0.07f) - 0.5f) * 3.2f;
@@ -106,26 +110,39 @@ public class LookStudyValley : MonoBehaviour
 
         // Flat granite shelf on the west bank (너럭바위).
         float shelf = 1f - SS(0.8f, 1.25f, new Vector2((x + 19f) / 9.5f, (z - 7f) / 6.5f).magnitude + (N(x * 0.3f, z * 0.3f) - 0.5f) * 0.25f);
-        h = Mathf.Lerp(h, Mathf.Max(1.5f, h * 0.2f) + (N(x * 0.5f, z * 0.5f) - 0.5f) * 0.14f, shelf);
+        h = Mathf.Lerp(h, Mathf.Max(ShelfH, h * 0.2f) + (N(x * 0.5f, z * 0.5f) - 0.5f) * 0.14f, shelf);
 
         // 11-14 (Kido: "여기에 폭포를 웅장하게", the granite shelf by the west gate under the tall west hillside): a plunge
         // pool cut into the shelf's north-west corner, fed by the big fall down the hillside (BuildGrandFall), and a shallow
         // channel that carries its water across the shelf to the stream.
         {
+            // r9 (11-14, Kido: "들어가니깐 나오지도 못하네, 더 파놔가지고", "2단으로 하지 말고 왔다갔다 할 수 있는 높이로"): the pool was
+            // a 2.8 m pit with a near-vertical 4 m wall up to the shelf. Now a shallow bowl whose banks rise gently all round
+            // (about 25 degrees) to the lowered shelf, so the player wades in and walks back out anywhere.
             var bq = new Vector2((x - GrandPool.x) / 5.6f, (z - GrandPool.y) / 4.6f);
-            float bm = 1f - SS(0.5f, 1.0f, bq.magnitude + (N(x * 0.35f, z * 0.35f) - 0.5f) * 0.45f + (N(x * 1.1f, z * 1.1f) - 0.5f) * 0.15f);
-            if (bm > 0f) h = Mathf.Lerp(h, Mathf.Min(h, -2.8f + (N(x * 0.6f, z * 0.6f) - 0.5f) * 0.6f), bm);
+            float br = bq.magnitude + (N(x * 0.35f, z * 0.35f) - 0.5f) * 0.3f + (N(x * 1.1f, z * 1.1f) - 0.5f) * 0.1f;
+            if (br < 1.6f) h = Mathf.Min(h, Mathf.Lerp(-1.5f + (N(x * 0.6f, z * 0.6f) - 0.5f) * 0.3f, ShelfH + 0.3f, SS(0.2f, 1.5f, br)));
             var ca = GrandPool; var cb = new Vector2(-4f, 3.5f); var cab = cb - ca;
             float ct = Mathf.Clamp01(Vector2.Dot(new Vector2(x, z) - ca, cab) / cab.sqrMagnitude);
             float cd = Vector2.Distance(new Vector2(x, z), ca + cab * ct) + (N(x * 0.25f, z * 0.25f) - 0.5f) * 1.6f + (N(x * 0.9f, z * 0.9f) - 0.5f) * 0.5f;
             float cm = 1f - SS(1.3f, 2.6f, cd);
             if (cm > 0f) h = Mathf.Lerp(h, Mathf.Min(h, -0.22f), cm);
-            // r8: an alcove bitten into the hillside behind the pool, so the fall drops down a sheer face (the scanned cliff
+            // r9: with the scanned cliff gone (its flat cut sides showed), the alcove's own back wall is the fall's face;
+            // it stands right at GrandBack. r8: an alcove bitten into the hillside behind the pool, so the fall drops down a sheer face (the scanned cliff
             // stands against it) instead of sliding down the slope
             var ap = new Vector2(x, z) - GrandPool;
+            // r9: the ground behind the fall was only ~1 m up, so the scanned cliff's top and back stood 5 m clear of it,
+            // flat cut faces and all. A rounded head of hillside now rises behind it to the cliff's top; the water runs off it.
+            {
+                float hAlong = Vector2.Dot(ap, GrandUp), hAcross = Mathf.Abs(Vector2.Dot(ap, new Vector2(GrandUp.y, -GrandUp.x)));
+                float head = SS(GrandBack - 1f, GrandBack + 2f, hAlong) * (1f - SS(GrandBack + 12f, GrandBack + 20f, hAlong))
+                           * (1f - SS(7f, 12f, hAcross + (N(x * 0.3f, z * 0.3f) - 0.5f) * 3f));
+                float headH = HeadH + Mathf.Max(0f, hAlong - GrandBack - 4f) * 0.2f + (N(x * 0.4f, z * 0.4f) - 0.5f) * 0.8f;
+                if (head > 0f) h = Mathf.Max(h, Mathf.Lerp(h, headH, head));
+            }
             float aAlong = Vector2.Dot(ap, GrandUp), aAcross = Mathf.Abs(Vector2.Dot(ap, new Vector2(GrandUp.y, -GrandUp.x)));
-            float am = (1f - SS(4.5f, 6.5f, aAcross + (N(x * 0.5f, z * 0.5f) - 0.5f) * 1.2f)) * (1f - SS(GrandBack + 4.5f, GrandBack + 6f, aAlong)) * SS(-1f, 1f, aAlong);
-            if (am > 0f) h = Mathf.Lerp(h, Mathf.Min(h, -2.2f), am);
+            float am = (1f - SS(4.5f, 6.5f, aAcross + (N(x * 0.5f, z * 0.5f) - 0.5f) * 1.2f)) * (GrandCliffOn ? 1f - SS(GrandBack + 4.5f, GrandBack + 6f, aAlong) : 1f - SS(GrandBack + 0.4f, GrandBack + 1.9f, aAlong + (N(x * 0.7f, z * 0.7f) - 0.5f) * 0.8f)) * SS(-1f, 1f, aAlong);
+            if (am > 0f) h = Mathf.Lerp(h, Mathf.Min(h, -1.3f), am);
         }
         // Cliff wall that closes the valley behind the waterfall.
         var f = new Vector2(x - 37f, z - 41f);
@@ -213,6 +230,10 @@ public class LookStudyValley : MonoBehaviour
             Nearest(x, z, out float d, out float w, out float depth, out Vector2 dir, out _);
             // Pools barely move; narrow shallows run fast.
             float speed = Mathf.Clamp01(1.25f - depth * 0.55f);
+            // r9 (Kido: the big fall's water ran north-west, away from the stream): in the plunge pool and its channel
+            // the water runs from the fall down the channel toward the stream (south-east), not along the far river reach
+            float gm = GrandFlowMask(x, z);
+            if (gm > 0f) { dir = Vector2.Lerp(dir, GrandFlowDir(x, z), gm).normalized; speed = Mathf.Lerp(speed, 0.55f, gm); }
             map[j * nx + i] = verts.Count;
             verts.Add(new Vector3(x, Water, z));
             cols.Add(new Color(dir.x * 0.5f + 0.5f, dir.y * 0.5f + 0.5f, speed, 1));
@@ -312,6 +333,27 @@ public class LookStudyValley : MonoBehaviour
     public static readonly Vector2 GrandPool = new Vector2(-24.5f, 10.5f);
     static readonly Vector2 GrandUp = new Vector2(-0.62f, 0.78f);   // from the pool up the hillside
     const float GrandBack = 4.5f;   // how far behind the pool centre the sheer face stands
+    public static bool GrandCliffOn = true;   // r9: the scanned Megascans cliff behind the fall, now sunk flush with the hill so its cut edges stay buried
+
+    static readonly Vector2 GrandChannelEnd = new Vector2(-4f, 3.5f);
+    // 1 inside the plunge pool and the channel it drains through, fading out over a few metres
+    static float GrandFlowMask(float x, float z)
+    {
+        var p = new Vector2(x, z);
+        var ab = GrandChannelEnd - GrandPool;
+        float t = Mathf.Clamp01(Vector2.Dot(p - GrandPool, ab) / ab.sqrMagnitude);
+        float d = Vector2.Distance(p, GrandPool + ab * t);
+        float pool = 1f - SS(5f, 9f, Vector2.Distance(p, GrandPool));
+        return Mathf.Max(pool, (1f - SS(3f, 6f, d)) * (1f - SS(0.85f, 1.0f, t)));
+    }
+    // out of the pool: away from the fall, bending into the channel and on toward the stream
+    static Vector2 GrandFlowDir(float x, float z)
+    {
+        var down = (GrandChannelEnd - GrandPool).normalized;
+        var away = new Vector2(x, z) - (GrandPool + GrandUp * GrandBack);
+        float k = SS(2f, 7f, Vector2.Distance(new Vector2(x, z), GrandPool));
+        return Vector2.Lerp(away.sqrMagnitude > 1e-3f ? away.normalized : down, down, Mathf.Max(k, 0.5f)).normalized;
+    }
 
     // Granite around the big fall: a band either side of its line up the hillside, widening with height, ragged.
     public static float GorgeMask(float x, float z)
@@ -334,7 +376,16 @@ public class LookStudyValley : MonoBehaviour
         var front = new Vector3(GrandPool.x, 0, GrandPool.y) - dn * GrandBack;   // where the sheer face meets the pool
         var topAt = new Vector3(GrandPool.x, 0, GrandPool.y) - dn * (GrandBack + 3f);
         float lipY = Mathf.Max(6f, Height(topAt.x, topAt.z) - 0.3f);
-        if (trees && trees.cliff && trees.cliffMat)
+        float lipFwd = 0.6f, cliffBack = 0f;
+        if (!GrandCliffOn)
+        {
+            // r9 (Kido: "뒤에 저 돌 안 대도 돼", the scanned cliff's flat cut edges showed): the water comes over the top of
+            // the alcove's own granite back wall, from the hill above it
+            var lp = front - dn * 2.3f;
+            lipY = Height(lp.x, lp.z) + 0.1f;
+            lipFwd = -2.3f;
+        }
+        else if (trees && trees.cliff && trees.cliffMat)
         {
             var go = Instantiate(trees.cliff, root, false);
             go.name = "GrandFallCliff";
@@ -355,7 +406,7 @@ public class LookStudyValley : MonoBehaviour
                 // height: from just under the pool to the hill's rim above the alcove
                 float rim = lipY + 0.3f;
                 var b = mr.bounds;
-                float s = (rim + 1.5f - (Water - 1.8f)) / Mathf.Max(0.01f, b.size.y);
+                float s = (rim + 0.4f - (Water - 1.8f)) / Mathf.Max(0.01f, b.size.y);   // r9: top nearly flush with the hill, not 1.5 m over it
                 go.transform.localScale *= s;
                 // put its front-most scanned vertex just in front of the sheer terrain face, centred across the fall,
                 // and its bottom just under the pool
@@ -373,6 +424,29 @@ public class LookStudyValley : MonoBehaviour
                 float fwdOff = (Vector3.Dot(front, dn) + 0.8f) - maxF;
                 go.transform.position += side * acrossOff + dn * fwdOff + Vector3.up * ((Water - 1.8f) - minY);
                 lipY = rim - 0.8f;
+                // r9 (Kido: the water started half-way down the rock, with a flat cut edge at the top): find the rock's real
+                // top edge along the fall's line, so the water comes over the very top of it
+                l2w = mf.transform.localToWorldMatrix;
+                float topY = -1e9f, minF2 = 1e9f;
+                for (int i = 0; i < vs.Length; i++)
+                {
+                    var w = l2w.MultiplyPoint3x4(vs[i]);
+                    if (Mathf.Abs(Vector3.Dot(w - front, side)) > 2.2f) continue;
+                    topY = Mathf.Max(topY, w.y);
+                }
+                float lipF = -1e9f;
+                for (int i = 0; i < vs.Length; i++)
+                {
+                    var w = l2w.MultiplyPoint3x4(vs[i]);
+                    if (Mathf.Abs(Vector3.Dot(w - front, side)) > 2.2f || w.y < topY - 1.2f) continue;
+                    lipF = Mathf.Max(lipF, Vector3.Dot(w, dn)); minF2 = Mathf.Min(minF2, Vector3.Dot(w, dn));
+                }
+                if (topY > -1e8f && lipF > -1e8f)
+                {
+                    lipY = topY - 0.08f;
+                    lipFwd = lipF + 0.15f - Vector3.Dot(front, dn);
+                    cliffBack = lipF - minF2;
+                }
                 if (Application.isPlaying) Debug.Log($"[Valley] grand fall cliff bounds {mr.bounds} lip {lipY:0.0} front {front}");
             }
         }
@@ -396,31 +470,55 @@ public class LookStudyValley : MonoBehaviour
         if (Application.isPlaying) Debug.Log($"[Valley] grand fall: cliff={(trees ? trees.cliff : null)} mat={mat} lip {lipY:0.0}");
         // the curtain: drops free from the cliff's top edge, a little in front of the face, widening toward the pool
         var v = new List<Vector3>(); var uv = new List<Vector2>(); var col = new List<Color>(); var t = new List<int>();
-        const int Seg = 22, Cols = 16;
-        var lip = front + dn * 0.6f; lip.y = lipY;
-        for (int s = 0; s <= Seg; s++)
+        // r9: the water now runs over the hill behind (lying on it, fading in from nothing so there is no top edge), over
+        // the rock's top edge, then drops free into the pool
+        const int Feed = 12, Seg = 22, Cols = 16;
+        const float FeedLen = 8f;
+        var lip = front + dn * lipFwd; lip.y = lipY;
+        for (int s = -Feed; s <= Seg; s++)
         {
-            float f = s / (float)Seg;
-            float y = Mathf.Lerp(lipY, Water + 0.05f, f * f * 0.65f + f * 0.35f);
-            float hw = Mathf.Lerp(2.4f, 3.6f, f);
-            float hwL = hw * (0.8f + 0.4f * Mathf.PerlinNoise(f * 2.3f, 1.7f)), hwR = hw * (0.8f + 0.4f * Mathf.PerlinNoise(f * 2.1f + 5f, 3.1f));
-            var c = new Vector3(lip.x, y, lip.z) + dn * (1.4f * Mathf.Sqrt(f));
+            float f = Mathf.Max(0, s) / (float)Seg;
+            float back = s < 0 ? -s / (float)Feed * FeedLen : 0f;   // metres behind the lip, up the hill
+            float hw = s < 0 ? Mathf.Lerp(2.4f, 1.3f, back / FeedLen) : Mathf.Lerp(2.4f, 3.6f, f);
+            float hwL = hw * (0.8f + 0.4f * Mathf.PerlinNoise(f * 2.3f - back * 0.2f, 1.7f)), hwR = hw * (0.8f + 0.4f * Mathf.PerlinNoise(f * 2.1f + 5f - back * 0.2f, 3.1f));
+            Vector3 c;
+            if (s < 0)
+            {
+                var g = lip - dn * back;
+                // over the rock it stays just above its top; past it, it lies on the hill
+                float onRock = 1f - SS(cliffBack - 0.5f, cliffBack + 1.5f, back);
+                float hy = Height(g.x, g.z) + 0.12f;
+                g.y = Mathf.Lerp(Mathf.Max(hy, lipY - back * 0.05f), Mathf.Max(hy, lipY + 0.1f), onRock);
+                c = g;
+            }
+            else
+            {
+                float y = Mathf.Lerp(lipY, Water + 0.05f, f * f * 0.65f + f * 0.35f);
+                c = new Vector3(lip.x, y, lip.z) + dn * ((GrandCliffOn ? 1.4f : 2.1f) * Mathf.Sqrt(f));
+            }
+            float topFade = s < 0 ? 1f - SS(FeedLen * 0.45f, FeedLen, back) : 1f;
             for (int q = 0; q <= Cols; q++)
             {
                 float u = q / (float)Cols;
-                v.Add(c + side * (u < 0.5f ? (u * 2f - 1f) * hwL : (u * 2f - 1f) * hwR));
-                uv.Add(new Vector2((u * 2f - 1f) * hw, f * 2.2f));   // a long drop: streaks repeat twice down it
+                var off = side * (u < 0.5f ? (u * 2f - 1f) * hwL : (u * 2f - 1f) * hwR);
+                var pv = c + off;
+                if (s < 0) pv.y = Mathf.Max(pv.y, Height(pv.x, pv.z) + 0.1f);
+                v.Add(pv);
+                uv.Add(new Vector2((u * 2f - 1f) * hw, s < 0 ? -back * 0.06f : f));   /* r9: uv.y must end at 1 at the foot; at 2.2 the shader faded the sheet out 45% of the way down */
                 float e = Mathf.Min(u, 1f - u) * 2f;
-                col.Add(new Color(e, e, 0, 1));
+                col.Add(new Color(e, Mathf.Min(e, topFade), 0, 1));
             }
             if (s < Seg)
+            {
+                int row = s + Feed;
                 for (int q = 0; q < Cols; q++)
                 {
-                    int a = s * (Cols + 1) + q, b = a + 1, cc = a + Cols + 1, d = cc + 1;
-                    t.Add(a); t.Add(cc); t.Add(b); t.Add(b); t.Add(cc); t.Add(d);
+                    int a2 = row * (Cols + 1) + q, b2 = a2 + 1, cc = a2 + Cols + 1, d = cc + 1;
+                    t.Add(a2); t.Add(cc); t.Add(b2); t.Add(b2); t.Add(cc); t.Add(d);
                 }
+            }
         }
-        var foot = new Vector3(lip.x, Water, lip.z) + dn * 1.6f;
+        var foot = new Vector3(lip.x, Water, lip.z) + dn * (GrandCliffOn ? 1.6f : 2.3f);
         {
             const int Rings = 7, RSeg = 32; const float Rad = 4.4f;
             int b0 = v.Count;
@@ -453,12 +551,12 @@ public class LookStudyValley : MonoBehaviour
         var churn = Particle(root, "GrandFallChurn", mistMat, 90, 0.8f, 1.8f, 1.2f, 2.6f, Vector3.up * 1.0f, 0.4f, 60f, true);
         churn.transform.position = foot + Vector3.up * 0.2f;
         var sh = churn.shape; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 1.8f;
-        FadeAlpha(churn, new Color(0.9f, 0.94f, 0.94f), 0.5f);
+        FadeAlpha(churn, new Color(0.9f, 0.94f, 0.94f), 0.32f);
         churn.Play();
         var plume = Particle(root, "GrandFallPlume", mistMat, 60, 4f, 8f, 3.5f, 7f, new Vector3(0, 0.9f, 0), 0.15f, 9f, true);
         plume.transform.position = foot + Vector3.up * 0.8f;
         var sh2 = plume.shape; sh2.shapeType = ParticleSystemShapeType.Sphere; sh2.radius = 2.5f;
-        FadeAlpha(plume, new Color(0.62f, 0.72f, 0.74f), 0.16f);
+        FadeAlpha(plume, new Color(0.62f, 0.72f, 0.74f), 0.06f);   /* r9: lay-on-the-water cotton clouds were too thick */
         plume.Play();
     }
 
@@ -790,6 +888,9 @@ public class LookStudyValley : MonoBehaviour
         go.name = src.name;
         go.transform.SetPositionAndRotation(pos + Vector3.down * 0.1f, Quaternion.Euler(R(mixR, -3, 3), R(mixR, 0, 360), R(mixR, -3, 3)));
         float sx = mixR.NextDouble() < 0.5 ? -1f : 1f;   // mirror half of them
+        // bare dead trees (see LookStudyValleyTrees.heroes): the two scans come in at very different sizes; scale 1 = ~10 m
+        bool bare = src.name.StartsWith("AV_BareTree");
+        if (bare) scale *= src.name.EndsWith("A") ? 0.52f : 2.3f;
         go.transform.localScale = new Vector3(sx * scale, scale * R(mixR, 0.9f, 1.1f), scale);
         foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.hideFlags = HideFlags.DontSave;
         foreach (var c in go.GetComponentsInChildren<Collider>(true)) DestroyImmediate(c);
@@ -798,6 +899,9 @@ public class LookStudyValley : MonoBehaviour
             var ms = mr.sharedMaterials;
             for (int i = 0; i < ms.Length; i++)
                 if (ms[i]) foreach (var sw in trees.swaps) if (sw && sw.name == "LSV_" + ms[i].name) { ms[i] = sw; break; }
+            if (bare && trees.bareMats != null && trees.bareMats.Length >= 3)
+                for (int i = 0; i < ms.Length; i++)
+                    ms[i] = src.name.EndsWith("A") ? trees.bareMats[0] : (ms[i] && ms[i].name.Contains("branch")) ? trees.bareMats[2] : trees.bareMats[1];
             mr.sharedMaterials = ms;
             mr.lightProbeUsage = LightProbeUsage.Off; mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
         }
@@ -822,6 +926,7 @@ public class LookStudyValley : MonoBehaviour
                     d = new Material(src) { name = src.name + "_Silhouette", hideFlags = HideFlags.DontSave };
                     if (d.HasProperty("_Tint")) d.SetColor("_Tint", new Color(0.075f, 0.08f, 0.085f, 1f));
                     if (d.HasProperty("_Desat")) d.SetFloat("_Desat", 1f);
+                    if (!d.HasProperty("_Tint") && d.HasProperty("_BaseColor")) d.SetColor("_BaseColor", new Color(0.09f, 0.09f, 0.095f, 1f));   /* URP Lit (bare dead trees) */
                     if (d.HasProperty("_RimScale")) d.SetFloat("_RimScale", 0f);
                     if (d.HasProperty("_Smoothness")) d.SetFloat("_Smoothness", 0f);
                     darkMats[src] = d;

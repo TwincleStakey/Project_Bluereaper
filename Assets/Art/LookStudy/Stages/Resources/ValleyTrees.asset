@@ -16,8 +16,12 @@ MonoBehaviour:
   - {fileID: 8074552136346441033, guid: 9bb41c8daa85856469492edf06184ad8, type: 3}
   - {fileID: 1946147666110997230, guid: 8031ad8b6a9541f478a1b4bfca657f9b, type: 3}
   heroes:
-  - {fileID: 8002008516796931851, guid: 75f8272ae2a01e249999061b46d7ac93, type: 3}
-  - {fileID: 4793911031297736956, guid: 54658471b212cc0479fc55a1298f32f8, type: 3}
+  - {fileID: 919132149155446097, guid: 3f56265cc9287af45b944abca4bbf5be, type: 3}
+  - {fileID: 919132149155446097, guid: 2bcf5326576e87448b5e1680e7a791df, type: 3}
+  bareMats:
+  - {fileID: 2100000, guid: c4a2541b9f5bb3147a95c258a0e40319, type: 2}
+  - {fileID: 2100000, guid: d92b3d4914800e14ba22638e6ca1512a, type: 2}
+  - {fileID: 2100000, guid: ade45968d4f82534da2edf2d61b0b0b5, type: 2}
   swaps:
   - {fileID: 2100000, guid: 5c7a2ca62c28933d57718cb9e4873cc4, type: 2}
   - {fileID: 2100000, guid: 0ee161aac1290c26c45c56af7b7dfaab, type: 2}

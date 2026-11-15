@@ -1,9 +1,8 @@
 // Greatsword cut debris (11-14 rewrite; Kido: "풀 배는것들 좀 리얼리스틱하게 ... 갈댄 훨씬 길게 팍팍 날라가야돼").
 //
 // Reeds: the clump really is cut. Reed.shader clips everything above a slanted cut line where the cut map says so (the
-// stub keeps its shape), and here the part above the cut flies off as ONE rigid piece: the same mesh and material drawn
-// with RF_PIECE, which keeps only the band [lo, hi] of the clump. It leaves along the swing fast (8-16 m/s), tumbles end
-// over end, lands metres away, bounces, slides, lies down and dissolves. Plume fluff and a few leaf bits burst off it.
+// stub keeps its shape). 11-14 Kido: the part above the cut no longer flies off as one piece; it shreds into many small
+// leaf strips, stalk splinters and plume fluff thrown in every direction (pushed along the swing), falling like grass.
 // Cut heights mirror Reed.shader (RFCutKeep / RFCutSeed / RFHash) and the cut map (VegetationCut + RR_VegCut), so the top
 // starts exactly where the stub ends; a clump that is already cut throws nothing (or only what grew back).
 //
@@ -23,8 +22,10 @@ namespace RoomRun
     public sealed class CutDebris : MonoBehaviour
     {
         public int maxTops = 220;
-        public int maxBits = 1600;
+        public int maxBits = 2600;
         public int grassPerSwing = 80;
+        public int reedPiecesPerSwing = 700;   // leaf strips + stalk splinters shared by all reed clumps one swing cuts
+        float reedPiecesThisSwing;
 
         // ---------------------------------------------------------------- data
         struct Top
@@ -141,8 +142,13 @@ namespace RoomRun
             float now = Time.time;
             float power = finisher ? 1.2f : 1f;
             grassIdx.Clear();
-            foliageBlades = 0;
-            foreach (var h in hits) if (h.kind == VegetationQuery.Kind.Grass && IsFoliagePlant(h)) foliageBlades++;
+            foliageBlades = 0; int reeds = 0;
+            foreach (var h in hits)
+            {
+                if (h.kind == VegetationQuery.Kind.Grass && IsFoliagePlant(h)) foliageBlades++;
+                else if (h.kind == VegetationQuery.Kind.Reed) reeds++;
+            }
+            reedPiecesThisSwing = reeds > 0 ? Mathf.Clamp(reedPiecesPerSwing / (float)reeds, 3f, 14f) : 0f;
             for (int i = 0; i < hits.Count; i++)
             {
                 var h = hits[i];
@@ -182,59 +188,44 @@ namespace RoomRun
             float lo = Mathf.Lerp(Uncut, keep, Mathf.Clamp01(vNew));
             if (lo > Mathf.Min(hi, 1f) - 0.05f) return;   // nothing (left) above the cut
 
-            var mat = PieceMat(h.mat);
-            if (!mat) return;
-            int slot = topCount < tops.Length ? topCount++ : Oldest();
+            // 11-14 Kido: no flying clumps. The part above the cut shreds into many small leaf strips, stalk splinters and
+            // plume fluff, thrown every which way (biased along the swing), falling like the grass clippings.
+            if (bitMats.Count == 0) return;
             float meshH = Mathf.Max(h.mesh.bounds.max.y, 0.01f);
             float top = Mathf.Min(hi, 1f);
-            var axis = ((Vector3)m0.GetColumn(1));
-            float H = axis.magnitude * meshH;
-            axis.Normalize();
-            var com0 = m0.MultiplyPoint3x4(new Vector3(0f, (lo + top) * 0.5f * meshH, 0f));
-
+            var axisC = (Vector3)m0.GetColumn(1);
+            float H = axisC.magnitude * meshH;
+            float spread = Mathf.Clamp(Mathf.Max(h.mesh.bounds.extents.x, h.mesh.bounds.extents.z) * ((Vector3)m0.GetColumn(0)).magnitude, 0.08f, 0.6f);
             var outward = root - centre; outward.y = 0;
             outward = outward.sqrMagnitude > 0.01f ? outward.normalized : aim;
             var tangent = Vector3.Cross(Vector3.up, outward) * sweepSign;
-            // flung hard along the swing: mostly the blade's travel, some outward, a little along the aim
-            var dir = outward * Random.Range(0.35f, 0.8f) + tangent * Random.Range(0.6f, 1.1f) + aim * Random.Range(0.1f, 0.4f);
-            dir.y = 0; dir = dir.normalized + Random.insideUnitSphere * 0.15f; dir.y = 0; dir.Normalize();
-            float speed = Random.Range(8f, 16f) * power;
-            var vel = dir * speed + Vector3.up * Random.Range(4.5f, 8.5f) * power;   // high enough to arc over the standing reeds
-            // end over end: the top tips over in the direction it flies
-            var spinAxis = (Vector3.Cross(Vector3.up, dir) + Random.insideUnitSphere * 0.3f).normalized;
-            float rate = Random.Range(9f, 20f) * (top - lo < 0.4f ? 1.4f : 1f);
-
-            tops[slot] = new Top
+            float delay = SweepDelay(outward, aim, sweepSign, halfAngle);
+            float band = top - lo;
+            int n = Mathf.Clamp(Mathf.RoundToInt(reedPiecesThisSwing * Mathf.Clamp01(band / 0.7f)), 3, 18);
+            var swingKick = (tangent * 2.2f + outward * 1.2f) * power;
+            for (int i = 0; i < n; i++)
             {
-                mesh = h.mesh, mat = mat, m0 = m0, com0 = com0, axis0 = axis,
-                pos = com0, vel = vel, spin = spinAxis * rate, rot = Quaternion.identity,
-                cut = new Vector4(lo, hi, 0f, 0f), root = new Vector4(root.x, root.z, root.y, 0f),
-                delay = SweepDelay(outward, aim, sweepSign, halfAngle), age = 0f,
-                restLeft = Random.Range(2.6f, 4f), ground = root.y, halfLen = (top - lo) * H * 0.5f,
-                drag = Random.Range(0.25f, 0.45f), grav = 13f, restLift = 0.06f, bounces = 0, resting = false
-            };
-
-            // plume fluff and leaf bits burst off it
-            if (bitMats.Count == 0) return;
-            float delay = tops[slot].delay;
+                float f = Random.Range(lo, top);
+                var ring = Random.insideUnitCircle * spread;
+                var p = m0.MultiplyPoint3x4(new Vector3(0f, f * meshH, 0f)) + new Vector3(ring.x, 0f, ring.y);
+                // every direction: a random burst, plus the swing's push
+                var burst = Random.onUnitSphere; burst.y = Mathf.Abs(burst.y) * 0.6f + 0.25f;
+                var vel = burst * Random.Range(2.2f, 6.5f) * power + swingKick * Random.Range(0.3f, 1.2f) + Random.insideUnitSphere * 0.6f;
+                bool stalk = Random.value < 0.22f;
+                float len = stalk ? Random.Range(0.05f, 0.14f) * Mathf.Clamp(H, 0.6f, 1.8f)
+                                  : Random.Range(0.08f, 0.24f) * Mathf.Clamp(H, 0.6f, 1.8f);
+                float wid = stalk ? len * Random.Range(0.1f, 0.16f) : len * Random.Range(0.06f, 0.11f);
+                var col = h.color * (stalk ? Random.Range(0.4f, 0.55f) : Random.Range(0.5f, 0.78f));
+                SpawnBlade(p, vel, len, wid, new Vector4(root.x, root.z, Random.value, 0f), col, 0, root.y, delay + Random.Range(0f, 0.03f), stalk);
+            }
             if (top > 0.85f)
             {
                 var plumeCol = PlumeColour(h.mat);
                 var plume = m0.MultiplyPoint3x4(new Vector3(0f, 0.86f * meshH, 0f));
-                int n = Random.Range(3, 7);
-                for (int i = 0; i < n; i++)
-                    SpawnFluff(plume + Random.insideUnitSphere * 0.18f * H, vel * Random.Range(0.12f, 0.35f) + Random.insideUnitSphere * 1.8f + Vector3.up * 0.6f,
+                int nf = Random.Range(2, 5);
+                for (int i = 0; i < nf; i++)
+                    SpawnFluff(plume + Random.insideUnitSphere * 0.18f * H, Random.onUnitSphere * Random.Range(0.8f, 2.4f) + swingKick * 0.4f + Vector3.up * 0.8f,
                                plumeCol * Random.Range(0.85f, 1.2f), root.y, delay);
-            }
-            int leaves = Random.Range(0, 3);
-            for (int i = 0; i < leaves; i++)
-            {
-                float f = Random.Range(lo, top);
-                var p = m0.MultiplyPoint3x4(new Vector3(0f, f * meshH, 0f)) + Random.insideUnitSphere * 0.12f;
-                float len = Random.Range(0.12f, 0.32f) * Mathf.Clamp(H, 0.6f, 1.6f);
-                var col = h.color * Random.Range(0.45f, 0.7f);   // KindOf lifts the straw for bright bits; leaves stay dull
-                SpawnBlade(p, vel * Random.Range(0.2f, 0.45f) + Random.insideUnitSphere * 2f + Vector3.up * 1.2f,
-                           len, len * Random.Range(0.07f, 0.12f), new Vector4(root.x, root.z, Random.value, 0f), col, 0, root.y, delay, false);
             }
         }
 
@@ -406,15 +397,12 @@ namespace RoomRun
         }
         readonly List<Vector3> vTmp = new List<Vector3>();
 
+        int recycle;
         ref Bit NewBit()
         {
             int slot;
             if (bitCount < bits.Length) slot = bitCount++;
-            else
-            {
-                slot = 0; float age = -1f;
-                for (int i = 0; i < bitCount; i++) if (bits[i].age > age) { age = bits[i].age; slot = i; }
-            }
+            else slot = recycle = (recycle + 1) % bitCount;   // full: overwrite round-robin (no O(n) oldest scan per bit)
             bits[slot] = default;
             return ref bits[slot];
         }

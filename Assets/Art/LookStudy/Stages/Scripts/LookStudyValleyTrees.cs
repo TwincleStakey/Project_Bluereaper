@@ -6,7 +6,11 @@ using UnityEngine;
 public class LookStudyValleyTrees : ScriptableObject
 {
     public GameObject[] pines;    // TR_Pine / TR_Fir (Sketchfab "Coniferous Forest Assets Pack", Dari, CC BY 4.0)
-    public GameObject[] heroes;   // TR_HeroPine_A/B (Sketchfab "Japanese Black Pine", matt z chan, CC BY 4.0), ~156k tris: few
+    // 11-14 (Kido: the Japanese black pine "looks like a bonsai, never use it"): the heroes are now bare dead broadleaf trees
+    // from Poly Haven scans (Jacaranda Tree, Tree Small 02, CC0; leaves cut off in Blender, shared with 폐촌's
+    // ThirdParty/PolyHaven/bare_trees). bareMats: bark (A), trunk (B), twigs (B's branches).
+    public GameObject[] heroes;
+    public Material[] bareMats;
     public Material[] swaps;      // valley copies (snow off): a renderer's TR_X material becomes LSV_TR_X
     public GameObject[] riverRocks;   // 11-14: Megascans water-worn stones (model roots), matched by index with riverMats
     public Material[] riverMats;

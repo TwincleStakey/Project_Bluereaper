@@ -306,7 +306,7 @@ public static class RFBuilder
         var riverMat = Mat("RF_River", "ReedField/River");
         riverMat.SetTexture("_SurfaceMap", AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/ThirdParty/URP_Water/WaterSurface_single.tif"));
         riverMat.SetTexture("_FoamTex", AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/ThirdParty/URP_Water/WaterFoam.png"));
-        var rz = field.RiverZ; riverMat.SetVector("_RiverZ", new Vector4(rz.x, rz.y, 0, 0));
+        riverMat.SetVector("_RiverZ", field.RiverParams); RFWaterRefresh.ApplyRiverLook(riverMat);   // 11-14: zw = mesh edges (the shader fades out there)
         EditorUtility.SetDirty(riverMat);
         var riverMesh = field.BuildRiverMesh(); SaveMesh(riverMesh, "RF_River");
         AssetDatabase.SaveAssets();
