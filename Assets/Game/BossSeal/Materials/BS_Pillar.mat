@@ -36,8 +36,8 @@ Material:
     - _NorthZ: 22
     - _NrmStr: 1
     m_Colors:
-    - _FadeY: {r: 1, g: 9, b: 0.12, a: 46}
-    - _Haze: {r: 0.7, g: 0.089999996, b: 0.04, a: 1}
+    - _FadeY: {r: 0.5, g: 13, b: 0, a: 46}
+    - _Haze: {r: 0.10999996, g: 0.025, b: 0.016, a: 1}
     - _Tint: {r: 0.5, g: 0.35999998, b: 0.31999996, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

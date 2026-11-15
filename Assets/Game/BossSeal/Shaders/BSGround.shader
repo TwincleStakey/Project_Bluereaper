@@ -9,18 +9,32 @@
 //   metal band
 //   text ring                  red_sandstone_wall blocks along the ring; carved 부적목판 woodblock characters (engraved)
 //   metal rim, stone chamfer   down to the dirt
-//   dirt                       red_mud_stones + cracked_red_ground (Poly Haven CC0), darker outward; north of the platform the
-//                              floor melts into red haze (the "room goes red and see-through at the back")
+//   dirt (11-15 redo, Kido: "바닥 심심하고 일정패턴"): four Poly Haven CC0 ground scans height-blended (base laterite soil,
+//                              fillers dark red terrain and red gravel, accent smooth red mud), each sampled with
+//                              noise-indexed tile offsets (no visible repeat), macro value/hue patches on ~8-30 m scales,
+//                              damp (darker, still matte) patches, gravel/debris collar round the platform, warm red bounce
+//                              near the platform; north of the platform the floor melts into red haze
 // All motifs are the downloaded images (ArtSource/BossSeal/bs_masks.py only cropped/thresholded them). Matte everywhere.
 // URP forward lit (main light + shadows, additional lights, fog).
 Shader "BossSeal/Ground"
 {
     Properties
     {
-        _MudA("Mud A albedo", 2D) = "grey" {}
-        _MudAN("Mud A normal (GL)", 2D) = "bump" {}
-        _MudB("Mud B albedo", 2D) = "grey" {}
-        _MudBN("Mud B normal (GL)", 2D) = "bump" {}
+        _G0("Ground base albedo (laterite)", 2D) = "grey" {}
+        _G0N("Ground base normal", 2D) = "bump" {}
+        _G0H("Ground base height", 2D) = "grey" {}
+        _G1("Filler A albedo (dark terrain)", 2D) = "grey" {}
+        _G1N("Filler A normal", 2D) = "bump" {}
+        _G1H("Filler A height", 2D) = "grey" {}
+        _G2("Filler B albedo (gravel)", 2D) = "grey" {}
+        _G2N("Filler B normal", 2D) = "bump" {}
+        _G2H("Filler B height", 2D) = "grey" {}
+        _G3("Accent albedo (smooth mud)", 2D) = "grey" {}
+        _G3N("Accent normal", 2D) = "bump" {}
+        _G3H("Accent height", 2D) = "grey" {}
+        _GScale("Ground tile metres: base, fillerA, fillerB, accent", Vector) = (1.9, 2.6, 1.5, 2.4)
+        _GMix("Ground cover: fillerA, fillerB, accent, height sharpness", Vector) = (0.5, 0.5, 0.2, 0.35)
+        _Warm("Warm bounce near the platform (rgb) / reach m", Color) = (0.16, 0.035, 0.016, 6)
         _Stone("Seal stone albedo", 2D) = "grey" {}
         _StoneN("Seal stone normal (GL)", 2D) = "bump" {}
         _StoneAO("Seal stone AO", 2D) = "white" {}
@@ -37,16 +51,16 @@ Shader "BossSeal/Ground"
         _R2("Radii: text out, rim out, chamfer out, seal mask width", Vector) = (14.2, 14.8, 15.6, 11.6)
         _Tiles("Talisman tiles, text tiles, talisman width m, text width m", Vector) = (12, 28, 3.0, 1.75)
 
-        _MudTint("Mud tint", Color) = (1.0, 0.64, 0.52, 1)
+        _MudTint("Ground tint", Color) = (1.0, 0.92, 0.85, 1)
         _StoneTint("Seal stone tint", Color) = (0.8, 0.58, 0.5, 1)
         _TrimTint("Ring block tint", Color) = (0.55, 0.38, 0.32, 1)
         _MetalTint("Metal tint", Color) = (0.62, 0.42, 0.34, 1)
         _Glow("Inlay glow (HDR)", Color) = (2.4, 0.62, 0.14, 1)
-        _GlowAmt("Glow: palgwae fill, palgwae edge, taegeuk, bujeok", Vector) = (0.0, 0.75, 0.03, 0.9)
-        _Engrave("Engrave: hawk dark, hawk glow, text dark, text glow", Vector) = (0.45, 0.07, 0.55, 0.03)
+        _GlowAmt("Glow: palgwae fill, palgwae edge, taegeuk, bujeok", Vector) = (0.0, 0.55, 0.0, 0.22)   // 11-15: thin lines only
+        _Engrave("Engrave: hawk dark, hawk glow, text dark, text glow", Vector) = (0.5, 0.02, 0.55, 0.0)
         _Pulse("Pulse: amount, speed, ripple per m", Vector) = (0.18, 1.1, 0.35, 0)
         _Haze("North haze colour (HDR) / strength", Color) = (0.62, 0.08, 0.035, 0.7)
-        _HazeZ("Haze: z start, z full, outer dark r start, r end", Vector) = (20, 50, 30, 56)
+        _HazeZ("Haze: z start, z full, outer dark r start, r end", Vector) = (30, 52, 34, 66)
         _NrmStr("Normal strength", Range(0, 2)) = 1
         _Smooth("Smoothness (matte)", Range(0, 1)) = 0.06
         _MetalSmooth("Metal band smoothness", Range(0, 1)) = 0.22
@@ -56,13 +70,14 @@ Shader "BossSeal/Ground"
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" "Queue"="Geometry" }
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-        TEXTURE2D(_MudA); SAMPLER(sampler_MudA); TEXTURE2D(_MudAN); TEXTURE2D(_MudB); TEXTURE2D(_MudBN);
+        TEXTURE2D(_G0); SAMPLER(sampler_G0); TEXTURE2D(_G0N); TEXTURE2D(_G0H); TEXTURE2D(_G1); TEXTURE2D(_G1N); TEXTURE2D(_G1H);
+        TEXTURE2D(_G2); TEXTURE2D(_G2N); TEXTURE2D(_G2H); TEXTURE2D(_G3); TEXTURE2D(_G3N); TEXTURE2D(_G3H);
         TEXTURE2D(_Stone); TEXTURE2D(_StoneN); TEXTURE2D(_StoneAO);
         TEXTURE2D(_Trim); TEXTURE2D(_TrimN); TEXTURE2D(_Metal); TEXTURE2D(_MetalN);
         TEXTURE2D(_Seal); SAMPLER(sampler_Seal);
         TEXTURE2D(_Bujeok); TEXTURE2D(_Hawk); TEXTURE2D(_Text);
         CBUFFER_START(UnityPerMaterial)
-        float4 _MudA_ST, _R1, _R2, _Tiles, _MudTint, _StoneTint, _TrimTint, _MetalTint, _Glow, _GlowAmt, _Engrave, _Pulse, _Haze, _HazeZ;
+        float4 _G0_ST, _GScale, _GMix, _Warm, _R1, _R2, _Tiles, _MudTint, _StoneTint, _TrimTint, _MetalTint, _Glow, _GlowAmt, _Engrave, _Pulse, _Haze, _HazeZ;
         float _NrmStr, _Smooth, _MetalSmooth;
         CBUFFER_END
         ENDHLSL
@@ -107,7 +122,7 @@ Shader "BossSeal/Ground"
             float Luma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
 
             // sample with explicit gradients (polar uvs jump at tile seams / the angle wrap; the gradients do not)
-            #define SG(tex, uv, gx, gy) SAMPLE_TEXTURE2D_GRAD(tex, sampler_MudA, uv, gx, gy)
+            #define SG(tex, uv, gx, gy) SAMPLE_TEXTURE2D_GRAD(tex, sampler_G0, uv, gx, gy)
             #define SM(tex, uv, gx, gy) SAMPLE_TEXTURE2D_GRAD(tex, sampler_Seal, uv, gx, gy)
 
             float3 TS(float4 packed) { return UnpackNormalScale(packed, _NrmStr); }
@@ -131,18 +146,43 @@ Shader "BossSeal/Ground"
                 float t = _Time.y;
 
                 // ------------------------------------------------ dirt (everywhere, the rings cover it)
-                float2 uvA = w / 4.2, uvB = float2(w.x * 0.8 - w.y * 0.6, w.x * 0.6 + w.y * 0.8) / 5.7 + 0.37;
-                float bm = smoothstep(0.38, 0.66, FBM(w * 0.05 + 3.1));
-                float3 alb = lerp(SG(_MudA, uvA, ddx(uvA), ddy(uvA)).rgb, SG(_MudB, uvB, ddx(uvB), ddy(uvB)).rgb, bm);
-                float3 nA = TS(SG(_MudAN, uvA, ddx(uvA), ddy(uvA)));
-                float3 nB = TS(SG(_MudBN, uvB, ddx(uvB), ddy(uvB))); nB.xy = float2(nB.x * 0.8 + nB.y * 0.6, -nB.x * 0.6 + nB.y * 0.8);
-                float3 nts = normalize(lerp(nA, nB, bm));
-                alb = lerp(alb, Luma(alb).xxx, 0.25) * _MudTint.rgb * (0.85 + (FBM(w * 0.11 + 9.0) - 0.5) * 0.5);
-                // soot ring hugging the platform foot
-                alb *= lerp(0.55, 1.0, smoothstep(_R2.z, _R2.z + 2.2, r + (FBM(w * 0.4) - 0.5) * 1.2));
+                // each layer: two samples at noise-indexed tile offsets blended by a smooth noise (no repeating tile),
+                // the same offsets/blend for albedo, normal and height
+                #define GL(T, TN, TH, uvIn, seed, A, NN, HH) {                     float2 uv_ = uvIn; float2 gx_ = ddx(uv_), gy_ = ddy(uv_);                     float l_ = VN(uv_ * 0.9 + seed) * 8; float i_ = floor(l_), f_ = frac(l_);                     float2 oa_ = sin(float2(3, 7) * i_ + seed), ob_ = sin(float2(3, 7) * (i_ + 1) + seed);                     float3 aa_ = SG(T, uv_ + oa_, gx_, gy_).rgb, ab_ = SG(T, uv_ + ob_, gx_, gy_).rgb;                     float b_ = smoothstep(0.2, 0.8, f_ - 0.1 * dot(aa_ - ab_, 1));                     A = lerp(aa_, ab_, b_);                     NN = normalize(lerp(TS(SG(TN, uv_ + oa_, gx_, gy_)), TS(SG(TN, uv_ + ob_, gx_, gy_)), b_));                     HH = lerp(SG(TH, uv_ + oa_, gx_, gy_).r, SG(TH, uv_ + ob_, gx_, gy_).r, b_); }
+                float2 wr = float2(w.x * 0.81 - w.y * 0.59, w.x * 0.59 + w.y * 0.81);   // fillers on rotated grids (not the base's)
+                float3 a0, a1, a2, a3, n0, n1, n2, n3; float h0, h1, h2, h3;
+                GL(_G0, _G0N, _G0H, w / _GScale.x, 0.0, a0, n0, h0)
+                GL(_G1, _G1N, _G1H, wr / _GScale.y + 0.31, 1.7, a1, n1, h1)
+                GL(_G2, _G2N, _G2H, wr.yx / _GScale.z + 0.57, 3.1, a2, n2, h2)
+                GL(_G3, _G3N, _G3H, w.yx / _GScale.w + 0.13, 4.9, a3, n3, h3)
+                // cover masks on 8-30 m scales (D4: base / filler / accent); gravel collars the platform and thins outward
+                float rimD = r - _R2.z;
+                float cA = smoothstep(1 - _GMix.x, 1 - _GMix.x + 0.25, FBM(w * 0.075 + 1.7));
+                float cB = smoothstep(1 - _GMix.y, 1 - _GMix.y + 0.25, FBM(w * 0.12 + 5.3) + 0.35 * (1 - smoothstep(0.5, 7, rimD)) * step(0, rimD));
+                float cC = smoothstep(1 - _GMix.z, 1 - _GMix.z + 0.2, FBM(w * 0.065 + 9.1)) * smoothstep(3, 9, rimD);
+                // height blend: the layer whose scan stands highest (plus its cover) wins, with a short soft overlap
+                float s0 = h0 + 0.35, s1 = h1 + cA * 1.2 - 0.25, s2 = h2 + cB * 1.25 - 0.3, s3 = h3 * 0.4 + cC * 1.3 - 0.2;
+                float sm = max(max(s0, s1), max(s2, s3)) - _GMix.w;
+                float4 gw = max(float4(s0, s1, s2, s3) - sm, 0); gw /= max(gw.x + gw.y + gw.z + gw.w, 1e-4);
+                float3 alb = a0 * gw.x + a1 * 1.4 * gw.y + a2 * 1.12 * gw.z + a3 * 1.05 * gw.w;   // fillers lifted to the base value: variation by texture, not dark camo blotches
+                float3 nts = normalize(n0 * gw.x + n1 * gw.y + n2 * gw.z + n3 * gw.w);
+                float hgt = h0 * gw.x + h1 * gw.y + h2 * gw.z + h3 * gw.w;
+                // macro value / hue variation (large soft patches), damp patches darker but still matte, cavity darkening
+                float mv = FBM(w * 0.028 + 21.3), mh = FBM(w * 0.05 + 33.7);
+                // ref palette: orange-brown dirt (the scans are brick red): keep their luminance detail, move the hue
+                alb = lerp(alb, Luma(alb) * float3(1.55, 1.0, 0.6), 0.65) * _MudTint.rgb;
+                alb *= 0.84 + 0.32 * mv;
+                alb *= lerp(float3(1, 1, 1), float3(1.08, 0.9, 0.82), smoothstep(0.35, 0.7, mh));
+                float damp = smoothstep(0.56, 0.7, FBM(w * 0.05 + 13.0)) * (1 - gw.z);
+                alb *= lerp(1, 0.84, damp);
+                alb *= lerp(0.7, 1.0, saturate(hgt * 1.6));
+                // warm red bounce from the platform onto the dirt round it (the ref's lit ground)
+                float warm = (1 - smoothstep(0, _Warm.a, rimD + (FBM(w * 0.18) - 0.5) * 6.0)) * step(-0.2, rimD) * (0.5 + FBM(w * 0.25 + 4.4));
                 bool polarT = false;                              // tangent frame: world (x, z) or polar (tang, radial)
                 float smooth = _Smooth;
-                float3 emis = 0;
+                float3 emis = alb * _Warm.rgb * warm;
+                // the mesa rim: the floor mesh drops down the cliff there (covered by the cliff scans); keep that face dark
+                float face = smoothstep(-0.02, -1.5, ws.y); alb *= 1 - 0.85 * face; emis *= 1 - face;
 
                 // ------------------------------------------------ platform zones
                 float wSeal = 1 - smoothstep(_R1.x - 0.03, _R1.x + 0.03, r);
@@ -200,6 +240,13 @@ Shader "BossSeal/Ground"
                 sealAlb = lerp(sealAlb, float3(0.05, 0.035, 0.035), sm0.b);       // blue half: obsidian
                 sealAlb = lerp(sealAlb, sealAlb * 0.5, sm0.g);
                 float3 sealE = _Glow.rgb * (sm0.r * _GlowAmt.x + edgeR * _GlowAmt.y) + _Glow.rgb * (sm0.g * _GlowAmt.z + edgeG * 0.5);
+                // 11-15 relief: the same mask as a height (trigrams and the taegeuk sunk ~2 cm, bevelled by a blurred mip),
+                // turned into a normal by central differences, plus groove occlusion
+                float eS = 0.0035;
+                float hxp = dot(SM(_Seal, uvSeal + float2(eS, 0), gSx * 3, gSy * 3).rgb, 1), hxm = dot(SM(_Seal, uvSeal - float2(eS, 0), gSx * 3, gSy * 3).rgb, 1);
+                float hyp = dot(SM(_Seal, uvSeal + float2(0, eS), gSx * 3, gSy * 3).rgb, 1), hym = dot(SM(_Seal, uvSeal - float2(0, eS), gSx * 3, gSy * 3).rgb, 1);
+                float3 sealBump = float3(hxp - hxm, hyp - hym, 0) * 1.6 * inSeal;
+                sealAlb *= 1 - 0.45 * saturate(abs(hxp - hxm) + abs(hyp - hym)) * inSeal;
 
                 // ---- talisman ring: N tiles round, odd = bujeok, even = samdumae
                 float nTal = _Tiles.x;
@@ -233,9 +280,12 @@ Shader "BossSeal/Ground"
 
                 // ---- combine zones
                 float3 platAlb = sealAlb * wSeal + metal1 * wB1 + talAlb * wTal + metal2 * wB2 + txtAlb * wTxt + rimMetal * wRim + cham * wCh;
-                float3 platE = (sealE * wSeal + talE * wTal + txtE * wTxt) * pulse;
+                // thin glowing seams where the metal rings meet the stone (the only lines that glow besides the inlay edges)
+                float seams = 0; seams += 1 - smoothstep(0.0, 0.03, abs(r - _R1.x)); seams += 1 - smoothstep(0.0, 0.03, abs(r - _R1.y));
+                seams += 1 - smoothstep(0.0, 0.03, abs(r - _R1.w)); seams += 1 - smoothstep(0.0, 0.03, abs(r - _R2.y));
+                float3 platE = (sealE * wSeal + talE * wTal + txtE * wTxt + _Glow.rgb * 0.3 * seams) * pulse;
                 #define PW(nn) float3(nn.x * tang.x + nn.y * radial.x, nn.x * tang.y + nn.y * radial.y, nn.z)
-                float3 platNw = normalize(stoneN * (wSeal + wTal) + PW(metalN1) * wB1 + PW(metalN2) * wB2 + PW(trimN) * (wTxt + wCh) + PW(rimN) * wRim + float3(0, 0, 1e-4));
+                float3 platNw = normalize((stoneN + sealBump) * wSeal + stoneN * wTal + PW(metalN1) * wB1 + PW(metalN2) * wB2 + PW(trimN) * (wTxt + wCh) + PW(rimN) * wRim + float3(0, 0, 1e-4));
                 alb = lerp(alb, platAlb, wPlat);
                 nts = normalize(lerp(nts, platNw, wPlat));
                 smooth = lerp(smooth, _MetalSmooth, wB1 + wB2 + wRim);

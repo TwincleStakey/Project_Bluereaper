@@ -25,12 +25,15 @@ namespace BossSeal
                 if (active.isDirty) return;
                 EditorSceneManager.OpenScene(BSBuilder.ScenePath, OpenSceneMode.Single);
             }
+            bool async0 = ShaderUtil.allowAsyncCompilation; ShaderUtil.allowAsyncCompilation = false;   // a far view needs new variants: async left the floor invisible
             var cam = Camera.main;
+            File.AppendAllText(Path.Combine(dir, "bs_log.txt"), $"[{System.DateTime.Now:HH:mm:ss}] shots cam {cam.name} far {cam.farClipPlane} scene {cam.gameObject.scene.path}\n");
             var mat = AssetDatabase.LoadAssetAtPath<Material>(BSBuilder.Root + "/Materials/BS_Ground.mat");
             var outDir = Path.Combine(dir, "shots"); Directory.CreateDirectory(outDir);
             var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
             var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
             var ci = CultureInfo.InvariantCulture;
+            foreach (var ps in Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None)) ps.Simulate(12f, true, true);   // edit mode: smoke/embers mid-flow
             foreach (var raw in File.ReadAllLines(list))
             {
                 var line = raw.Trim(); if (line.Length == 0 || line.StartsWith("#")) continue;
@@ -49,12 +52,14 @@ namespace BossSeal
                 var off = Quaternion.Euler(0, yaw, 0) * (new Vector3(0, 17f, -14.5f) * zoom);
                 var target = new Vector3(x, 0.3f, z);
                 cam.transform.position = target + off; cam.transform.rotation = Quaternion.LookRotation(-off);
-                cam.targetTexture = rt; cam.Render(); cam.targetTexture = null;
+                float far0 = cam.farClipPlane; cam.farClipPlane = Mathf.Max(far0, off.magnitude + 150f);   // far views (zoom 3+) were cut black
+                cam.targetTexture = rt; cam.Render(); cam.farClipPlane = far0; cam.targetTexture = null;
                 RenderTexture.active = rt; tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0); tex.Apply(); RenderTexture.active = null;
                 File.WriteAllBytes(Path.Combine(outDir, p[0] + ".png"), tex.EncodeToPNG());
                 foreach (var (n, v) in backups) mat.SetVector(n, v);
             }
             Object.DestroyImmediate(rt); Object.DestroyImmediate(tex);
+            ShaderUtil.allowAsyncCompilation = async0;
             File.AppendAllText(Path.Combine(dir, "bs_log.txt"), $"[{System.DateTime.Now:HH:mm:ss}] shots done\n");
         }
     }

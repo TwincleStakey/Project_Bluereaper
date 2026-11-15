@@ -1,5 +1,5 @@
 // BossSeal edge structures (pillars/walls outside the arena). Lit matte scan with a red fade: the higher a fragment and the
-// further back (north) it stands, the more it turns into a thin red translucent glow, so the back of the room melts into the
+// further back (north) it stands, the more it sinks into the dark red haze (11-15: no bright red glow), so the back of the room melts into the
 // red haze like the reference. Camera-side (south) pieces also take the RoomRun soft see-through around the player.
 Shader "BossSeal/HazeProp"
 {
@@ -8,8 +8,8 @@ Shader "BossSeal/HazeProp"
         _BaseMap("Albedo", 2D) = "grey" {}
         _BumpMap("Normal (GL)", 2D) = "bump" {}
         _Tint("Tint", Color) = (0.5, 0.36, 0.32, 1)
-        _Haze("Haze colour (HDR)", Color) = (0.7, 0.09, 0.04, 1)
-        _FadeY("Fade: start y, full y, alpha at full, north z full", Vector) = (1.0, 9.0, 0.12, 46)
+        _Haze("Haze colour (HDR)", Color) = (0.11, 0.025, 0.016, 1)
+        _FadeY("Fade: start y, full y, alpha at full, north z full", Vector) = (0.5, 13.0, 0.0, 46)
         _NorthZ("North fade starts at z", Float) = 22
         _NrmStr("Normal strength", Range(0, 2)) = 1
     }
@@ -84,8 +84,8 @@ Shader "BossSeal/HazeProp"
                 half4 col = UniversalFragmentPBR(d, sd);
                 col.rgb = MixFog(col.rgb, i.fog);
                 float f = HazeF(i.positionWS);
-                col.rgb = lerp(col.rgb, _Haze.rgb, f * 0.85);
-                col.a = lerp(1, _FadeY.z, f);
+                col.rgb = lerp(col.rgb, _Haze.rgb, f);   // 11-15: tops sink into the dark red haze (was a bright red glow: read as red cylinders)
+                col.a = lerp(1, _FadeY.z, f * f * (3 - 2 * f));
                 return col;
             }
             ENDHLSL

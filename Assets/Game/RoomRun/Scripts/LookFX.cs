@@ -181,10 +181,10 @@ namespace RoomRun
             { "crypt", new RoomPost { saturation = -25f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 7f, exposureAdd = 0f,
                 filter = new Color(0.95f, 0.93f, 0.98f), splitShadows = new Color(0.4f, 0.34f, 0.5f), splitHighlights = new Color(0.8f, 0.7f, 0.62f), splitBalance = 10f,
                 veil = new Color(0.12f, 0.09f, 0.15f), veilFar = new Color(0.04f, 0.03f, 0.06f), veilDensity = 0.02f, veilMax = 0.55f, highlightPull = -0.2f } },
-            // 봉인의 제단 (11-15): one red-brown palette, only the seal inlays and the rim reds bloom; dim red veil
+            // 봉인의 제단 (11-15 redo): orange-brown dirt, warm centre; brown veil (red only in the deep, from the scene)
             { "bossseal", new RoomPost { saturation = -8f, bloomThreshold = 1.1f, bloomIntensity = 0.75f, flashScale = 0.5f, press = true, contrast = 10f, exposureAdd = 0f,
-                filter = new Color(0.97f, 0.93f, 0.91f), splitShadows = new Color(0.46f, 0.36f, 0.36f), splitHighlights = new Color(0.82f, 0.68f, 0.56f), splitBalance = 10f,
-                veil = new Color(0.16f, 0.06f, 0.05f), veilFar = new Color(0.07f, 0.02f, 0.02f), veilDensity = 0.018f, veilMax = 0.5f, highlightPull = -0.2f } },
+                filter = new Color(0.99f, 0.95f, 0.9f), splitShadows = new Color(0.42f, 0.37f, 0.34f), splitHighlights = new Color(0.86f, 0.7f, 0.52f), splitBalance = 10f,
+                veil = new Color(0.15f, 0.1f, 0.07f), veilFar = new Color(0.06f, 0.04f, 0.03f), veilDensity = 0.018f, veilMax = 0.5f, highlightPull = -0.2f } },
             { "bamboo", new RoomPost { saturation = -18f, bloomThreshold = 1.3f, bloomIntensity = 0.7f, flashScale = 0.5f, press = true, contrast = 14f, exposureAdd = 0.1f,   // 11-13 redo: StageMood already greys it; the cyan filter tinted the stone landmarks
                 filter = new Color(0.98f, 0.97f, 0.96f), splitShadows = new Color(0.36f, 0.42f, 0.5f), splitHighlights = new Color(0.8f, 0.74f, 0.62f), splitBalance = 10f,
                 veil = new Color(0.2f, 0.22f, 0.25f), veilFar = new Color(0.07f, 0.08f, 0.09f), veilDensity = 0.02f, veilMax = 0.5f, highlightPull = -0.15f } },

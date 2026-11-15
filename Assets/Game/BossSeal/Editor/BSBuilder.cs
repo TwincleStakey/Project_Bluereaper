@@ -7,8 +7,8 @@
 //     부적목판 woodblock characters round the outer ring; Poly Haven CC0 stone/sandstone/rusty metal/mud scans.
 //   - 24 radial blade rays: Poly Haven CC0 antique_estoc / ornate_medieval_dagger scaled up (giant swords), lying flat
 //     on the dirt (level, 1.5 cm up), roots under the platform rim; no colliders.
-//   - edge only: Megascans stone pillars and wall pieces (DarkCrypt sources) 32-44 m out; the north ones and every
-//     top fade into red translucent haze (BossSeal/HazeProp), the floor itself melts into red haze to the north.
+//   - edge only (11-15): 5 tall Megascans pillars far back at the north end and a short pillar + broken wall at each
+//     bottom corner (DarkCrypt sources); tops sink into dark red haze (BossSeal/HazeProp), the floor melts into it northward.
 //   - lights: moon + seal glow + 4 red rim lights = 6 realtime, nothing under the player.
 //   - registers the RoomRun dev room "bossseal" (next dev field key).
 // Nothing inside the arena has a collider except the floor. Re-running rebuilds the scene and materials.
@@ -37,10 +37,26 @@ namespace BossSeal
         const string PillarFbx = DC + "Fab_stone_pillar_selvf_mid/Stone_Pillar_selvF_Mid.fbx";
         const string WallFbx = DC + "Fab_castle_wall_sbxuw_mid/Castle_Wall_sbxuw_Mid.fbx";
         const string EstocFbx = Src + "PH_antique_estoc/antique_estoc_2k.fbx";
+        const string CliffFbx = "Assets/Art/LookStudy/Stages/ThirdParty/Megascans/granite_cliff_rivav_mid/Granite_Cliff_rivav_Mid.fbx";
+        const string CliffTex = "Assets/Art/LookStudy/Stages/ThirdParty/Megascans/granite_cliff_rivav_mid/Granite_Cliff_rivav_Mid_2K_";
+        const string SpireFbx = "Assets/Underworld/Resources/LavaRocks/LR_Spire.fbx";
+        const string DebrisFbx = "Assets/Game/AbandonedVillage/ThirdParty/Megascans/Debris/AV_MS_Debris.fbx";
+        const string RocksFbx = "Assets/Game/AbandonedVillage/ThirdParty/Megascans/SmallRocks/AV_MS_SmallRocks.fbx";
+        const float AbyssY = -42f;
+        // 11-15 mesa (Kido: "외곽 아래로 떨어지는 큰 아레나 ... 절벽"): the whole arena stands on a raised mesa whose rim runs
+        // just outside the arena walls on a wobbly ellipse; past it the ground falls away into a red abyss
+        static float EdgeR(float ang)
+        {
+            float sn = Mathf.Sin(ang), cs = Mathf.Cos(ang);
+            float ex = HX + 14f, ez = HZ + 4.5f;
+            float e = ex * ez / Mathf.Sqrt(ez * ez * sn * sn + ex * ex * cs * cs);
+            e += 1.6f * (Mathf.PerlinNoise(cs * 2.4f + 5.3f, sn * 2.4f + 7.1f) - 0.5f) * 2f + 0.9f * (Mathf.PerlinNoise(cs * 7f + 11.2f, sn * 7f + 3.4f) - 0.5f) * 2f;
+            return Mathf.Lerp(90f, e, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.05f, 0.5f, cs)));   // south / sides: beyond the floor (80 m)
+        }
         
         // floor radii (must match the BSGround material vectors)
-        static readonly float[] Rad = { 6.3f, 6.9f, 11.1f, 11.6f, 14.2f, 14.8f, 15.6f };
-        const float PlatY = 0.3f;
+        static readonly float[] Rad = { 2.1f, 2.3f, 3.7f, 3.87f, 4.73f, 4.93f, 5.2f };   // 11-15 redo: ~10 m dais (was 31 m)
+        const float PlatY = 0.8f;   // dais top; tiers 0.8 / 0.55 / 0.3 down to the dirt
 
         static System.Random rng;
         static Transform root;
@@ -67,7 +83,7 @@ namespace BossSeal
 
         static void BuildInner()
         {
-            rng = new System.Random(7721);
+            rng = new System.Random(7721); pSmoke = null; pEmber = null;
             mats.Clear(); lightCount = 0;
             Directory.CreateDirectory(MatDir); Directory.CreateDirectory(Gen);
             AssetDatabase.Refresh();
@@ -97,6 +113,7 @@ namespace BossSeal
             if (imp.textureType != type) { imp.textureType = type; dirty = true; }
             if (!normal && imp.sRGBTexture == linear) { imp.sRGBTexture = !linear; dirty = true; }
             if (imp.maxTextureSize != max) { imp.maxTextureSize = max; dirty = true; }
+            if (imp.anisoLevel != 8) { imp.anisoLevel = 8; dirty = true; }   // 11-15: the low game camera saw the ground scans mip-blurred
             if (dirty) imp.SaveAndReimport();
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
@@ -133,8 +150,12 @@ namespace BossSeal
         {
             Mat("BS_Ground", "BossSeal/Ground", m =>
             {
-                m.SetTexture("_MudA", Tex(PH("red_mud_stones", "diff"))); m.SetTexture("_MudAN", Tex(PH("red_mud_stones", "nor_gl"), normal: true));
-                m.SetTexture("_MudB", Tex(PH("cracked_red_ground", "diff"))); m.SetTexture("_MudBN", Tex(PH("cracked_red_ground", "nor_gl"), normal: true));
+                string[] gl = { "red_laterite_soil_stones", "terrain_red_01", "rocky_gravel", "red_dirt_mud_01" };   // 11-15 ground redo: base, fillers, accent
+                for (int k = 0; k < 4; k++)
+                {
+                    m.SetTexture($"_G{k}", Tex(PH(gl[k], "diff"))); m.SetTexture($"_G{k}N", Tex(PH(gl[k], "nor_gl"), normal: true));
+                    m.SetTexture($"_G{k}H", Tex(PH(gl[k], "disp"), linear: true, max: 1024));
+                }
                 m.SetTexture("_Stone", Tex(PH("dark_rock_02", "diff"))); m.SetTexture("_StoneN", Tex(PH("dark_rock_02", "nor_gl"), normal: true));
                 m.SetTexture("_StoneAO", Tex(PH("dark_rock_02", "ao"), linear: true));
                 m.SetTexture("_Trim", Tex(PH("red_sandstone_wall", "diff"))); m.SetTexture("_TrimN", Tex(PH("red_sandstone_wall", "nor_gl"), normal: true));
@@ -144,18 +165,44 @@ namespace BossSeal
                 m.SetTexture("_Hawk", Mask("BS_Samdumae.png", 1024));
                 m.SetTexture("_Text", Mask("BS_Woodblock_Text.png", 1024));
                 m.SetVector("_R1", new Vector4(Rad[0], Rad[1], Rad[2], Rad[3]));
-                m.SetVector("_R2", new Vector4(Rad[4], Rad[5], Rad[6], 11.6f));
-                m.SetVector("_Tiles", new Vector4(12, 28, 3.0f, 1.75f));
+                m.SetVector("_R2", new Vector4(Rad[4], Rad[5], Rad[6], 3.87f));
+                m.SetVector("_Tiles", new Vector4(8, 20, 1.05f, 0.62f));
             });
             Mat("BS_Blade", "Universal Render Pipeline/Lit", m =>
             {
                 const string d = Src + "PH_antique_estoc/textures/";
-                m.SetTexture("_BaseMap", Tex(d + "antique_estoc_diff_2k.jpg")); m.SetColor("_BaseColor", Hex("#9c7e74"));
+                m.SetTexture("_BaseMap", Tex(d + "antique_estoc_diff_2k.jpg")); m.SetColor("_BaseColor", Hex("#4a3c36"));   // dark iron
                 var n = Tex(d + "antique_estoc_nor_gl_2k.exr", normal: true);
                 m.SetTexture("_BumpMap", n); m.SetFloat("_BumpScale", 1f); if (n) m.EnableKeyword("_NORMALMAP");
-                m.SetFloat("_Metallic", 0.6f); m.SetFloat("_Smoothness", 0.32f);
+                m.SetFloat("_Metallic", 0.8f); m.SetFloat("_Smoothness", 0.38f);   // edges catch the light
                 m.enableInstancing = true;
             });
+            Mat("BS_Cliff", "Universal Render Pipeline/Lit", m =>
+            {
+                m.SetTexture("_BaseMap", Tex(CliffTex + "BaseColor.jpg")); m.SetColor("_BaseColor", Hex("#7a5448"));
+                var n = Tex(CliffTex + "Normal.jpg", normal: true); m.SetTexture("_BumpMap", n); if (n) m.EnableKeyword("_NORMALMAP");
+                m.SetTexture("_OcclusionMap", Tex(CliffTex + "AO.jpg", linear: true)); m.EnableKeyword("_OCCLUSIONMAP");
+                m.SetFloat("_Metallic", 0f); m.SetFloat("_Smoothness", 0.05f); m.enableInstancing = true;
+            });
+            Mat("BS_Spire", "Universal Render Pipeline/Lit", m =>
+            {
+                m.SetTexture("_BaseMap", Tex("Assets/Underworld/Resources/LavaRocks/T_LR_Spire_BaseColor.jpg")); m.SetColor("_BaseColor", Hex("#6a463c"));
+                var n = Tex("Assets/Underworld/Resources/LavaRocks/T_LR_Spire_Normal.jpg", normal: true); m.SetTexture("_BumpMap", n); if (n) m.EnableKeyword("_NORMALMAP");
+                m.SetFloat("_Metallic", 0f); m.SetFloat("_Smoothness", 0.05f); m.enableInstancing = true;
+            });
+            Mat("BS_Debris", "Universal Render Pipeline/Lit", m =>
+            {
+                m.SetTexture("_BaseMap", Tex("Assets/Game/AbandonedVillage/ThirdParty/Megascans/Debris/AV_MS_Debris_A.jpg")); m.SetColor("_BaseColor", Hex("#c08a78"));
+                var n = Tex("Assets/Game/AbandonedVillage/ThirdParty/Megascans/Debris/AV_MS_Debris_N.jpg", normal: true); m.SetTexture("_BumpMap", n); if (n) m.EnableKeyword("_NORMALMAP");
+                m.SetFloat("_Metallic", 0f); m.SetFloat("_Smoothness", 0.05f); m.enableInstancing = true;
+            });
+            Mat("BS_Rocks", "Universal Render Pipeline/Lit", m =>
+            {
+                m.SetTexture("_BaseMap", Tex("Assets/Game/AbandonedVillage/ThirdParty/Megascans/SmallRocks/AV_MS_SmallRocks_A.jpg")); m.SetColor("_BaseColor", Hex("#b8806e"));
+                var n = Tex("Assets/Game/AbandonedVillage/ThirdParty/Megascans/SmallRocks/AV_MS_SmallRocks_N.jpg", normal: true); m.SetTexture("_BumpMap", n); if (n) m.EnableKeyword("_NORMALMAP");
+                m.SetFloat("_Metallic", 0f); m.SetFloat("_Smoothness", 0.05f); m.enableInstancing = true;
+            });
+            Mat("BS_Abyss", "BossSeal/Abyss", m => { });
             Mat("BS_Pillar", "BossSeal/HazeProp", m =>
             {
                 m.SetTexture("_BaseMap", Tex(DC + "Fab_stone_pillar_selvf_mid/Stone_Pillar_selvF_Mid_2K_BaseColor.jpg"));
@@ -178,34 +225,39 @@ namespace BossSeal
         {
             // ring lips: 3-4 cm, ramped over 6 cm (walkable everywhere)
             float S(float a, float b, float x) => Mathf.SmoothStep(0, 1, Mathf.InverseLerp(a, b, x));
-            float h = PlatY;
-            h += 0.04f * (S(Rad[0] - 0.03f, Rad[0] + 0.03f, r) - S(Rad[1] - 0.03f, Rad[1] + 0.03f, r));   // metal band 1 lip
-            h -= 0.01f * (S(Rad[1] - 0.03f, Rad[1] + 0.03f, r) - S(Rad[2] - 0.03f, Rad[2] + 0.03f, r));   // talisman ring sits a touch lower
-            h += 0.03f * (S(Rad[2] - 0.03f, Rad[2] + 0.03f, r) - S(Rad[3] - 0.03f, Rad[3] + 0.03f, r));   // metal band 2 lip
-            h -= 0.03f * S(Rad[3] - 0.03f, Rad[3] + 0.03f, r);                                              // text ring lower
-            h += 0.04f * (S(Rad[4] - 0.03f, Rad[4] + 0.03f, r) - S(Rad[5] - 0.03f, Rad[5] + 0.03f, r));   // metal rim
-            if (r > Rad[5]) h = Mathf.Lerp(h, 0f, S(Rad[5], Rad[6], r));                                   // chamfer down
+            // three thick tiers with vertical 25-30 cm risers (walkable steps): seal + talisman ring on top, text ring + metal
+            // rim one step down, a stone foot ring one more step down, then the dirt
+            float h = 0f;
+            h += 0.3f * (1 - S(Rad[6] - 0.03f, Rad[6] + 0.03f, r));
+            h += 0.25f * (1 - S(Rad[5] - 0.03f, Rad[5] + 0.03f, r));
+            h += 0.25f * (1 - S(Rad[3] - 0.03f, Rad[3] + 0.03f, r));
+            h += 0.02f * (S(Rad[0] - 0.03f, Rad[0] + 0.03f, r) - S(Rad[1] - 0.03f, Rad[1] + 0.03f, r));   // metal band lip
             return h;
         }
 
         static void BuildFloor()
         {
             var rs = new List<float>();
-            for (float r = 0.4f; r < Rad[0] - 0.1f; r += 0.5f) rs.Add(r);
+            for (float r = 0.25f; r < Rad[0] - 0.1f; r += 0.25f) rs.Add(r);
             foreach (var b in Rad)
                 for (int k = -3; k <= 3; k++) rs.Add(b + k * 0.03f);
-            for (float r = Rad[0]; r < Rad[6]; r += 0.35f) rs.Add(r);
-            for (float r = Rad[6] + 0.4f; r < 75f; r *= 1.07f) rs.Add(r);
-            rs.Add(75f);
+            for (float r = Rad[0]; r < Rad[6]; r += 0.15f) rs.Add(r);
+            for (float r = Rad[6] + 0.25f; r < 80f; r = r < 12f ? r + 0.5f : r * 1.05f) rs.Add(r);
+            rs.Add(80f);
             rs = rs.Where(r => r > 0.2f).Select(r => Mathf.Round(r * 1000f) / 1000f).Distinct().OrderBy(r => r).ToList();
             const int seg = 288;
             var v = new List<Vector3> { new Vector3(0, PlatY, 0) };
             var tri = new List<int>();
-            foreach (var r in rs)
+            for (int j = 0; j < rs.Count; j++)
                 for (int s = 0; s < seg; s++)
                 {
-                    float a = s * Mathf.PI * 2f / seg;
-                    v.Add(new Vector3(Mathf.Sin(a) * r, Height(r), Mathf.Cos(a) * r));
+                    // the mesa rim: the last ring inside is pulled out to the rim itself (a smooth, not ring-stepped, edge) and
+                    // every ring past it drops down the cliff just outside the rim
+                    float a = s * Mathf.PI * 2f / seg, r = rs[j], er = EdgeR(a) - 2.0f;   // the dirt ends under the rim rocks (they reach 3 m in)
+                    bool nextOut = j + 1 < rs.Count && rs[j + 1] > er;
+                    if (r > er) v.Add(new Vector3(Mathf.Sin(a) * (er + 0.4f), -60f, Mathf.Cos(a) * (er + 0.4f)));
+                    else if (nextOut) v.Add(new Vector3(Mathf.Sin(a) * er, Height(er), Mathf.Cos(a) * er));
+                    else v.Add(new Vector3(Mathf.Sin(a) * r, Height(r), Mathf.Cos(a) * r));
                 }
             for (int s = 0; s < seg; s++) tri.AddRange(new[] { 0, 1 + s, 1 + (s + 1) % seg });
             for (int j = 0; j < rs.Count - 1; j++)
@@ -217,6 +269,12 @@ namespace BossSeal
             var mesh = new Mesh { name = "BS_FloorMesh", indexFormat = IndexFormat.UInt32 };
             mesh.SetVertices(v); mesh.SetTriangles(tri, 0);
             mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            {   // flat dirt stays straight up (the cliff drop bent the rim normals: lit triangle bands on the ground)
+                var nn = mesh.normals;
+                for (int k = 0; k < v.Count; k++)
+                    if (v[k].y > -0.05f && new Vector2(v[k].x, v[k].z).magnitude > Rad[6] + 0.3f) nn[k] = Vector3.up;
+                mesh.normals = nn;
+            }
             var mp = Gen + "/BS_FloorMesh.asset";
             AssetDatabase.DeleteAsset(mp); AssetDatabase.CreateAsset(mesh, mp);
             var g = new GameObject("Ground");
@@ -331,28 +389,34 @@ namespace BossSeal
             var sE = Measure(est);
             var blade = BladeMesh(est, sE, out float bladeLen);
             var mat = mats["BS_Blade"];
-            const int n = 24;
-            for (int i = 0; i < n; i++)
+            // 11-15 redo (Kido, ref: dark thick metal wings in bundles, not even bright sticks): six bundles fanning out from
+            // under the dais foot, 3-5 overlapping blades each, longest in the middle; laid flat in layers (each blade a little
+            // above the one under it, outer ones lowest), tips ending 8+ m inside the mesa rim
+            int bundles = 6, made = 0;
+            for (int bI = 0; bI < bundles; bI++)
             {
-                bool longRay = i % 2 == 0 || i % 6 == 3;
-                float ang = (i + 0.5f) * 360f / n + R(-3.5f, 3.5f);
-                float len = longRay ? R(13f, 17f) : R(7f, 10f);              // visible blade length (m)
-                if (i % 4 == 2) len *= 0.8f;
-                float s = len / bladeLen;
-                // 11-15 (Kido): no tips stuck in the dirt. Every ray lies flat on the dirt (level, no pitch/roll), its flat
-                // side 1.5 cm above the ground (no z-fight, nothing cut by the floor), the root tucked under the metal rim:
-                // the floor there is 0.3 m up, so the blade slides out from under the chamfer.
-                float rootR = Rad[4] + R(0.05f, 0.3f);                        // under the metal rim trim (14.2-14.8)
-                R(0, 1); R(0, 1);                                             // (the old pitch/roll draws: keeps the edge layout unchanged)
-                var t = new GameObject("BladeRay").transform;
-                t.SetParent(g, false);
-                var dir = Quaternion.Euler(0, ang, 0);
-                t.position = dir * new Vector3(0, 0, rootR) + Vector3.up * 0.015f;
-                t.rotation = dir;
-                t.localScale = new Vector3(s * (longRay ? 3.2f : 2.7f), s * 0.32f, s);   // flattened: rays stay low (arena rule)
-                t.gameObject.AddComponent<MeshFilter>().sharedMesh = blade;
-                var r = t.gameObject.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On;
+                float baseAng = 30f + bI * 360f / bundles + R(-9f, 9f);
+                int cnt = 3 + rng.Next(3);
+                for (int k = 0; k < cnt; k++)
+                {
+                    float c = cnt == 1 ? 0 : (k / (float)(cnt - 1)) * 2f - 1f;          // -1 .. 1 across the fan
+                    float ang = baseAng + c * R(9f, 13f) + R(-1.5f, 1.5f);
+                    float len = Mathf.Lerp(R(11f, 14.5f), R(5.5f, 8f), Mathf.Abs(c));
+                    float s = len / bladeLen;
+                    float layer = (1 - Mathf.Abs(c)) * 0.2f;
+                    float rootR = Rad[6] - R(0.6f, 1.1f);                               // under the dais foot ring
+                    var t = new GameObject("BladeRay").transform;
+                    t.SetParent(g, false);
+                    var dir = Quaternion.Euler(0, ang, 0);
+                    t.position = dir * new Vector3(0, 0, rootR) + Vector3.up * (0.015f + layer);
+                    t.rotation = dir * Quaternion.Euler(0, 0, c * R(4f, 8f));         // banked a little across, like fanned wings
+                    t.localScale = new Vector3(s * R(3.4f, 4.4f), s * 0.55f, s);
+                    t.gameObject.AddComponent<MeshFilter>().sharedMesh = blade;
+                    var r = t.gameObject.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On;
+                    made++;
+                }
             }
+            Log($"blades: {made} in {bundles} bundles");
         }
 
         // ------------------------------------------------------------------ edge structures (outside the arena only)
@@ -386,6 +450,76 @@ namespace BossSeal
             return holder;
         }
 
+        // like Place, but sized per axis (the cliff scans are wide slabs: a uniform height scale made them cover the arena)
+        static Transform PlaceSized(string path, Material mat, Vector3 pos, float yaw, Vector3 size, Transform parent, float tilt = 0f)
+        {
+            var t = Place(path, mat, pos, yaw, size.y, parent, tilt);
+            if (!t) return null;
+            var b = ModelBounds(path, AssetDatabase.LoadAssetAtPath<GameObject>(path));
+            t.localScale = new Vector3(size.x / Mathf.Max(0.01f, b.size.x), size.y / Mathf.Max(0.01f, b.size.y), size.z / Mathf.Max(0.01f, b.size.z));
+            return t;
+        }
+
+        static Material pSmoke, pEmber;
+        static void FxMats()
+        {
+            if (pSmoke) return;
+            var sh = Shader.Find("Underworld/Particle");
+            var smokeTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/RoomRun/Resources/VFX/smoke_04.png");
+            var sparkTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/RoomRun/Resources/VFX/spark_01.png");
+            pSmoke = new Material(sh) { name = "BS_AbyssSmoke" }; pSmoke.SetTexture("_MainTex", smokeTex); pSmoke.SetColor("_Tint", Color.white);
+            pSmoke.SetFloat("_AlphaFromRed", 1f); pSmoke.SetFloat("_Src", (float)BlendMode.SrcAlpha); pSmoke.SetFloat("_Dst", (float)BlendMode.OneMinusSrcAlpha); pSmoke.SetFloat("_SoftFade", 4f);
+            pEmber = new Material(sh) { name = "BS_AbyssEmber" }; pEmber.SetTexture("_MainTex", sparkTex); pEmber.SetColor("_Tint", new Color(3f, 0.9f, 0.25f, 1f));
+            pEmber.SetFloat("_Src", (float)BlendMode.One); pEmber.SetFloat("_Dst", (float)BlendMode.One); pEmber.SetFloat("_SoftFade", 0.5f);
+            foreach (var m in new[] { pSmoke, pEmber })
+            {
+                var path = $"{MatDir}/{m.name}.mat"; AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(m, path);
+            }
+        }
+        // slow rolling smoke column (alpha blended Kenney CC0 puff), prewarmed
+        static void Smoke(Transform parent, Vector3 pos, float radius, float size, float rise, Color tint)
+        {
+            FxMats();
+            var go = new GameObject("AbyssSmoke"); go.transform.SetParent(parent, false); go.transform.position = pos;
+            var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = pSmoke; r.shadowCastingMode = ShadowCastingMode.Off; r.maxParticleSize = 3f;
+            var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true; mm.playOnAwake = true;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(12f, 18f); mm.startSpeed = 0f; mm.maxParticles = 22;
+            mm.startSize = new ParticleSystem.MinMaxCurve(size * 0.7f, size * 1.3f); mm.startRotation = new ParticleSystem.MinMaxCurve(0f, 6.28f);
+            mm.startColor = tint;
+            var em = ps.emission; em.rateOverTime = 1.3f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = radius;
+            var v = ps.velocityOverLifetime; v.enabled = true; v.space = ParticleSystemSimulationSpace.World;
+            v.x = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f); v.y = new ParticleSystem.MinMaxCurve(rise * 0.6f, rise); v.z = new ParticleSystem.MinMaxCurve(-0.6f, -0.1f);
+            var rot = ps.rotationOverLifetime; rot.enabled = true; rot.z = new ParticleSystem.MinMaxCurve(-0.08f, 0.08f);
+            var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 0.6f, 1, 1.4f));
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var gr = new Gradient(); gr.SetKeys(new[] { new GradientColorKey(new Color(1f, 0.75f, 0.6f), 0), new GradientColorKey(Color.white, 0.4f), new GradientColorKey(new Color(0.6f, 0.55f, 0.55f), 1) },
+                new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.25f), new GradientAlphaKey(0.7f, 0.7f), new GradientAlphaKey(0, 1) });
+            col.color = gr;
+            ps.Play();
+        }
+        static void Embers(Transform parent, Vector3 pos)
+        {
+            FxMats();
+            var go = new GameObject("AbyssEmbers"); go.transform.SetParent(parent, false); go.transform.position = pos;
+            var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = pEmber; r.shadowCastingMode = ShadowCastingMode.Off;
+            var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true; mm.playOnAwake = true;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(5f, 9f); mm.startSpeed = 0f; mm.maxParticles = 30;
+            mm.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
+            var em = ps.emission; em.rateOverTime = 4f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(18f, 6f, 10f);
+            var v = ps.velocityOverLifetime; v.enabled = true; v.space = ParticleSystemSimulationSpace.World;
+            v.x = new ParticleSystem.MinMaxCurve(-0.6f, 0.6f); v.y = new ParticleSystem.MinMaxCurve(1.5f, 3.5f); v.z = new ParticleSystem.MinMaxCurve(-0.8f, 0.2f);
+            var no = ps.noise; no.enabled = true; no.strength = 0.6f; no.frequency = 0.4f;
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var gr = new Gradient(); gr.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(new Color(1f, 0.4f, 0.15f), 1) },
+                new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.1f), new GradientAlphaKey(0.8f, 0.7f), new GradientAlphaKey(0, 1) });
+            col.color = gr;
+            ps.Play();
+        }
+
         static Vector3 OutsideArena(Vector3 p, float m)
         {
             if (Mathf.Abs(p.x) < HX + m && Mathf.Abs(p.z) < HZ + m)
@@ -410,34 +544,87 @@ namespace BossSeal
         {
             var g = Group("EdgeStructures");
             int n = 0;
-            // a broken colonnade on an ellipse just outside the arena; tall at the back, short and sparse at the camera side
-            for (int i = 0; i < 26; i++)
+            // ---- the cliff: granite cliff slabs along the north arc only (where the rim is inside the floor), tops just
+            // under the floor edge, falling ~40 m; volcanic spires standing up out of the deep
+            var cliffs = Group("MesaCliffs", g);
+            for (int i = 0; i < 90; i++)
             {
-                float a = (i + R(-0.25f, 0.25f)) * Mathf.PI * 2f / 26f;
-                var p = new Vector3(Mathf.Sin(a) * (HX + R(5f, 9f)), -0.4f, Mathf.Cos(a) * (HZ + R(5f, 9f)));
-                p = OutsideArena(p, 3.5f);
-                bool south = p.z < -HZ * 0.6f;
-                if (south && rng.NextDouble() < 0.5) continue;
-                float h = south ? R(2.5f, 5f) : p.z > 0 ? R(7f, 13f) : R(4f, 9f);
-                Place(PillarFbx, mats["BS_Pillar"], p, R(0, 360), h, g, R(-4f, 4f)); n++;
-                if (!south && rng.NextDouble() < 0.45)
+                float a = (i + R(-0.2f, 0.2f)) * Mathf.PI * 2f / 90;
+                float er = EdgeR(a);
+                if (er > 70f) continue;
+                var dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                // 11-15 (Kido: "종이로 오린 것처럼 엣지"): the rock now rides OVER the floor's edge: each slab reaches ~3 m in
+                // over the dirt and stands 0.3-0.8 m proud of it, so the rim is thick broken rock, never the floor's cut edge
+                float depth = R(6f, 7.5f);
+                var p = dir * (er + depth * 0.5f - 3.0f) + Vector3.up * AbyssY;
+                float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + R(-15f, 15f);
+                PlaceSized(CliffFbx, mats["BS_Cliff"], p, yaw, new Vector3(R(7f, 10f), -AbyssY + R(0.3f, 0.8f), depth), cliffs, R(-4f, 4f)); n++;
+                // gravel and stones heaped where the dirt meets the rock (hides the seam)
+                for (int k = 0; k < 3; k++)
                 {
-                    int courses = rng.Next(2, 5);
-                    float yaw = Mathf.Atan2(p.x, p.z) * Mathf.Rad2Deg + 90f + R(-8, 8);
-                    for (int k = 0; k < courses; k++)
-                        {
-                            var wt = Place(WallFbx, mats["BS_Wall"], p + Quaternion.Euler(0, yaw, 0) * new Vector3(R(2.5f, 4f), 0, 0) + Vector3.up * (k * 1.4f - 0.3f), yaw + R(-3, 3), 1.5f, g);
-                            if (wt && Overlaps(wt)) { Object.DestroyImmediate(wt.gameObject); n--; }
-                        }
-                    n += courses;
+                    var q = dir * (er - 3.0f - R(0.2f, 1.6f)) + new Vector3(dir.z, 0, -dir.x) * R(-4f, 4f) + Vector3.down * 0.02f;
+                    var tq = Place(RocksFbx, mats["BS_Rocks"], q, R(0, 360), R(0.25f, 0.5f), cliffs);
+                    if (tq) { float sc = R(3f, 5f); tq.localScale = new Vector3(tq.localScale.x * sc, tq.localScale.y, tq.localScale.z * sc); }
                 }
             }
-            // a second, taller row further back (north and sides) dissolving into the red
-            for (int i = 0; i < 16; i++)
+            for (int i = 0; i < 6; i++)
             {
-                float a = (i / 15f - 0.5f) * Mathf.PI * 1.25f;
-                var p = new Vector3(Mathf.Sin(a) * (HX + R(14f, 20f)), -1f, Mathf.Cos(a) * (HZ + R(12f, 20f)));
-                Place(PillarFbx, mats["BS_Pillar"], p, R(0, 360), R(10f, 17f), g); n++;
+                float a = (R(-55f, 55f)) * Mathf.Deg2Rad;
+                var dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                var p = dir * (EdgeR(a) + R(12f, 30f)) + Vector3.up * AbyssY;
+                Place(SpireFbx, mats["BS_Spire"], p, R(0, 360), R(18f, 30f), cliffs); n++;
+            }
+            // lava far below: the abyss plane (dim molten veins) and two warm lights welling up the cliff face
+            var abyss = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            abyss.name = "Abyss"; abyss.transform.SetParent(g, false);
+            Object.DestroyImmediate(abyss.GetComponent<Collider>());
+            abyss.transform.position = new Vector3(0, AbyssY + 0.5f, HZ + 40f); abyss.transform.localScale = new Vector3(30f, 1f, 12f);
+            var ar = abyss.GetComponent<MeshRenderer>(); ar.sharedMaterial = mats["BS_Abyss"]; ar.shadowCastingMode = ShadowCastingMode.Off;
+            AddLight("AbyssGlow_NW", new Vector3(-22f, -10f, HZ + 12f), Hex("#ff5a1e"), 6f, 30f);
+            AddLight("AbyssGlow_NE", new Vector3(24f, -10f, HZ + 12f), Hex("#ff5a1e"), 6f, 30f);
+
+            // ---- smoke / sulphur steam rising out of the deep along the cliff, in three depth layers, and embers
+            var fx = Group("AbyssFX", g);
+            for (int i = 0; i < 9; i++)
+            {
+                float x = -48f + i * 12f + R(-3f, 3f);
+                float a = Mathf.Atan2(x, HZ + 6f);
+                float er = EdgeR(a);
+                int layer = i % 3;
+                var pos = new Vector3(x, AbyssY + 8f + layer * 9f, Mathf.Cos(a) * er + 4f + layer * 7f);
+                Smoke(fx, pos, 9f + layer * 3f, R(12f, 20f), 1.6f + layer * 0.4f, new Color(0.42f, 0.22f, 0.14f, 0.55f - layer * 0.1f));
+            }
+            for (int i = 0; i < 5; i++)
+            {
+                float x = -36f + i * 18f + R(-4f, 4f);
+                float a = Mathf.Atan2(x, HZ + 6f);
+                var pos = new Vector3(x, -3f, Mathf.Cos(a) * EdgeR(a) + 2.5f);
+                Smoke(fx, pos, 6f, R(6f, 9f), 0.9f, new Color(0.38f, 0.24f, 0.17f, 0.3f));   // wisps curling over the lip
+            }
+            for (int i = 0; i < 4; i++)
+                Embers(fx, new Vector3(-36f + i * 24f + R(-4f, 4f), -14f, HZ + 12f + R(0f, 6f)));
+
+            // ---- four thin, low pillars on the north rim only
+            float[] rimAng = { -48f, -17f, 14f, 44f };
+            foreach (var deg in rimAng)
+            {
+                float a = (deg + R(-4f, 4f)) * Mathf.Deg2Rad;
+                var dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                var p = OutsideArena(dir * (EdgeR(a) - 3.8f) + Vector3.down * 0.3f, 0.6f);   // on the dirt just inside the rock lip
+                var t = Place(PillarFbx, mats["BS_Pillar"], p, R(0, 360), R(3f, 5f), g, R(-3f, 3f));
+                if (t) { t.localScale = new Vector3(t.localScale.x * 0.6f, t.localScale.y, t.localScale.z * 0.6f); n++; }
+            }
+
+            // ---- debris collar: Megascans debris / small rocks lying flat round the dais foot, sparser outward
+            var deb = Group("Debris", g);
+            for (int i = 0; i < 80; i++)
+            {
+                float a = R(0, Mathf.PI * 2f);
+                float d = Rad[6] + 0.4f + Mathf.Pow(R(0, 1), 1.6f) * 18f;
+                var p = new Vector3(Mathf.Sin(a) * d, -0.02f, Mathf.Cos(a) * d);
+                bool rock = rng.NextDouble() < 0.4;
+                var t = Place(rock ? RocksFbx : DebrisFbx, mats[rock ? "BS_Rocks" : "BS_Debris"], p, R(0, 360), rock ? R(0.15f, 0.3f) : R(0.1f, 0.22f), deb);
+                if (t) { float sc = R(2.2f, 3.6f); t.localScale = new Vector3(t.localScale.x * sc, t.localScale.y, t.localScale.z * sc); n++; }
             }
             Log($"edge pieces {n}");
         }
@@ -464,13 +651,13 @@ namespace BossSeal
             RenderSettings.sun = moon;
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = Hex("#5a3428");
-            RenderSettings.ambientEquatorColor = Hex("#3e2219");
+            RenderSettings.ambientSkyColor = Hex("#5a3a2a");
+            RenderSettings.ambientEquatorColor = Hex("#3e281a");
             RenderSettings.ambientGroundColor = Hex("#1c100c");
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = Hex("#3a140c");
-            RenderSettings.fogDensity = 0.009f;
+            RenderSettings.fogColor = Hex("#2a1a12");   // brown, not red
+            RenderSettings.fogDensity = 0.006f;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.customReflectionTexture = null;
             RenderSettings.reflectionIntensity = 0.25f;
@@ -486,12 +673,9 @@ namespace BossSeal
             ls.bakedGI = false; ls.realtimeGI = false;
 
             // the seal's own glow (high, wide: lights the rings and the blade roots, no pool at anyone's feet)
-            AddLight("SealGlow", new Vector3(0, 7f, 0), Hex("#ff6a2a"), 1.3f, 21f);
-            // red light leaking from the haze behind the colonnade
-            AddLight("RimRed_N", new Vector3(0, 3f, HZ + 9f), Hex("#ff2a12"), 4f, 22f);
-            AddLight("RimRed_NE", new Vector3(HX + 4f, 3f, HZ - 2f), Hex("#ff3a1a"), 3f, 18f);
-            AddLight("RimRed_NW", new Vector3(-HX - 4f, 3f, HZ - 2f), Hex("#ff3a1a"), 3f, 18f);
-            AddLight("RimRed_S", new Vector3(R(-6, 6), 2.5f, -HZ - 8f), Hex("#d8301a"), 2f, 16f);
+            // the dais's warm pool of light (ref: warm centre, darker outward); the deep's glow comes from BuildEdge
+            AddLight("SealGlow", new Vector3(0, 6f, 0), Hex("#ff8a3a"), 2.4f, 30f);
+            AddLight("WarmFill_S", new Vector3(0, 5f, -18f), Hex("#ff9a55"), 0.8f, 24f);
 
             var vol = new GameObject("PostFX").AddComponent<Volume>(); vol.transform.SetParent(root, false); vol.isGlobal = true;
             vol.sharedProfile = Profile();
@@ -499,7 +683,7 @@ namespace BossSeal
             var cam = new GameObject("Main Camera") { tag = "MainCamera" }.AddComponent<Camera>();
             cam.transform.SetParent(root, false);
             cam.fieldOfView = 30f; cam.nearClipPlane = 0.3f; cam.farClipPlane = 400f; cam.allowHDR = true;
-            cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Hex("#1a0604");
+            cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Hex("#140806");
             var cd = cam.gameObject.AddComponent<UniversalAdditionalCameraData>();
             cd.renderPostProcessing = true;
             cam.gameObject.AddComponent<AudioListener>();
