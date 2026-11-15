@@ -20,6 +20,9 @@ Shader "Underworld/CorruptFilm"
         _EdgeScale ("Clear edge noise scale (1/m)", Float) = 0.55
         _ClearLift ("Cleared floor lift (linear)", Color) = (0.010, 0.008, 0.014, 1)
         _BorderFade ("Border fade (m)", Float) = 3
+        _CrackTex ("UW: crack height map (Poly Haven cracked_concrete disp)", 2D) = "gray" {}
+        _CrackScale ("UW: crack map metres per tile", Float) = 4.5
+        _CrackAmt ("UW: how far cracks break the edge", Range(0, 1)) = 0.45
     }
     SubShader
     {
@@ -41,10 +44,11 @@ Shader "Underworld/CorruptFilm"
 
             CBUFFER_START(UnityPerMaterial)
             float4 _Deep, _Mid, _Glow, _Rim, _ClearLift;
-            float _Alpha, _Scale, _Drift, _EdgeScale, _BorderFade;
+            float _Alpha, _Scale, _Drift, _EdgeScale, _BorderFade, _CrackScale, _CrackAmt;   // UW: crack params
             CBUFFER_END
             TEXTURE2D(_UW_FilmMask); SAMPLER(sampler_UW_FilmMask);
             float4 _UW_FilmRect;
+            TEXTURE2D(_CrackTex); SAMPLER(sampler_CrackTex);   // UW
 
             struct A { float4 pos : POSITION; };
             struct V { float4 pos : SV_POSITION; float3 w : TEXCOORD0; float fog : TEXCOORD1; };
@@ -100,6 +104,12 @@ Shader "Underworld/CorruptFilm"
                 float m = 0;
                 if (all(muv > 0) && all(muv < 1)) m = SAMPLE_TEXTURE2D(_UW_FilmMask, sampler_UW_FilmMask, muv).r;
                 float n = 0.22 + 0.55 * fbm(w * _EdgeScale + 31.0);
+                // UW (Kido 11-15: a broken, chipped edge like cracked floor): the film near a hole gives way along the cracks of a
+                // scanned crack height map first, so the rim breaks into plates and fragments; the outline follows the cracks
+                float ch = SAMPLE_TEXTURE2D(_CrackTex, sampler_CrackTex, w / _CrackScale).r;
+                float crack = saturate((0.44 - pow(ch, 0.4545)) * 9.0);   // the map imports as sRGB: back to its stored values
+                float plate = fbm(w * 1.9 + 7.0);   // some plates go before others (fragments left standing)
+                n = n - (crack * _CrackAmt + (plate - 0.5) * _CrackAmt * 0.5) * saturate(m * 5.0);   // only where the player has been
                 float clear = smoothstep(n - 0.05, n + 0.05, m);
                 float rim = saturate(1 - abs(m - (n - 0.08)) / 0.06) * (1 - clear) * step(0.02, m);
 

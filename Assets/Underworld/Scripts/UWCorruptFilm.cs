@@ -16,14 +16,18 @@ namespace Underworld
         public Vector4 rect = new Vector4(-60f, -48f, 120f, 96f);
         public int resolution = 1024;
         [Tooltip("Radius of the wiped patch around the player (m).")]
-        public float radius = 2.4f;
+        public float radius = 3.2f;   // UW: was 2.4 (v2)
         [Tooltip("How fast the patch under the player clears (mask units per second).")]
-        public float clearRate = 3.5f;
+        public float clearRate = 14f;   // UW: was 3.5 (v2): clears at once around a standing player
         [Tooltip("Seconds for a fully cleared spot to fill back in.")]
         public float regrowSeconds = 25f;
         public Material brush;
         [Tooltip("Optional: the object to follow. In Play the object named Player is used when this is empty.")]
         public Transform target;
+
+        [Tooltip("UW: seconds of walking the cleared patch reaches ahead of the player.")]
+        public float lead = 0.35f;
+        Vector3 vel;
 
         RenderTexture a, b;
         float nextFind;
@@ -72,8 +76,13 @@ namespace Underworld
             if (!hasLast || (p - lastPos).sqrMagnitude > 25f) lastPos = p;   // teleports (room entry) do not smear a line
             hasLast = target;
             // the wipe is a capsule from last frame's position to this one, so fast movement leaves no gaps
+            // UW 11-15 (Kido: "too slow, it used to clear around me at once and ahead while walking"): the capsule now also
+            // reaches ahead along the (smoothed) walk velocity, so the film opens in front of the player, not behind
+            Vector3 v = dt > 1e-4f ? (p - lastPos) / dt : Vector3.zero; v.y = 0;
+            vel = Vector3.Lerp(vel, v, 1f - Mathf.Exp(-dt * 12f));
+            Vector3 ahead = p + Vector3.ClampMagnitude(vel * lead, radius * 1.1f);
             brush.SetVector(ID_P0, new Vector4(lastPos.x, lastPos.z, 0, 0));
-            brush.SetVector(ID_P1, new Vector4(p.x, p.z, 0, 0));
+            brush.SetVector(ID_P1, new Vector4(ahead.x, ahead.z, 0, 0));
             brush.SetVector(ID_Brush, new Vector4(radius, clearRate * dt, dt / Mathf.Max(1f, regrowSeconds), Time.time));
             brush.SetVector("_Rect", rect);
             brush.SetTexture(ID_Prev, a);

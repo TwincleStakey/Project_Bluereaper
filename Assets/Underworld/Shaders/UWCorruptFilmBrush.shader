@@ -5,7 +5,7 @@
 // everything regrows unevenly over _BrushParams.z per second.
 Shader "Hidden/Underworld/CorruptFilmBrush"
 {
-    Properties { _Prev ("Prev", 2D) = "black" {} }
+    Properties { _Prev ("Prev", 2D) = "black" {} _CrackTex ("UW crack height", 2D) = "gray" {} _CrackScale ("UW crack m per tile", Float) = 4.5 }
     SubShader
     {
         Cull Off ZWrite Off ZTest Always
@@ -17,6 +17,7 @@ Shader "Hidden/Underworld/CorruptFilmBrush"
             #include "UnityCG.cginc"
 
             sampler2D _Prev;
+            sampler2D _CrackTex; float _CrackScale;   // UW: Poly Haven cracked_concrete height map
             float4 _Rect;         // x0, z0, width, depth
             float4 _P0, _P1;      // xz of the player last frame / now
             float4 _BrushParams;  // radius, clear amount this frame, regrow amount this frame, time
@@ -45,7 +46,15 @@ Shader "Hidden/Underworld/CorruptFilmBrush"
                 float r = _BrushParams.x * (0.7 + 0.6 * fbm(w * 0.85));            // ragged, world-fixed outline
                 float core = saturate((r - d) / (r * 0.4));
                 // droplets in a ring past the main patch (paint splatter)
-                float spot = step(0.74, vnoise(w * 2.6 + 11.0)) * saturate((r * 1.8 - d) / (r * 0.45)) * step(r * 0.9, d);
+                // UW 11-15 (Kido: a broken, cracked-floor edge, no square flecks): past the main patch the film gives way along
+                // the cracks of the scanned crack map and chips off whole plates between them (instead of the v2 value-noise
+                // droplets, whose axis-aligned cells read as squares)
+                float2 wr = float2(w.x * 0.8 - w.y * 0.6, w.x * 0.6 + w.y * 0.8);
+                float ch = tex2D(_CrackTex, w / max(_CrackScale, 0.1)).r;
+                float crackLine = saturate((0.44 - pow(ch, 0.4545)) * 9.0);   // the map imports as sRGB: back to its stored values
+                float chip = smoothstep(0.6, 0.66, fbm(wr * 1.4 + 11.0)) * (1 - crackLine);
+                float ring = saturate((r * 1.7 - d) / (r * 0.5)) * step(r * 0.85, d);
+                float spot = saturate(crackLine * 1.2 + chip) * ring;
                 m = min(1.3, m + (core + spot * 0.8) * _BrushParams.y);
                 return float4(m, 0, 0, 1);
             }
