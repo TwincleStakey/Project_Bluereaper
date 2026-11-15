@@ -15,7 +15,7 @@ namespace RoomRun
 {
     public sealed class FieldLighting : MonoBehaviour
     {
-        public static readonly HashSet<string> DarkRooms = new HashSet<string> { "grass", "valley", "village", "palace", "underworld", "abandoned", "reeds", "bamboo", "snow", "crypt" };   // every field is dark since 11-11 (StageMood)
+        public static readonly HashSet<string> DarkRooms = new HashSet<string> { "grass", "valley", "village", "palace", "underworld", "abandoned", "reeds", "bamboo", "snow", "crypt", "bossseal" };   // every field is dark since 11-11 (StageMood)
         public const int MaxBulletLights = 12;
 
         [Header("Player light pool")]
@@ -85,7 +85,7 @@ namespace RoomRun
         {
             Active = dark;
             stageScale = run.Room != null && run.Room.id == "snow" ? 0.5f : 1f;
-            playerScale = run.Room != null && run.Room.id == "crypt" ? 0f : 1f;   // DarkCrypt (11-15): no light pool under the player
+            playerScale = run.Room != null && (run.Room.id == "crypt" || run.Room.id == "bossseal") ? 0f : 1f;   // DarkCrypt, 봉인의 제단 (11-15): no light pool under the player
             EnemyRim = dark ? rimMat : null;
             // the stage scene set its own ambient when it loaded; dim it once for this visit
             if (dark)

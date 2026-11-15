@@ -49,6 +49,7 @@ namespace RoomRun
             // DarkCrypt (11-14): the scene is built dark (violet-black fog, dim moon, candle/crystal lights), so its own fog,
             // moon and ambient stay; no stone-lantern fire pools (the candles are the fire)
             { "crypt",      new Mood { exposure = 1.7f, saturation = -25f, contrast = 7f, filter = new Color(0.93f, 0.91f, 0.96f), sun = 1f, sunGrey = 0f, ambient = 1f, ambientGrey = 0f, fogDensity = 0f, firePools = 0 } },
+            { "bossseal",   new Mood { exposure = 0f, saturation = -10f, contrast = 10f, filter = new Color(0.97f, 0.94f, 0.93f), sun = 1f, sunGrey = 0f, ambient = 1f, ambientGrey = 0f, fogDensity = 0f, firePools = 0 } },   // 봉인의 제단 (11-15): red-brown boss seal, own red fog/lights (BossSeal/BSBuilder)
             // 11-13 bamboo redo (Kido: C mood, Sekiro bamboo at night): darker materials and a cold moon in the scene, so the
             // grade only lifts it; the old -0.6 EV / -58 sat / green-grey filter turned the floor into one olive mush
             { "bamboo",     new Mood { exposure = 0.15f, saturation = -42f, filter = new Color(0.95f, 0.96f, 0.99f), fire = new Color(0.95f, 0.6f, 0.38f) } },   // r9: darker, softer lantern colour

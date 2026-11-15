@@ -1,0 +1,24 @@
+BossSeal (봉인의 제단) - third-party assets (11-15)
+
+Seal / talisman motifs (Wikimedia Commons; originals in Source/Motifs/Originals, masks cut by ArtSource/BossSeal/bs_masks.py)
+- "Gilsanghosin(Good fortune Self-protection) Talisman, Woodblock Talisman" by 고려, Wikimedia Commons
+  https://commons.wikimedia.org/wiki/File:Gilsanghosin(Good_fortune_Self-protection)_Talisman,_Woodblock_Talisman.jpg
+  License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Used as: BS_Bujeok_Gilsang.png (the cinnabar strokes of the 길상호신부) and BS_Woodblock_Text.png (carved characters of the 부적목판),
+  cropped and thresholded.
+- "Amulet" (삼두매 부적) by Sin Jae-hyeon, Brooklyn Museum, Wikimedia Commons - Public domain
+  https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_Amulet_-_Sin_Jae-hyeon.jpg
+  Used as: BS_Samdumae.png (ink lines)
+- "Yinyang Bagua Earlier Heaven Octagon" by Vuccala, Wikimedia Commons - CC0
+  https://commons.wikimedia.org/wiki/File:Yinyang_Bagua_Earlier_Heaven_Octagon.svg
+  Used as: the trigram octagon (R channel of BS_Seal_TaegeukPalgwae.png), its yin-yang removed
+- "Flag of South Korea" (Government of the Republic of Korea), Wikimedia Commons - Public domain
+  https://commons.wikimedia.org/wiki/File:Flag_of_South_Korea.svg
+  Used as: the taegeuk (G/B channels of BS_Seal_TaegeukPalgwae.png)
+
+Poly Haven, CC0 1.0 (https://polyhaven.com)
+- textures: red_mud_stones, cracked_red_ground, dark_rock_02, red_sandstone_wall, rusty_metal_02
+- model: antique_estoc (blade rays; the mesh is cut past the guard by BSBuilder, blade only)
+
+Quixel Megascans via Fab (Fab Standard License) - reused from Assets/Game/DarkCrypt/Source
+- stone_pillar_selvF, castle_wall_sbxuw (edge colonnade)
