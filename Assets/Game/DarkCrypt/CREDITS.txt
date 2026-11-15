@@ -19,3 +19,6 @@ Poly Haven, CC0 1.0
 
 poly.pizza, CC0 1.0
 - Source/Crystals (iPoly3D, Quaternius) - kept in the project, no longer placed (v3)
+
+Poly Haven, CC0 1.0 (v5, 11-15)
+- Source/PH_rock_boulder_dry: "Rock Boulder Dry" texture, https://polyhaven.com/a/rock_boulder_dry (courtyard floor)

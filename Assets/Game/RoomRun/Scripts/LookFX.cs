@@ -178,7 +178,7 @@ namespace RoomRun
                 filter = new Color(0.95f, 0.94f, 0.95f), splitShadows = new Color(0.36f, 0.4f, 0.48f), splitHighlights = new Color(0.86f, 0.68f, 0.5f), splitBalance = 10f,
                 veil = new Color(0.33f, 0.31f, 0.3f), veilFar = new Color(0.13f, 0.11f, 0.11f), veilDensity = 0.03f, veilMax = 0.7f, highlightPull = -0.15f } },
             // DarkCrypt (11-14): pressed like the others, violet-black veil; only crystals, candles and wiped floor stand out
-            { "crypt", new RoomPost { saturation = -25f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 7f, exposureAdd = 0f,
+            { "crypt", new RoomPost { saturation = 0f, bloomThreshold = 1.4f, bloomIntensity = 0.6f, flashScale = 0.5f, press = true, contrast = 7f, exposureAdd = 0f,
                 filter = new Color(0.95f, 0.93f, 0.98f), splitShadows = new Color(0.4f, 0.34f, 0.5f), splitHighlights = new Color(0.8f, 0.7f, 0.62f), splitBalance = 10f,
                 veil = new Color(0.12f, 0.09f, 0.15f), veilFar = new Color(0.04f, 0.03f, 0.06f), veilDensity = 0.02f, veilMax = 0.55f, highlightPull = -0.2f } },
             // 봉인의 제단 (11-15 redo): orange-brown dirt, warm centre; brown veil (red only in the deep, from the scene)

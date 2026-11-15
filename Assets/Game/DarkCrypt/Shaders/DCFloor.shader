@@ -1,5 +1,5 @@
-// DarkCrypt courtyard floor (v4, 11-15): the Megascans castle floor scan without the visible 7 m grid.
-//   - the scan's four big slabs are cut out (between its own grout centre lines) and re-laid one slab per cell in
+// DarkCrypt courtyard floor. v5 (11-15): one seamless Poly Haven rock scan, two world samplings blended by noise (no grid).
+//   - (v4, replaced in v5) the scan's four big slabs are cut out (between its own grout centre lines) and re-laid one slab per cell in
 //     courses of random order and random shift (broken bond, no grid), each mirrored at random; every cell uses the
 //     scan slab of its own size, so nothing is stretched. Derivatives come from the continuous world UVs (no mip seams).
 //   - per-slab tone/hue shift and two world-space macro noises (different scales, rotated) so no two slabs read the same;
@@ -96,40 +96,25 @@ Shader "DarkCrypt/Floor"
                 // order; each course is shifted by a random amount and holds pairs of a narrow and a wide slab in random
                 // order. Every slab shows the scan slab of exactly its own size (no stretch), turned 180 degrees half the
                 // time, so the grout lines run in a broken bond instead of a grid and no two neighbours mirror each other.
-                const float SW = 0.448 * 7.0, SH = 0.402 * 7.0;
-                float pz = floor(w.y / _Tile);
-                float zl = w.y - pz * _Tile;
-                float hA = H21(float2(pz, 3.7)) < 0.5 ? SH : _Tile - SH;
-                bool firstRow = zl < hA;
-                float rowH = firstRow ? hA : _Tile - hA;
-                float rowZ0 = firstRow ? 0.0 : hA;
-                float rid = pz * 2.0 + (firstRow ? 0.0 : 1.0);
-                float xs = w.x + H21(float2(rid, 9.1)) * _Tile;
-                float px = floor(xs / _Tile);
-                float xl = xs - px * _Tile;
-                float wA = H21(float2(px, rid + 0.37)) < 0.5 ? SW : _Tile - SW;
-                bool firstCol = xl < wA;
-                float colW = firstCol ? wA : _Tile - wA;
-                float colX0 = firstCol ? 0.0 : wA;
-                float2 lp = float2(xl - colX0, zl - rowZ0);                    // metres inside the slab
-                float2 cell = float2(px * 2.0 + (firstCol ? 0.0 : 1.0), rid);
-                float2 hc = H22(cell + 17.0);
-                float2 src0 = float2(colW < 3.5 ? 0.503 : 0.951, rowH < 3.5 ? 0.094 : 0.496);
-                // mirrors: across x once per course (so two neighbours in a course never mirror each other at their
-                // shared joint), across z per slab (courses are offset, so joints between courses never line up)
-                float2 flip = float2(H21(float2(rid, 5.5)) < 0.5 ? -1.0 : 1.0, hc.x < 0.5 ? -1.0 : 1.0);
-                float2 tuv = src0 + (flip > 0 ? lp : float2(colW, rowH) - lp) / _Tile;
-                float2 tdx = ddx(w) / _Tile * flip, tdy = ddy(w) / _Tile * flip;
-                float3 alb = SAMPLE_TEXTURE2D_GRAD(_BaseMap, sampler_BaseMap, tuv, tdx, tdy).rgb;
-                float4 nrmRaw = SAMPLE_TEXTURE2D_GRAD(_BumpMap, sampler_BaseMap, tuv, tdx, tdy);
-                float ao = SAMPLE_TEXTURE2D_GRAD(_AOMap, sampler_BaseMap, tuv, tdx, tdy).r;
-                float3 nts = UnpackNormalScale(nrmRaw, _NrmStr);
-                nts.xy *= flip;
-
-                // ---- per-slab tone (weathered differently)
-                float tone = 1.0 + (hc.y - 0.5) * 2.0 * _CellTone;
-                float3 hue = lerp(float3(1.02, 0.99, 0.98), float3(0.97, 0.98, 1.04), H21(cell * 1.7 + 3.1));
-                alb *= _Tint.rgb * tone * hue;
+                // v5 (11-15, Kido: no tile grid / grout lines): one seamless weathered-rock scan (Poly Haven
+                // rock_boulder_dry, CC0) sampled twice in world space at unrelated scales and angles, the two blended by a
+                // large soft noise, so it never reads as a repeat. No cells, no lines.
+                float2 uvA = w / _Tile;
+                float2 wq = float2(w.x * 0.866 - w.y * 0.5, w.x * 0.5 + w.y * 0.866);
+                float2 uvB = wq / (_Tile * 1.37) + float2(0.31, 0.67);
+                float bmix = smoothstep(0.35, 0.65, FBM(w * 0.035 + 2.1));
+                float3 albA = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvA).rgb, albB = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvB).rgb;
+                float3 nA = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BaseMap, uvA), _NrmStr);
+                float3 nB = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BaseMap, uvB), _NrmStr);
+                nB.xy = float2(nB.x * 0.866 + nB.y * 0.5, -nB.x * 0.5 + nB.y * 0.866);   // back into world tangent space
+                float aoA = SAMPLE_TEXTURE2D(_AOMap, sampler_BaseMap, uvA).r, aoB = SAMPLE_TEXTURE2D(_AOMap, sampler_BaseMap, uvB).r;
+                float3 alb = lerp(albA, albB, bmix);
+                float3 nts = normalize(lerp(nA, nB, bmix));
+                float ao = lerp(aoA, aoB, bmix);
+                // painterly flattening: pull the scan's fine contrast toward its local mean (keeps the big shapes)
+                float lum = Luma(alb);
+                alb = lerp(alb, lum.xxx * 0.98, 0.35);
+                alb *= _Tint.rgb * (1.0 + (FBM(w * 0.09 + 5.0) - 0.5) * 2.0 * _CellTone);
 
                 // ---- macro: two world noises (rotated, unrelated scales), soft
                 float2 wr = float2(w.x * 0.8 - w.y * 0.6, w.x * 0.6 + w.y * 0.8);

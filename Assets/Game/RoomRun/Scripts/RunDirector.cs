@@ -547,8 +547,11 @@ namespace RoomRun
             for (int i = 0; i < n; i++) SpawnEnemy(defs[i % defs.Count], FindSpawn(room), room);
         }
 
+        /// Dev captures (shots token calm=1): no encounter enemies, so close-ups of the player are not covered.
+        public static bool DevNoEnemies;
         void SpawnEnemy(EnemyDef def, Vector3 pos, RoomDef room)
         {
+            if (DevNoEnemies) return;
             var go = new GameObject("Enemy_" + def.id, typeof(CharacterController), typeof(Health), typeof(EnemyController));
             go.transform.position = pos;
             var e = go.GetComponent<EnemyController>();

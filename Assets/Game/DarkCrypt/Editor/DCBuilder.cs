@@ -16,6 +16,10 @@
 //   puddles); denser mist clumps with a lagging blotch trail (no disc at the feet, no cleared-stone lift); the south
 //   foreground uses the wall/pillar scans in a near-black lit material plus crystals/candles; more flat debris and soft
 //   grime stain decals in the open. Still 8 realtime lights.
+// v5 (11-15, Kido ref video + notes): 46 x 36 arena; a 3.2 m strip between the arena edge and the walls packed with
+//   pew rows, floor candle clusters and ten crystal groups; a pillar every 2 wall segments; magenta-red walls, plum
+//   pillars, bright blue-violet / cyan crystals; floor = Poly Haven rock_boulder_dry (CC0) with no tile grid; the mist
+//   is the thin magenta film (MistOverlay _Flat, floor-only _SURFACE); brighter moon/ambient, saturation 0.
 // Nothing inside the arena has a collider except the floor. Re-running rebuilds the scene and materials.
 // Run: Tools/DarkCrypt/Build Scene, or the RoomRun remote ("menu Tools/DarkCrypt/Build Scene" in ArtSource/rr_queue).
 using System.Collections.Generic;
@@ -37,9 +41,9 @@ namespace DarkCrypt
         const string MatDir = Root + "/Materials";
         const string Gen = Root + "/Generated";
         public const string RoomId = "crypt";
-        public const float HX = 56f, HZ = 44f;          // arena half size (112 x 88)
-        const float WallLine = 0.6f;                    // walls stand this far outside the arena edge
-        const float FloorTile = 7f;                     // one 2 m scan texture (2 x 2 slabs) stretched over 7 m -> ~3.5 m slabs
+        public const float HX = 23f, HZ = 18f;          // arena half size (v5: 46 x 36, was 112 x 88)
+        const float WallLine = 3.2f;                    // v5: walls stand this far outside the arena edge; the strip between holds benches, candles, crystals
+        const float FloorTile = 5.5f;                   // v5: metres per rock scan tile (two rotated samplings, no grid)
 
         static System.Random rng;
         static Transform root;
@@ -213,25 +217,27 @@ namespace DarkCrypt
             Mat("DC_Floor", "DarkCrypt/Floor", m =>
             {
                 m.shaderKeywords = new string[0];
-                m.SetTexture("_BaseMap", Tex(fl + "Castle_Floor_Stone_tdblbcyt_2K_BaseColor.jpg"));
-                m.SetTexture("_BumpMap", Tex(fl + "Castle_Floor_Stone_tdblbcyt_2K_Normal.jpg", normal: true));
-                m.SetTexture("_AOMap", Tex(fl + "Castle_Floor_Stone_tdblbcyt_2K_AO.jpg", linear: true));
+                // v5 (Kido: no tile grid): Poly Haven rock_boulder_dry (CC0), pale grey, two world samplings in the shader
+                const string rk = Src + "PH_rock_boulder_dry/";
+                m.SetTexture("_BaseMap", Tex(rk + "rock_boulder_dry_diff_2k.jpg"));
+                m.SetTexture("_BumpMap", Tex(rk + "rock_boulder_dry_nor_gl_2k.jpg", normal: true));
+                m.SetTexture("_AOMap", Tex(rk + "rock_boulder_dry_ao_2k.jpg", linear: true));
                 m.SetTexture("_DirtMap", Tex(dg + "Dirt_Ground_xdhhefr_2K_BaseColor.jpg"));
                 m.SetTexture("_DirtNormal", Tex(dg + "Dirt_Ground_xdhhefr_2K_Normal.jpg", normal: true));
                 m.SetTexture("_Macro", MacroNoise());
-                m.SetColor("_Tint", Hex("#dcd8e4")); m.SetColor("_DirtTint", Hex("#a59ca2"));
+                m.SetColor("_Tint", Hex("#f2eef4")); m.SetColor("_DirtTint", Hex("#a8a0a8"));
                 m.SetFloat("_Tile", FloorTile); m.SetFloat("_DirtTile", 4.3f);
-                m.SetFloat("_CellTone", 0.2f); m.SetFloat("_MacroAmt", 0.45f);
-                m.SetFloat("_DirtAmt", 0.45f); m.SetFloat("_GroutDirt", 0.7f);
-                m.SetVector("_Edge", new Vector4(HX, HZ, 4.5f, 0.75f));
-                m.SetFloat("_PuddleAmt", 0.5f); m.SetFloat("_NrmStr", 1f); m.SetFloat("_AOStr", 0.85f); m.SetFloat("_Smooth", 0.08f);
+                m.SetFloat("_CellTone", 0.12f); m.SetFloat("_MacroAmt", 0.3f);
+                m.SetFloat("_DirtAmt", 0.12f); m.SetFloat("_GroutDirt", 0.15f);
+                m.SetVector("_Edge", new Vector4(HX + WallLine, HZ + WallLine, 2.5f, 0.45f));
+                m.SetFloat("_PuddleAmt", 0f); m.SetFloat("_NrmStr", 0.8f); m.SetFloat("_AOStr", 0.7f); m.SetFloat("_Smooth", 0.06f);
             });
             // v4 grime stains: the Megascans stain decal (SnowPlague's blood stain scan) as a grey mask, soft-blended near-black
             Mat("DC_Stain", "Universal Render Pipeline/Lit", m =>
             {
                 m.SetTexture("_BaseMap", PackRGBA("Assets/Game/SnowPlague/ThirdParty/Megascans/blood_stain_sg3bdgoc_2k/Blood_Stain_sg3bdgoc_2K_BaseColor.jpg",
                     "Assets/Game/SnowPlague/ThirdParty/Megascans/blood_stain_sg3bdgoc_2k/Blood_Stain_sg3bdgoc_2K_Opacity.jpg", Gen + "/DC_StainRGBA.png", true));
-                m.SetColor("_BaseColor", new Color(0.09f, 0.075f, 0.085f, 0.8f));
+                m.SetColor("_BaseColor", new Color(0.2f, 0.16f, 0.2f, 0.35f));   // v5: faint (the ref floor is clean and pale)
                 m.SetTexture("_BumpMap", null); m.DisableKeyword("_NORMALMAP");
                 m.SetFloat("_Smoothness", 0.05f); m.SetFloat("_Metallic", 0f);
                 m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 0f); m.SetFloat("_ZWrite", 0f);
@@ -243,8 +249,9 @@ namespace DarkCrypt
                 m.renderQueue = (int)RenderQueue.Transparent - 80;   // before the mist (Transparent-50)
                 m.enableInstancing = true;
             });
-            Lit("DC_Wall", Src + "Fab_castle_wall_sbxuw_mid/", "Castle_Wall_sbxuw_Mid_2K_BaseColor.jpg", "Castle_Wall_sbxuw_Mid_2K_Normal.jpg", "Castle_Wall_sbxuw_Mid_2K_AO.jpg", Hex("#8c8792"), 0.08f);
-            Lit("DC_Pillar", Src + "Fab_stone_pillar_selvf_mid/", "Stone_Pillar_selvF_Mid_2K_BaseColor.jpg", "Stone_Pillar_selvF_Mid_2K_Normal.jpg", "Stone_Pillar_selvF_Mid_2K_AO.jpg", Hex("#8a8690"), 0.08f);
+            // v5: the ref's magenta-red brick walls and plum pillars (the grey scans tinted)
+            Lit("DC_Wall", Src + "Fab_castle_wall_sbxuw_mid/", "Castle_Wall_sbxuw_Mid_2K_BaseColor.jpg", "Castle_Wall_sbxuw_Mid_2K_Normal.jpg", "Castle_Wall_sbxuw_Mid_2K_AO.jpg", Hex("#e0609a"), 0.08f);
+            Lit("DC_Pillar", Src + "Fab_stone_pillar_selvf_mid/", "Stone_Pillar_selvF_Mid_2K_BaseColor.jpg", "Stone_Pillar_selvF_Mid_2K_Normal.jpg", "Stone_Pillar_selvF_Mid_2K_AO.jpg", Hex("#b07aa6"), 0.08f);
             const string cd = Src + "Fab_historic_medieval_farm_candle_beeswax_burnt_02_xmnnffi_mid/";
             Lit("DC_Candle", cd, "Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid_2K_BaseColor.jpg", "Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid_2K_Normal.jpg", "Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid_2K_AO.jpg", Hex("#c8b89a"), 0.15f);
             Lit("DC_Gate", Src + "PH_large_iron_gate/", "large_iron_gate_diff_2k.jpg", "large_iron_gate_nor_gl_2k.png", null, Hex("#8e8896"), 0.25f, 0.3f);
@@ -253,13 +260,14 @@ namespace DarkCrypt
             // crystals: two Sketchfab CC BY scans (see CREDITS.txt), each with its own colour map as the mask
             var cc2Tex = Tex(CC2Dir + "Image_0.001.png", max: 2048);
             var formTex = Tex(FormDir + "Zyklus5_Zeile10_basecolor.jpeg", max: 2048);
-            var body = new Color(0.028f, 0.012f, 0.05f);
-            var violet = new Color(0.5f, 0.12f, 1.0f); var pinkViolet = new Color(0.75f, 0.14f, 0.9f);
-            var blueViolet = new Color(0.22f, 0.2f, 1.1f); var magenta = new Color(0.95f, 0.12f, 0.6f);
-            var rim = new Color(0.55f, 0.32f, 1.1f);
-            Crystal("DC_CrystalC2Violet", cc2Tex, body, violet, pinkViolet, rim, 0.06f, 4.8f);
-            Crystal("DC_CrystalC2Magenta", cc2Tex, body, blueViolet, magenta, new Color(0.5f, 0.35f, 1.2f), 0.06f, 4.8f);
-            Crystal("DC_CrystalFormViolet", formTex, body, violet, pinkViolet, rim, 0.05f, 4.8f);
+            // v5: ref crystals are bright blue-violet with light facets and a few cyan ones: lighter body, stronger glow/rim
+            var body = new Color(0.16f, 0.1f, 0.42f);
+            var violet = new Color(0.55f, 0.4f, 1.6f); var pinkViolet = new Color(1.0f, 0.35f, 1.3f);
+            var blueViolet = new Color(0.35f, 0.55f, 1.8f); var magenta = new Color(1.3f, 0.25f, 0.9f);
+            var rim = new Color(0.8f, 0.7f, 1.6f);
+            Crystal("DC_CrystalC2Violet", cc2Tex, body, violet, pinkViolet, rim, 0.25f, 4.8f);
+            Crystal("DC_CrystalC2Magenta", cc2Tex, new Color(0.08f, 0.22f, 0.4f), new Color(0.3f, 1.2f, 1.6f), blueViolet, new Color(0.6f, 1.2f, 1.6f), 0.3f, 4.8f);   // cyan
+            Crystal("DC_CrystalFormViolet", formTex, body, violet, pinkViolet, rim, 0.22f, 4.8f);
             Crystal("DC_CrystalFar", formTex, new Color(0.02f, 0.01f, 0.035f), new Color(0.2f, 0.05f, 0.42f), new Color(0.3f, 0.05f, 0.3f), new Color(0.25f, 0.12f, 0.45f), 0.12f, 6f);
             // floor debris (flat, alpha-clipped; dark grey-violet dust/rubble)
             Mat("DC_Debris", "Universal Render Pipeline/Lit", m =>
@@ -278,21 +286,25 @@ namespace DarkCrypt
             Unlit("DC_Flame", new Color(5.5f, 2.1f, 0.55f));
             Unlit("DC_Silhouette", new Color(0.004f, 0.003f, 0.006f));
             // v4 camera-side foreground: the real wall/pillar scans, near-black but still lit (normals and edges read)
-            Lit("DC_SouthWall", Src + "Fab_castle_wall_sbxuw_mid/", "Castle_Wall_sbxuw_Mid_2K_BaseColor.jpg", "Castle_Wall_sbxuw_Mid_2K_Normal.jpg", "Castle_Wall_sbxuw_Mid_2K_AO.jpg", Hex("#2a2630"), 0.05f);
-            Lit("DC_SouthPillar", Src + "Fab_stone_pillar_selvf_mid/", "Stone_Pillar_selvF_Mid_2K_BaseColor.jpg", "Stone_Pillar_selvF_Mid_2K_Normal.jpg", "Stone_Pillar_selvF_Mid_2K_AO.jpg", Hex("#2a2630"), 0.05f);
+            Lit("DC_SouthWall", Src + "Fab_castle_wall_sbxuw_mid/", "Castle_Wall_sbxuw_Mid_2K_BaseColor.jpg", "Castle_Wall_sbxuw_Mid_2K_Normal.jpg", "Castle_Wall_sbxuw_Mid_2K_AO.jpg", Hex("#7a3058"), 0.05f);   // v5: dark magenta, not black
+            Lit("DC_SouthPillar", Src + "Fab_stone_pillar_selvf_mid/", "Stone_Pillar_selvF_Mid_2K_BaseColor.jpg", "Stone_Pillar_selvF_Mid_2K_Normal.jpg", "Stone_Pillar_selvF_Mid_2K_AO.jpg", Hex("#5c3a5a"), 0.05f);
             // backdrop stones: the wall/pillar scans, dimmer (they sit in fog and darkness)
             var bd = Object.Instantiate(mats["DC_Pillar"]); bd.SetColor("_BaseColor", Hex("#4a4650"));
             SaveCopy(bd, "DC_Backdrop");
             // v3 mist: set every value (an existing material keeps the old saved ones otherwise)
             Mat("DC_Mist", "DarkCrypt/MistOverlay", m =>
             {
-                // v4: denser violet clumps (~25 % thin .. ~88 % dense), cleared stone gets almost no lift (no spotlight)
-                m.SetColor("_Deep", new Color(0.1f, 0.026f, 0.19f)); m.SetColor("_Mid", new Color(0.19f, 0.05f, 0.34f));
-                m.SetColor("_Glow", new Color(0.13f, 0.035f, 0.22f)); m.SetColor("_Rim", new Color(0f, 0f, 0f));
-                m.SetFloat("_MinDensity", 0.4f); m.SetFloat("_MaxDensity", 0.9f); m.SetFloat("_Scale", 0.08f); m.SetFloat("_Drift", 0.5f);
-                m.SetFloat("_EdgeScale", 0.16f); m.SetFloat("_Feather", 0.85f); m.SetColor("_ClearLift", new Color(0.004f, 0.0035f, 0.005f));
-                m.SetFloat("_BorderFade", 3f);
-                m.SetVector("_NoiseOffset", new Vector4(-22f, -3f, 0, 0));   // v4: puts a dense clump over the spawn so the walked trail reads
+                // v5 (Kido: the thin even film): magenta-violet membrane, near-uniform with a gentle painted variation,
+                // crisp irregular holes where walked, no rim, no lift; lies on the floor only (_SURFACE: not over the strip props)
+                m.SetColor("_Deep", new Color(0.24f, 0.035f, 0.24f)); m.SetColor("_Mid", new Color(0.36f, 0.05f, 0.3f));
+                m.SetColor("_Glow", new Color(0f, 0f, 0f)); m.SetColor("_Rim", new Color(0f, 0f, 0f));
+                m.SetFloat("_MinDensity", 0.6f); m.SetFloat("_MaxDensity", 0.78f); m.SetFloat("_Scale", 0.11f); m.SetFloat("_Drift", 0.3f);
+                m.SetFloat("_Flat", 0.8f);
+                m.SetFloat("_EdgeScale", 0.24f); m.SetFloat("_Feather", 0.14f); m.SetColor("_ClearLift", new Color(0f, 0f, 0f));
+                m.SetFloat("_BorderFade", 1.5f);
+                m.SetVector("_NoiseOffset", new Vector4(-22f, -3f, 0, 0));
+                m.EnableKeyword("_SURFACE"); m.SetFloat("_Surface", 1f); m.SetFloat("_ZTest", 8f);
+                m.SetFloat("_BandBelow", 0.6f); m.SetFloat("_BandAbove", 0.5f); m.SetVector("_GlowCut", new Vector4(50f, 90f, 0, 0));
             });
             Mat("DC_MistBrush", "Hidden/DarkCrypt/MistBrush", m => { });
         }
@@ -393,7 +405,7 @@ namespace DarkCrypt
         static void BuildFloor()
         {
             // one flat slab: arena + 7 m beyond the walls on N/E/W (then nothing: the drop into darkness), 16 m south
-            const float x0 = -HX - 7.5f, x1 = HX + 7.5f, z0 = -HZ - 16f, z1 = HZ + 7.5f;
+            const float x0 = -HX - WallLine - 7f, x1 = HX + WallLine + 7f, z0 = -HZ - 16f, z1 = HZ + WallLine + 7f;
             var mesh = new Mesh { name = "DC_FloorMesh" };
             const int nx = 32, nz = 26;   // a few rows so per-vertex fog and lighting stay smooth
             var v = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
@@ -430,11 +442,14 @@ namespace DarkCrypt
             g.transform.SetParent(root, false);
             g.transform.position = new Vector3(0, 0.035f, 0);
             g.transform.rotation = Quaternion.Euler(90, 0, 0);
-            g.transform.localScale = new Vector3(120f, 96f, 1f);
+            // v5: arena + the edge strip (+2 m: the shader's border fade starts 2 m inside the rect)
+            float mw = 2f * (HX + WallLine * 0.5f + 2f), md = 2f * (HZ + WallLine * 0.5f + 2f);
+            g.transform.localScale = new Vector3(mw, md, 1f);
             var mr = g.GetComponent<MeshRenderer>(); mr.sharedMaterial = mats["DC_Mist"];
             mr.shadowCastingMode = ShadowCastingMode.Off; mr.receiveShadows = false;
             var mist = g.AddComponent<DCMist>();
-            mist.rect = new Vector4(-60f, -48f, 120f, 96f);
+            mist.rect = new Vector4(-mw * 0.5f, -md * 0.5f, mw, md);
+            mist.resolution = 512;
             mist.brush = mats["DC_MistBrush"];
             mist.radius = 2.6f;   // v4: mean blotch radius of the trail stamps (DCMist drops them along the path walked)
             mist.stampSeconds = 0.8f; mist.spacing = 0.6f;
@@ -453,11 +468,15 @@ namespace DarkCrypt
         const float GateGap = 6.6f;
         const float WallH = 1.15f, PillarH = 4.0f;
         // crystal groups break through the walls here (x, z, magenta-blue?); the wall run has a gap at each
+        // v5: ten groups in the strip between the arena edge and the wall (the big one against the wall, the small ones
+        // spilling toward the arena edge), so at least one group is in frame from most of the arena edge
+        const float StripMid = WallLine * 0.62f;
         static readonly (Vector2 p, bool magenta)[] CrystalSpots =
         {
-            (new Vector2(-31f, HZ + 1.4f), false), (new Vector2(24f, HZ + 1.4f), true),
-            (new Vector2(HX + 1.4f, 17f), true), (new Vector2(HX + 1.4f, -24f), false),
-            (new Vector2(-HX - 1.4f, 26f), false), (new Vector2(-HX - 1.4f, -15f), false),
+            (new Vector2(-16f, HZ + StripMid), false), (new Vector2(12f, HZ + StripMid), true), (new Vector2(-4f - GateGap, HZ + StripMid), false),
+            (new Vector2(HX + StripMid, 11f), false), (new Vector2(HX + StripMid, -4f), true), (new Vector2(HX + StripMid, -15f), false),
+            (new Vector2(-HX - StripMid, 13f), true), (new Vector2(-HX - StripMid, 0f), false), (new Vector2(-HX - StripMid, -13f), false),
+            (new Vector2(HX - 2f + StripMid, HZ + StripMid - 1f), false),
         };
         static bool NearCrystal(Vector3 p, float r) => CrystalSpots.Any(c => (new Vector2(p.x, p.z) - c.p).sqrMagnitude < r * r);
 
@@ -475,7 +494,7 @@ namespace DarkCrypt
                 (a: new Vector3(HX + WallLine, 0, HZ + WallLine), b: new Vector3(HX + WallLine, 0, -HZ - 2f), outN: Vector3.right, name: "East"),
                 (a: new Vector3(-HX - WallLine, 0, -HZ - 2f), b: new Vector3(-HX - WallLine, 0, HZ + WallLine), outN: Vector3.left, name: "West"),
             };
-            int pillarEvery = 4;
+            int pillarEvery = 2;   // v5: a pillar every ~2 segments (the ref has one every few metres)
             foreach (var e in edges)
             {
                 var g = Group(e.name, grp);
@@ -587,7 +606,7 @@ namespace DarkCrypt
                 for (int i = 0; i < 3; i++)
                 {
                     float s = (i == 0 ? -1 : 1) * R(1.8f, 3.0f) + (i == 2 ? R(0.5f, 1.2f) : 0f);
-                    var p = c + side * s + outN * R(0.2f, 1.6f);
+                    var p = c + side * s + outN * R(-1.3f, 0.6f);   // v5: small ones spill toward the arena edge (still outside it)
                     bool f2 = rng.NextDouble() < 0.4;
                     var t = Place(f2 ? FormObj : CC2Obj, f2 ? form : cc2, p, R(0, 360), R(1.6f, 3.0f), gg);
                     if (t) t.rotation *= Quaternion.Euler(R(-12, 12), 0, R(-12, 12));
@@ -725,12 +744,40 @@ namespace DarkCrypt
         // ------------------------------------------------------------------ benches (broken, at the edges)
         static void BuildBenches()
         {
+            // v5 (ref: rows of pews and floor candle clusters along the walls): benches in the edge strip, askew, some
+            // knocked over, each row with a cluster of burning candles on the floor beside it (flames only, no lights)
             var g = Group("Benches");
-            var a = Place(BenchFbx, mats["DC_Bench"], new Vector3(-HX + 0.4f, 0, -6f), 90 + R(-8, 8), 0.5f, g, true, true);
-            var b = Place(BenchFbx, mats["DC_Bench"], new Vector3(HX - 0.3f, 0.25f, 31f), -90, 0.5f, g, true, true);
-            if (b) b.rotation *= Quaternion.Euler(0, 0, 78f);   // knocked over on its side against the east wall
-            var c = Place(BenchFbx, mats["DC_Bench"], new Vector3(14f, 0, HZ - 0.3f), 180 + R(-10, 10), 0.5f, g, true, true);
-            if (c) c.rotation *= Quaternion.Euler(R(4, 8), 0, 0);   // sagging, a leg gone
+            int nb = 0, nc = 0;
+            void Row(Vector3 a, Vector3 along, Vector3 inward, int count)
+            {
+                float yaw = Mathf.Atan2(-along.z, along.x) * Mathf.Rad2Deg;
+                for (int i = 0; i < count; i++)
+                {
+                    var p = a + along * (i * 1.9f) + inward * R(-0.35f, 0.35f);
+                    if (NearCrystal(p, 2.4f)) continue;
+                    var t = Place(BenchFbx, mats["DC_Bench"], p, yaw + R(-14, 14), 1.0f, g, true, true);
+                    if (!t) continue;
+                    nb++;
+                    if (rng.NextDouble() < 0.2) { t.position += Vector3.up * 0.28f; t.rotation *= Quaternion.Euler(0, 0, 80f); }   // on its side
+                }
+                // candle cluster at the end of the row
+                var cc = a + along * (count * 1.9f + 0.4f);
+                if (!NearCrystal(cc, 1.5f))
+                    for (int k = 0; k < rng.Next(6, 11); k++)
+                    {
+                        var q = cc + new Vector3(R(-0.6f, 0.6f), 0, R(-0.6f, 0.6f));
+                        float h = R(0.15f, 0.55f);
+                        if (Place(CandleFbx, mats["DC_Candle"], q, R(0, 360), h, g, false)) { nc++; Flame(q + Vector3.up * (h + 0.06f), 1.1f, g); }
+                    }
+            }
+            float sN = HZ + WallLine * 0.45f, sE = HX + WallLine * 0.45f;
+            Row(new Vector3(-HX + 1f, 0, sN), Vector3.right, Vector3.back, 3);
+            Row(new Vector3(GateGap * 0.5f + 2.5f, 0, sN), Vector3.right, Vector3.back, 2);
+            Row(new Vector3(-sE, 0, HZ - 2f), Vector3.back, Vector3.right, 3);
+            Row(new Vector3(-sE, 0, -HZ + 4f), Vector3.back, Vector3.right, 2);
+            Row(new Vector3(sE, 0, HZ - 1f), Vector3.back, Vector3.left, 2);
+            Row(new Vector3(sE, 0, 4f), Vector3.back, Vector3.left, 2);
+            Log($"benches {nb}, floor candles {nc}");
         }
 
         // ------------------------------------------------------------------ depth beyond the north edge
@@ -739,7 +786,7 @@ namespace DarkCrypt
             var g = Group("Backdrop");
             var bd = mats["DC_Backdrop"];
             // tall pillar / wall stacks rising out of the dark past the north and side walls (no floor there)
-            for (float x = -70f; x <= 70f; x += R(9f, 14f))
+            for (float x = -HX - 20f; x <= HX + 20f; x += R(8f, 12f))
             {
                 float z = HZ + R(13f, 24f);
                 float h = R(7f, 12f);
@@ -753,11 +800,11 @@ namespace DarkCrypt
                 }
             }
             foreach (var sx in new[] { -1f, 1f })
-                for (float z = -20f; z <= 50f; z += R(14f, 20f))
+                for (float z = -HZ; z <= HZ + 22f; z += R(10f, 15f))
                     Place(PillarFbx, bd, new Vector3(sx * (HX + R(12f, 18f)), -3f, z), R(0, 360), R(8f, 12f), g);
             // big dim crystal masses out in the dark
             var far = mats["DC_CrystalFar"];
-            foreach (var p in new[] { new Vector3(-44f, -1.5f, HZ + 12f), new Vector3(38f, -1.5f, HZ + 15f), new Vector3(HX + 11f, -1.5f, -8f), new Vector3(-HX - 12f, -1.5f, 6f) })
+            foreach (var p in new[] { new Vector3(-HX - 6f, -1.5f, HZ + 12f), new Vector3(HX + 4f, -1.5f, HZ + 14f), new Vector3(HX + 11f, -1.5f, -4f), new Vector3(-HX - 12f, -1.5f, 4f) })
                 Place(FormObj, far, p, R(0, 360), R(6f, 8f), g, false);
         }
 
@@ -772,7 +819,7 @@ namespace DarkCrypt
             var g = Group("SouthSilhouettes");
             var sw = mats["DC_SouthWall"]; var sp = mats["DC_SouthPillar"]; var far = mats["DC_CrystalFar"];
             int pieces = 0;
-            for (float x = -66f; x <= 66f; x += R(7f, 11f))
+            for (float x = -HX - 16f; x <= HX + 16f; x += R(6f, 9f))
             {
                 // broken wall run: 1-3 segments, a second course on some, uneven heights, slightly askew
                 float z = -HZ - R(4.2f, 7.5f);
@@ -830,20 +877,20 @@ namespace DarkCrypt
         {
             var moon = new GameObject("Moonlight").AddComponent<Light>();
             moon.transform.SetParent(root, false);
-            moon.type = LightType.Directional; moon.color = Hex("#8c88a2"); moon.intensity = 0.9f;
+            moon.type = LightType.Directional; moon.color = Hex("#b8a8c8"); moon.intensity = 1.5f;   // v5: one step under the ref brightness, not near-black
             moon.shadows = LightShadows.Soft; moon.shadowStrength = 0.8f; moon.lightmapBakeType = LightmapBakeType.Realtime;
             moon.transform.rotation = Quaternion.Euler(48f, 160f, 0f);   // from the north-west, high: short shadows toward the camera
             lightCount++;
             RenderSettings.sun = moon;
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = Hex("#1a1426");
-            RenderSettings.ambientEquatorColor = Hex("#120e1a");
-            RenderSettings.ambientGroundColor = Hex("#0a0810");
+            RenderSettings.ambientSkyColor = Hex("#3c2c4c");
+            RenderSettings.ambientEquatorColor = Hex("#2a2036");
+            RenderSettings.ambientGroundColor = Hex("#18121e");
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = Hex("#0b0712");
-            RenderSettings.fogDensity = 0.016f;
+            RenderSettings.fogColor = Hex("#1c1026");
+            RenderSettings.fogDensity = 0.009f;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
             RenderSettings.customReflectionTexture = null;
             RenderSettings.reflectionIntensity = 0.3f;
@@ -879,7 +926,7 @@ namespace DarkCrypt
             var prof = ScriptableObject.CreateInstance<VolumeProfile>();
             AssetDatabase.CreateAsset(prof, path);
             var tm = prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.Neutral);
-            var ca = prof.Add<ColorAdjustments>(true); ca.postExposure.Override(0f); ca.contrast.Override(7f); ca.saturation.Override(-40f); ca.colorFilter.Override(Hex("#E9E4F0"));
+            var ca = prof.Add<ColorAdjustments>(true); ca.postExposure.Override(0f); ca.contrast.Override(7f); ca.saturation.Override(0f); ca.colorFilter.Override(Hex("#E9E4F0"));
             var bl = prof.Add<Bloom>(true); bl.threshold.Override(1.4f); bl.intensity.Override(0.6f); bl.scatter.Override(0.65f); bl.highQualityFiltering.Override(false);
             var vg = prof.Add<Vignette>(true); vg.color.Override(Hex("#040208")); vg.intensity.Override(0.42f); vg.smoothness.Override(0.45f);
             foreach (var c in prof.components) AssetDatabase.AddObjectToAsset(c, prof);

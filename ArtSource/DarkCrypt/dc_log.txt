@@ -1,0 +1,128 @@
+[22:11:35] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[22:11:35] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[22:11:35] walls: segment 2.47 m, candle spots 16
+[22:11:35] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[22:11:35] model crystal_cluster_b.obj size 8.19 x 8.41 x 9.09 centre (-0.10, 4.21, -0.75) tris 378
+[22:11:35] model crystal_cluster_a.obj size 5.78 x 7.31 x 5.92 centre (0.01, 3.66, -0.20) tris 270
+[22:11:35] model crystal_shard_a.obj size 1.73 x 5.19 x 2.00 centre (0.00, -0.02, 0.00) tris 106
+[22:11:35] model crystal_cluster_spiky.obj size 7.16 x 6.69 x 7.35 centre (-0.24, 3.35, 0.30) tris 828
+[22:11:35] model crystal_cluster_c.obj size 6.39 x 6.99 x 5.40 centre (-0.10, 3.50, -0.06) tris 98
+[22:11:35] model crystal_cluster_d.obj size 4.40 x 5.16 x 5.19 centre (0.10, 2.58, 0.12) tris 176
+[22:11:35] model crystal_shard_b.obj size 4.05 x 14.66 x 4.23 centre (0.19, 1.00, -0.08) tris 116
+[22:11:35] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[22:11:35] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[22:11:35] room 'crypt' added to RoomRunConfig
+[22:11:35] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[09:50:18] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[09:50:18] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[09:50:18] walls: segment 3.79 m, candle spots 10
+[09:50:18] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[09:50:18] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[09:50:18] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[09:50:18] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[09:50:18] debris decals 36
+[09:50:18] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[09:50:18] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[09:52:15] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[09:52:15] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[09:52:15] walls: segment 3.79 m, candle spots 10
+[09:52:15] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[09:52:15] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[09:52:15] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[09:52:15] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[09:52:15] debris decals 36
+[09:52:15] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[09:52:16] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[09:54:04] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[09:54:04] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[09:54:04] walls: segment 3.79 m, candle spots 10
+[09:54:04] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[09:54:04] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[09:54:04] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[09:54:04] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[09:54:04] debris decals 36
+[09:54:04] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[09:54:04] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[09:55:57] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[09:55:57] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[09:55:57] walls: segment 3.79 m, candle spots 10
+[09:55:57] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[09:55:57] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[09:55:57] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[09:55:57] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[09:55:57] debris decals 36
+[09:55:57] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[09:55:58] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[10:09:09] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[10:09:09] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[10:09:09] walls: segment 3.79 m, candle spots 10
+[10:09:09] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[10:09:09] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[10:09:09] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[10:09:09] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[10:09:10] debris decals 87
+[10:09:10] stain decals 32
+[10:09:10] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[10:09:10] south foreground pieces 63
+[10:09:10] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[10:11:54] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[10:11:54] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[10:11:54] walls: segment 3.79 m, candle spots 10
+[10:11:54] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[10:11:54] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[10:11:54] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[10:11:54] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[10:11:54] debris decals 87
+[10:11:54] stain decals 32
+[10:11:54] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[10:11:54] south foreground pieces 63
+[10:11:55] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[10:13:14] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[10:13:14] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[10:13:14] walls: segment 3.79 m, candle spots 10
+[10:13:14] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[10:13:14] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[10:13:14] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[10:13:14] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[10:13:14] debris decals 87
+[10:13:14] stain decals 32
+[10:13:14] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[10:13:14] south foreground pieces 63
+[10:13:14] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[10:14:21] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[10:14:21] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[10:14:21] walls: segment 3.79 m, candle spots 10
+[10:14:21] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[10:14:21] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[10:14:21] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[10:14:21] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[10:14:21] debris decals 87
+[10:14:21] stain decals 32
+[10:14:21] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[10:14:21] south foreground pieces 63
+[10:14:22] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[10:17:24] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[10:17:24] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[10:17:24] walls: segment 3.79 m, candle spots 10
+[10:17:24] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[10:17:24] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[10:17:24] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[10:17:24] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[10:17:24] debris decals 87
+[10:17:24] stain decals 32
+[10:17:24] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[10:17:24] south foreground pieces 63
+[10:17:25] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0
+[11:28:59] model Castle_Wall_sbxuw_Mid.fbx size 2.30 x 0.70 x 0.42 centre (0.01, 0.30, 0.03) tris 13835
+[11:28:59] model Stone_Pillar_selvF_Mid.fbx size 0.49 x 1.22 x 0.49 centre (0.01, 0.59, 0.01) tris 7910
+[11:28:59] walls: segment 3.79 m, candle spots 10
+[11:28:59] model large_iron_gate_2k.fbx size 2.95 x 2.93 x 0.10 centre (0.00, 1.46, 0.01) tris 38140
+[11:28:59] model Historic_Medieval_Farm_Candle_Beeswax_Burnt_02_xmnnffi_Mid.fbx size 0.05 x 0.11 x 0.05 centre (0.00, 0.06, 0.00) tris 1854
+[11:28:59] model violet_crystal_formation.obj size 0.94 x 0.98 x 0.78 centre (0.00, 0.49, 0.00) tris 39964
+[11:28:59] model CrystalCluster2.obj size 1.88 x 2.00 x 1.95 centre (0.03, 0.42, 0.01) tris 36746
+[11:28:59] debris decals 24
+[11:28:59] stain decals 22
+[11:28:59] model painted_wooden_bench_2k.fbx size 1.16 x 0.89 x 0.50 centre (-0.01, 0.44, -0.01) tris 630
+[11:28:59] benches 10, floor candles 34
+[11:28:59] south foreground pieces 50
+[11:29:00] BUILT Assets/Game/DarkCrypt/DarkCrypt.unity: lights=8 collidersInArena=0

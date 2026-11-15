@@ -370,6 +370,45 @@ namespace RoomRun
             }
         }
 
+        static float swingCancel = 0.8f;
+        static string splitTag = "";
+        static string sweepTag = "";   // "tag=before": file name suffix for the sweep test (before/after runs)
+
+        // "$": cursor fixed up-screen; 8 move directions (1 s each, 0.25 s stand between), then attack while strafing right
+        // (2 s) and while backpedalling (2 s)
+        sealed class Move8 : ICommandSource
+        {
+            readonly float t0 = Time.time;
+            public PlayerCommand Read(PlayerController p, Camera cam)
+            {
+                float t = Time.time - t0;
+                var c = new PlayerCommand { aimDir = Vector3.forward };
+                int i = (int)(t / 1.25f);
+                if (i < 8)
+                {
+                    if (t - i * 1.25f < 1f) { float a = i * 45f * Mathf.Deg2Rad; c.move = new Vector2(Mathf.Sin(a), Mathf.Cos(a)); }
+                }
+                else if (t < 12f) { c.move = new Vector2(1f, 0f); c.fire = true; }
+                else if (t < 14f) { c.move = new Vector2(0f, -1f); c.fire = true; }
+                return c;
+            }
+        }
+
+        // "&" (11-15 facing check): cursor at +Z, +X, -Z, -X (2 s each): attack held 1.2 s, then let go and stand
+        sealed class Facing4 : ICommandSource
+        {
+            readonly float t0 = Time.time;
+            static readonly Vector3[] aims = { Vector3.forward, Vector3.right, Vector3.back, Vector3.left };
+            public Vector3 Aim { get; private set; } = Vector3.forward;
+            public PlayerCommand Read(PlayerController p, Camera cam)
+            {
+                float t = Time.time - t0;
+                int i = Mathf.Min(3, (int)(t / 2f));
+                Aim = aims[i];
+                return new PlayerCommand { aimDir = Aim, fire = t - i * 2f < 1.2f && t < 8f };
+            }
+        }
+
         // "%" (11-14 cut debris check): walks a slow circle swinging the greatsword left and right of the way it walks,
         // so every swing goes into uncut grass / reeds
         sealed class CutWalker : ICommandSource
@@ -382,6 +421,40 @@ namespace RoomRun
                 var mv = new Vector2(Mathf.Sin(head), Mathf.Cos(head));
                 float a = head + Mathf.Sin(t * 1.6f) * 1.0f;
                 return new PlayerCommand { move = mv * 0.45f, aimDir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)), fire = true };
+            }
+        }
+
+        // "^": 3.2 s loop: hold attack at the nearest enemy (the four-swing chain), let go and step aside, then dodge toward the
+        // enemies and attack out of the dash (dash slash)
+        sealed class ComboShow : ICommandSource
+        {
+            readonly RunDirector run;
+            readonly float t0 = Time.time;
+            int dodged = -1;
+            public ComboShow(RunDirector r) => run = r;
+            public PlayerCommand Read(PlayerController p, Camera cam)
+            {
+                Vector3 best = p.transform.forward; float bd = float.MaxValue;
+                foreach (var e in run.Enemies)
+                {
+                    if (!e) continue;
+                    var d = e.transform.position - p.transform.position; d.y = 0;
+                    if (d.sqrMagnitude < bd) { bd = d.sqrMagnitude; best = d; }
+                }
+                var aim = best.sqrMagnitude > 0.01f ? best.normalized : Vector3.forward;
+                float t = Time.time - t0;
+                int cycle = (int)(t / 3.2f);
+                float local = t - cycle * 3.2f;
+                var c = new PlayerCommand { aimDir = aim };
+                if (local < 2.0f) c.fire = true;
+                else if (local < 2.4f) { var side = Vector3.Cross(Vector3.up, aim); c.move = new Vector2(side.x, side.z) * 0.6f; }
+                else
+                {
+                    c.move = new Vector2(aim.x, aim.z);
+                    if (dodged != cycle) { dodged = cycle; c.dodge = true; }
+                    else if (local > 2.55f && local < 2.8f) c.fire = true;
+                }
+                return c;
             }
         }
 
@@ -509,6 +582,23 @@ namespace RoomRun
                     offTag = offList.Length > 0 ? "_off-" + string.Join("-", offList) : "";
                     continue;
                 }
+                // "split=0" / "split=1": SplitBody (upper/lower body split) off/on for the rooms after it, file tag _split0/_split1
+                if (token.StartsWith("split=")) { SplitBody.On = token.EndsWith("1"); splitTag = "_split" + (SplitBody.On ? "1" : "0"); continue; }
+                // "feel=0" / "feel=1": aim-mode run feel (lean, sword drag spring, sway) off / on on top of the split, tag _feel0
+                if (token.StartsWith("feel=")) { SplitBody.Feel = token.EndsWith("1"); splitTag = SplitBody.Feel ? "" : "_feel0"; continue; }
+                // "limb=0" / "limb=1" (11-15 limb fix A/B): the old SplitBody ease into swings + SwingFacing on the berserker, or the fix
+                // "calm=1": no encounter enemies for the rooms after it (player close-ups); calm=0 back
+                if (token.StartsWith("calm=")) { RunDirector.DevNoEnemies = token.EndsWith("1"); foreach (var e in run.Enemies) if (e) Object.Destroy(e.gameObject); run.Enemies.Clear(); continue; }
+                // "occe=1" (11-15 visibility pass A/B): the hero's occluded outline also shows under a pile of enemies; occe=0 back
+                // "occe=2": outline forced on (checks the pass itself)
+                // "occv=1" (11-16): the v1 fresnel outline pass instead of the v2 screen-space line, for A/B
+                if (token.StartsWith("occv=")) { FieldLighting.OutlineV1 = token.EndsWith("1"); continue; }
+                if (token.StartsWith("occe=")) { FieldLighting.OutlineThroughEnemies = !token.EndsWith("0"); FieldLighting.ForceOutline = token.EndsWith("2"); continue; }
+                if (token.StartsWith("limb=")) { bool old = token.EndsWith("0"); SplitBody.LegacyEase = old; SwingFacing.LegacyBerserker = old; splitTag = old ? "_limb0" : ""; continue; }
+                if (token.StartsWith("sf=")) { float.TryParse(token.Substring(3), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out swingCancel); swingCancel = swingCancel > 0f ? 0.8f : 0f; continue; }
+                if (token.StartsWith("tag=")) { sweepTag = "_" + token.Substring(4); continue; }
+                // "vfxs=1" (11-16 slash VFX size check): the "#" sweep test only stands and does two 3-hit combos (SweepTest.VfxMode)
+                if (token.StartsWith("vfxs=")) { SweepTest.VfxMode = token.EndsWith("1"); continue; }
                 if (token.StartsWith("z="))
                 {
                     zooms = System.Array.ConvertAll(token.Substring(2).Split(','), s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
@@ -518,6 +608,20 @@ namespace RoomRun
                 Vector3? at = null;
                 bool dirs8 = id.EndsWith("~");
                 if (dirs8) { id = id.TrimEnd('~'); tag = id + "_dirs8"; }
+                // "grass+12^" (11-14 greatsword feel pass): full combo at the nearest enemy, then a dodge dash into a dash slash, looping
+                bool show = id.EndsWith("^");
+                if (show) { id = id.TrimEnd('^'); tag = id + "_combo"; }
+                // "grass&" (11-15 facing check): cursor fixed at +Z, +X, -Z, -X in turn, attack held 1.2 s each; a marker shows the
+                // cursor side and ArtSource/GSHero/facing_log.csv gets aim / visual / chest / blade yaw per frame.
+                // "sf=0" before it switches SwingFacing off (before/after), "sf=1" back on
+                bool face4 = id.EndsWith("&");
+                if (face4) { id = id.TrimEnd('&'); tag = id + "_face4" + (swingCancel == 0f ? "_sf0" : "") + splitTag; }
+                // "grass$" (11-15 split body compare): cursor fixed up-screen, 8 move directions, then attacks while strafing / backpedalling
+                bool move8 = id.EndsWith("$");
+                if (move8) { id = id.TrimEnd('$'); tag = id + "_move8" + splitTag; }
+                // "grass#" (11-15 sweep fix): cursor north, 8 runs, combo standing, combo moving east, turns; GSSweepTest.cs
+                bool sweep = id.EndsWith("#");
+                if (sweep) { id = id.TrimEnd('#'); tag = id + "_sweep" + splitTag + sweepTag; }
                 bool cutWalk = token.Contains("%");
                 if (cutWalk) { id = id.Replace("%", ""); tag = id + "_cutwalk"; }
                 bool firing = id.EndsWith("!");
@@ -527,7 +631,7 @@ namespace RoomRun
                 if (still) { id = id.TrimEnd('*'); tag = id + "_still"; }
                 // "grass+150!" : 150 extra enemies around the player before the shots
                 int swarm = 0, plus = id.IndexOf('+');
-                if (plus > 0) { int.TryParse(id.Substring(plus + 1), out swarm); id = id.Substring(0, plus); tag = id + $"_swarm{swarm}" + (firing ? "_fire" : "") + (still ? "_still" : ""); }
+                if (plus > 0) { int.TryParse(id.Substring(plus + 1), out swarm); id = id.Substring(0, plus); tag = id + $"_swarm{swarm}" + (firing ? "_fire" : "") + (still ? "_still" : "") + (show ? "_combo" : ""); }
                 int a = token.IndexOf('@');
                 if (a > 0)
                 {
@@ -553,14 +657,52 @@ namespace RoomRun
                 }
                 if (swarm > 0 && still)
                 {
+                    // v2_check (11-15): with calm=1 ("calm=1 grass+4*^") the still enemies are still spawned (the encounter is
+                    // not), stand in an arc 2.6-3.4 m in front of the player and cannot die, so every hit of the combo connects
+                    bool calm = RunDirector.DevNoEnemies;
+                    RunDirector.DevNoEnemies = false;
                     run.DevSwarm(swarm);
-                    foreach (var e in run.Enemies) if (e) e.enabled = false; // the Animator keeps playing their walk
+                    RunDirector.DevNoEnemies = calm;
+                    int k = 0;
+                    var pp0 = run.Player.transform.position;
+                    foreach (var e in run.Enemies)
+                    {
+                        if (!e) continue;
+                        e.enabled = false; // the Animator keeps playing their walk
+                        if (!calm) continue;
+                        float ang = (k - (swarm - 1) * 0.5f) * 28f * Mathf.Deg2Rad, r = 2.6f + 0.8f * (k % 2);
+                        var cc = e.GetComponent<CharacterController>(); if (cc) cc.enabled = false;
+                        var p = pp0 + new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang)) * r;
+                        p.y = Physics.Raycast(p + Vector3.up * 30f, Vector3.down, out var gh, 60f, Ground.GroundMask) ? gh.point.y : pp0.y;
+                        e.transform.position = p;
+                        e.transform.rotation = Quaternion.LookRotation(pp0 - p, Vector3.up);
+                        var hh = e.GetComponent<Health>(); if (hh) { hh.max = hh.current = 99999; }
+                        k++;
+                    }
                     yield return new WaitForSeconds(1f);
                 }
                 else if (swarm > 0) { run.DevSwarm(swarm); yield return new WaitForSeconds(4f); }
                 var keepSource = run.Player.Source;
                 if (firing) { run.Player.Source = new Firer(run); yield return new WaitForSeconds(1.2f); }
                 if (cutWalk) run.Player.Source = new CutWalker();
+                if (show) run.Player.Source = new ComboShow(run);
+                if (move8) run.Player.Source = new Move8();
+                Facing4 f4 = null; GameObject marker = null; SwingFacing sfc = null; StreamWriter flog = null;
+                if (face4)
+                {
+                    sfc = run.Player.GetComponent<SwingFacing>();
+                    if (sfc) sfc.cancel = swingCancel;
+                    f4 = new Facing4(); run.Player.Source = f4;
+                    marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    Object.Destroy(marker.GetComponent<Collider>());
+                    marker.transform.localScale = Vector3.one * 0.45f;
+                    var mm = new Material(Shader.Find("Universal Render Pipeline/Unlit")); mm.SetColor("_BaseColor", new Color(1f, 0.85f, 0.2f));
+                    marker.GetComponent<Renderer>().sharedMaterial = mm;
+                    string lp = Path.Combine(Dir, "GSHero", "facing_log.csv");
+                    bool head = !File.Exists(lp);
+                    flog = new StreamWriter(lp, true);
+                    if (head) flog.WriteLine("tag,frame,aimYaw,visualYaw,chestYaw,bladeYaw,twist,attacking");
+                }
                 if (dirs8)
                 {
                     GreatswordCombat.TracePath = Path.Combine(Dir, "gs_trace.csv");
@@ -595,9 +737,73 @@ namespace RoomRun
                     Directory.CreateDirectory(clipDir);
                     rig.Zoom = zooms[0]; rig.Snap();
                     Time.captureFramerate = 30;   // fixed game time per saved frame, however slow the encode is
+                    // v2_check (11-15): per-frame log next to the frames: combo ("^") = hit-stop / hold / camera shake,
+                    // move8 ("$") = knee direction vs toe direction and thigh twist per leg
+                    StreamWriter vlog = null; Animator van = null; GreatswordCombat vgs = null;
+                    if (show || move8)
+                    {
+                        string vd = Path.Combine(Dir, "GSHero", "ingame_shots", "v2_check"); Directory.CreateDirectory(vd);
+                        vlog = new StreamWriter(Path.Combine(vd, $"{tag}_z{zooms[0]:0.0}_log.csv"), false);
+                        van = run.Player.GetComponentInChildren<Animator>(); vgs = run.Player.GetComponent<GreatswordCombat>();
+                        vlog.WriteLine(show ? "frame,timeScale,step,stepT,hitStopLeft,holdLeft,shake,jitter_cm,attacking"
+                                            : "frame,moveX,moveZ,attacking,L_kneeVsToe,L_kneeOff_cm,L_thighTwist,R_kneeVsToe,R_kneeOff_cm,R_thighTwist,splitTwist");
+                    }
+                    SweepTest swt = null;
+                    if (sweep)
+                    {
+                        swt = new SweepTest(); run.Player.Source = swt;
+                        swt.OpenLog(Path.Combine(Dir, "GSHero", "ingame_shots", "sweep_fix", $"{tag}_z{zooms[0]:0.0}_log.csv"), run.Player);
+                    }
                     for (int f = 0; f < seq; f++)
                     {
                         yield return new WaitForEndOfFrame();
+                        if (swt != null) swt.LogFrame(f, run.Player);
+                        if (vlog != null && show && vgs)
+                            vlog.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0},{1:0.###},{2},{3:0.###},{4:0.###},{5:0.###},{6:0.###},{7:0.0},{8}",
+                                f, Time.timeScale, vgs.StepIndex, vgs.StepT, vgs.HitStopLeft, vgs.HoldLeft, rig.ShakeNow, rig.LastJitter.magnitude * 100f, vgs.Attacking ? 1 : 0));
+                        if (vlog != null && move8 && van)
+                        {
+                            string Leg(HumanBodyBones up, HumanBodyBones lo, HumanBodyBones ft, HumanBodyBones toe)
+                            {
+                                var h = van.GetBoneTransform(up); var k = van.GetBoneTransform(lo); var a = van.GetBoneTransform(ft); var t = van.GetBoneTransform(toe);
+                                if (!h || !k || !a || !t) return ",,";
+                                var line = (a.position - h.position).normalized;
+                                var ko = k.position - h.position; ko -= line * Vector3.Dot(ko, line); ko.y = 0f;
+                                var td = t.position - a.position; td.y = 0f;
+                                float ang = ko.sqrMagnitude > 1e-6f && td.sqrMagnitude > 1e-6f ? Vector3.SignedAngle(td, ko, Vector3.up) : 0f;
+                                // thigh twist: the knee hinge (thigh local X) against the hips' X, about the thigh axis
+                                var hipsT = van.GetBoneTransform(HumanBodyBones.Hips);
+                                var ax = (k.position - h.position).normalized;
+                                Vector3 Pr(Vector3 v) => (v - ax * Vector3.Dot(v, ax)).normalized;
+                                float tw = hipsT ? Vector3.SignedAngle(Pr(hipsT.right), Pr(h.right), ax) : 0f;
+                                return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0},{1:0.0},{2:0}", ang, ko.magnitude * 100f, tw);
+                            }
+                            var vel = run.Player.GetComponent<CharacterController>() ? run.Player.GetComponent<CharacterController>().velocity : Vector3.zero;
+                            var sb = run.Player.GetComponent<SplitBody>();
+                            vlog.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0},{1:0.00},{2:0.00},{3},{4},{5},{6:0}",
+                                f, vel.x, vel.z, vgs && vgs.Attacking ? 1 : 0,
+                                Leg(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot, HumanBodyBones.LeftToes),
+                                Leg(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot, HumanBodyBones.RightToes),
+                                sb ? sb.Twist : 0f));
+                        }
+                        if (f4 != null)
+                        {
+                            var pp = run.Player.transform.position;
+                            marker.transform.position = pp + f4.Aim * 2.6f + Vector3.up * 0.4f;
+                            var an = run.Player.GetComponentInChildren<Animator>();
+                            float Yw(Vector3 v) { v.y = 0; return v.sqrMagnitude < 1e-6f ? 0f : Vector3.SignedAngle(Vector3.forward, v, Vector3.up); }
+                            float chest = 0f, blade = 0f;
+                            if (an)
+                            {
+                                var l = an.GetBoneTransform(HumanBodyBones.LeftUpperArm); var r = an.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                                if (l && r) chest = Yw(Vector3.Cross(r.position - l.position, Vector3.up));
+                            }
+                            foreach (var t in run.Player.GetComponentsInChildren<Transform>()) if (t.name == "Greatsword") { blade = Yw(t.forward); break; }
+                            var vis = sfc && sfc.visual ? sfc.visual : (an ? an.transform.parent : null);
+                            var gsc = run.Player.GetComponent<GreatswordCombat>();
+                            flog.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0},{1},{2:0},{3:0},{4:0},{5:0},{6:0},{7}",
+                                tag, f, Yw(f4.Aim), vis ? Yw(vis.forward) : 0f, chest, blade, sfc ? sfc.LastTwist : 0f, gsc && gsc.Attacking ? 1 : 0));
+                        }
                         var cam = rig.Cam;
                         cam.targetTexture = rt; cam.Render();
                         RenderTexture.active = rt; tex.ReadPixels(new Rect(0, 0, W, H), 0, 0); RenderTexture.active = null;
@@ -606,10 +812,14 @@ namespace RoomRun
                     }
                     Time.captureFramerate = 0;
                     GreatswordCombat.TracePath = null;
+                    if (swt != null) swt.CloseLog();
                 }
                 foreach (var r in orphans) if (r) r.enabled = true;
                 rig.Zoom = CameraRig.FixedZoom;
-                if (firing || dirs8 || cutWalk) run.Player.Source = keepSource;
+                if (firing || dirs8 || cutWalk || show || face4 || move8 || sweep) run.Player.Source = keepSource;
+                if (marker) Object.Destroy(marker);
+                if (flog != null) flog.Close();
+                if (sfc) sfc.cancel = 0.8f;
                 // what the post stack actually resolves to for the game camera (diagnosing the dark underworld)
                 var stack = UnityEngine.Rendering.VolumeManager.instance.stack;
                 var cadj = stack.GetComponent<UnityEngine.Rendering.Universal.ColorAdjustments>();
@@ -619,10 +829,12 @@ namespace RoomRun
                 var camData = rig.Cam.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
                 Note($"  post stack: exposure {(cadj ? cadj.postExposure.value : -99):0.00}, saturation {(cadj ? cadj.saturation.value : 0):0}, vignette {(vig ? vig.intensity.value : 0):0.00}; volumeMask {(camData ? camData.volumeLayerMask.value : -1)} trigger {(camData && camData.volumeTrigger ? camData.volumeTrigger.name : "cam")}; volumes: {string.Join(", ", vols)}");
                 Note($"  fog {RenderSettings.fog} {RenderSettings.fogMode} density {RenderSettings.fogDensity:0.0000} colour {RenderSettings.fogColor}; ambient {RenderSettings.ambientMode} {RenderSettings.ambientLight}");
-                Note($"shots {tag} done (fps {1f / Mathf.Max(Time.smoothDeltaTime, 1e-4f):0})");
+                { var flz = Object.FindAnyObjectByType<FieldLighting>(); Note($"shots {tag} done (fps {1f / Mathf.Max(Time.smoothDeltaTime, 1e-4f):0}){(flz ? $" heroOccluded {flz.Occluded:0.00}" : "")}"); }
             }
             Object.Destroy(rt); Object.Destroy(tex);
             if (seeTag != "") PlayerPrefs.SetInt(SeeThroughFX.ModeKey, 2);
+            RunDirector.DevNoEnemies = false; FieldLighting.OutlineThroughEnemies = FieldLighting.OutlineThroughEnemiesDefault; FieldLighting.ForceOutline = false; FieldLighting.OutlineV1 = false; SplitBody.LegacyEase = false; SwingFacing.LegacyBerserker = false;
+            sweepTag = ""; SweepTest.VfxMode = false; SplitBody.On = true; SplitBody.Feel = true;   // aim mode default (split=0 = v3 travel facing, feel=0 = frozen old split)
             SessionState.SetString(KeyState, "stopping");
         }
 

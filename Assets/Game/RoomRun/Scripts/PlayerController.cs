@@ -92,6 +92,7 @@ namespace RoomRun
         public float rollTime = 0.42f;
         public float rollInvulnerable = 0.36f;
         public float rollCooldown = 0.2f;
+        public float dashSlashAfter = 0.1f;   // greatsword: seconds into the dash before an attack turns it into a dash slash
 
         [Header("Gun")]
         public int magazine = 12;
@@ -179,6 +180,7 @@ namespace RoomRun
         RoomRunConfig cfg;
         bool usingGreatsword;
         Animator gsAnim;
+        SplitBody split;
         GreatswordCombat gs;
         float gsCheck;
         public bool GreatswordActive => usingGreatsword && gs;
@@ -206,6 +208,12 @@ namespace RoomRun
                         gs.Setup(this, cfg, m.transform, gsAnim);
                         // each swing faces the cursor at once (Kido: slashes go where the mouse points)
                         gs.SwingStarted += () => { if (visual) visual.rotation = Quaternion.LookRotation(AimDir); };
+                        // 11-15: the sweep clips twist the chest ~130° off the aim (windup/follow-through); keep the body on the cursor
+                        var sf = GetComponent<SwingFacing>() ?? gameObject.AddComponent<SwingFacing>();
+                        sf.visual = visual; sf.anim = gsAnim; sf.gs = gs; sf.pc = this;
+                        // 11-15: upper/lower body split (berserker clips only; SplitBody.On toggles it)
+                        split = GetComponent<SplitBody>() ?? gameObject.AddComponent<SplitBody>();
+                        split.visual = visual; split.anim = gsAnim; split.gs = gs; split.pc = this;
                     }
                     if (!GetComponent<VegetationCut>()) gameObject.AddComponent<VegetationCut>();
                 }
@@ -267,6 +275,14 @@ namespace RoomRun
                 rollCool = rollTime + rollCooldown;
             }
 
+            // greatsword: attacking out of the dash cuts it short into a lunging dash slash (11-14 feel pass)
+            if (Rolling && GreatswordActive && canAct && cmd.fire && rollLeft < rollTime - dashSlashAfter && RunDirector.Instance.config.combat)
+            {
+                rollLeft = 0f;
+                if (cmd.aimDir.sqrMagnitude > 0.01f) AimDir = cmd.aimDir;
+                gs.DashSlash();
+            }
+
             Vector3 want;
             if (Rolling)
             {
@@ -283,7 +299,10 @@ namespace RoomRun
                     want *= gs.moveWhileSwing;
                     if (gs.LungeVelocity.sqrMagnitude > 0.01f) { vel = gs.LungeVelocity + want; want = vel; }
                 }
-                vel = Vector3.MoveTowards(vel, want, acceleration * dt);
+                // v3 sweep fix: berserker swings move only by the clip's root path (GreatswordCombat -> RootMove); the run
+                // speed is dropped at once instead of decelerating (that slide pushed the feet ~0.3 m every hit)
+                if (GreatswordActive && gs.Attacking && gs.Berserker) vel = want;
+                else vel = Vector3.MoveTowards(vel, want, acceleration * dt);
             }
 
             var delta = Ground.LimitClimb(transform.position, vel * dt, fallbackY);
@@ -309,6 +328,17 @@ namespace RoomRun
             if (GreatswordActive) gs.Tick(dt, cmd.fire, canAct && RunDirector.Instance.config.combat, AimDir, vel, moveSpeed, Rolling);
             UpdateVisual(dt);
             Shader.SetGlobalVector("_LSPush", new Vector4(transform.position.x, transform.position.y, transform.position.z, 1.6f));
+        }
+
+        /// v3 sweep fix: root motion from GreatswordCombat's clip root path, moved in the same frame as the pose.
+        public Vector3 RootVelocity { get; private set; }
+        public void RootMove(Vector3 d, float dt)
+        {
+            if (!cc || !cc.enabled) return;
+            var delta = Ground.LimitClimb(transform.position, d, fallbackY);
+            delta.y = Ground.Sample(transform.position + delta, fallbackY) - transform.position.y;
+            cc.Move(delta);
+            RootVelocity = dt > 1e-5f ? d / dt : Vector3.zero;
         }
 
         void UpdateGun(PlayerCommand cmd)
@@ -363,8 +393,24 @@ namespace RoomRun
             {
                 // the clips carry the body motion; just face the aim (locked to it while swinging)
                 visual.localPosition = Vector3.zero;
-                visual.rotation = gs && gs.Attacking ? Quaternion.LookRotation(AimDir)
-                    : Quaternion.RotateTowards(visual.rotation, Quaternion.LookRotation(AimDir), 1080f * dt);
+                // berserker clips (11-15): LoA style, the body faces where it runs and turns to the cursor only to swing
+                var flatVel = new Vector3(vel.x, 0f, vel.z);
+                var curFwd = visual.forward; curFwd.y = 0f;
+                var faceDir = gs && gs.Berserker && split ? split.LegDir(flatVel.sqrMagnitude > 0.25f ? flatVel : Vector3.zero, AimDir, curFwd)
+                    : gs && gs.Berserker && flatVel.sqrMagnitude > 0.25f ? flatVel.normalized
+                    : gs && gs.Berserker ? curFwd : AimDir;
+                faceDir.y = 0f; if (faceDir.sqrMagnitude < 1e-4f) faceDir = AimDir;
+                // v3 (Kido: east run with body and sword stuck north): SplitBody off = the body turns to where it runs
+                // (cursor when standing) at 720 deg/s; head and a little chest look at the cursor (SplitBody)
+                float turn = SplitBody.On ? 1080f : 720f;
+                visual.rotation = gs && gs.Attacking ? Quaternion.AngleAxis(gs.SpinYaw, Vector3.up) * Quaternion.LookRotation(AimDir) * Quaternion.Euler(gs.BodyLean, 0f, 0f)
+                    : Quaternion.RotateTowards(visual.rotation, Quaternion.LookRotation(faceDir), turn * dt);
+                // hit 3 spin: turn about the planted left foot, not the root
+                if (gs && gs.Attacking && gs.SpinYaw > 0f && gs.SpinYaw < 360f)
+                {
+                    var pv = gs.SpinPivot;
+                    visual.position = pv + Quaternion.AngleAxis(gs.SpinYaw, Vector3.up) * (transform.position - pv);
+                }
                 return;
             }
             float speed01 = Mathf.Clamp01(new Vector2(vel.x, vel.z).magnitude / moveSpeed);

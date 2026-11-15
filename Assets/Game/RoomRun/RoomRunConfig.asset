@@ -230,9 +230,25 @@ MonoBehaviour:
     scenePath: Assets/Game/DarkCrypt/DarkCrypt.unity
     groundMeshName: 
     center: {x: 0, y: 0, z: 0}
-    size: {x: 112, y: 88}
+    size: {x: 46, y: 36}
     fitToStage: 0
     floorColor: {r: 0.101960786, g: 0.08627451, b: 0.13333334, a: 1}
+    pillarCount: 0
+    doors: []
+    waves: []
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 1
+  - id: d4field
+    displayName: "\uD669\uC57C (\uD0C0\uB798 \uBC29\uD5A5)"
+    mapCell: {x: 9, y: 0}
+    scenePath: Assets/Game/D4Field/D4Field.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 36, y: 17.6}
+    fitToStage: 0
+    floorColor: {r: 0.105882354, g: 0.10980392, b: 0.09411765, a: 1}
     pillarCount: 0
     doors: []
     waves: []
@@ -321,7 +337,7 @@ MonoBehaviour:
   playerScale: 1.15
   playerHp: 6
   playerFootRing: 0
-  greatswordPrefab: {fileID: 6101391765074587218, guid: 9967533142d7da04db2b45b491b02a42, type: 3}
+  greatswordPrefab: {fileID: 2326766460098800636, guid: 53cc63fff68f2e84bbea9b3ebd7bb5da, type: 3}
   greatswordScale: 1.15
   slashVfx: {fileID: 856368647163548680, guid: bdbe9690fbb5db44eac8e5e09587c7ed, type: 3}
   slashVfxFinisher: {fileID: 856368647163548680, guid: bdbe9690fbb5db44eac8e5e09587c7ed, type: 3}

@@ -8,16 +8,20 @@
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="BambooArena.Editor.csproj" />
   <Project Path="McpUnity.Editor.csproj" />
+  <Project Path="RoomRun.Editor.csproj" />
   <Project Path="SnowPlague.Editor.csproj" />
   <Project Path="LookStudy.Editor.csproj" />
   <Project Path="Dokkaebi.csproj" />
-  <Project Path="RoomRun.Editor.csproj" />
   <Project Path="BambooArena.Runtime.csproj" />
+  <Project Path="BossSeal.Editor.csproj" />
   <Project Path="LookStudy.Stages.csproj" />
   <Project Path="SnowPlague.Runtime.csproj" />
   <Project Path="InkFilters.csproj" />
+  <Project Path="DarkCrypt.Runtime.csproj" />
   <Project Path="ReedField.Editor.csproj" />
   <Project Path="McpUnity.Editor.Tests.csproj" />
+  <Project Path="D4Field.Editor.csproj" />
   <Project Path="RoomRun.Tests.csproj" />
   <Project Path="InkFilters.Editor.csproj" />
+  <Project Path="DarkCrypt.Editor.csproj" />
 </Solution>

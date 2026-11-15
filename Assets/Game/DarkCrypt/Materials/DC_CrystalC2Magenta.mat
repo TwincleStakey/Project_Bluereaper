@@ -33,15 +33,15 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _GlowBase: 0.06
+    - _GlowBase: 0.3
     - _Height: 4.8
     - _Pulse: 0.12
     - _UseTex: 1
     m_Colors:
-    - _Body: {r: 0.028, g: 0.012, b: 0.05, a: 1}
-    - _Glow: {r: 0.22, g: 0.2, b: 1.1, a: 1}
-    - _Glow2: {r: 0.95, g: 0.12, b: 0.6, a: 1}
-    - _Rim: {r: 0.5, g: 0.35, b: 1.2, a: 1}
+    - _Body: {r: 0.08, g: 0.22, b: 0.4, a: 1}
+    - _Glow: {r: 0.3, g: 1.2, b: 1.6, a: 1}
+    - _Glow2: {r: 0.35, g: 0.55, b: 1.8, a: 1}
+    - _Rim: {r: 0.6, g: 1.2, b: 1.6, a: 1}
     - _Rock: {r: 0.035, g: 0.03, b: 0.042, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

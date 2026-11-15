@@ -3,6 +3,11 @@
 // a short ground lunge per swing, a wide frontal sector hit (no projectiles), hit-stop, camera shake, the Free Slash VFX
 // sized to the sector, and grass/reeds cut through VegetationCut. (Hops while moving were the robe's leg colliders
 // catching the ground raycast; see LSRobeCloth.)
+// 11-14 feel pass (Kido: more stylish, faster hack-and-slash): each swing no longer plays at one speed. The wind-up runs
+// fast (windupSpeed), the blade's pass at strikeSpeed, then a short pose hold on the impact frame (impactHold, the
+// animator only, even on a whiff), then a quick recovery that ends early (endAt) unless the next swing is buffered.
+// The body leans into the lunge (BodyLean, applied by PlayerController), a blade trail follows the sword instead of the
+// cyan slash sprite (slashVfx off by default), and attacking out of the dodge dash is a long dash slash (dashStep).
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,7 +38,20 @@ namespace RoomRun
             new Step { state = "SweepC", hitAt = 0.45f, cancelAt = 0.62f, radius = 5.0f, halfAngle = 90f, damage = 4, lunge = 7f, vfxScale = 5.0f, vfxRoll = 0f },
             new Step { state = "Spin",   hitAt = 0.58f, cancelAt = 0.88f, radius = 5.6f, halfAngle = 180f, damage = 6, lunge = 3f, vfxScale = 5.6f, vfxRoll = 0f, finisher = true },
         };
-        public float attackSpeed = 1.75f;     // clip playback while swinging
+        // attack out of the dodge dash: a long lunging sweep (the dash's speed carries into it)
+        public Step dashStep = new Step { state = "SweepC", hitAt = 0.45f, cancelAt = 0.6f, radius = 5.4f, halfAngle = 75f, damage = 5, lunge = 17f, vfxScale = 5.2f, vfxRoll = 0f };
+        public float attackSpeed = 1.75f;     // base clip playback while swinging (the phase multipliers below scale it)
+        [Header("Timing (11-14 feel pass)")]
+        public float windupSpeed = 2.4f;      // x attackSpeed before the strike: the wind-up is barely seen
+        public float strikeSpeed = 1.15f;     // x attackSpeed while the blade passes (strikeLead before the hit .. strikeTail after)
+        public float recoverSpeed = 1.7f;     // x attackSpeed after the strike
+        public float strikeLead = 0.1f, strikeTail = 0.06f;   // normalized clip time around hitAt
+        public float impactHold = 0.05f;      // seconds the pose holds on the hit frame (animator only), even on a whiff
+        public float impactHoldHit = 0.04f;   // ... when something was struck (the global hit-stop already freezes it)
+        public float endAt = 0.82f;           // the swing ends here (blend back to locomotion) when nothing is buffered
+        public float leanDeg = 14f;           // forward lean into the lunge / strike
+        public bool slashVfx = false;         // the Free Slash VFX arc (cyan, glaring per Kido 11-13); the blade trail replaces it
+        public bool bladeTrail = true;
         public float moveWhileSwing = 0.2f;   // fraction of move speed kept during a swing
         public float lungeWindow = 0.22f;     // normalized time before the hit that the lunge pushes
         public float hitStop = 0.055f;        // real seconds of near-freeze on a connecting hit
@@ -41,7 +59,12 @@ namespace RoomRun
         public float vfxHeight = 1.0f;
 
         public bool Attacking => step >= 0;
+        public int StepIndex => step;                 // dev captures (v2_check hit-stop log)
+        public float StepT => t;
+        public float HitStopLeft => hitStopLeft;
+        public float HoldLeft => holdLeft;
         public Vector3 LungeVelocity { get; private set; }
+        public float BodyLean { get; private set; }   // degrees forward, PlayerController tilts the visual by it
 
         PlayerController pc;
         RoomRunConfig cfg;
@@ -51,8 +74,12 @@ namespace RoomRun
         int atkLayer = -1;
         int step = -1;
         float t, len, sinceEnd = 99f, layerW, hitStopLeft;
-        bool hitDone, buffered, vfxDone;
+        bool hitDone, buffered, vfxDone, startedThisFrame;
+        float speedUsed;
         int lastStep = -1;
+        Step cur;
+        float holdLeft;
+        BladeTrail trail;
         readonly Dictionary<string, float> clipLen = new Dictionary<string, float>();
         readonly Collider[] overlap = new Collider[96];
         readonly HashSet<Health> struck = new HashSet<Health>();
@@ -61,7 +88,7 @@ namespace RoomRun
         Vector3 aim = Vector3.forward;
 
         static readonly int HMoveX = Animator.StringToHash("MoveX"), HMoveZ = Animator.StringToHash("MoveZ"),
-            HLoco = Animator.StringToHash("LocoSpeed"), HAtk = Animator.StringToHash("AtkSpeed");
+            HLoco = Animator.StringToHash("LocoSpeed"), HAtk = Animator.StringToHash("AtkSpeed"), HSpeed01 = Animator.StringToHash("Speed01");
 
         public void Setup(PlayerController owner, RoomRunConfig config, Transform modelRoot, Animator animator)
         {
@@ -70,6 +97,7 @@ namespace RoomRun
             clipLen.Clear();
             if (anim.runtimeAnimatorController)
                 foreach (var c in anim.runtimeAnimatorController.animationClips) clipLen[c.name] = c.length;
+            if (clipLen.ContainsKey("BZ_Slash1")) UseBerserker();
             feet = new[]
             {
                 anim.GetBoneTransform(HumanBodyBones.LeftFoot), anim.GetBoneTransform(HumanBodyBones.RightFoot),
@@ -77,6 +105,7 @@ namespace RoomRun
             };
             step = -1; layerW = 0f;
             BuildPools();
+            TryTrail();
         }
 
         void OnDisable()
@@ -89,6 +118,27 @@ namespace RoomRun
             foreach (var p in vfxPool) if (p) Destroy(p.gameObject);
             foreach (var p in vfxBigPool) if (p) Destroy(p.gameObject);
             if (debris) Destroy(debris.gameObject);
+            if (trail) Destroy(trail.gameObject);
+        }
+
+        // LSRig puts the sword in the hand in its own Start, after Setup: look for it until it is there
+        float trailLook;
+        void TryTrail()
+        {
+            if (trail || !bladeTrail || !anim) return;
+            var hand = anim.GetBoneTransform(HumanBodyBones.RightHand);
+            var sword = hand ? hand.Find("Greatsword") : null;
+            if (!sword) return;
+            trail = BladeTrail.Create(sword, BladeTrail.MeasureBlade(sword));
+            // v3: the ribbon is sub-sampled round the player's vertical axis (a round arc, not a wedge) and lives long
+            // enough to show most of the flat sweep
+            trail.pivot = pc.transform;
+            if (Berserker) { trail.life = 0.2f; trail.subdiv = 1; }
+            // icy soul blue of the eye flames (M_GSEyeFlame _BaseColor 0.55/1.5/3, gradient 0.85/1/1 -> 0.3/0.85/1 -> 0.08/0.35/1)
+            var tm = trail.GetComponent<MeshRenderer>() ? trail.GetComponent<MeshRenderer>().sharedMaterial : null;
+            // 11-16: deeper blue body, pale-cyan edge instead of near white (matches the slash arcs)
+            if (tm) { tm.SetColor("_Color", new Color(0.12f, 0.45f, 1.3f, 1f)); tm.SetColor("_Edge", new Color(0.75f, 1.1f, 1.45f, 1f)); }
+            Debug.Log($"[RoomRun] greatsword blade trail on ({trail.bladeLen:0.00} m blade)");
         }
 
         float LowestFoot()
@@ -102,10 +152,115 @@ namespace RoomRun
         {
             if (step < 0) return;
             step = -1; sinceEnd = 99f; buffered = false;
-            LungeVelocity = Vector3.zero;
+            LungeVelocity = Vector3.zero; holdLeft = 0f;
         }
 
-        string ClipOf(string state) => state switch
+        // 11-15 (Kido: "허우적 거리고 공격한다는 느낌이 전혀 없자나"): the berserker clips keyed in Blender from Kido's LoA
+        // recordings (ArtSource/GSHero/berserker_timing.md) already carry the timing: 2 f wind-up, 2-3 f swing, contact
+        // pose held, then recovery; so they play at 1x with only a light speed-up on the recovery. Three hits: forehand
+        // sweep (contact 5/16 f), backhand diagonal (5/20), overhead slam finisher (9/36). Hit-to-hit 0.5 s / 0.7 s like the
+        // reference. The dodge plays BZ_Dash (low dash, sword trailing) on the attack layer.
+        public bool Berserker { get; private set; }
+        void UseBerserker()
+        {
+            Berserker = true;
+            // v3 sweep fix (11-15): hits 1-2 are flat ~230 deg sweeps (right-back -> front -> left-back and back), so the
+            // sector is ~115 deg each side; cancel from frame 9 (the back foot has stepped up by then); the step is root
+            // motion (RootPath), not the lunge
+            // 11-16 VFX size (Kido: "칼끝보다 조금 크게"): the arc's outer edge is ~1.48 m per unit vfxScale (vfxs=1 log);
+            // blade tip at contact 1.53 / 1.28 / 1.14 m, so the edge sits ~20 % past it (1.85 / 1.55 / 1.41 m).
+            // Visual only: radius / halfAngle (gameplay) unchanged.
+            steps = new[]
+            {
+                new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 9f / 16f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = 1.25f, vfxRoll = 180f },
+                new Step { state = "SweepB", hitAt = 5f / 20f, cancelAt = 9f / 20f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = 1.05f, vfxRoll = 0f },
+                // 11-15 aim mode pass (Kido: "3타 ... 한바퀴 돌면서 360도 베기"): hit 3 = a 360 spin (clip 24 f, the turn
+                // itself is SpinYaw over f3-f11 about the planted left foot), hit at mid-turn f7, all round
+                new Step { state = "SweepC", hitAt = 7f / 24f, cancelAt = 14f / 24f, radius = 5.2f, halfAngle = 180f, damage = 7, lunge = 0f, vfxScale = 0.95f, vfxRoll = 0f, finisher = true },
+            };
+            // the Free Slash arcs back on for the berserker (Kido: "칼 베는거 vfx도 넣어놨잖아"), tinted to the eye flame
+            slashVfx = true;
+            dashStep = new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 0.5f, radius = 5.4f, halfAngle = 75f, damage = 5, lunge = 17f, vfxScale = 1.25f, vfxRoll = 180f };
+            attackSpeed = 1f; windupSpeed = 1f; strikeSpeed = 1f; recoverSpeed = 1.3f;
+            strikeLead = 0.08f; strikeTail = 0.04f;
+            // v2 (11-15 2nd pass): the contact pose freezes 2 f on top of the clip's own 1 f hold (3 f slam), hit-stop a
+            // touch longer, a small shake even on a whiff so the stop reads in game
+            impactHold = 0.066f; impactHoldHit = 0.04f;
+            hitStop = 0.07f;
+            endAt = 0.8f; leanDeg = 5f; lungeWindow = 0.14f;
+            // v3: no steering while swinging and no BodyLean pulse (the clip leans); any root move not from RootPath slides the feet
+            moveWhileSwing = 0f; leanDeg = 0f;
+        }
+
+        // v3 root motion (ArtSource/GSHero/gs_berserker_anim.py ROOT, Blender metres, one value per clip frame at 30 fps):
+        // how far the body has advanced along the aim. The clips keep the hips over the root and the planted feet at
+        // (plant - ROOT[f]), so moving the root by the same table keeps the feet still in the world and the body only
+        // ever goes forward. Scaled by leg length (Unity world / Blender 0.8078 m).
+        static readonly Dictionary<string, float[]> RootPath = new Dictionary<string, float[]>
+        {
+            { "SweepA", new[] { 0f, 0f, 0f, .10f, .25f, .35f, .40f, .43f, .45f, .46f, .47f, .48f, .485f, .49f, .495f, .50f, .50f } },
+            { "SweepB", new[] { 0f, 0f, 0f, .09f, .22f, .32f, .37f, .40f, .42f, .43f, .44f, .445f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f } },
+            { "SweepC", new[] { 0f, 0f, .04f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f,
+                                .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f } },   // spin: one short step in, then on the spot
+        };
+        const float BlenderLegLen = 0.8078f;
+        float legScale = -1f;
+        float rootPrev;
+        public static bool UseRootPath = true;   // dev A/B
+        float LegScale()
+        {
+            if (legScale > 0f) return legScale;
+            var u = anim.GetBoneTransform(HumanBodyBones.LeftUpperLeg); var l = anim.GetBoneTransform(HumanBodyBones.LeftLowerLeg); var f = anim.GetBoneTransform(HumanBodyBones.LeftFoot);
+            if (!u || !l || !f) return 1f;
+            legScale = (Vector3.Distance(u.position, l.position) + Vector3.Distance(l.position, f.position)) / BlenderLegLen;
+            Debug.Log($"[RoomRun] berserker root path scale {legScale:0.000}");
+            return legScale;
+        }
+        float RootAt(string state, float tn)
+        {
+            if (!RootPath.TryGetValue(state, out var r)) return 0f;
+            float fr = Mathf.Clamp01(tn) * (r.Length - 1);
+            int i = Mathf.Min((int)fr, r.Length - 2);
+            return Mathf.Lerp(r[i], r[i + 1], fr - i);
+        }
+        public float RootAdvance { get; private set; }   // metres this frame (dev log)
+        // v2: trail only while the blade really travels (3 f before contact, 2 f after; the slam's lift is not traced)
+        bool TrailOn()
+        {
+            if (step < 0) return false;
+            if (!Berserker) return t > cur.hitAt - strikeLead - 0.12f && t < cur.hitAt + strikeTail + 0.12f;
+            float f = t * len * 30f, hf = cur.hitAt * len * 30f;
+            // v3: hits 1-2 trail over the whole flat arc (f2 -> f8, hit 2 on round to f10)
+            if (!cur.finisher) return f > hf - 3.2f && f < hf + (cur.state == "SweepB" ? 5f : 3.6f);
+            return f > 2.5f && f < 12f;   // spin: the whole revolution (a full ring)
+        }
+
+        // hit 3 spin: the visual turns a full revolution (clockwise from above, on from hit 2's sweep) over clip f3-f11,
+        // about the left foot planted at f3. PlayerController applies it.
+        public float SpinYaw { get; private set; }
+        public Vector3 SpinPivot { get; private set; }
+        public const float SpinFrom = 3f, SpinTo = 11f;
+        void UpdateSpin()
+        {
+            if (step < 0 || !Berserker || !cur.finisher || cur.state != "SweepC") { SpinYaw = 0f; return; }
+            float f = t * len * 30f;
+            if (f < SpinFrom) { SpinYaw = 0f; return; }
+            if (SpinYaw == 0f)
+            {
+                var lf = anim.GetBoneTransform(HumanBodyBones.LeftFoot);
+                var p = lf ? lf.position : pc.transform.position; p.y = pc.transform.position.y;
+                SpinPivot = p;
+            }
+            float u = Mathf.Clamp01((f - SpinFrom) / (SpinTo - SpinFrom));
+            SpinYaw = Mathf.Max(0.01f, 360f * u * u * (3f - 2f * u));
+            if (u >= 1f) SpinYaw = 360f;
+        }
+        bool wasRolling;
+
+        string ClipOf(string state) => Berserker ? state switch
+        {
+            "SweepA" => "BZ_Slash1", "SweepB" => "BZ_Slash2", "SweepC" => "BZ_Slash3", "Dash" => "BZ_Dash", _ => state,
+        } : state switch
         {
             "SweepA" => "GS_SweepA", "SweepB" => "GS_SweepB", "SweepC" => "GS_SweepC", "Spin" => "GS_SpinAttack", _ => state,
         };
@@ -113,19 +268,40 @@ namespace RoomRun
         /// Raised when a swing starts so the body snaps to the cursor before the blade moves.
         public event System.Action SwingStarted;
 
-        void StartStep(int i)
+        void StartStep(int i) => StartStep(i, steps[i]);
+
+        void StartStep(int i, Step s)
         {
-            step = i; t = 0f; hitDone = false; buffered = false; vfxDone = false; lastStep = i;
-            clipLen.TryGetValue(ClipOf(steps[i].state), out len);
+            step = i; cur = s; t = 0f; hitDone = false; buffered = false; vfxDone = false; lastStep = i; holdLeft = 0f; rootPrev = 0f;
+            clipLen.TryGetValue(ClipOf(s.state), out len);
             if (len <= 0f) len = 1f;
-            anim.CrossFadeInFixedTime(steps[i].state, 0.05f, atkLayer, 0f);
+            anim.CrossFadeInFixedTime(s.state, 0.03f, atkLayer, 0f);
+            if (trail) trail.Clear();
             SwingStarted?.Invoke();
+            startedThisFrame = true;
+        }
+
+        /// Fire during the dodge dash: PlayerController ends the dash and calls this; the combo goes on from the first sweep.
+        public void DashSlash()
+        {
+            if (!anim) return;
+            StartStep(0, dashStep);
+        }
+
+        // playback multiplier for the current phase of the swing
+        float PhaseSpeed()
+        {
+            if (holdLeft > 0f) return 0f;
+            if (t < cur.hitAt - strikeLead) return attackSpeed * windupSpeed;
+            if (t < cur.hitAt + strikeTail) return attackSpeed * strikeSpeed;
+            return attackSpeed * recoverSpeed;
         }
 
         /// Called from PlayerController.Update. moveLocal = velocity / move speed in world space.
         public void Tick(float dt, bool fireHeld, bool canAct, Vector3 aimDir, Vector3 vel, float moveSpeed, bool rolling)
         {
             if (!anim) return;
+            if (!trail && bladeTrail && (trailLook -= dt) <= 0f) { trailLook = 0.25f; TryTrail(); }
             if (aimDir.sqrMagnitude > 0.01f) aim = aimDir;
 
             // hit-stop runs on real time
@@ -146,32 +322,76 @@ namespace RoomRun
             }
             else
             {
-                var s = steps[step];
-                t += dt * attackSpeed / len;
-                if (!hitDone && t >= s.hitAt) { hitDone = true; DoHit(s); }
-                if (!vfxDone && t >= s.hitAt - 0.12f) { vfxDone = true; PlayVfx(s); }
+                var s = cur;
+                float speed = PhaseSpeed();
+                speedUsed = speed;
+                if (holdLeft > 0f) holdLeft -= dt;
+                t += dt * speed / len;
+                if (!hitDone && t >= s.hitAt) { hitDone = true; holdLeft = DoHit(s) > 0 ? impactHoldHit : impactHold; }
+                if (slashVfx && !vfxDone && t >= s.hitAt - 0.12f) { vfxDone = true; PlayVfx(s); }
                 if (t >= s.cancelAt && buffered && !rolling)
                 {
                     int next = step + 1 < steps.Length ? step + 1 : 0;
                     StartStep(next);
                 }
-                else if (t >= 1f) { step = -1; sinceEnd = 0f; }
+                else if (t >= 1f || (t >= endAt && !buffered)) { step = -1; sinceEnd = 0f; }
             }
 
-            // lunge: a short forward push on the ground just before the hit
+            // lunge: a short forward push on the ground just before the hit; the body leans into it
             LungeVelocity = Vector3.zero;
+            RootAdvance = 0f;
+            float leanWant = 0f;
             if (step >= 0)
             {
-                var s = steps[step];
+                var s = cur;
                 if (t > s.hitAt - lungeWindow && t < s.hitAt) LungeVelocity = aim * s.lunge;
+                // v3: the clip's root path, applied at once this frame (the pose the Animator evaluates after this Update
+                // is at the same t), so the body and the root move together
+                if (Berserker && UseRootPath && RootPath.ContainsKey(s.state))
+                {
+                    float r = RootAt(s.state, t);
+                    RootAdvance = Mathf.Max(0f, r - rootPrev) * LegScale();
+                    rootPrev = Mathf.Max(rootPrev, r);
+                    if (RootAdvance > 0f) pc.RootMove(aim * RootAdvance, dt);
+                }
+                if (t > s.hitAt - lungeWindow && t < s.hitAt + 0.18f) leanWant = leanDeg * (s.finisher ? 0.4f : 1f);
+            }
+            BodyLean = Mathf.MoveTowards(BodyLean, leanWant, (leanWant > BodyLean ? 260f : 90f) * dt);
+            UpdateSpin();
+            if (trail)
+            {
+                // the ribbon only while the blade is fast: from the end of the wind-up to just after the strike
+                trail.Emitting = TrailOn();
             }
 
-            layerW = Mathf.MoveTowards(layerW, step >= 0 ? 1f : 0f, (step >= 0 ? 25f : 5f) * dt);
+            // berserker dodge: the low dash clip on the attack layer for as long as the roll lasts
+            bool dashAnim = Berserker && rolling && clipLen.ContainsKey("BZ_Dash");
+            if (dashAnim && !wasRolling) anim.CrossFadeInFixedTime("Dash", 0.03f, atkLayer, 0f);
+            wasRolling = rolling;
+
+            bool layerOn = step >= 0 || dashAnim;
+            layerW = Mathf.MoveTowards(layerW, layerOn ? 1f : 0f, (layerOn ? 30f : 8f) * dt);
             if (atkLayer >= 0) anim.SetLayerWeight(atkLayer, layerW);
-            anim.SetFloat(HAtk, attackSpeed);
+            // v3: the Animator advances by exactly what t advanced this frame (speedUsed; 0 on the frame a step starts,
+            // where t is 0), so the pose and the root path never disagree (a 1-frame mismatch at the hit hold slid the feet)
+            float atkSpeed = step >= 0 ? (Berserker ? (startedThisFrame ? 0f : speedUsed) : PhaseSpeed()) : dashAnim ? 1f : attackSpeed;
+            anim.SetFloat(HAtk, atkSpeed);
+            startedThisFrame = false;
 
             // legs: velocity in facing space, walk clips at 0.35, runs at 1
             var local = Quaternion.Inverse(Quaternion.LookRotation(aim)) * (vel / Mathf.Max(0.01f, moveSpeed));
+            // berserker: the body faces the way it runs (PlayerController), so only forward speed drives idle -> run
+            float speed01 = Mathf.Clamp01(new Vector2(vel.x, vel.z).magnitude / Mathf.Max(0.01f, moveSpeed));
+            if (Berserker)
+            {
+                // split body (SplitBody.On): the legs run in the visual root's space (run / strafe / backpedal);
+                // otherwise the body faces where it runs and only forward speed matters
+                var rootFwd = model && model.parent ? model.parent.forward : Vector3.forward; rootFwd.y = 0f;
+                if (SplitBody.On && rootFwd.sqrMagnitude > 1e-4f)
+                    local = Quaternion.Inverse(Quaternion.LookRotation(rootFwd)) * (vel / Mathf.Max(0.01f, moveSpeed));
+                else local = new Vector3(0f, 0f, speed01);
+                anim.SetFloat(HSpeed01, speed01, 0.08f, dt);
+            }
             anim.SetFloat(HMoveX, local.x, 0.08f, dt);
             anim.SetFloat(HMoveZ, local.z, 0.08f, dt);
             anim.SetFloat(HLoco, 1.15f);
@@ -190,7 +410,7 @@ namespace RoomRun
             // GS_SlashWater_Flat (Free Slash VFX Slash Water, Local-aligned copy): the arc mesh already lies in the prefab's
             // XZ plane; at t 0.2 it spans ~300 deg starting behind-left, so +45 about Y centres the swept part on the aim (ls_cmd rotprobe / waterflat views;
             // the old -90 about X stood it up as a wall). Mirror = flip local Z, which is the world axis across the aim.
-            // ~1 m across at scale 1, so the scale is the hit radius.
+            // Outer edge ~1.48 m from the centre per unit scale (11-16 measure); the berserker scales it to the blade tip.
             tr.position = pc.transform.position + Vector3.up * vfxHeight;
             tr.rotation = Quaternion.LookRotation(aim) * Quaternion.Euler(0, 45f, 0);
             tr.localScale = new Vector3(s.vfxScale, s.vfxScale, s.vfxRoll > 90f ? -s.vfxScale : s.vfxScale);
@@ -210,7 +430,7 @@ namespace RoomRun
             }
         }
 
-        void DoHit(Step s)
+        int DoHit(Step s)
         {
             var center = pc.transform.position;
             struck.Clear();
@@ -233,7 +453,7 @@ namespace RoomRun
                 }
             }
             var rig = RunDirector.Instance ? RunDirector.Instance.Rig : null;
-            if (rig) rig.Shake(s.finisher ? 0.5f : hits > 0 ? 0.3f : 0.14f);
+            if (rig) rig.Shake(s.finisher ? 0.55f : hits > 0 ? 0.32f : Berserker ? 0.18f : 0.14f);
             if (hits > 0 && hitStop > 0f)
             {
                 hitStopLeft = hitStop * (s.finisher ? 1.6f : 1f);
@@ -241,6 +461,7 @@ namespace RoomRun
             }
             if (VegetationCut.Instance) VegetationCut.Instance.Sector(center, aim, s.radius, s.halfAngle);
             EmitBits(center, s);
+            return hits;
         }
 
         // ---------- pools ----------
@@ -259,6 +480,9 @@ namespace RoomRun
                     foreach (var p in go.GetComponentsInChildren<ParticleSystem>(true))
                     {
                         var main = p.main; main.playOnAwake = false;
+                        // 11-16: the pack's Lights module spawned a cyan point light per particle (lit the hero pale cyan
+                        // on every swing); disabling Light components does not stop the module
+                        var lm = p.lights; lm.enabled = false;
                         var pr = p.GetComponent<ParticleSystemRenderer>();
                         var m = pr ? pr.sharedMaterial : null;
                         if (m && m.shader && m.shader.name.Contains("Slash World"))
@@ -274,8 +498,17 @@ namespace RoomRun
                             continue;   // sparks keep their own (small) scaling
                         }
                         main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                        // 11-16 soul colour: the pack's Slash material multiplies by an HDR white _Color of 8.6, which
+                        // blew any tint to white; a runtime copy at a moderate gain, and the eye-flame gradient over the
+                        // particle's life (pale core -> soul blue -> deep blue) with a quick fade
+                        if (m && m.shader && m.shader.name.Contains("Slash") && m.HasProperty("_Color")) pr.sharedMaterial = SoulMaterial(m);
+                        var sc0 = main.startColor;
+                        float a0 = sc0.mode == ParticleSystemGradientMode.Color ? sc0.color.a : 1f;
+                        main.startColor = new Color(1f, 1f, 1f, a0);
+                        var col = p.colorOverLifetime; col.enabled = true; col.color = new ParticleSystem.MinMaxGradient(SoulGradient);
                     }
-                    foreach (var l in go.GetComponentsInChildren<Light>(true)) l.shadows = LightShadows.None;
+                    // 11-15: the pack's own realtime lights off (no new realtime lights; they washed the hero white on every swing)
+                    foreach (var l in go.GetComponentsInChildren<Light>(true)) { l.shadows = LightShadows.None; l.enabled = false; }
                     ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                     pool.Add(ps);
                 }
@@ -290,6 +523,23 @@ namespace RoomRun
             }
         }
 
+        // eye flame (M_GSEyeFlame gradient 0.85/1/1 -> 0.3/0.85/1 -> 0.08/0.35/1); alpha falls off early (glaring per Kido 11-13)
+        static readonly Gradient SoulGradient = new Gradient
+        {
+            colorKeys = new[] { new GradientColorKey(new Color(0.85f, 1f, 1f), 0f), new GradientColorKey(new Color(0.3f, 0.85f, 1f), 0.15f), new GradientColorKey(new Color(0.08f, 0.35f, 1f), 0.5f) },
+            alphaKeys = new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.7f, 0.3f), new GradientAlphaKey(0f, 1f) },
+        };
+        public static float SoulGain = 2.2f;   // the arc material's _Color gain (the pack's was 8.6)
+        static readonly Dictionary<Material, Material> soulMats = new Dictionary<Material, Material>();
+        static Material SoulMaterial(Material src)
+        {
+            if (soulMats.TryGetValue(src, out var m) && m) return m;
+            m = new Material(src) { name = src.name + " (soul)" };
+            m.SetColor("_Color", new Color(SoulGain, SoulGain, SoulGain, 1f));
+            soulMats[src] = m;
+            return m;
+        }
+
         static readonly Dictionary<Material, Material> sparkMats = new Dictionary<Material, Material>();
         static Material SparkMaterial(Material src)
         {
@@ -299,7 +549,7 @@ namespace RoomRun
             Texture tex = null;
             foreach (var n in src.GetTexturePropertyNames()) { tex = src.GetTexture(n); if (tex) break; }
             if (tex) m.SetTexture("_BaseMap", tex);
-            m.SetColor("_BaseColor", new Color(1.6f, 1.2f, 2.2f, 1f));
+            m.SetColor("_BaseColor", new Color(0.45f, 1.0f, 1.7f, 1f));   // 11-16 soul blue (was violet 1.6/1.2/2.2)
             // additive transparent
             m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 2f);
             m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);

@@ -954,8 +954,12 @@ namespace LocoSplit
             {
                 try { Note(IdleTest()); } catch (System.Exception e) { Note("idletest failed: " + e); }
             }
-            else if (cmd == "rrplayer")
+            else if (cmd == "rrplayer" || cmd == "rrplayer old" || cmd == "rrplayer mixamo")
             {
+                // "rrplayer mixamo": GS_Hero with the old Mixamo greatsword clips instead of the berserker set (11-15)
+                LSBuilder.UseBerserker = cmd == "rrplayer";
+                // "rrplayer old": the 착호갑사 body instead of GS_Hero (LSBuilder.UseGSHero)
+                LSBuilder.UseGSHero = cmd != "rrplayer old";
                 try { Note(LSBuilder.BuildRoomRunPlayer()); }
                 catch (System.Exception e) { Note("rrplayer failed: " + e); }
             }

@@ -251,3 +251,510 @@ rot 9 (90.00, 90.00, 0.00): GS_SlashWater_Flat(Clone) c(0.0, 1.0, 0.0) s(37.9, 3
   RF_Susuki_B: 14 pieces
   RF_Susuki_C: 14 pieces
   RF_Susuki_Broken: 14 pieces
+[18:54:48] got rrplayer
+[18:54:50] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: head y ref 0.990 gs 1.570 -> body scale 0.631
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.033, hand lossy 63.073
+GS_EyeL pos (-0.021, 1.048, 0.057) lossyScale (63.073, 63.073, 63.073) parent mixamorig:Head
+GS_EyeR pos (0.018, 1.046, 0.055) lossyScale (63.073, 63.073, 63.073) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.004,0.012, profile y:r -0.01:0.05 0.00:0.05 0.01:0.05 0.03:0.06 0.04:0.12 0.05:0.12 0.07:0.12 0.08:0.12 0.09:0.08 0.10:0.08 0.12:0.04 0.13:0.04 0.14:0.00
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[18:56:48] got rrplayer old
+[18:56:49] rr imports ok
+rr controller ok, loco children 9
+rrplayer: saved Assets/Game/LocoSplit/Generated/RR_GreatswordPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[18:57:55] got rrplayer
+[18:57:57] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.13:0.12 0.15:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[19:03:49] got rrplayer
+[19:03:51] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 179.912 -> body scale 0.009
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.000, hand lossy 0.929
+GS_EyeL pos (0.000, 0.015, 0.001) lossyScale (0.929, 0.929, 0.929) parent mixamorig:Head
+GS_EyeR pos (0.000, 0.015, 0.001) lossyScale (0.929, 0.929, 0.929) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz 0.000,0.000, profile y:r 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00 0.00:0.00
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[19:04:35] got rrplayer
+[19:04:36] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.13:0.12 0.15:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[19:08:09] got rrplayer
+[19:08:11] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword grip from GS_Idle hands, dir in hand (-0.79, 0.17, 0.59)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.13:0.12 0.15:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[19:38:00] got rrplayer
+[19:38:02] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword grip from GS_Idle hands, dir in hand (-0.79, 0.17, 0.59)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.13:0.12 0.15:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[19:40:59] got rrplayer
+[19:41:00] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword grip from GS_Idle hands, dir in hand (-0.79, 0.17, 0.59)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.13:0.12 0.15:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[19:43:43] got rrplayer
+[19:43:44] rr imports ok
+rr controller ok, loco children 9
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword grip from GS_Idle hands, dir in hand (-0.79, 0.17, 0.59)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.13:0.12 0.15:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[20:04:31] got rrplayer
+[20:04:34] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 2
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[20:09:55] got rrplayer
+[20:09:57] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 2
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[20:21:03] got rrplayer
+[20:21:07] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 2
+avatar valid=True human=True
+texture import sharpened: GS_Hero_basecolor.png
+texture import sharpened: GS_Shirt_basecolor.png
+texture import sharpened: GS_Greatsword_basecolor_iron.png
+texture import sharpened: GS_Shirt_normal.png
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[20:26:00] got rrplayer
+[20:26:02] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[20:31:35] got rrplayer
+[20:31:37] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[20:56:22] got rrplayer
+[20:56:24] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[21:15:28] got rrplayer
+[21:15:30] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[21:20:20] got rrplayer
+[21:20:22] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[21:24:14] got rrplayer
+[21:24:15] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[21:31:10] got rrplayer
+[21:31:11] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[21:33:52] got rrplayer
+[21:33:54] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[22:12:11] got rrplayer
+[22:12:13] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[22:50:15] got rrplayer
+[22:50:20] rr imports ok
+berserker clips: BZ_Run 0.67s, BZ_Slash2 0.67s, BZ_Idle 1.33s, BZ_Dash 1.00s, BZ_Slash1 0.53s, BZ_Slash3 1.20s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+texture import sharpened: GS_Hero_basecolor_flat.png
+texture import sharpened: GS_Shirt_basecolor_flat.png
+texture import sharpened: GS_Greatsword_basecolor_iron_flat.png
+textures: GS_Hero_basecolor_flat.png, GS_Shirt_basecolor_flat.png, GS_Greatsword_basecolor_iron_flat.png
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok

@@ -394,21 +394,60 @@ namespace LocoSplit
             AssetDatabase.AddObjectToAsset(tree, ctrl);
             void Add(AnimationClip c, float x, float z) { if (c) tree.AddChild(c, new Vector2(x, z)); else log.Add($"rr: no clip for {x},{z}"); }
             const float w = 0.35f;
-            Add(Clip("GS_Idle"), 0, 0);
-            Add(Clip("GS_WalkFwd"), 0, w); Add(Clip("GS_WalkBack"), 0, -w);
-            Add(Clip("GS_StrafeL"), -w, 0); Add(Clip("GS_StrafeR"), w, 0);
-            Add(RRClip("GS_RunFwd", "GS_RunFwd"), 0, 1); Add(RRClip("GS_RunBack", "GS_RunBack"), 0, -1);
-            Add(RRClip("GS_RunStrafeL", "GS_RunStrafeL"), -1, 0); Add(RRClip("GS_RunStrafeR", "GS_RunStrafeR"), 1, 0);
+            // 11-15: UseBerserker (default on) swaps in the Blender-keyed berserker clips (idle, run, 3 hits, dash); ls_cmd
+            // "rrplayer mixamo" builds with the old Mixamo clips again. Berserker locomotion is LoA style: the body faces
+            // where it runs (GreatswordCombat feeds MoveZ = speed, MoveX = 0), so idle + run are the only children.
+            var bz = UseBerserker ? GSHero.GSHeroRemote.BerserkerClips(log) : null;
+            AnimationClip Bz(string n) => bz != null && bz.TryGetValue(n, out var c) ? c : null;
+            if (Bz("BZ_Idle") && Bz("BZ_Run"))
+            {
+                Add(Bz("BZ_Idle"), 0, 0); Add(Bz("BZ_Run"), 0, 1);
+                // split body (RoomRun.SplitBody): legs strafe / backpedal relative to the root. Temporary Mixamo legs until
+                // berserker strafe/back runs are keyed; the arms (sword on the shoulder) come from the BZ layer below.
+                Add(RRClip("GS_RunBack", "GS_RunBack"), 0, -1);
+                Add(RRClip("GS_RunStrafeL", "GS_RunStrafeL"), -1, 0); Add(RRClip("GS_RunStrafeR", "GS_RunStrafeR"), 1, 0);
+            }
+            else
+            {
+                Add(Clip("GS_Idle"), 0, 0);
+                Add(Clip("GS_WalkFwd"), 0, w); Add(Clip("GS_WalkBack"), 0, -w);
+                Add(Clip("GS_StrafeL"), -w, 0); Add(Clip("GS_StrafeR"), w, 0);
+                Add(RRClip("GS_RunFwd", "GS_RunFwd"), 0, 1); Add(RRClip("GS_RunBack", "GS_RunBack"), 0, -1);
+                Add(RRClip("GS_RunStrafeL", "GS_RunStrafeL"), -1, 0); Add(RRClip("GS_RunStrafeR", "GS_RunStrafeR"), 1, 0);
+            }
             var baseSm = ctrl.layers[0].stateMachine;
             var loco = baseSm.AddState("Locomotion");
             loco.motion = tree; loco.iKOnFeet = true;
             loco.speedParameterActive = true; loco.speedParameter = "LocoSpeed";
 
+            int atkIndex = 1;
+            if (Bz("BZ_Idle") && Bz("BZ_Run"))
+            {
+                // arms + head from the berserker idle/run (sword on the shoulder) over whatever the legs play
+                string mp = $"{GenDir}/BZ_ArmsMask.mask";
+                var mask = AssetDatabase.LoadAssetAtPath<AvatarMask>(mp);
+                if (!mask) { mask = new AvatarMask(); AssetDatabase.CreateAsset(mask, mp); }
+                for (int i = 0; i < (int)AvatarMaskBodyPart.LastBodyPart; i++)
+                {
+                    var part = (AvatarMaskBodyPart)i;
+                    mask.SetHumanoidBodyPartActive(part, part == AvatarMaskBodyPart.Head || part == AvatarMaskBodyPart.LeftArm || part == AvatarMaskBodyPart.RightArm ||
+                        part == AvatarMaskBodyPart.LeftFingers || part == AvatarMaskBodyPart.RightFingers || part == AvatarMaskBodyPart.LeftHandIK || part == AvatarMaskBodyPart.RightHandIK);
+                }
+                EditorUtility.SetDirty(mask);
+                ctrl.AddParameter("Speed01", AnimatorControllerParameterType.Float);
+                ctrl.AddLayer("UpperBZ");
+                var ls0 = ctrl.layers; ls0[1].defaultWeight = 1f; ls0[1].avatarMask = mask; ctrl.layers = ls0;
+                var arms = new BlendTree { name = "ArmsBZ", blendType = BlendTreeType.Simple1D, blendParameter = "Speed01", useAutomaticThresholds = false };
+                AssetDatabase.AddObjectToAsset(arms, ctrl);
+                arms.AddChild(Bz("BZ_Idle"), 0f); arms.AddChild(Bz("BZ_Run"), 1f);
+                var ast = ctrl.layers[1].stateMachine.AddState("Arms"); ast.motion = arms;
+                atkIndex = 2;
+            }
             ctrl.AddLayer("AttackFull");
             var layers = ctrl.layers;
-            layers[1].defaultWeight = 0f;
+            layers[atkIndex].defaultWeight = 0f;
             ctrl.layers = layers;
-            var sm = ctrl.layers[1].stateMachine;
+            var sm = ctrl.layers[atkIndex].stateMachine;
             sm.AddState("Empty");
             void Atk(string state, AnimationClip c)
             {
@@ -417,10 +456,12 @@ namespace LocoSplit
                 st.motion = c; st.iKOnFeet = true;
                 st.speedParameterActive = true; st.speedParameter = "AtkSpeed";
             }
-            Atk("SweepA", RRClip("GS_ComboSlash", "GS_SweepA"));
-            Atk("SweepB", RRClip("GS_ComboSlash", "GS_SweepB"));
-            Atk("SweepC", RRClip("GS_LowSlash", "GS_SweepC"));
+            Atk("SweepA", Bz("BZ_Slash1") ?? RRClip("GS_ComboSlash", "GS_SweepA"));
+            Atk("SweepB", Bz("BZ_Slash2") ?? RRClip("GS_ComboSlash", "GS_SweepB"));
+            Atk("SweepC", Bz("BZ_Slash3") ?? RRClip("GS_LowSlash", "GS_SweepC"));
             Atk("Spin", RRClip("GS_SpinAttack", "GS_SpinAttack"));
+            if (Bz("BZ_Dash")) Atk("Dash", Bz("BZ_Dash"));
+            log.Add("rr controller: " + (bz != null ? "berserker clips" : "mixamo clips"));
             EditorUtility.SetDirty(ctrl);
             log.Add("rr controller ok, loco children " + tree.children.Length);
             return ctrl;
@@ -429,6 +470,9 @@ namespace LocoSplit
         // ---------- RoomRun player (temporary look test, 11-13) ----------
         // The greatsword 착호갑사 as a prefab without LSPlayer (RoomRun's PlayerController + GreatswordCombat drive it),
         // assigned to RoomRunConfig.greatswordPrefab with the slash VFX. Needs a prior "build" (sword prefab, clips).
+        public static bool UseGSHero = true;   // in-game body: GS_Hero (true) or the 착호갑사 Hunter rig (false)
+        public static bool UseBerserker = true;   // 11-15: berserker clips (GSHero/Art/GS_BerserkerAnims.fbx) or the Mixamo set
+
         public static string BuildRoomRunPlayer()
         {
             var log = new List<string>();
@@ -468,6 +512,13 @@ namespace LocoSplit
             string pp = $"{GenDir}/RR_GreatswordPlayer.prefab";
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, pp);
             Object.DestroyImmediate(root);
+            // 11-15: the GS_Hero (셔츠 + 철 대검) body replaces the 착호갑사 in game. The old prefab is still built above;
+            // ls_cmd "rrplayer old" (UseGSHero = false) puts it back on RoomRunConfig.
+            if (UseGSHero)
+            {
+                var gs = GSHero.GSHeroRemote.BuildRRPlayer(ctrl, model, log);
+                if (gs) { prefab = gs; pp = GSHero.GSHeroRemote.RRPrefabPath; }
+            }
 
             var cfg = AssetDatabase.LoadAssetAtPath<RoomRun.RoomRunConfig>("Assets/Game/RoomRun/RoomRunConfig.asset");
             if (!cfg) { log.Add("rrplayer: prefab saved, RoomRunConfig not found"); return string.Join("\n", log); }

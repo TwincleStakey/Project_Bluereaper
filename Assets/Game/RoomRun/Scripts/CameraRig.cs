@@ -67,6 +67,8 @@ namespace RoomRun
         }
 
         public void Shake(float amount) => shake = Mathf.Max(shake, amount);
+        public float ShakeNow => shake;               // dev captures (v2_check hit-stop log)
+        public Vector3 LastJitter { get; private set; }
 
         // 1 = the original framing (height 17, back 14.5). Fixed at FixedZoom in play; set only by remote captures.
         public float Zoom { get => zoom; set => zoom = Mathf.Clamp(value, MinZoom, 3.5f); }
@@ -105,6 +107,7 @@ namespace RoomRun
                 jitter = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f)) * shake * shake * 0.5f;
                 shake = Mathf.MoveTowards(shake, 0f, dt * 3.5f);
             }
+            LastJitter = jitter;
             transform.position = focus + offset + jitter;
             transform.rotation = Quaternion.LookRotation(-offset);
             KeepFogAtZoom();
