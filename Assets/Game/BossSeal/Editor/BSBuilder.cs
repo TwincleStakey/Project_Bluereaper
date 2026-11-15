@@ -32,7 +32,7 @@ namespace BossSeal
         const string MatDir = Root + "/Materials";
         const string Gen = Root + "/Generated";
         public const string RoomId = "bossseal";
-        public const float HX = 30f, HZ = 26f;          // arena half size (60 x 52): the platform (r 15.6) plus the blade rays
+        public const float HX = 31.5f, HZ = 31.5f;      // 11-16: round arena (wall circle r 31.9), the room box just contains it
         const string DC = "Assets/Game/DarkCrypt/Source/";
         const string PillarFbx = DC + "Fab_stone_pillar_selvf_mid/Stone_Pillar_selvF_Mid.fbx";
         const string WallFbx = DC + "Fab_castle_wall_sbxuw_mid/Castle_Wall_sbxuw_Mid.fbx";
@@ -45,14 +45,9 @@ namespace BossSeal
         const float AbyssY = -42f;
         // 11-15 mesa (Kido: "외곽 아래로 떨어지는 큰 아레나 ... 절벽"): the whole arena stands on a raised mesa whose rim runs
         // just outside the arena walls on a wobbly ellipse; past it the ground falls away into a red abyss
-        static float EdgeR(float ang)
-        {
-            float sn = Mathf.Sin(ang), cs = Mathf.Cos(ang);
-            float ex = HX + 14f, ez = HZ + 4.5f;
-            float e = ex * ez / Mathf.Sqrt(ez * ez * sn * sn + ex * ex * cs * cs);
-            e += 1.6f * (Mathf.PerlinNoise(cs * 2.4f + 5.3f, sn * 2.4f + 7.1f) - 0.5f) * 2f + 0.9f * (Mathf.PerlinNoise(cs * 7f + 11.2f, sn * 7f + 3.4f) - 0.5f) * 2f;
-            return Mathf.Lerp(90f, e, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.05f, 0.5f, cs)));   // south / sides: beyond the floor (80 m)
-        }
+        // 11-16 (Kido: "원형 아레나처럼, 외곽이 왜 들쭉날쭉해"): a clean circle; the walkable ring ends at the stone curb
+        const float ArenaR = 33f;            // curb ring centre radius; invisible wall at ArenaR - 1.1
+        static float EdgeR(float ang) => ArenaR + 3.5f;   // rock lip / cliff start (the dirt ends 2 m inside this)
         
         // floor radii (must match the BSGround material vectors)
         static readonly float[] Rad = { 2.1f, 2.3f, 3.7f, 3.87f, 4.73f, 4.93f, 5.2f };   // 11-15 redo: ~10 m dais (was 31 m)
@@ -204,6 +199,12 @@ namespace BossSeal
                 m.SetFloat("_Metallic", 0f); m.SetFloat("_Smoothness", 0.05f); m.enableInstancing = true;
             });
             Mat("BS_Abyss", "BossSeal/Abyss", m => { });
+            Mat("BS_Curb", "Universal Render Pipeline/Lit", m =>
+            {
+                m.SetTexture("_BaseMap", Tex(DC + "Fab_castle_wall_sbxuw_mid/Castle_Wall_sbxuw_Mid_2K_BaseColor.jpg")); m.SetColor("_BaseColor", Hex("#9a7462"));
+                var n = Tex(DC + "Fab_castle_wall_sbxuw_mid/Castle_Wall_sbxuw_Mid_2K_Normal.jpg", normal: true); m.SetTexture("_BumpMap", n); if (n) m.EnableKeyword("_NORMALMAP");
+                m.SetFloat("_Metallic", 0f); m.SetFloat("_Smoothness", 0.05f); m.enableInstancing = true;
+            });
             Mat("BS_Pillar", "BossSeal/HazeProp", m =>
             {
                 m.SetTexture("_BaseMap", Tex(DC + "Fab_stone_pillar_selvf_mid/Stone_Pillar_selvF_Mid_2K_BaseColor.jpg"));
@@ -254,7 +255,7 @@ namespace BossSeal
                 {
                     // the mesa rim: the last ring inside is pulled out to the rim itself (a smooth, not ring-stepped, edge) and
                     // every ring past it drops down the cliff just outside the rim
-                    float a = s * Mathf.PI * 2f / seg, r = rs[j], er = EdgeR(a) - 2.0f;   // the dirt ends under the rim rocks (they reach 3 m in)
+                    float a = s * Mathf.PI * 2f / seg, r = rs[j], er = ArenaR + 0.55f;   // 11-16: the dirt ends under the stone curb ring; past it, the cliff rock
                     bool nextOut = j + 1 < rs.Count && rs[j + 1] > er;
                     if (r > er) v.Add(new Vector3(Mathf.Sin(a) * (er + 0.4f), -60f, Mathf.Cos(a) * (er + 0.4f)));
                     else if (nextOut) v.Add(new Vector3(Mathf.Sin(a) * er, Height(er), Mathf.Cos(a) * er));
@@ -553,9 +554,9 @@ namespace BossSeal
             // ---- the cliff: granite cliff slabs along the north arc only (where the rim is inside the floor), tops just
             // under the floor edge, falling ~40 m; volcanic spires standing up out of the deep
             var cliffs = Group("MesaCliffs", g);
-            for (int i = 0; i < 90; i++)
+            for (int i = 0; i < 34; i++)
             {
-                float a = (i + R(-0.2f, 0.2f)) * Mathf.PI * 2f / 90;
+                float a = (i + R(-0.15f, 0.15f)) * Mathf.PI * 2f / 34;
                 float er = EdgeR(a);
                 if (er > 70f) continue;
                 var dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
@@ -565,13 +566,6 @@ namespace BossSeal
                 var p = dir * (er + depth * 0.5f - 3.0f) + Vector3.up * AbyssY;
                 float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + R(-15f, 15f);
                 PlaceSized(CliffFbx, mats["BS_Cliff"], p, yaw, new Vector3(R(7f, 10f), -AbyssY + R(0.3f, 0.8f), depth), cliffs, R(-4f, 4f)); n++;
-                // gravel and stones heaped where the dirt meets the rock (hides the seam)
-                for (int k = 0; k < 3; k++)
-                {
-                    var q = dir * (er - 3.0f - R(0.2f, 1.6f)) + new Vector3(dir.z, 0, -dir.x) * R(-4f, 4f) + Vector3.down * 0.02f;
-                    var tq = Place(RocksFbx, mats["BS_Rocks"], q, R(0, 360), R(0.25f, 0.5f), cliffs);
-                    if (tq) { float sc = R(3f, 5f); tq.localScale = new Vector3(tq.localScale.x * sc, tq.localScale.y, tq.localScale.z * sc); }
-                }
             }
             for (int i = 0; i < 6; i++)
             {
@@ -584,7 +578,7 @@ namespace BossSeal
             var abyss = GameObject.CreatePrimitive(PrimitiveType.Plane);
             abyss.name = "Abyss"; abyss.transform.SetParent(g, false);
             Object.DestroyImmediate(abyss.GetComponent<Collider>());
-            abyss.transform.position = new Vector3(0, AbyssY + 0.5f, HZ + 40f); abyss.transform.localScale = new Vector3(30f, 1f, 12f);
+            abyss.transform.position = new Vector3(0, AbyssY + 0.5f, 0); abyss.transform.localScale = new Vector3(36f, 1f, 36f);   // all round the round mesa
             var ar = abyss.GetComponent<MeshRenderer>(); ar.sharedMaterial = mats["BS_Abyss"]; ar.shadowCastingMode = ShadowCastingMode.Off;
             AddLight("AbyssGlow_NW", new Vector3(-22f, -10f, HZ + 12f), Hex("#ff5a1e"), 6f, 30f);
             AddLight("AbyssGlow_NE", new Vector3(24f, -10f, HZ + 12f), Hex("#ff5a1e"), 6f, 30f);
@@ -611,15 +605,23 @@ namespace BossSeal
             for (int i = 0; i < 4; i++)
                 Embers(fx, new Vector3(-36f + i * 24f + R(-4f, 4f), -14f, HZ + 12f + R(0f, 6f)));
 
-            // ---- four thin, low pillars on the north rim only
-            float[] rimAng = { -48f, -17f, 14f, 44f };
-            foreach (var deg in rimAng)
+            // ---- 11-16: a low stone curb ring round the arena (Megascans castle-wall blocks laid low, end to end) and eight
+            // stone pillars standing on it every 45 deg (ref: the arena edge marked by columns), tops fading into the dark
+            var curb = Group("CurbRing", g);
+            const int nb = 40;
+            for (int i = 0; i < nb; i++)
             {
-                float a = (deg + R(-4f, 4f)) * Mathf.Deg2Rad;
+                float a = (i + 0.5f) * Mathf.PI * 2f / nb;
                 var dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
-                var p = OutsideArena(dir * (EdgeR(a) - 3.8f) + Vector3.down * 0.3f, 0.6f);   // on the dirt just inside the rock lip
-                var t = Place(PillarFbx, mats["BS_Pillar"], p, R(0, 360), R(3f, 5f), g, R(-3f, 3f));
-                if (t) { t.localScale = new Vector3(t.localScale.x * 0.6f, t.localScale.y, t.localScale.z * 0.6f); n++; }
+                float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + R(-1.5f, 1.5f);   // the block's long (x) side along the ring
+                PlaceSized(WallFbx, mats["BS_Curb"], dir * ArenaR + Vector3.down * 0.25f, yaw, new Vector3(2f * Mathf.PI * ArenaR / nb + 0.25f, 0.6f, 1.4f), curb, R(-1f, 1f)); n++;
+            }
+            for (int i = 0; i < 8; i++)
+            {
+                float a = (i * 45f + 22.5f) * Mathf.Deg2Rad;
+                var dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                var t = Place(PillarFbx, mats["BS_Pillar"], dir * (ArenaR + 0.2f) + Vector3.down * 0.2f, R(0, 360), R(7.5f, 9f), g);
+                if (t) { t.localScale = new Vector3(t.localScale.x * 0.8f, t.localScale.y, t.localScale.z * 0.8f); n++; }
             }
 
             // (11-15: no loose rocks round the dais any more; Kido: "돌을 치우라고" - the carved seal plate fills that ground)
@@ -708,10 +710,15 @@ namespace BossSeal
         {
             var walls = Group("ArenaWalls");
             void Box(Vector3 c, Vector3 s) { var w = new GameObject("Wall"); w.transform.SetParent(walls, false); w.transform.position = c; w.AddComponent<BoxCollider>().size = s; }
-            Box(new Vector3(-HX - 0.5f, 2, 0), new Vector3(1, 6, 2 * HZ + 2));
-            Box(new Vector3(HX + 0.5f, 2, 0), new Vector3(1, 6, 2 * HZ + 2));
-            Box(new Vector3(0, 2, -HZ - 0.5f), new Vector3(2 * HX + 2, 6, 1));
-            Box(new Vector3(0, 2, HZ + 0.5f), new Vector3(2 * HX + 2, 6, 1));
+            // 11-16: round arena: 48 wall boxes on a circle just inside the curb
+            for (int i = 0; i < 48; i++)
+            {
+                float a = i * Mathf.PI * 2f / 48;
+                var w = new GameObject("Wall"); w.transform.SetParent(walls, false);
+                w.transform.position = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * (ArenaR - 1.1f) + Vector3.up * 2f;
+                w.transform.rotation = Quaternion.Euler(0, a * Mathf.Rad2Deg, 0);
+                w.AddComponent<BoxCollider>().size = new Vector3(2f * Mathf.PI * (ArenaR - 1.1f) / 48 + 0.6f, 6f, 1f);
+            }
         }
 
         static int CheckArena()

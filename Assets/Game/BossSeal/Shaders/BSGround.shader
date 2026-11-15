@@ -194,15 +194,18 @@ Shader "BossSeal/Ground"
                     float eL = 0.0016;
                     float lhx = SM(_Lotus, uvL + float2(eL, 0), gLx * 2, gLy * 2).r - SM(_Lotus, uvL - float2(eL, 0), gLx * 2, gLy * 2).r;
                     float lhy = SM(_Lotus, uvL + float2(0, eL), gLx * 2, gLy * 2).r - SM(_Lotus, uvL - float2(0, eL), gLx * 2, gLy * 2).r;
-                    float edgeN = (FBM(w * 0.22 + 3.3) - 0.5) * _Plate.y * 1.4;
-                    float wP = (1 - smoothstep(_Plate.x - _Plate.y, _Plate.x, r + edgeN)) * smoothstep(_R2.z - 0.2, _R2.z + 0.2, r);
-                    wP *= 1 - 0.55 * smoothstep(0.55, 0.8, FBM(w * 0.35 + 8.1)) * smoothstep(_Plate.x * 0.45, _Plate.x, r);   // dirt drifted over it outward
+                    // 11-16 (Kido: "패턴이랑 바닥색이 너무 달라 ... 그라데이션처럼"): same orange-brown as the dirt, a touch darker,
+                    // a wide soft fade (no blotchy edge); the motif reads from the carved shading and a faint groove glow only
+                    float edgeN = (FBM(w * 0.12 + 3.3) - 0.5) * 1.5;
+                    float wP = (1 - smoothstep(_Plate.x - _Plate.y * 2.2, _Plate.x, r + edgeN)) * smoothstep(_R2.z - 0.2, _R2.z + 0.2, r);
+                    wP *= 1 - 0.25 * smoothstep(0.6, 0.85, FBM(w * 0.2 + 8.1));   // a little dirt drifted over it
                     float2 uvP = w / 3.6;
-                    float3 plate = SG(_Stone, uvP, ddx(uvP), ddy(uvP)).rgb;
-                    plate = lerp(plate, Luma(plate).xxx, 0.45) * _StoneTint.rgb * 0.6;
-                    plate *= saturate(0.8 + lh * 1.1);
+                    float3 plateStone = SG(_Stone, uvP, ddx(uvP), ddy(uvP)).rgb;
+                    float3 plate = alb * (0.78 + 0.25 * (Luma(plateStone) - 0.2));   // the dirt colour, slightly darker, stone grain
+
+                    plate *= saturate(0.86 + lh * 0.9);
                     float groove = smoothstep(0.12, 0.28, -lh);
-                    plate = lerp(plate, plate * 0.5, groove);
+                    plate = lerp(plate, plate * 0.62, groove);
                     float3 plateN = normalize(TS(SG(_StoneN, uvP, ddx(uvP), ddy(uvP))) + float3(-lhx, -lhy, 0) * _Plate.z * 6);
                     alb = lerp(alb, plate, wP);
                     nts = normalize(lerp(nts, plateN, wP));
