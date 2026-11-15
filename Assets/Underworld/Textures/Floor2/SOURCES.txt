@@ -1,0 +1,8 @@
+Underworld floor rebuild (2026-11-15). Packed: *_AH = BaseColor RGB + Displacement A, *_NRA = Normal GL RG + Roughness B + AO A.
+Source: Fab / Quixel Megascans free listings (Fab Standard License), 2K sets, downloaded 2026-11-15.
+  Basalt = Hawaiian Lava Stone (4 m)     https://www.fab.com/listings/a3c6ff99-d81e-446c-bbfc-4b44b74bec4f   (kept 2K)
+  Sand   = Icelandic Lava Sand (2 m)     https://www.fab.com/listings/0acd97c5-5c73-4b25-be08-8a466abc21b6   (1K)
+  Ripple = Lava Stone Ripple (2 m)       https://www.fab.com/listings/36e7d299-d5d7-461d-96be-eb9a9a43c57e   (1K)
+  Ash    = Powdered Ash (0.36 m)         https://www.fab.com/listings/2d705483-52d7-4510-a181-18a0d6865ee9   (1K)
+Originals on the home PC: C:\Users\imsoh\Downloads\free-assets\underworld-floor2\
+Used by Shaders/UWFloorScan.shader via Materials/UW_Floor.mat. No hand-drawn or coded cracks/veins.
