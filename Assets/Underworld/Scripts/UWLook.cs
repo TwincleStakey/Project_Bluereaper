@@ -154,14 +154,27 @@ namespace Underworld
         // and creeping back (DarkCrypt.DCMist, shared). UW_CorruptMist draws it on the scene floor only (depth band), so it
         // never covers the lava sea, the rim props or the lava rivers. One mask RT pair, no lights, no colliders.
         public bool corruptMist = true;
+        Material filmBrush;
         void CorruptMist()
         {
             if (!corruptMist) return;
-            var ov = Resources.Load<Material>("UW_CorruptMist");
-            var br = Resources.Load<Material>("UW_CorruptMistBrush");
-            if (!ov || !br) { Debug.LogWarning("UWLook: corruption mist materials missing"); return; }
+            // 11-15 (Kido: "the original, not a new one"): the ORIGINAL DarkCrypt v2 film (UWCorruptFilm + Underworld/CorruptFilm,
+            // verbatim copies recovered from the 11-14 session log), placed on the floor only
+            var ov = Resources.Load<Material>("UW_CorruptFilm");
+            var brAsset = Resources.Load<Material>("UW_CorruptFilmBrush");
+            if (!ov || !brAsset) { Debug.LogWarning("UWLook: corruption film materials missing"); return; }
             var r = plazaRect; r.xMin -= 2f; r.yMin -= 2f; r.xMax += 2f; r.yMax += 2f;   // the shader's border fade starts 2 m inside
-            DarkCrypt.DCMist.Spawn(transform, r, 0.035f, ov, br);
+            var g = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            g.name = "CorruptionFilm";
+            Destroy(g.GetComponent<Collider>());
+            g.transform.SetParent(transform, false);
+            g.transform.SetPositionAndRotation(new Vector3(r.center.x, 0.035f, r.center.y), Quaternion.Euler(90, 0, 0));
+            g.transform.localScale = new Vector3(r.width, r.height, 1f);
+            var mr = g.GetComponent<MeshRenderer>(); mr.sharedMaterial = ov;
+            mr.shadowCastingMode = ShadowCastingMode.Off; mr.receiveShadows = false;
+            var film = g.AddComponent<UWCorruptFilm>();
+            film.rect = new Vector4(r.xMin, r.yMin, r.width, r.height);
+            film.brush = filmBrush = new Material(brAsset);   // own instance (Update writes into it)
         }
 
         void OnDestroy()
@@ -170,6 +183,7 @@ namespace Underworld
             Shader.SetGlobalFloat("_DK_SmokeScale", 0f);
             RenderPipelineManager.beginCameraRendering -= Inject;
             if (fogMat) Destroy(fogMat);
+            if (filmBrush) Destroy(filmBrush);
         }
 
         // ------------------------------------------------------------------ stage mood scripts, moon, ambient
