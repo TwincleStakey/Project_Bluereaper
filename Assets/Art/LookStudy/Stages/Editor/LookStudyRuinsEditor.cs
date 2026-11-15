@@ -80,15 +80,15 @@ public static class LookStudyRuinsEditor
         jm.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(Models + "Jangseung_diff.png")); jm.SetFloat("_Remap", 0f); jm.SetFloat("_MossAmt", 0f); jm.SetFloat("_Wet", 0f); jm.SetFloat("_BurnOn", 1f);
         jm.SetTexture("_MossTex", T("mossy_rock_diff.jpg"));
 
-        var ground = Mat(kind == LookStudyRuins.Kind.Palace ? "R_GroundPalace" : "R_GroundVillage", "LookStudy/StageTerrain");
+        // 11-15: the palace floor has its own scan-blend material (LSPalaceScanGround, D4 GDC ground rules); a stage
+        // rebuild only re-points the shader and keeps the tuned values in R_GroundPalace.mat.
+        var ground = kind == LookStudyRuins.Kind.Palace ? Mat("R_GroundPalace", "LookStudy/PalaceScanGround") : Mat("R_GroundVillage", "LookStudy/StageTerrain");
         if (kind == LookStudyRuins.Kind.Palace)
         {
-            ground.SetTexture("_PebbleTex", T("rock_wall_05_diff.jpg")); ground.SetTexture("_PebbleNor", T("rock_wall_05_nor_gl.jpg"));
-            ground.SetTexture("_GravelTex", T("brown_mud_leaves_01_diff.jpg")); ground.SetTexture("_GravelNor", T("brown_mud_leaves_01_nor_gl.jpg"));
-            ground.SetTexture("_RockTex", T("rock_wall_05_diff.jpg")); ground.SetTexture("_RockNor", T("rock_wall_05_nor_gl.jpg"));
-            ground.SetTexture("_ForestTex", T("burned_ground_01_diff.jpg")); ground.SetTexture("_ForestNor", T("burned_ground_01_nor_gl.jpg"));
-            ground.SetColor("_RockTint", Hex("#a3a097")); ground.SetColor("_PebbleTint", Hex("#a39e94")); ground.SetColor("_ForestTint", Hex("#a09690"));
-            ground.SetFloat("_RockScale", 0.085f);
+            ground.SetTexture("_StoneTex", T("monastery_stone_floor_diff.jpg")); ground.SetTexture("_StoneNor", T("monastery_stone_floor_nor_gl.jpg"));
+            ground.SetTexture("_StoneHgt", T("monastery_stone_floor_disp.jpg"));
+            ground.SetTexture("_DirtTex", T("brown_mud_leaves_01_diff.jpg")); ground.SetTexture("_DirtNor", T("brown_mud_leaves_01_nor_gl.jpg"));
+            ground.SetTexture("_AshTex", T("burned_ground_01_diff.jpg")); ground.SetTexture("_AshNor", T("burned_ground_01_nor_gl.jpg"));
         }
         else
         {
