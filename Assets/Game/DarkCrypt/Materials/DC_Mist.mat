@@ -28,16 +28,17 @@ Material:
     - _Alpha: 0.84
     - _BorderFade: 3
     - _Drift: 0.5
-    - _EdgeScale: 0.22
-    - _Feather: 0.45
-    - _MaxDensity: 0.72
-    - _MinDensity: 0.3
-    - _Scale: 0.07
+    - _EdgeScale: 0.16
+    - _Feather: 0.85
+    - _MaxDensity: 0.9
+    - _MinDensity: 0.4
+    - _Scale: 0.08
     m_Colors:
-    - _ClearLift: {r: 0.04, g: 0.037, b: 0.048, a: 1}
-    - _Deep: {r: 0.05, g: 0.014, b: 0.1, a: 1}
-    - _Glow: {r: 0.1, g: 0.03, b: 0.17, a: 1}
-    - _Mid: {r: 0.13, g: 0.035, b: 0.24, a: 1}
-    - _Rim: {r: 0.04, g: 0.015, b: 0.07, a: 1}
+    - _ClearLift: {r: 0.004, g: 0.0035, b: 0.005, a: 1}
+    - _Deep: {r: 0.1, g: 0.026, b: 0.19, a: 1}
+    - _Glow: {r: 0.13, g: 0.035, b: 0.22, a: 1}
+    - _Mid: {r: 0.19, g: 0.05, b: 0.34, a: 1}
+    - _NoiseOffset: {r: -22, g: -3, b: 0, a: 0}
+    - _Rim: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

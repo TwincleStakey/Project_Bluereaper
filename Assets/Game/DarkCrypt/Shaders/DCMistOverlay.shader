@@ -19,6 +19,7 @@ Shader "DarkCrypt/MistOverlay"
         _Feather ("Clear edge feather (mask units)", Float) = 0.28
         _ClearLift ("Cleared floor lift (linear)", Color) = (0.022, 0.02, 0.028, 1)
         _BorderFade ("Border fade (m)", Float) = 3
+        _NoiseOffset ("Density noise offset (m, xz)", Vector) = (0, 0, 0, 0)
     }
     SubShader
     {
@@ -37,7 +38,7 @@ Shader "DarkCrypt/MistOverlay"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             CBUFFER_START(UnityPerMaterial)
-            float4 _Deep, _Mid, _Glow, _Rim, _ClearLift;
+            float4 _Deep, _Mid, _Glow, _Rim, _ClearLift, _NoiseOffset;
             float _MinDensity, _MaxDensity, _Scale, _Drift, _EdgeScale, _Feather, _BorderFade;
             CBUFFER_END
             TEXTURE2D(_DC_MistMask); SAMPLER(sampler_DC_MistMask);
@@ -69,15 +70,19 @@ Shader "DarkCrypt/MistOverlay"
                 float2 w = i.w.xz;
                 float t = _Time.y * _Drift;
                 // large banks: domain-warped, drifting very slowly
-                float2 q = w * _Scale;
+                float2 q = (w + _NoiseOffset.xy) * _Scale;
                 float warp = fbm(q * 0.8 + float2(t * 0.02, -t * 0.015));
                 float banks = fbm(q + float2(t * 0.025, t * 0.01) + warp * 0.9);
                 // a finer wisp layer moving the other way, small amplitude (keeps it alive, never noisy)
                 float wisps = fbm(q * 3.1 - float2(t * 0.04, t * 0.03) + 13.0);
-                float d = saturate(smoothstep(0.3, 0.7, banks) * 0.9 + (wisps - 0.5) * 0.3 + 0.08);
-                float density = lerp(_MinDensity, _MaxDensity, d);
+                // v4: more contrast between thin (~25 %) and dense (~85 %) clumps
+                float d = saturate(smoothstep(0.28, 0.66, banks) + (wisps - 0.5) * 0.3);
+                // inside the clumps: drifting swirls (alpha and colour), so a dense bank is never a flat painted sheet
+                float sw = fbm(q * 5.3 + warp * 2.0 + float2(-t * 0.06, t * 0.05) + 3.0);
+                float density = lerp(_MinDensity, _MaxDensity, d) * (0.84 + 0.32 * sw * d);
+                density = min(density, 0.92);
 
-                float3 col = lerp(_Deep.rgb, _Mid.rgb, d) + _Glow.rgb * smoothstep(0.65, 1.0, d) * 0.5;
+                float3 col = lerp(_Deep.rgb, _Mid.rgb, d) * (0.75 + 0.5 * sw) + _Glow.rgb * smoothstep(0.55, 0.85, sw) * d * 0.8;
 
                 // cleared by the player (mask): wide feathered blotchy edge
                 float2 muv = (w - _DC_MistRect.xy) / max(_DC_MistRect.zw, 1e-3);
