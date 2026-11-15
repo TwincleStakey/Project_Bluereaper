@@ -83,7 +83,7 @@ namespace BossSeal
 
         static void BuildInner()
         {
-            rng = new System.Random(7721); pSmoke = null; pEmber = null;
+            rng = new System.Random(7721); pSmoke = null; pEmber = null; pGlowSmoke = null;
             mats.Clear(); lightCount = 0;
             Directory.CreateDirectory(MatDir); Directory.CreateDirectory(Gen);
             AssetDatabase.Refresh();
@@ -459,31 +459,38 @@ namespace BossSeal
             return t;
         }
 
-        static Material pSmoke, pEmber;
+        static Material pSmoke, pEmber, pGlowSmoke;
         static void FxMats()
         {
             if (pSmoke) return;
             var sh = Shader.Find("Underworld/Particle");
             var smokeTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/RoomRun/Resources/VFX/smoke_04.png");
             var sparkTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/RoomRun/Resources/VFX/spark_01.png");
-            pSmoke = new Material(sh) { name = "BS_AbyssSmoke" }; pSmoke.SetTexture("_MainTex", smokeTex); pSmoke.SetColor("_Tint", Color.white);
-            pSmoke.SetFloat("_AlphaFromRed", 1f); pSmoke.SetFloat("_Src", (float)BlendMode.SrcAlpha); pSmoke.SetFloat("_Dst", (float)BlendMode.OneMinusSrcAlpha); pSmoke.SetFloat("_SoftFade", 4f);
+            // 11-15: Kenney CC0 Smoke Particles (16 black smoke / white puff sprites packed 4x4 by hand into atlases)
+            var blackAtlas = Tex(Src + "Kenney_Smoke/BS_SmokeBlack_4x4.png", max: 2048);
+            var whiteAtlas = Tex(Src + "Kenney_Smoke/BS_SmokeWhite_4x4.png", max: 2048);
+            pSmoke = new Material(sh) { name = "BS_AbyssSmoke" }; pSmoke.SetTexture("_MainTex", blackAtlas ? blackAtlas : smokeTex); pSmoke.SetColor("_Tint", Color.white);
+            pSmoke.SetFloat("_AlphaFromRed", blackAtlas ? 0f : 1f); pSmoke.SetFloat("_Src", (float)BlendMode.SrcAlpha); pSmoke.SetFloat("_Dst", (float)BlendMode.OneMinusSrcAlpha); pSmoke.SetFloat("_SoftFade", 4f);
             pEmber = new Material(sh) { name = "BS_AbyssEmber" }; pEmber.SetTexture("_MainTex", sparkTex); pEmber.SetColor("_Tint", new Color(3f, 0.9f, 0.25f, 1f));
             pEmber.SetFloat("_Src", (float)BlendMode.One); pEmber.SetFloat("_Dst", (float)BlendMode.One); pEmber.SetFloat("_SoftFade", 0.5f);
-            foreach (var m in new[] { pSmoke, pEmber })
+            pGlowSmoke = new Material(sh) { name = "BS_AbyssGlowSmoke" }; pGlowSmoke.SetTexture("_MainTex", whiteAtlas ? whiteAtlas : smokeTex); pGlowSmoke.SetColor("_Tint", Color.white);
+            pGlowSmoke.SetFloat("_AlphaFromRed", whiteAtlas ? 0f : 1f); pGlowSmoke.SetFloat("_Src", (float)BlendMode.SrcAlpha); pGlowSmoke.SetFloat("_Dst", (float)BlendMode.OneMinusSrcAlpha); pGlowSmoke.SetFloat("_SoftFade", 4f);
+            foreach (var m in new[] { pSmoke, pEmber, pGlowSmoke })
             {
                 var path = $"{MatDir}/{m.name}.mat"; AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(m, path);
             }
         }
         // slow rolling smoke column (alpha blended Kenney CC0 puff), prewarmed
-        static void Smoke(Transform parent, Vector3 pos, float radius, float size, float rise, Color tint)
+        static void Smoke(Transform parent, Vector3 pos, float radius, float size, float rise, Color tint, bool glow = false)
         {
             FxMats();
             var go = new GameObject("AbyssSmoke"); go.transform.SetParent(parent, false); go.transform.position = pos;
             var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = pSmoke; r.shadowCastingMode = ShadowCastingMode.Off; r.maxParticleSize = 3f;
+            var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = glow ? pGlowSmoke : pSmoke; r.shadowCastingMode = ShadowCastingMode.Off; r.maxParticleSize = 3f;
+            var ts = ps.textureSheetAnimation; ts.enabled = true; ts.mode = ParticleSystemAnimationMode.Grid; ts.numTilesX = 4; ts.numTilesY = 4;
+            ts.animation = ParticleSystemAnimationType.WholeSheet; ts.frameOverTime = new ParticleSystem.MinMaxCurve(0f); ts.startFrame = new ParticleSystem.MinMaxCurve(0f, 15.99f); ts.cycleCount = 1;
             var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true; mm.playOnAwake = true;
-            mm.startLifetime = new ParticleSystem.MinMaxCurve(12f, 18f); mm.startSpeed = 0f; mm.maxParticles = 32;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(12f, 18f); mm.startSpeed = 0f; mm.maxParticles = 22;
             mm.startSize = new ParticleSystem.MinMaxCurve(size * 0.7f, size * 1.3f); mm.startRotation = new ParticleSystem.MinMaxCurve(0f, 6.28f);
             mm.startColor = tint;
             var em = ps.emission; em.rateOverTime = 1.8f;
@@ -591,7 +598,8 @@ namespace BossSeal
                 float er = EdgeR(a);
                 int layer = i % 3;
                 var pos = new Vector3(x, AbyssY + 8f + layer * 9f, Mathf.Cos(a) * er + 4f + layer * 7f);
-                Smoke(fx, pos, 9f + layer * 3f, R(16f, 26f), 1.6f + layer * 0.4f, new Color(0.55f, 0.3f, 0.2f, 0.5f - layer * 0.1f));
+                Smoke(fx, pos, 9f + layer * 3f, R(16f, 26f), 1.6f + layer * 0.4f, new Color(0.5f, 0.3f, 0.22f, 0.55f - layer * 0.1f));
+                if (layer < 2) Smoke(fx, pos + Vector3.down * 9f, 10f, R(14f, 20f), 1.2f, new Color(1f, 0.45f, 0.2f, 0.55f), glow: true);   // lava-lit underside
             }
             for (int i = 0; i < 8; i++)
             {

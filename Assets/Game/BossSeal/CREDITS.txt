@@ -28,3 +28,7 @@ Seal plate relief (11-15)
   https://commons.wikimedia.org/wiki/File:Roof-end_Tiles_with_Lotus_Design_(1).jpg
   License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
   Used as: BS_LotusRelief.png (high-passed relief of the tile, the wide carved plate under the blades); original in Source/Motifs/Originals
+
+Kenney (www.kenney.nl), CC0 1.0 (11-16)
+- "Smoke Particles" pack: 16 black smoke + 16 white puff sprites packed into Source/Kenney_Smoke/BS_Smoke*_4x4.png
+  (abyss smoke columns and their lava-lit undersides); License.txt kept beside them

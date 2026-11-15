@@ -1,7 +1,6 @@
-p_game_z1.6 0 -6 1.6
-p_game_n_z1.6 0 14 1.6
-p_full_z3.6 0 4 3.6
-p_edge_close 0 24 0.7
-p_abyss 0 33 1.3
-p_dais_close 0 -2 0.6
-p_plate_close 9 -8 0.7
+s_game_z1.6 0 -6 1.6
+s_game_n_z1.6 0 14 1.6
+s_abyss 0 33 1.3
+s_abyss_ne 18 30 1.3 25
+s_plate_close 9 -8 0.7
+s_full_z3.6 0 4 3.6

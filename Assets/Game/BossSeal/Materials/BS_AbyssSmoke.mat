@@ -24,12 +24,12 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 09564fd292a55b04ba7d889456843c46, type: 3}
+        m_Texture: {fileID: 2800000, guid: 7138dca1903e4a647af42bd39d95858d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AlphaFromRed: 1
+    - _AlphaFromRed: 0
     - _Dst: 10
     - _SoftFade: 4
     - _Src: 5
