@@ -9,3 +9,10 @@ Used by Shaders/UWFloorScan.shader via Materials/UW_Floor.mat. No hand-drawn or 
 Lava sea (Assets/Underworld/Textures/Lava, Shaders/UWLavaScan.shader, Resources/UW_LavaSea.mat):
   "Lava Texture & Material Vol. 04" by ehsan vaezi, Fab, CC BY 4.0  https://www.fab.com/listings/d5f9c52b-ce79-4654-b155-605bcada41da
   basecolor+height / normal+roughness / emissive packed to 2K from the Unity package's 4K TGAs.
+
+== Lava sea rocks (2026-11-15) ==
+Fab / Quixel Megascans (free, Fab Standard License), meshes in Assets/Underworld/Resources/LavaRocks:
+- Tundra Icelandic Rock Cluster Volcanic Large 03 (yh4kdib), 06 (yibkdhu), 08 (yh4saj3) - low LOD
+- Tundra Icelandic Rock Ledge Volcanic Large 11 (yicqdew) - low LOD
+- Weathered Icelandic Lava Spire (sinxD) - mid
+Originals: C:\Users\imsoh\Downloads\free-assets\underworld-lava-rocks
