@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: R_GroundPalace
-  m_Shader: {fileID: 4800000, guid: 5c1a7e2f9b3d4e6a8f0b2c4d6e8fa1b3, type: 3}
+  m_Shader: {fileID: 4800000, guid: 28220755ab987394791ab814e79ba442, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -19,59 +19,48 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties:
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
-    - _StoneTex:
-        m_Texture: {fileID: 2800000, guid: 966ff2b7b5454ebeb60e5d1216d15a2d, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _StoneNor:
-        m_Texture: {fileID: 2800000, guid: b2e35d85cebb47a3b5836e96123fba21, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _StoneHgt:
-        m_Texture: {fileID: 2800000, guid: 2fec4e329dae4fc581ea6267a0e994b9, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _DirtTex:
-        m_Texture: {fileID: 2800000, guid: a45ed54ec8b6af543bc3d80c6611848a, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _DirtNor:
-        m_Texture: {fileID: 2800000, guid: 36ff2f878e9013f4593d9281ffb2cf94, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _AshTex:
-        m_Texture: {fileID: 2800000, guid: 83823439d0472c544ad1185d2f220725, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _AshNor:
+    - _ForestNor:
         m_Texture: {fileID: 2800000, guid: 6a1662f676a9279419627eb07b7c7fe6, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _GravelTex:
-        m_Texture: {fileID: 2800000, guid: 944f7178c04bd854d9585d23214ed5b3, type: 3}
+    - _ForestTex:
+        m_Texture: {fileID: 2800000, guid: 83823439d0472c544ad1185d2f220725, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _GravelNor:
-        m_Texture: {fileID: 2800000, guid: 90769bf2cf50edf4b968c9e8a03a9c70, type: 3}
+        m_Texture: {fileID: 2800000, guid: 36ff2f878e9013f4593d9281ffb2cf94, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GravelTex:
+        m_Texture: {fileID: 2800000, guid: a45ed54ec8b6af543bc3d80c6611848a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PebbleNor:
+        m_Texture: {fileID: 2800000, guid: 8396b8b7b7a4738429c7e1f5c8f54f4d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PebbleTex:
+        m_Texture: {fileID: 2800000, guid: 730f824116734c24c9127200940ddb4e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RockNor:
+        m_Texture: {fileID: 2800000, guid: 8396b8b7b7a4738429c7e1f5c8f54f4d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RockTex:
+        m_Texture: {fileID: 2800000, guid: 730f824116734c24c9127200940ddb4e, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _StoneTile: 7
-    - _SoilTile: 6
-    - _StoneSat: 0.35
-    - _NormalK: 0.35
-    - _JointDirt: 0.75
-    - _DirtPatch: 0.3
-    - _Wash: 0.16
-    - _DryGloss: 0.3
+    - _RockScale: 0.085
     m_Colors:
-    - _StoneTint: {r: 0.66, g: 0.62, b: 0.57, a: 1}
-    - _DirtTint: {r: 0.55, g: 0.5, b: 0.45, a: 1}
-    - _AshTint: {r: 0.34, g: 0.32, b: 0.3, a: 1}
+    - _ForestTint: {r: 0.627451, g: 0.5882353, b: 0.5647059, a: 1}
+    - _PebbleTint: {r: 0.6392157, g: 0.61960787, b: 0.5803922, a: 1}
+    - _RockTint: {r: 0.6392157, g: 0.627451, b: 0.5921569, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
