@@ -22,3 +22,9 @@ Poly Haven, CC0 1.0 (https://polyhaven.com)
 
 Quixel Megascans via Fab (Fab Standard License) - reused from Assets/Game/DarkCrypt/Source
 - stone_pillar_selvF, castle_wall_sbxuw (edge colonnade)
+
+Seal plate relief (11-15)
+- "Roof-end Tiles with Lotus Design (1)" (연꽃무늬 수막새, Goryeo, National Museum of Korea) by 고려, Wikimedia Commons
+  https://commons.wikimedia.org/wiki/File:Roof-end_Tiles_with_Lotus_Design_(1).jpg
+  License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Used as: BS_LotusRelief.png (high-passed relief of the tile, the wide carved plate under the blades); original in Source/Motifs/Originals

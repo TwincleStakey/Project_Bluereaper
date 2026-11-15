@@ -164,6 +164,7 @@ namespace BossSeal
                 m.SetTexture("_Bujeok", Mask("BS_Bujeok_Gilsang.png", 1024));
                 m.SetTexture("_Hawk", Mask("BS_Samdumae.png", 1024));
                 m.SetTexture("_Text", Mask("BS_Woodblock_Text.png", 1024));
+                m.SetTexture("_Lotus", Mask("BS_LotusRelief.png", 2048));
                 m.SetVector("_R1", new Vector4(Rad[0], Rad[1], Rad[2], Rad[3]));
                 m.SetVector("_R2", new Vector4(Rad[4], Rad[5], Rad[6], 3.87f));
                 m.SetVector("_Tiles", new Vector4(8, 20, 1.05f, 0.62f));
@@ -171,10 +172,10 @@ namespace BossSeal
             Mat("BS_Blade", "Universal Render Pipeline/Lit", m =>
             {
                 const string d = Src + "PH_antique_estoc/textures/";
-                m.SetTexture("_BaseMap", Tex(d + "antique_estoc_diff_2k.jpg")); m.SetColor("_BaseColor", Hex("#4a3c36"));   // dark iron
+                m.SetTexture("_BaseMap", Tex(d + "antique_estoc_diff_2k.jpg")); m.SetColor("_BaseColor", Hex("#3a302c"));   // dark iron, matte
                 var n = Tex(d + "antique_estoc_nor_gl_2k.exr", normal: true);
                 m.SetTexture("_BumpMap", n); m.SetFloat("_BumpScale", 1f); if (n) m.EnableKeyword("_NORMALMAP");
-                m.SetFloat("_Metallic", 0.8f); m.SetFloat("_Smoothness", 0.38f);   // edges catch the light
+                m.SetFloat("_Metallic", 0.7f); m.SetFloat("_Smoothness", 0.28f);   // matte; the bevelled edges still catch a thin highlight
                 m.enableInstancing = true;
             });
             Mat("BS_Cliff", "Universal Render Pipeline/Lit", m =>
@@ -319,13 +320,15 @@ namespace BossSeal
             bool tipAtMax = spreadHi < spreadLo;
             int gb = 0; for (int k = 1; k < 40; k++) if (bins[k] > bins[gb]) gb = k;   // the cross guard = widest slice
             float gt = (gb + 0.5f) / 40f;
+            var bs = string.Join(" ", bins.Select(x => x.ToString("0.00")));
+            Log($"measure {prefab.name}: axis {axis} wide {wide} len {len:0.000} spreadLo {spreadLo:0.000} spreadHi {spreadHi:0.000} guard slice {gb} bins {bs}");
             return new Shape { axis = axis, wide = wide, center = b.center, length = len, width = best, minAlong = lo, tipAtMax = tipAtMax, guardFromHilt = tipAtMax ? gt : 1 - gt };
         }
 
         // The estoc's blade only: the downloaded mesh cut just past its guard (the swept hilt stood ~0.5 m proud of the rim
         // once scaled). Vertices go to the model's root space, re-oriented so +Z runs from the blade root to the tip, +X across
         // the flat, origin at the blade root on the centre line.
-        static Mesh BladeMesh(GameObject prefab, Shape s, out float bladeLen)
+        static Mesh BladeMesh(GameObject prefab, Shape s, out float bladeLen, string asset = "BS_EstocBlade")
         {
             var tmp = Object.Instantiate(prefab); tmp.transform.position = Vector3.zero;
             var fwd = s.tipAtMax ? s.axis : -s.axis;
@@ -372,12 +375,12 @@ namespace BossSeal
             xMid = (xLo + xHi) * 0.5f;
             for (int k = 0; k < v.Count; k++) v[k] = new Vector3(v[k].x - xMid, v[k].y - yMin, v[k].z - zMin);
             bladeLen = zMax - zMin;
-            var mesh = new Mesh { name = "BS_EstocBlade", indexFormat = IndexFormat.UInt32 };
+            var mesh = new Mesh { name = asset, indexFormat = IndexFormat.UInt32 };
             mesh.SetVertices(v); mesh.SetNormals(nrm); mesh.SetUVs(0, uv); mesh.SetTangents(tan); mesh.SetTriangles(tri, 0);
             mesh.RecalculateBounds();
-            var path = Gen + "/BS_EstocBlade.asset";
+            var path = Gen + "/" + asset + ".asset";
             AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(mesh, path);
-            Log($"blade mesh: {tri.Count / 3} tris, length {bladeLen:0.000} (model units), width {mesh.bounds.size.x:0.000}, thick {mesh.bounds.size.y:0.000}");
+            Log($"blade mesh {asset}: {tri.Count / 3} tris, length {bladeLen:0.000} (model units), width {mesh.bounds.size.x:0.000}, thick {mesh.bounds.size.y:0.000}");
             return mesh;
         }
 
@@ -389,32 +392,28 @@ namespace BossSeal
             var sE = Measure(est);
             var blade = BladeMesh(est, sE, out float bladeLen);
             var mat = mats["BS_Blade"];
-            // 11-15 redo (Kido, ref: dark thick metal wings in bundles, not even bright sticks): six bundles fanning out from
-            // under the dais foot, 3-5 overlapping blades each, longest in the middle; laid flat in layers (each blade a little
-            // above the one under it, outer ones lowest), tips ending 8+ m inside the mesa rim
-            int bundles = 6, made = 0;
-            for (int bI = 0; bI < bundles; bI++)
+            float BladeW = Mathf.Max(0.001f, blade.bounds.size.x), BladeT = Mathf.Max(0.001f, blade.bounds.size.y);
+            // 11-15 redo 3 (Kido: the stacked ornate swords were mad; ref = a clean sunburst): plain flat dark iron blades
+            // (the estoc blade only, flattened) radiating from under the dais foot, long and short alternating, none
+            // overlapping, lying flat on the dirt; long ones 2-2.5x the dais radius, short ones ~1.2x
+            int bundles = 1, made = 0;
+            const int rays = 20;
+            for (int i = 0; i < rays; i++)
             {
-                float baseAng = 30f + bI * 360f / bundles + R(-9f, 9f);
-                int cnt = 3 + rng.Next(3);
-                for (int k = 0; k < cnt; k++)
-                {
-                    float c = cnt == 1 ? 0 : (k / (float)(cnt - 1)) * 2f - 1f;          // -1 .. 1 across the fan
-                    float ang = baseAng + c * R(9f, 13f) + R(-1.5f, 1.5f);
-                    float len = Mathf.Lerp(R(11f, 14.5f), R(5.5f, 8f), Mathf.Abs(c));
-                    float s = len / bladeLen;
-                    float layer = (1 - Mathf.Abs(c)) * 0.2f;
-                    float rootR = Rad[6] - R(0.6f, 1.1f);                               // under the dais foot ring
-                    var t = new GameObject("BladeRay").transform;
-                    t.SetParent(g, false);
-                    var dir = Quaternion.Euler(0, ang, 0);
-                    t.position = dir * new Vector3(0, 0, rootR) + Vector3.up * (0.015f + layer);
-                    t.rotation = dir * Quaternion.Euler(0, 0, c * R(4f, 8f));         // banked a little across, like fanned wings
-                    t.localScale = new Vector3(s * R(3.4f, 4.4f), s * 0.55f, s);
-                    t.gameObject.AddComponent<MeshFilter>().sharedMesh = blade;
-                    var r = t.gameObject.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On;
-                    made++;
-                }
+                bool longRay = i % 2 == 0;
+                float ang = i * 360f / rays + R(-2f, 2f);
+                float len = longRay ? R(10.5f, 13f) : R(5.5f, 7f);
+                if (longRay && i % 4 == 2) len *= 0.88f;
+                float sc = len / bladeLen;
+                var t = new GameObject("BladeRay").transform;
+                t.SetParent(g, false);
+                var dir = Quaternion.Euler(0, ang, 0);
+                t.position = dir * new Vector3(0, 0, Rad[6] - 0.6f) + Vector3.up * 0.015f;
+                t.rotation = dir;
+                t.localScale = new Vector3((longRay ? 0.85f : 0.62f) / BladeW, 0.08f / BladeT, sc);   // 0.85 / 0.62 m wide, 8 cm thick
+                t.gameObject.AddComponent<MeshFilter>().sharedMesh = blade;
+                var r = t.gameObject.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On;
+                made++;
             }
             Log($"blades: {made} in {bundles} bundles");
         }
@@ -484,17 +483,17 @@ namespace BossSeal
             var ps = go.AddComponent<ParticleSystem>(); ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = pSmoke; r.shadowCastingMode = ShadowCastingMode.Off; r.maxParticleSize = 3f;
             var mm = ps.main; mm.simulationSpace = ParticleSystemSimulationSpace.World; mm.loop = true; mm.prewarm = true; mm.playOnAwake = true;
-            mm.startLifetime = new ParticleSystem.MinMaxCurve(12f, 18f); mm.startSpeed = 0f; mm.maxParticles = 22;
+            mm.startLifetime = new ParticleSystem.MinMaxCurve(12f, 18f); mm.startSpeed = 0f; mm.maxParticles = 32;
             mm.startSize = new ParticleSystem.MinMaxCurve(size * 0.7f, size * 1.3f); mm.startRotation = new ParticleSystem.MinMaxCurve(0f, 6.28f);
             mm.startColor = tint;
-            var em = ps.emission; em.rateOverTime = 1.3f;
+            var em = ps.emission; em.rateOverTime = 1.8f;
             var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = radius;
             var v = ps.velocityOverLifetime; v.enabled = true; v.space = ParticleSystemSimulationSpace.World;
             v.x = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f); v.y = new ParticleSystem.MinMaxCurve(rise * 0.6f, rise); v.z = new ParticleSystem.MinMaxCurve(-0.6f, -0.1f);
             var rot = ps.rotationOverLifetime; rot.enabled = true; rot.z = new ParticleSystem.MinMaxCurve(-0.08f, 0.08f);
             var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 0.6f, 1, 1.4f));
             var col = ps.colorOverLifetime; col.enabled = true;
-            var gr = new Gradient(); gr.SetKeys(new[] { new GradientColorKey(new Color(1f, 0.75f, 0.6f), 0), new GradientColorKey(Color.white, 0.4f), new GradientColorKey(new Color(0.6f, 0.55f, 0.55f), 1) },
+            var gr = new Gradient(); gr.SetKeys(new[] { new GradientColorKey(new Color(1.6f, 0.75f, 0.4f), 0), new GradientColorKey(Color.white, 0.45f), new GradientColorKey(new Color(0.45f, 0.4f, 0.4f), 1) },   // lit orange from the lava below, dark above
                 new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.25f), new GradientAlphaKey(0.7f, 0.7f), new GradientAlphaKey(0, 1) });
             col.color = gr;
             ps.Play();
@@ -585,18 +584,18 @@ namespace BossSeal
 
             // ---- smoke / sulphur steam rising out of the deep along the cliff, in three depth layers, and embers
             var fx = Group("AbyssFX", g);
-            for (int i = 0; i < 9; i++)
+            for (int i = 0; i < 13; i++)
             {
-                float x = -48f + i * 12f + R(-3f, 3f);
+                float x = -54f + i * 9f + R(-3f, 3f);
                 float a = Mathf.Atan2(x, HZ + 6f);
                 float er = EdgeR(a);
                 int layer = i % 3;
                 var pos = new Vector3(x, AbyssY + 8f + layer * 9f, Mathf.Cos(a) * er + 4f + layer * 7f);
-                Smoke(fx, pos, 9f + layer * 3f, R(12f, 20f), 1.6f + layer * 0.4f, new Color(0.42f, 0.22f, 0.14f, 0.55f - layer * 0.1f));
+                Smoke(fx, pos, 9f + layer * 3f, R(16f, 26f), 1.6f + layer * 0.4f, new Color(0.55f, 0.3f, 0.2f, 0.5f - layer * 0.1f));
             }
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 8; i++)
             {
-                float x = -36f + i * 18f + R(-4f, 4f);
+                float x = -42f + i * 12f + R(-4f, 4f);
                 float a = Mathf.Atan2(x, HZ + 6f);
                 var pos = new Vector3(x, -3f, Mathf.Cos(a) * EdgeR(a) + 2.5f);
                 Smoke(fx, pos, 6f, R(6f, 9f), 0.9f, new Color(0.38f, 0.24f, 0.17f, 0.3f));   // wisps curling over the lip
@@ -615,17 +614,7 @@ namespace BossSeal
                 if (t) { t.localScale = new Vector3(t.localScale.x * 0.6f, t.localScale.y, t.localScale.z * 0.6f); n++; }
             }
 
-            // ---- debris collar: Megascans debris / small rocks lying flat round the dais foot, sparser outward
-            var deb = Group("Debris", g);
-            for (int i = 0; i < 80; i++)
-            {
-                float a = R(0, Mathf.PI * 2f);
-                float d = Rad[6] + 0.4f + Mathf.Pow(R(0, 1), 1.6f) * 18f;
-                var p = new Vector3(Mathf.Sin(a) * d, -0.02f, Mathf.Cos(a) * d);
-                bool rock = rng.NextDouble() < 0.4;
-                var t = Place(rock ? RocksFbx : DebrisFbx, mats[rock ? "BS_Rocks" : "BS_Debris"], p, R(0, 360), rock ? R(0.15f, 0.3f) : R(0.1f, 0.22f), deb);
-                if (t) { float sc = R(2.2f, 3.6f); t.localScale = new Vector3(t.localScale.x * sc, t.localScale.y, t.localScale.z * sc); n++; }
-            }
+            // (11-15: no loose rocks round the dais any more; Kido: "돌을 치우라고" - the carved seal plate fills that ground)
             Log($"edge pieces {n}");
         }
 
@@ -644,14 +633,14 @@ namespace BossSeal
         {
             var moon = new GameObject("Moonlight").AddComponent<Light>();
             moon.transform.SetParent(root, false);
-            moon.type = LightType.Directional; moon.color = Hex("#dc9a72"); moon.intensity = 1.5f;   // ref: warm orange-brown ground, readable
+            moon.type = LightType.Directional; moon.color = Hex("#dc9a72"); moon.intensity = 1.8f;   // ref: warm orange-brown ground, readable
             moon.shadows = LightShadows.Soft; moon.shadowStrength = 0.75f; moon.lightmapBakeType = LightmapBakeType.Realtime;
             moon.transform.rotation = Quaternion.Euler(42f, 200f, 0f);   // from the north-east behind the arena: blade edges catch it
             lightCount++;
             RenderSettings.sun = moon;
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = Hex("#5a3a2a");
+            RenderSettings.ambientSkyColor = Hex("#6e4a34");
             RenderSettings.ambientEquatorColor = Hex("#3e281a");
             RenderSettings.ambientGroundColor = Hex("#1c100c");
             RenderSettings.fog = true;
@@ -674,7 +663,7 @@ namespace BossSeal
 
             // the seal's own glow (high, wide: lights the rings and the blade roots, no pool at anyone's feet)
             // the dais's warm pool of light (ref: warm centre, darker outward); the deep's glow comes from BuildEdge
-            AddLight("SealGlow", new Vector3(0, 6f, 0), Hex("#ff8a3a"), 2.4f, 30f);
+            AddLight("SealGlow", new Vector3(0, 6f, 0), Hex("#ff8a3a"), 3.0f, 34f);
             AddLight("WarmFill_S", new Vector3(0, 5f, -18f), Hex("#ff9a55"), 0.8f, 24f);
 
             var vol = new GameObject("PostFX").AddComponent<Volume>(); vol.transform.SetParent(root, false); vol.isGlobal = true;
@@ -698,7 +687,7 @@ namespace BossSeal
             var prof = ScriptableObject.CreateInstance<VolumeProfile>();
             AssetDatabase.CreateAsset(prof, path);
             var tm = prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.Neutral);
-            var ca = prof.Add<ColorAdjustments>(true); ca.postExposure.Override(0.3f); ca.contrast.Override(10f); ca.saturation.Override(-8f); ca.colorFilter.Override(Hex("#F2E6E2"));
+            var ca = prof.Add<ColorAdjustments>(true); ca.postExposure.Override(0.5f); ca.contrast.Override(10f); ca.saturation.Override(-8f); ca.colorFilter.Override(Hex("#F2E6E2"));
             var bl = prof.Add<Bloom>(true); bl.threshold.Override(1.1f); bl.intensity.Override(0.75f); bl.scatter.Override(0.6f); bl.highQualityFiltering.Override(false);
             var vg = prof.Add<Vignette>(true); vg.color.Override(Hex("#0a0202")); vg.intensity.Override(0.4f); vg.smoothness.Override(0.45f);
             foreach (var c in prof.components) AssetDatabase.AddObjectToAsset(c, prof);

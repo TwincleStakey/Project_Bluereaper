@@ -46,6 +46,8 @@ Shader "BossSeal/Ground"
         _Bujeok("Bujeok strokes", 2D) = "black" {}
         _Hawk("Samdumae lines", 2D) = "black" {}
         _Text("Woodblock text grooves", 2D) = "black" {}
+        _Lotus("Seal plate relief (Goryeo lotus roof-end tile, 0.5 = flat)", 2D) = "grey" {}
+        _Plate("Seal plate: radius m, buried edge m, relief strength, groove glow", Vector) = (18.5, 4.0, 1.6, 0.012)
 
         _R1("Radii: seal, band1 out, talisman out, band2 out", Vector) = (6.3, 6.9, 11.1, 11.6)
         _R2("Radii: text out, rim out, chamfer out, seal mask width", Vector) = (14.2, 14.8, 15.6, 11.6)
@@ -56,8 +58,8 @@ Shader "BossSeal/Ground"
         _TrimTint("Ring block tint", Color) = (0.55, 0.38, 0.32, 1)
         _MetalTint("Metal tint", Color) = (0.62, 0.42, 0.34, 1)
         _Glow("Inlay glow (HDR)", Color) = (2.4, 0.62, 0.14, 1)
-        _GlowAmt("Glow: palgwae fill, palgwae edge, taegeuk, bujeok", Vector) = (0.0, 0.55, 0.0, 0.22)   // 11-15: thin lines only
-        _Engrave("Engrave: hawk dark, hawk glow, text dark, text glow", Vector) = (0.5, 0.02, 0.55, 0.0)
+        _GlowAmt("Glow: palgwae fill, palgwae edge, taegeuk, bujeok", Vector) = (0.0, 0.6, 0.0, 0.5)   // 11-15: thin lines only
+        _Engrave("Engrave: hawk dark, hawk glow, text dark, text glow", Vector) = (0.55, 0.28, 0.6, 0.3)
         _Pulse("Pulse: amount, speed, ripple per m", Vector) = (0.18, 1.1, 0.35, 0)
         _Haze("North haze colour (HDR) / strength", Color) = (0.62, 0.08, 0.035, 0.7)
         _HazeZ("Haze: z start, z full, outer dark r start, r end", Vector) = (30, 52, 34, 66)
@@ -75,9 +77,9 @@ Shader "BossSeal/Ground"
         TEXTURE2D(_Stone); TEXTURE2D(_StoneN); TEXTURE2D(_StoneAO);
         TEXTURE2D(_Trim); TEXTURE2D(_TrimN); TEXTURE2D(_Metal); TEXTURE2D(_MetalN);
         TEXTURE2D(_Seal); SAMPLER(sampler_Seal);
-        TEXTURE2D(_Bujeok); TEXTURE2D(_Hawk); TEXTURE2D(_Text);
+        TEXTURE2D(_Bujeok); TEXTURE2D(_Hawk); TEXTURE2D(_Text); TEXTURE2D(_Lotus);
         CBUFFER_START(UnityPerMaterial)
-        float4 _G0_ST, _GScale, _GMix, _Warm, _R1, _R2, _Tiles, _MudTint, _StoneTint, _TrimTint, _MetalTint, _Glow, _GlowAmt, _Engrave, _Pulse, _Haze, _HazeZ;
+        float4 _G0_ST, _Plate, _GScale, _GMix, _Warm, _R1, _R2, _Tiles, _MudTint, _StoneTint, _TrimTint, _MetalTint, _Glow, _GlowAmt, _Engrave, _Pulse, _Haze, _HazeZ;
         float _NrmStr, _Smooth, _MetalSmooth;
         CBUFFER_END
         ENDHLSL
@@ -171,10 +173,10 @@ Shader "BossSeal/Ground"
                 float mv = FBM(w * 0.028 + 21.3), mh = FBM(w * 0.05 + 33.7);
                 // ref palette: orange-brown dirt (the scans are brick red): keep their luminance detail, move the hue
                 alb = lerp(alb, Luma(alb) * float3(1.55, 1.0, 0.6), 0.65) * _MudTint.rgb;
-                alb *= 0.84 + 0.32 * mv;
+                alb *= 0.88 + 0.22 * mv;
                 alb *= lerp(float3(1, 1, 1), float3(1.08, 0.9, 0.82), smoothstep(0.35, 0.7, mh));
                 float damp = smoothstep(0.56, 0.7, FBM(w * 0.05 + 13.0)) * (1 - gw.z);
-                alb *= lerp(1, 0.84, damp);
+                alb *= lerp(1, 0.9, damp);
                 alb *= lerp(0.7, 1.0, saturate(hgt * 1.6));
                 // warm red bounce from the platform onto the dirt round it (the ref's lit ground)
                 float warm = (1 - smoothstep(0, _Warm.a, rimD + (FBM(w * 0.18) - 0.5) * 6.0)) * step(-0.2, rimD) * (0.5 + FBM(w * 0.25 + 4.4));
@@ -182,6 +184,30 @@ Shader "BossSeal/Ground"
                 float smooth = _Smooth;
                 float3 emis = alb * _Warm.rgb * warm;
                 // the mesa rim: the floor mesh drops down the cliff there (covered by the cliff scans); keep that face dark
+                // ---- the wide sealing plate under the blades (ref: a dark carved floor disc round the dais, its rim buried in
+                // the dirt). Stone scan + the relief of a Goryeo lotus roof-end tile photo (CC BY 4.0) scaled to ~37 m:
+                // petals radiate under the blades; lit faces lighter, grooves dark with a faint ember glow; normal from the relief
+                {
+                    float2 uvL = w / (2 * _Plate.x) + 0.5;
+                    float2 gLx = ddx(uvL), gLy = ddy(uvL);
+                    float lh = SM(_Lotus, uvL, gLx, gLy).r - 0.5;
+                    float eL = 0.0016;
+                    float lhx = SM(_Lotus, uvL + float2(eL, 0), gLx * 2, gLy * 2).r - SM(_Lotus, uvL - float2(eL, 0), gLx * 2, gLy * 2).r;
+                    float lhy = SM(_Lotus, uvL + float2(0, eL), gLx * 2, gLy * 2).r - SM(_Lotus, uvL - float2(0, eL), gLx * 2, gLy * 2).r;
+                    float edgeN = (FBM(w * 0.22 + 3.3) - 0.5) * _Plate.y * 1.4;
+                    float wP = (1 - smoothstep(_Plate.x - _Plate.y, _Plate.x, r + edgeN)) * smoothstep(_R2.z - 0.2, _R2.z + 0.2, r);
+                    wP *= 1 - 0.55 * smoothstep(0.55, 0.8, FBM(w * 0.35 + 8.1)) * smoothstep(_Plate.x * 0.45, _Plate.x, r);   // dirt drifted over it outward
+                    float2 uvP = w / 3.6;
+                    float3 plate = SG(_Stone, uvP, ddx(uvP), ddy(uvP)).rgb;
+                    plate = lerp(plate, Luma(plate).xxx, 0.45) * _StoneTint.rgb * 0.6;
+                    plate *= saturate(0.8 + lh * 1.1);
+                    float groove = smoothstep(0.12, 0.28, -lh);
+                    plate = lerp(plate, plate * 0.5, groove);
+                    float3 plateN = normalize(TS(SG(_StoneN, uvP, ddx(uvP), ddy(uvP))) + float3(-lhx, -lhy, 0) * _Plate.z * 6);
+                    alb = lerp(alb, plate, wP);
+                    nts = normalize(lerp(nts, plateN, wP));
+                    emis = lerp(emis, _Glow.rgb * _Plate.w * groove, wP);
+                }
                 float face = smoothstep(-0.02, -1.5, ws.y); alb *= 1 - 0.85 * face; emis *= 1 - face;
 
                 // ------------------------------------------------ platform zones
