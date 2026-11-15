@@ -6,7 +6,9 @@
 //   Ash     Powdered Ash (0.36 m scan)  faint grey ash dusting in rare patches
 // Nothing here draws a crack, vein, rift or glowing line: every line on the floor comes from the scans themselves.
 // Layer masks are wide, domain-warped gradient noise blended by the scan heights, so borders follow the stone shapes.
-// No emission. Red light on the floor comes only from real lights (fires, lanterns).
+// 19:10 Kido: "can't you put lava on that volcanic floor?" - lava pools from the downloaded lava texture (same set as the
+// lava sea, Fab "Lava Texture Vol.04" CC BY) settle in the LOW parts of the basalt scan, in big regions that grow toward
+// the plaza rim. Its glow is the texture's own emissive map; nothing is drawn by code.
 Shader "Underworld/FloorScan"
 {
     Properties
@@ -40,6 +42,15 @@ Shader "Underworld/FloorScan"
         _Contrast("Albedo contrast (1 = scan)", Range(0, 1.5)) = 0.6
         _CavityDark("Darken low parts of the scan", Range(0, 1)) = 0.55
         _AmbLift("Flat ambient lift (no pattern)", Color) = (0.1, 0.095, 0.1, 1)
+        _LavaAH("Lava basecolor+height", 2D) = "grey" {}
+        _LavaE("Lava emissive", 2D) = "black" {}
+        _LavaTile("Lava metres per tile", Float) = 10
+        _LavaAmt("Lava pool coverage", Range(0, 1)) = 0.4
+        _LavaEdge("Extra lava toward the plaza rim (m)", Float) = 14
+        _PlazaHalf("Plaza centre xz, half size xz", Vector) = (0, -1, 44, 28)
+        [HDR] _LavaCol("Lava emission colour", Color) = (1, 0.5, 0.25, 1)
+        _LavaInt("Lava emission intensity", Range(0, 12)) = 4
+        _LavaTint("Lava crust tint", Color) = (0.35, 0.3, 0.28, 1)
     }
     SubShader
     {
@@ -50,10 +61,12 @@ Shader "Underworld/FloorScan"
         TEXTURE2D(_SandAH); TEXTURE2D(_SandNRA);
         TEXTURE2D(_RippleAH); TEXTURE2D(_RippleNRA);
         TEXTURE2D(_AshAH); TEXTURE2D(_AshNRA);
+        TEXTURE2D(_LavaAH); TEXTURE2D(_LavaE);
         SAMPLER(sampler_BasaltAH);
         #define SMP sampler_BasaltAH
         CBUFFER_START(UnityPerMaterial)
-        float4 _Tiles, _BasaltTint, _SandTint, _RippleTint, _AshTint, _CliffTint, _AmbLift;
+        float4 _Tiles, _BasaltTint, _SandTint, _RippleTint, _AshTint, _CliffTint, _AmbLift, _PlazaHalf, _LavaCol, _LavaTint;
+        float _LavaTile, _LavaAmt, _LavaEdge, _LavaInt;
         float _CliffTile, _Sat, _SandAmt, _RippleAmt, _AshAmt, _BlendDepth, _NrmStr, _Macro, _AOStr, _SmoothScale, _SmoothMax, _AlbedoMax, _Contrast, _CavityDark;
         CBUFFER_END
         ENDHLSL
@@ -185,7 +198,7 @@ Shader "Underworld/FloorScan"
                 }
 
                 // ---- top
-                float3 topAlb = 0, topN = float3(0, 1, 0); float topR = 0.85, topAO = 1;
+                float3 topAlb = 0, topN = float3(0, 1, 0); float topR = 0.85, topAO = 1; float3 lavaEm = 0;
                 if (top > 0.001)
                 {
                     float2 dpx = dwx.xz, dpy = dwy.xz;
@@ -229,6 +242,30 @@ Shader "Underworld/FloorScan"
                         g = Lerp(g, la, saturate(HB(g.h, la.h, aReg, _BlendDepth)) * 0.85);
                     }
 
+                    // lava pools: big regions, denser toward the plaza rim, filling only where the rock is low
+                    float2 pe = _PlazaHalf.zw - abs(p - _PlazaHalf.xy);
+                    float rim = saturate(1.0 - min(pe.x, pe.y) / max(_LavaEdge, 0.1));
+                    float lField = Field(q, 0.04, 113.0) * 0.8 + GN(q * 0.15 + 31.0) * 0.2 + rim * 0.22;
+                    float lReg = smoothstep(0.78 - _LavaAmt * 0.3, 0.9 - _LavaAmt * 0.3, lField);
+                    if (lReg > 0.01)
+                    {
+                        float2 ul = (p + float2(_UWTime, -0.6 * _UWTime) * 0.03) / _LavaTile;
+                        float4 la = SAMPLE_TEXTURE2D_GRAD(_LavaAH, SMP, ul, dpx / _LavaTile, dpy / _LavaTile);
+                        float3 le = SAMPLE_TEXTURE2D_GRAD(_LavaE, SMP, ul, dpx / _LavaTile, dpy / _LavaTile).rgb;
+                        float lw = HB(g.h, 0.3, lReg, _BlendDepth * 0.6) * lReg;   // lava only in the rock's hollows
+                        g.a = lerp(g.a, la.rgb * _LavaTint.rgb, lw);
+                        g.n = lerp(g.n, float2(0, 0), lw * 0.7);
+                        g.h = lerp(g.h, 0.0, lw);
+                        // a pool, not crack lines: the border is a dark cooled crust (the texture's cracks only glow
+                        // well inside), the core is open molten lava with the crust plates floating on it, and the
+                        // rock around the pool gets a faint warm heat bleed
+                        float core = smoothstep(0.45, 0.9, lw);
+                        float melt = core * (1.0 - smoothstep(0.25, 0.75, la.a));
+                        g.a = lerp(g.a, g.a * 0.35, smoothstep(0.05, 0.4, lw) * (1.0 - core));
+                        lavaEm = _LavaCol.rgb * _LavaInt * (le * core + melt * 0.55 * float3(1.0, 0.75, 0.55))
+                               + _LavaCol.rgb * 0.06 * lReg * (1.0 - lw);
+                    }
+
                     // cavity: the scan's own low areas go darker (reads as depth from the top-down camera)
                     g.a *= lerp(1.0 - _CavityDark, 1.0, smoothstep(0.15, 0.7, g.h));
 
@@ -265,7 +302,7 @@ Shader "Underworld/FloorScan"
                 s.albedo = albedo;
                 s.smoothness = smoothness;
                 s.occlusion = ao;
-                s.emission = albedo * ao * _AmbLift.rgb;   // uniform lift so the scan reads in the dim hell light; no shapes
+                s.emission = albedo * ao * _AmbLift.rgb + lavaEm * top;   // uniform lift so the scan reads in the dim hell light; lava from its texture
                 s.alpha = 1;
                 s.normalTS = float3(0, 0, 1);
 
