@@ -26,23 +26,24 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BandAbove: 1.1
+    - _BandAbove: 1.0
     - _BandBelow: 1.5
     - _BorderFade: 1.5
     - _Drift: 0.5
-    - _EdgeScale: 0.16
-    - _Feather: 0.35
-    - _MaxDensity: 0.86
-    - _MinDensity: 0.35
+    - _EdgeScale: 0.2
+    - _Flat: 1
+    - _Feather: 0.14
+    - _MaxDensity: 0.72
+    - _MinDensity: 0.6
     - _Scale: 0.08
     - _Surface: 1
     - _ZTest: 8
     m_Colors:
-    - _ClearLift: {r: 0.004, g: 0.0035, b: 0.005, a: 1}
-    - _Deep: {r: 0.22, g: 0.05, b: 0.34, a: 1}
+    - _ClearLift: {r: 0, g: 0, b: 0, a: 1}
+    - _Deep: {r: 0.28, g: 0.07, b: 0.44, a: 1}
     - _Glow: {r: 0.3, g: 0.08, b: 0.45, a: 1}
     - _GlowCut: {r: 0.3, g: 0.9, b: 0, a: 0}
-    - _Mid: {r: 0.42, g: 0.1, b: 0.62, a: 1}
+    - _Mid: {r: 0.32, g: 0.08, b: 0.5, a: 1}
     - _NoiseOffset: {r: -20, g: 1, b: 0, a: 0}
     - _Rim: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []

@@ -25,6 +25,7 @@ Shader "DarkCrypt/MistOverlay"
         _ClearLift ("Cleared floor lift (linear)", Color) = (0.022, 0.02, 0.028, 1)
         _BorderFade ("Border fade (m)", Float) = 3
         _NoiseOffset ("Density noise offset (m, xz)", Vector) = (0, 0, 0, 0)
+        _Flat ("Film: flatten swirls and colour variation (0 smoke .. 1 thin membrane)", Range(0, 1)) = 0
         [Toggle(_SURFACE)] _Surface ("Lie on the scene floor (depth band + glow mask)", Float) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("ZTest", Float) = 4
         _BandBelow ("Floor band below the quad (m)", Float) = 0.6
@@ -56,7 +57,7 @@ Shader "DarkCrypt/MistOverlay"
             CBUFFER_START(UnityPerMaterial)
             float4 _Deep, _Mid, _Glow, _Rim, _ClearLift, _NoiseOffset;
             float _MinDensity, _MaxDensity, _Scale, _Drift, _EdgeScale, _Feather, _BorderFade, _BandBelow, _BandAbove, _Surface, _ZTest;
-            float4 _GlowCut;
+            float4 _GlowCut; float _Flat;
             CBUFFER_END
             TEXTURE2D(_DC_MistMask); SAMPLER(sampler_DC_MistMask);
             float4 _DC_MistRect;
@@ -96,7 +97,11 @@ Shader "DarkCrypt/MistOverlay"
                 float3 sp = ComputeWorldSpacePosition(suv, rawD, UNITY_MATRIX_I_VP);
                 float dy = sp.y - i.w.y;
                 // floor band: fades out below (plaza lip / lava sea) and above (walls, props, bodies)
-                surf = smoothstep(-_BandBelow, -_BandBelow * 0.4, dy) * (1 - smoothstep(_BandAbove * 0.3, _BandAbove, dy));
+                // (short fades: a long ramp turned low steps / slabs into flat-edged squares of half-strength film)
+                surf = smoothstep(-_BandBelow, -_BandBelow * 0.85, dy) * (1 - smoothstep(_BandAbove * 0.85, _BandAbove, dy));
+                // only up-facing surfaces (the floor, step tops): not walls, risers or the sides of bodies
+                float3 sn = normalize(cross(ddy(sp), ddx(sp)));
+                surf *= smoothstep(0.6, 0.85, abs(sn.y));
                 // lava / fire on the floor: warm bright opaque pixels show through
                 float3 oc = SampleSceneColor(suv);
                 float warm = max(oc.r - oc.b * 1.3, 0) + max(oc.r + oc.g - 0.6, 0) * 0.5;
@@ -115,10 +120,10 @@ Shader "DarkCrypt/MistOverlay"
                 float d = saturate(smoothstep(0.28, 0.66, banks) + (wisps - 0.5) * 0.3);
                 // inside the clumps: drifting swirls (alpha and colour), so a dense bank is never a flat painted sheet
                 float sw = fbm(q * 5.3 + warp * 2.0 + float2(-t * 0.06, t * 0.05) + 3.0);
-                float density = lerp(_MinDensity, _MaxDensity, d) * (0.84 + 0.32 * sw * d);
+                float density = lerp(_MinDensity, _MaxDensity, d) * lerp(0.84 + 0.32 * sw * d, 1.0, _Flat);
                 density = min(density, 0.92);
 
-                float3 col = lerp(_Deep.rgb, _Mid.rgb, d) * (0.75 + 0.5 * sw) + _Glow.rgb * smoothstep(0.55, 0.85, sw) * d * 0.8;
+                float3 col = lerp(_Deep.rgb, _Mid.rgb, d) * lerp(0.75 + 0.5 * sw, 1.0, _Flat) + _Glow.rgb * smoothstep(0.55, 0.85, sw) * d * 0.8 * (1 - _Flat);
 
                 // cleared by the player (mask): wide feathered blotchy edge
                 float2 muv = (w - _DC_MistRect.xy) / max(_DC_MistRect.zw, 1e-3);
