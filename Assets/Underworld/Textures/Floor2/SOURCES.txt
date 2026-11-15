@@ -6,3 +6,6 @@ Source: Fab / Quixel Megascans free listings (Fab Standard License), 2K sets, do
   Ash    = Powdered Ash (0.36 m)         https://www.fab.com/listings/2d705483-52d7-4510-a181-18a0d6865ee9   (1K)
 Originals on the home PC: C:\Users\imsoh\Downloads\free-assets\underworld-floor2\
 Used by Shaders/UWFloorScan.shader via Materials/UW_Floor.mat. No hand-drawn or coded cracks/veins.
+Lava sea (Assets/Underworld/Textures/Lava, Shaders/UWLavaScan.shader, Resources/UW_LavaSea.mat):
+  "Lava Texture & Material Vol. 04" by ehsan vaezi, Fab, CC BY 4.0  https://www.fab.com/listings/d5f9c52b-ce79-4654-b155-605bcada41da
+  basecolor+height / normal+roughness / emissive packed to 2K from the Unity package's 4K TGAs.

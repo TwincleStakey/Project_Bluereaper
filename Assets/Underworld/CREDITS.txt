@@ -11,3 +11,9 @@ Red spider lily (피안화) - Assets/Underworld/Models/SpiderLily/UW_SpiderLily.
 
 Other hell-set props reuse assets already in the project; their licences are with the sources
 (see Assets/Underworld/Editor/UWHellProps.cs).
+
+Lava sea texture - Assets/Underworld/Textures/Lava/T_UWL_Lava_*.png (used by Resources/UW_LavaSea.mat)
+  "Lava Texture & Material Vol. 04" by ehsan vaezi
+  https://www.fab.com/listings/d5f9c52b-ce79-4654-b155-605bcada41da
+  License: CC BY 4.0 - https://creativecommons.org/licenses/by/4.0/
+  Changes: 4K maps downscaled to 2K and channel-packed (basecolor+height, normal+roughness, emissive).
