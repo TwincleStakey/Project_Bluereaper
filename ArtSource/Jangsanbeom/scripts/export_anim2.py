@@ -10,6 +10,12 @@ with bpy.data.libraries.load(src, link=False) as (df, dt):
 srcarm = [o for o in dt.objects if o and o.type == 'ARMATURE'][0]
 sc.collection.objects.link(srcarm)
 s0 = dt.scenes[0]; f0, f1 = s0.frame_start, s0.frame_end
+act = srcarm.animation_data.action if srcarm.animation_data else None
+if act is not None and len(a) > 2:          # clip-length range from the action (video2rig scenes keep 250)
+    f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
+speed = float(a[2]) if len(a) > 2 else 1.0  # play faster in the engine: same keys, higher fps
+sc.render.fps = int(round(s0.render.fps * speed)); sc.render.fps_base = 1.0
+print('RANGE', f0, f1, 'fps', sc.render.fps)
 sc.frame_start, sc.frame_end = f0, f1
 for o in dt.objects:
     if o and o is not srcarm and not o.users_collection: bpy.data.objects.remove(o)

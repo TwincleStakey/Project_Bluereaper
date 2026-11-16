@@ -25,6 +25,13 @@ public static class JangsanbeomGlowSetup
             File.Delete("Temp/jsb_debug.trigger");
             try { File.WriteAllText("Temp/jsb_debug.txt", DebugSkin()); } catch (System.Exception e) { File.WriteAllText("Temp/jsb_debug.txt", e.ToString()); }
         }
+        if (File.Exists("Temp/jsb_map.trigger") && !EditorApplication.isPlayingOrWillChangePlaymode && !EditorApplication.isCompiling && !EditorApplication.isUpdating)
+        {
+            var args = File.ReadAllText("Temp/jsb_map.trigger").Trim().Split(' '); File.Delete("Temp/jsb_map.trigger"); var clipName = args[0]; var ci = System.Globalization.CultureInfo.InvariantCulture;
+            float zoomArg = args.Length > 1 ? float.Parse(args[1], ci) : 2.7f, tzArg = args.Length > 2 ? float.Parse(args[2], ci) : 7f;
+            try { MapCapture(clipName.Length > 0 ? clipName : "p0_telegraph_scrape", zoomArg, tzArg); } catch (System.Exception e) { Debug.LogError("[JSB] map " + e); File.WriteAllText("Temp/jsb_map.err", e.ToString()); }
+            File.WriteAllText("Temp/jsb_map.done", System.DateTime.Now.ToString("o"));
+        }
         const string trig = "Temp/jsb_glow.trigger";
         if (!File.Exists(trig) || EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
         File.Delete(trig);
@@ -202,6 +209,92 @@ public static class JangsanbeomGlowSetup
         } finally {
             if (prevActive.IsValid() && prevActive.isLoaded) UnityEngine.SceneManagement.SceneManager.SetActiveScene(prevActive);
             if (scene.IsValid() && scene.isLoaded) EditorSceneManager.CloseScene(scene, true);
+        }
+    }
+
+    // 11-16 (Kido: "어두운 맵에서 발광하는 실제 인게임 모습"): the boss in the BossSeal arena with that map's own light, fog and
+    // post, seen by the RoomRun game camera (offset (0,17,-14.5) x zoom). Uses the boss as set up by Build() in JSB_GlowTest.
+    // Edit mode only; StageMood/LookFX grades run only in RoomRun Play, so they are not in these frames.
+    const string MapScene = "Assets/Game/BossSeal/BossSeal.unity";
+    public static void MapCapture(string clipName, float zoom = 2.7f, float targetZ = 7f)
+    {
+        var openedMap = !UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene).isLoaded;
+        var map = openedMap ? EditorSceneManager.OpenScene(MapScene, OpenSceneMode.Additive) : UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene);
+        var test = EditorSceneManager.OpenScene($"{Root}/Scenes/JSB_GlowTest.unity", OpenSceneMode.Additive);
+        var prevActive = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        UnityEngine.SceneManagement.SceneManager.SetActiveScene(map);   // the map's ambient/fog drive the render
+        var hidden = new System.Collections.Generic.List<GameObject>();
+        var cleanBefore = new System.Collections.Generic.List<UnityEngine.SceneManagement.Scene>();
+        bool async0 = ShaderUtil.allowAsyncCompilation; ShaderUtil.allowAsyncCompilation = false;
+        try
+        {
+            for (int si = 0; si < UnityEngine.SceneManagement.SceneManager.sceneCount; si++)
+            {
+                var sc = UnityEngine.SceneManagement.SceneManager.GetSceneAt(si);
+                if (sc == map || !sc.isLoaded) continue;
+                if (sc != test && !sc.isDirty) cleanBefore.Add(sc);
+                foreach (var g in sc.GetRootGameObjects()) if (g.activeSelf && !(sc == test && g.name == clipName)) { g.SetActive(false); hidden.Add(g); }
+            }
+            var boss = test.GetRootGameObjects().First(g => g.name == clipName);
+            var an = boss.GetComponent<Animator>(); var clip = an.runtimeAnimatorController.animationClips[0];
+            var trails = boss.GetComponent<JangsanbeomClawTrails>();
+            // face the camera (-Z): measure hips->head at t=0 and turn the root about Y
+            clip.SampleAnimation(boss, 0f);
+            var head = boss.GetComponentsInChildren<Transform>().First(t => t.name == "Head");
+            var hips = boss.GetComponentsInChildren<Transform>().First(t => t.name == "Hips");
+            var fwd = head.position - hips.position; fwd.y = 0;
+            boss.transform.rotation = Quaternion.FromToRotation(fwd.normalized, Vector3.back) * boss.transform.rotation;
+            boss.transform.position = new Vector3(0f, 0f, 9f);   // on the dirt north of the ~10 m dais, paws toward the player side
+
+            var cam = map.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Camera>(true)).First(c => c.CompareTag("MainCamera"));
+            AssetDatabase.Refresh();   // picks up a re-exported FBX
+            var target = new Vector3(0f, 0.3f, targetZ);
+            var off = new Vector3(0, 17f, -14.5f) * zoom;
+            var p0 = cam.transform.position; var r0 = cam.transform.rotation; var far0 = cam.farClipPlane;
+            cam.transform.position = target + off; cam.transform.rotation = Quaternion.LookRotation(-off); cam.farClipPlane = Mathf.Max(far0, off.magnitude + 150f);
+            foreach (var ps in Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None)) ps.Simulate(12f, true, true);
+
+            var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../ArtSource/Jangsanbeom/renders/map"));
+            var vdir = Path.Combine(outDir, $"vid_{clipName}"); Directory.CreateDirectory(vdir);
+            foreach (var f0 in Directory.GetFiles(vdir, "*.png")) File.Delete(f0);
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.DefaultHDR);
+            var ldr = new RenderTexture(1600, 900, 0, RenderTextureFormat.ARGB32);
+            var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
+            Shader.SetGlobalFloat("_JSB_UseFixedTime", 1f);
+            try
+            {
+                { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
+                int nf = Mathf.CeilToInt(clip.length * 30);
+                for (int f = 0; f < nf; f++)
+                {
+                    float t = f / 30f;
+                    if (f == 0 && trails != null) trails.ResetTrails();
+                    if (trails != null && f > 0) { clip.SampleAnimation(boss, t - 1f / 60f); trails.Sample(t - 1f / 60f); }
+                    clip.SampleAnimation(boss, Mathf.Min(t, clip.length));
+                    if (trails != null) trails.Sample(t);
+                    SetWarn(boss, Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f));
+                    Shader.SetGlobalFloat("_JSB_FixedTime", t);
+                    Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
+                }
+                SetWarn(boss, 0f);
+                Debug.Log($"[JSB] map capture {clipName}: {nf} frames, clip {clip.length:F2}s -> {vdir}");
+            }
+            finally
+            {
+                Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f);
+                cam.transform.position = p0; cam.transform.rotation = r0; cam.farClipPlane = far0;
+                Object.DestroyImmediate(rt); Object.DestroyImmediate(ldr); Object.DestroyImmediate(tex);
+            }
+        }
+        finally
+        {
+            ShaderUtil.allowAsyncCompilation = async0;
+            foreach (var g in hidden) if (g != null) g.SetActive(true);
+            foreach (var sc in cleanBefore) if (sc.isLoaded && sc.isDirty) EditorSceneManager.SaveScene(sc);
+            if (map.isDirty && openedMap) { }   // closed without saving below
+            if (prevActive.IsValid() && prevActive.isLoaded && prevActive != map) UnityEngine.SceneManagement.SceneManager.SetActiveScene(prevActive);
+            if (test.isLoaded) EditorSceneManager.CloseScene(test, true);   // not saved: the boss turn/move stays out of the asset
+            if (openedMap && map.isLoaded) EditorSceneManager.CloseScene(map, true);
         }
     }
 
