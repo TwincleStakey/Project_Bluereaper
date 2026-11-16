@@ -33,7 +33,7 @@ Material:
     - _GulpFreq: 8
     - _GulpGlow: 0
     - _GulpSharp: 10
-    - _GulpSpeed: 1.6
+    - _GulpSpeed: 0.7
     - _Smoothness: 0.95
     - _Warn: 0
     - _WaveDir: 1

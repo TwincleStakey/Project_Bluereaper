@@ -159,6 +159,7 @@ public static class JangsanbeomGlowSetup
                 }
                 else r.sharedMaterials = r.sharedMaterials.Select(GramoMat).ToArray();   // gramophone parts: the Blender node materials don't survive FBX
             WindKeySetup.AddToJangsanbeom(go);   // 11-16: 태엽열쇠 on the lower back
+            BossKeyMat(go);
             var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/{c}.fbx");
             AnimationClip ac = null; foreach (var o in clip) if (o is AnimationClip a && !a.name.StartsWith("__preview")) ac = a;
             if (ac != null)
@@ -172,6 +173,12 @@ public static class JangsanbeomGlowSetup
                 var ct = go.GetComponent<JangsanbeomClawTrails>(); if (ct == null) ct = go.AddComponent<JangsanbeomClawTrails>();
                 ct.trailMaterial = trailMat; ct.minSpeed = 2.5f; ct.fullSpeed = 10f; ct.Build(); Debug.Log($"[JSB] claw trails on {go.name}: {go.GetComponentsInChildren<LineRenderer>(true).Length}");
                 if (go.GetComponent<JangsanbeomTelegraph>() == null) go.AddComponent<JangsanbeomTelegraph>();
+                if (c.Contains("scrape"))
+                {   // 11-16 Kido: ground FX under the scraping paw
+                    var sf = go.GetComponent<JangsanbeomScrapeFX>(); if (sf == null) sf = go.AddComponent<JangsanbeomScrapeFX>();
+                    sf.dustMaterial = FxMat("JSB_ScrapeDust", false); sf.sparkMaterial = GlowLineMat("JSB_ScrapeSpark", new Color(6f, 0.7f, 0.18f, 1f)); sf.gougeMaterial = GlowLineMat("JSB_ScrapeGouge", new Color(3f, 0.2f, 0.06f, 1f));
+                    sf.Build();
+                }
             }
         }
 
@@ -238,17 +245,18 @@ public static class JangsanbeomGlowSetup
             var boss = test.GetRootGameObjects().First(g => g.name == clipName);
             var an = boss.GetComponent<Animator>(); var clip = an.runtimeAnimatorController.animationClips[0];
             var trails = boss.GetComponent<JangsanbeomClawTrails>();
+            var scrape = boss.GetComponent<JangsanbeomScrapeFX>(); if (scrape != null) scrape.Build(); if (trails != null) trails.Build();   // DontSave children were not in the saved scene
             // face the camera (-Z): measure hips->head at t=0 and turn the root about Y
             clip.SampleAnimation(boss, 0f);
             var head = boss.GetComponentsInChildren<Transform>().First(t => t.name == "Head");
             var hips = boss.GetComponentsInChildren<Transform>().First(t => t.name == "Hips");
             var fwd = head.position - hips.position; fwd.y = 0;
             boss.transform.rotation = Quaternion.FromToRotation(fwd.normalized, Vector3.back) * boss.transform.rotation;
-            boss.transform.position = new Vector3(0f, 0f, 9f);   // on the dirt north of the ~10 m dais, paws toward the player side
+            boss.transform.position = new Vector3(10f, 0f, 9f);   // off the 0.8 m dais (paws sank into it and hid the scrape marks)   // on the dirt north of the ~10 m dais, paws toward the player side
 
             var cam = map.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Camera>(true)).First(c => c.CompareTag("MainCamera"));
             AssetDatabase.Refresh();   // picks up a re-exported FBX
-            var target = new Vector3(0f, 0.3f, targetZ);
+            var target = new Vector3(10f, 0.3f, targetZ);
             var off = new Vector3(0, 17f, -14.5f) * zoom;
             var p0 = cam.transform.position; var r0 = cam.transform.rotation; var far0 = cam.farClipPlane;
             cam.transform.position = target + off; cam.transform.rotation = Quaternion.LookRotation(-off); cam.farClipPlane = Mathf.Max(far0, off.magnitude + 150f);
@@ -260,7 +268,7 @@ public static class JangsanbeomGlowSetup
             var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.DefaultHDR);
             var ldr = new RenderTexture(1600, 900, 0, RenderTextureFormat.ARGB32);
             var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
-            Shader.SetGlobalFloat("_JSB_UseFixedTime", 1f);
+            Shader.SetGlobalFloat("_JSB_UseFixedTime", 1f); Shader.SetGlobalFloat("_WK_UseFixedTime", 1f);
             try
             {
                 { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
@@ -269,19 +277,22 @@ public static class JangsanbeomGlowSetup
                 {
                     float t = f / 30f;
                     if (f == 0 && trails != null) trails.ResetTrails();
-                    if (trails != null && f > 0) { clip.SampleAnimation(boss, t - 1f / 60f); trails.Sample(t - 1f / 60f); }
+                    if (f == 0 && scrape != null) scrape.ResetFX();
+                    if (trails != null && f > 0) { clip.SampleAnimation(boss, t - 1f / 60f); trails.Sample(t - 1f / 60f); if (scrape != null) scrape.Sample(t - 1f / 60f); }
                     clip.SampleAnimation(boss, Mathf.Min(t, clip.length));
                     if (trails != null) trails.Sample(t);
+                    if (scrape != null) scrape.Sample(t);
                     SetWarn(boss, Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f));
-                    Shader.SetGlobalFloat("_JSB_FixedTime", t);
+                    Shader.SetGlobalFloat("_JSB_FixedTime", t); Shader.SetGlobalFloat("_WK_FixedTime", t);
                     SyncSkin(boss); Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
                 }
                 SetWarn(boss, 0f);
+                if (scrape != null) File.WriteAllText("Temp/jsb_scrape.txt", scrape.debugStats);
                 Debug.Log($"[JSB] map capture {clipName}: {nf} frames, clip {clip.length:F2}s -> {vdir}");
             }
             finally
             {
-                Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); ClearSkin();
+                Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); Shader.SetGlobalFloat("_WK_UseFixedTime", 0f); ClearSkin();
                 cam.transform.position = p0; cam.transform.rotation = r0; cam.farClipPlane = far0;
                 Object.DestroyImmediate(rt); Object.DestroyImmediate(ldr); Object.DestroyImmediate(tex);
             }
@@ -296,6 +307,74 @@ public static class JangsanbeomGlowSetup
             if (test.isLoaded) EditorSceneManager.CloseScene(test, true);   // not saved: the boss turn/move stays out of the asset
             if (openedMap && map.isLoaded) EditorSceneManager.CloseScene(map, true);
         }
+    }
+
+    // 11-16 Kido: the key turned too fast on the boss. Its own copy of key material A, slower ticks (the telegraph x2.5 still applies)
+    static void BossKeyMat(GameObject boss)
+    {
+        foreach (var r in boss.GetComponentsInChildren<Renderer>(true))
+        {
+            if (r.sharedMaterial == null || r.sharedMaterial.shader.name != "BulletHeaven/WindKey") continue;
+            var path = $"{Root}/Materials/JSB_WindKey_Boss.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(r.sharedMaterial); AssetDatabase.CreateAsset(m, path); }
+            else m.CopyPropertiesFromMaterial(r.sharedMaterial);
+            m.SetFloat("_TickRate", 0.45f); EditorUtility.SetDirty(m);
+            r.sharedMaterial = m;
+        }
+    }
+
+    // soft round puff for the dust (the built-in Default-Particle did not load: the puffs drew as squares)
+    static Texture2D SoftDot()
+    {
+        var path = $"{Root}/Textures/JSB_SoftDot.png";
+        if (!File.Exists(path))
+        {
+            var t = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++)
+            {
+                float d = new Vector2(x - 31.5f, y - 31.5f).magnitude / 31.5f;
+                float n = Mathf.PerlinNoise(x * 0.15f, y * 0.15f);   // a little breakup so stacked puffs read as dust, not discs
+                float a = Mathf.Clamp01(1 - d); a = a * a * (3 - 2 * a) * Mathf.Lerp(0.6f, 1f, n);
+                t.SetPixel(x, y, new Color(1, 1, 1, a));
+            }
+            File.WriteAllBytes(path, t.EncodeToPNG()); Object.DestroyImmediate(t);
+            AssetDatabase.ImportAsset(path);
+            var ti = (TextureImporter)AssetImporter.GetAtPath(path); ti.alphaIsTransparency = true; ti.wrapMode = TextureWrapMode.Clamp; ti.mipmapEnabled = true; ti.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+    }
+
+    // URP particle materials for the scrape: soft round sprite, alpha (dust/clods) or additive (sparks)
+    static Material FxMat(string name, bool additive)
+    {
+        var path = $"{Root}/Materials/{name}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")); AssetDatabase.CreateAsset(m, path); }
+        m.SetTexture("_BaseMap", SoftDot());
+        m.SetColor("_BaseColor", Color.white);
+        m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", additive ? 2f : 0f); m.SetFloat("_ZWrite", 0f);
+        m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        m.SetFloat("_DstBlend", (float)(additive ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha));
+        m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.SetOverrideTag("RenderType", "Transparent");
+        if (additive) m.EnableKeyword("_BLENDMODE_ADD"); else m.DisableKeyword("_BLENDMODE_ADD");
+        m.SetFloat("_Cull", 0f); m.renderQueue = 3000; EditorUtility.SetDirty(m); return m;
+    }
+    // sparks and red-hot claw gouges: the claw-trail shader (additive HDR, vertex colour fades it), which renders in the captures
+    static Material GlowLineMat(string name, Color c)
+    {
+        var path = $"{Root}/Materials/{name}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        var sh = Shader.Find("BulletHeaven/JangsanbeomTrail");
+        if (m == null) { m = new Material(sh); AssetDatabase.CreateAsset(m, path); } else if (m.shader != sh) m.shader = sh;
+        m.SetColor("_Color", c); m.SetFloat("_Softness", 0.7f); EditorUtility.SetDirty(m); return m;
+    }
+    // (unused) claw gouges: glowing red furrows
+    static Material GougeMat()
+    {
+        var m = FxMat("JSB_ScrapeGouge", true);   // red-hot claw marks that cool off (matches the red claws)
+        m.SetTexture("_BaseMap", null); m.SetColor("_BaseColor", new Color(3f, 0.22f, 0.06f, 1f));
+        EditorUtility.SetDirty(m); return m;
     }
 
     static Material Emissive(string name, Color baseCol, Color emit)
@@ -322,6 +401,7 @@ public static class JangsanbeomGlowSetup
         var path = $"{Root}/Materials/JSB_Parasite_{key}.mat";
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (m == null) { m = new Material(Shader.Find("BulletHeaven/JangsanbeomParasite")); AssetDatabase.CreateAsset(m, path); }
+        m.SetFloat("_GulpSpeed", 0.7f);   // 11-16 Kido: the blood gulp was too fast (was 1.6; the telegraph doubles it)
         m.SetFloat("_GlowBase", 0.35f); m.SetFloat("_GlowPeak", 6f); m.SetFloat("_GulpGlow", 5f); m.SetFloat("_GulpBulge", 0.16f);
         m.SetColor("_GlowColor", new Color(1f, 0.03f, 0.02f)); m.SetColor("_CrustColor", new Color(0.05f, 0.03f, 0.03f)); m.SetFloat("_CrustAmount", 0.45f);
         switch (key)
@@ -436,7 +516,7 @@ public static class JangsanbeomGlowSetup
         { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
         var anims = cam.gameObject.scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Animator>()).ToArray();
         const float beatSpeed = 1.4f;
-        Shader.SetGlobalFloat("_JSB_UseFixedTime", 1f);
+        Shader.SetGlobalFloat("_JSB_UseFixedTime", 1f); Shader.SetGlobalFloat("_WK_UseFixedTime", 1f);
         try
         {
             float[] ts = { 0.3f, 1.6f, 2.6f, 3.5f };
@@ -448,6 +528,7 @@ public static class JangsanbeomGlowSetup
                 bool warnClip = only.name.Contains("telegraph");
                 // stills: alternate heartbeat peak / rest so both are visible
                 var trails = only.GetComponent<JangsanbeomClawTrails>();
+                var scrape = only.GetComponent<JangsanbeomScrapeFX>();
                 for (int k = 0; k < ts.Length; k++)
                 {
                     if (trails != null)
@@ -470,19 +551,21 @@ public static class JangsanbeomGlowSetup
                 {
                     float t = f / 30f;
                     if (f == 0 && trails != null) trails.ResetTrails();
+                    if (f == 0 && scrape != null) scrape.ResetFX();
                     if (trails != null && f > 0)   // half steps between frames keep fast swipes as smooth arcs
-                    { clip.SampleAnimation(only.gameObject, (t - 1f / 60f) % clip.length); trails.Sample(t - 1f / 60f); }
+                    { clip.SampleAnimation(only.gameObject, (t - 1f / 60f) % clip.length); trails.Sample(t - 1f / 60f); if (scrape != null) scrape.Sample(t - 1f / 60f); }
                     clip.SampleAnimation(only.gameObject, t % clip.length);
                     if (trails != null) trails.Sample(t);
+                    if (scrape != null) scrape.Sample(t);
                     if (f == 0) PlaceFrontCam(cam, only.gameObject);
                     SetWarn(only.gameObject, warnClip ? Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f) : 0f);
-                    Shader.SetGlobalFloat("_JSB_FixedTime", t);
+                    Shader.SetGlobalFloat("_JSB_FixedTime", t); Shader.SetGlobalFloat("_WK_FixedTime", t);
                     SyncSkin(only.gameObject); Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
                 }
                 SetWarn(only.gameObject, 0f);
             }
         }
-        finally { Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); ClearSkin(); }
+        finally { Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); Shader.SetGlobalFloat("_WK_UseFixedTime", 0f); ClearSkin(); }
         Debug.Log($"[JSB] captured stills to {outDir}");
     }
 }
