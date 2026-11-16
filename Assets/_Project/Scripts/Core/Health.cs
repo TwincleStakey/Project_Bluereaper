@@ -25,15 +25,18 @@ namespace BlueReaper.Core
         // 오브젝트 풀에서 다시 꺼낼 때(재활성화) 체력이 초기화되도록 OnEnable에서 리셋
         void OnEnable() => Current = MaxHealth;
 
-        public void TakeDamage(float amount)
+        public DamageResult TakeDamage(float amount)
         {
-            if (IsDead || Invincible || amount <= 0f) return;
+            if (IsDead || Invincible || !(amount > 0f) || !float.IsFinite(amount)) return DamageResult.Ignored;
 
-            Current = Mathf.Max(0f, Current - amount);
-            bool died = IsDead;
+            float next = Mathf.Max(0f, Current - amount);
+            if (!(next < Current)) return DamageResult.Ignored;
+            Current = next;
+            var result = IsDead ? DamageResult.Killed : DamageResult.Applied;
             Damaged?.Invoke(amount);
             // Capture this damage result before callbacks can apply further damage.
-            if (died) Died?.Invoke();
+            if (result == DamageResult.Killed) Died?.Invoke();
+            return result;
         }
 
         public void Kill()

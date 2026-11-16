@@ -41,6 +41,8 @@ flowchart LR
 
 - [Enemy](../Assets/_Project/Scripts/Core/Enemy.cs)는 등급, 페이즈, 생존 플레이어 목록을 보유한다. [EnemyAI](../Assets/_Project/Scripts/Boss/Patterns/EnemyAI.cs)는 NavMesh 추적과 패턴 선택·실행, 그로기 중단, 사망 연출을 맡는다. 일반 몬스터와 보스가 같은 AI를 사용한다.
 - [Monster_1](../Assets/_Project/Data/Monsters/Monster_1_Pattern_1.asset)은 근거리, [Monster_2](../Assets/_Project/Data/Monsters/Monster_2_Pattern_1.asset)는 탄막, [Monster_3](../Assets/_Project/Data/Monsters/Monster_3_Pattern_1.asset)는 원형 범위 공격과 자폭을 사용한다. [Boss_1](../Assets/_Project/Prefabs/Boss/Boss_1.prefab)은 자세·페이즈·시퀀스에 연결된다.
+- [범위 공격 데이터](../Assets/_Project/Scripts/Boss/Patterns/AreaAttackPatternData.cs)는 스텝 시작 기준의 배치 시각과 피해 시각을 갖는다. `EnemyAI.ExecuteAreaEffects`가 시전자나 활성 필드 기준 위치를 확보하고 예약 순으로 효과를 실행한다. [AreaHitQuery](../Assets/_Project/Scripts/HitBox/AreaHitQuery.cs)는 기본 도형과 추가 도형의 피해 대상을 한 틱에 한 번씩 집계한다.
+- 적의 시전, 근거리·범위 발동, 탄막 발사와 타격 연출은 각 패턴 데이터에서 지정하고 [VfxAutoDespawn](../Assets/_Project/Scripts/Vfx/VfxAutoDespawn.cs)을 통해 재생·회수한다. 피격 연출은 `TakeDamage`의 피해 적용 결과를 사용한다.
 - [Boss_1의 2페이즈 시퀀스](../Assets/_Project/Data/Bosses/Boss_1_Pattern_Seq_1.asset)는 패턴 1 → 2 → 4 순으로 실행한다. 스폰·사망 패턴 슬롯은 코드에 있으며, 저장된 Monster_1~3과 Boss_1 프리팹에는 할당이 없다. 각 슬롯의 실행 순서는 [적 패턴 계약](contracts/ENEMY_PATTERNS.md)을 참조한다.
 
 ## 스테이지와 회수

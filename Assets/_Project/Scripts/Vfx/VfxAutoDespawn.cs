@@ -1,3 +1,4 @@
+using System;
 using BlueReaper.Core;
 using UnityEngine;
 
@@ -13,12 +14,53 @@ namespace BlueReaper.Vfx
         [SerializeField] float lifetime = 1f;
 
         ParticleSystem[] particles;
-        float timeLeft;
+        float timeLeft, playAt;
+        bool waiting;
+        Func<bool> canPlay;
 
-        void Awake() => particles = GetComponentsInChildren<ParticleSystem>(true);
+        internal static void Play(VfxAutoDespawn prefab, Vector3 position, Quaternion rotation,
+            float delay = 0f, Func<bool> canPlay = null)
+        {
+            if (!prefab || !float.IsFinite(delay) || (canPlay != null && !canPlay())) return;
+            ObjectPool.Spawn(prefab.gameObject, position, rotation, delay > 0f
+                ? instance => instance.GetComponent<VfxAutoDespawn>().SetDelay(delay, canPlay)
+                : null);
+        }
+
+        void SetDelay(float seconds, Func<bool> allowed)
+        {
+            playAt = Time.time + seconds;
+            waiting = true;
+            canPlay = allowed;
+        }
+
+        void Awake()
+        {
+            particles = GetComponentsInChildren<ParticleSystem>(true);
+            foreach (var ps in particles)
+            {
+                var main = ps.main;
+                main.playOnAwake = false;
+            }
+        }
 
         void OnEnable()
         {
+            if (!waiting) Begin();
+        }
+
+        void OnDisable()
+        {
+            waiting = false;
+            canPlay = null;
+            foreach (var ps in particles)
+                if (ps) ps.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        void Begin()
+        {
+            waiting = false;
+            canPlay = null;
             timeLeft = lifetime;
             foreach (var ps in particles)
             {
@@ -30,6 +72,17 @@ namespace BlueReaper.Vfx
         void Update()
         {
             // 게임 시간 기준: 히트스톱으로 시간이 멈추면 이펙트도 같이 멈춘다
+            if (waiting)
+            {
+                if (canPlay != null && !canPlay())
+                {
+                    ObjectPool.Despawn(gameObject);
+                    return;
+                }
+                if (Time.time >= playAt) Begin();
+                return;
+            }
+
             timeLeft -= Time.deltaTime;
             if (timeLeft > 0f) return;
             ObjectPool.Despawn(gameObject);

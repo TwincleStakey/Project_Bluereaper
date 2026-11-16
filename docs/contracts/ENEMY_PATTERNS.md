@@ -13,15 +13,25 @@
 | 효과 | 일반·스폰 패턴 | 사망 패턴 |
 | --- | --- | --- |
 | 근거리 | 스텝 시작 시각을 기준으로 히트박스를 연다. 같은 대상은 판정 구간에 한 번 맞으며 반복 설정 시 지정 간격을 적용한다. | 사망 시각을 기준으로 판정하며 필드가 유효한 동안 실행한다. 본체는 판정과 사망 모션 종료까지 유지된다. |
-| 범위 | 스텝 시작 시 위치·방향을 고정하고 지연 후 원형·직사각형·부채꼴 영역의 피격 Collider를 조회한다. 단일은 한 번, 반복은 유지 시간 내 지정 주기로 판정한다. 같은 틱의 피해는 대상당 한 번이다. | 시전자 사망 또는 비활성화 시 예약 및 반복 판정을 종료한다. |
+| 범위 | 배치 시점에 위치·방향을 고정하고 피해 시점에 원형·직사각형·부채꼴·도넛 영역의 피격 Collider를 조회한다. 단일은 한 번, 반복은 유지 시간 내 지정 주기로 판정한다. 한 효과의 여러 도형은 같은 틱에 합산하며 피해는 대상당 한 번이다. | 시전자 사망·비활성화 또는 소속 필드 클리어 확정 시 남은 배치와 피해 판정을 취소한다. |
 | 탄막 | 시작 지연 뒤 첫 발사 위치·방향을 읽고, 설정에 따라 회차마다 조준한다. 재조준 대상이 사라지면 남은 발사를 중단한다. | 사망 순간 위치·방향·공격력을 고정한다. 발사와 탄 수명은 필드가 관리한다. |
 | 소환 | 시전자·타겟·필드 중심을 기준으로 스테이지에 소환을 요청한다. | 시전자 기준이면 사망 위치를 사용한다. 공통 소환 경로에서 데이터와 NavMesh 위치를 확인한다. |
 
 - 효과 목록의 직렬화 필드명은 `Implementations`다. 같은 패턴에 근거리 효과가 여러 개면 첫 항목만 실행하고 나머지는 경고한다. 근거리·탄막·소환을 함께 등록할 수 있다.
 - 근거리와 일반·사망 탄막은 `Hurtbox` 레이어에서 부모의 `IDamageable`을 조회한다. 탄막은 `Environment` 레이어와 접촉해도 회수한다.
+- `PlacementOrigin`은 시전자 또는 소속 필드의 배치 기준을 선택한다. 기본값은 시전자이며 `PlacementDelaySeconds` 기본값은 0이다. 배치와 `HitStartSeconds` 모두 스텝 시작을 기준으로 하고, 배치 시간은 피해 시간보다 늦을 수 없다. 필드 기준은 활성 필드에 등록된 시전자가 필요하다.
+- 한 스텝에 여러 범위 효과를 두면 모션을 한 번 재생하고, 같은 프레임에 판정이 몰려도 예약 시간 순으로 처리한다. 같은 시각의 효과는 등록 순서를 따른다. 모션과 마지막 판정이 끝난 후 휴식 시간을 거쳐 다음 스텝으로 넘어간다.
+- `AdditionalShapes`는 기본 도형과 같은 시각에 판정한다. 각 도형은 배치 시 확보한 좌표계를 기준으로 로컬 중심과 Y 회전을 사용한다. 서로 다른 범위 효과와 다음 반복 틱은 개별 타격으로 처리한다.
 - 일반·스폰 패턴은 모션 대기, 근거리·범위 판정, 마지막 회차 발사가 끝나면 휴식 시간으로 넘어간다. 탄이 날아가거나 적중할 때까지 기다리지는 않는다. `SelfDestructAfterPattern`은 휴식 후 `Health.Kill`을 호출한다.
 - 그로기는 이동·근거리 판정·남은 발사를 중단하고 이미 생성된 일반 탄은 유지한다. 사망·비활성화는 일반 탄까지 회수한다.
 - 현재 일반·스폰 탄막은 프리팹을 확인한 뒤 개별 탄 경로를 평가하고, 사망 탄막은 프리팹과 `GetValidationError()`를 먼저 검사한다.
+
+## 패턴 VFX
+
+- `EnemyPatternData.CastVfxPrefab`은 스텝 시작 또는 사망 시점 기준 `CastVfxDelaySeconds`에 재생한다. 일반·스폰 패턴은 스텝 종료나 중단 시 남은 시전 연출을 취소한다. 사망 패턴의 연출은 활성 필드에서 사망 좌표를 사용한다.
+- 범위 효과의 `AttackVfxPrefab`은 첫 판정 시점의 장판 중심에서 재생한다. 근거리 효과는 판정 창이 처음 열릴 때, 일반·사망 탄막의 `LaunchVfxPrefab`은 탄이 생성된 발사 회차마다 한 번 재생한다.
+- `HitVfxPrefab`은 피해 호출 전에 계산한 적중 위치에서 `HitVfxDelaySeconds` 후 재생한다. 실제 피해가 적용된 요청은 피격 대상, 시전자 또는 탄이 회수되어도 유지한다. 필드가 종료되면 재생을 기다리던 요청을 반환한다. 이미 재생 중인 효과는 설정된 수명에 따라 풀에 반환한다.
+- VFX 프리팹 루트에 [VfxAutoDespawn](../../Assets/_Project/Scripts/Vfx/VfxAutoDespawn.cs)을 둔다. `Monster_3`의 시전·폭발·피격 설정에는 같은 더미 파티클 프리팹을 연결한다.
 
 ## 코드와 검증 진입점
 
@@ -29,7 +39,7 @@
 | --- | --- |
 | 단일·시퀀스 실행과 중단 | [EnemyAI](../../Assets/_Project/Scripts/Boss/Patterns/EnemyAI.cs)의 `AIUpdate`, `ExecuteAction`, `ExecutePattern`, `StopActions` |
 | 근거리 시간·대상별 반복 | [EnemyAI](../../Assets/_Project/Scripts/Boss/Patterns/EnemyAI.cs)의 `StartMeleeHitWindow`와 `OnMeleeContact`, [MeleeHitBox](../../Assets/_Project/Scripts/HitBox/MeleeHitBox.cs) |
-| 원형·직사각형·부채꼴 | [AreaAttackPatternData](../../Assets/_Project/Scripts/Boss/Patterns/AreaAttackPatternData.cs), [AreaHitQuery](../../Assets/_Project/Scripts/HitBox/AreaHitQuery.cs), `EnemyAI.ExecuteAreaEffect` |
+| 범위 배치·순차 판정·같은 틱 중복 방지 | [AreaAttackPatternData](../../Assets/_Project/Scripts/Boss/Patterns/AreaAttackPatternData.cs), [AreaHitQuery](../../Assets/_Project/Scripts/HitBox/AreaHitQuery.cs), `EnemyAI.ExecuteAreaEffects` |
 | 탄 이동·수명·편집 미리보기 | [BulletPatternData.TryEvaluate](../../Assets/_Project/Scripts/Boss/Patterns/BulletPatternData.cs), [ProjectileHitBox](../../Assets/_Project/Scripts/HitBox/ProjectileHitBox.cs), [BulletPatternChecks](../../Assets/_Project/Scripts/Editor/Tests/BulletPatternChecks.cs) |
 | 시퀀스 회귀 | [Boss_1의 2페이즈 시퀀스](../../Assets/_Project/Data/Bosses/Boss_1_Pattern_Seq_1.asset)가 1 → 2 → 4를 실행하는지 확인 |
 | 자폭과 사망 효과 | [Monster_3 패턴](../../Assets/_Project/Data/Monsters/Monster_3_Pattern_1.asset)의 자폭과, 사망 패턴을 별도로 할당한 적의 일반 처치·필드 종료를 확인 |

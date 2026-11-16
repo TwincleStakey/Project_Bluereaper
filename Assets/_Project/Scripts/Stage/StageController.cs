@@ -8,6 +8,7 @@ using BlueReaper.Data;
 using BlueReaper.HitBox;
 using BlueReaper.Player;
 using BlueReaper.UI;
+using BlueReaper.Vfx;
 using UnityEngine;
 using UnityEngine.AI;
 using Random = UnityEngine.Random;
@@ -317,6 +318,12 @@ namespace BlueReaper.Stage
         internal bool CanRunDeathPattern(Unit source) =>
             units.TryGetValue(source, out StageUnitRecord record) && record.Dead && IsFieldActive(record.Field);
 
+        internal StageField GetActiveField(Unit source, bool afterDeath = false) =>
+            units.TryGetValue(source, out StageUnitRecord record) && record.Dead == afterDeath && IsFieldActive(record.Field)
+                ? record.Field : null;
+
+        internal Func<bool> GetVfxGuard(StageField field) => () => this && IsFieldActive(field);
+
         internal void StartDeathBullets(Unit source, BulletPatternData pattern, float diedAt,
             Vector3 origin, Quaternion facing, float attack)
         {
@@ -335,12 +342,14 @@ namespace BlueReaper.Stage
         private IEnumerator EmitDeathBullets(StageField field, BulletPatternData pattern, float firstEmissionAt, Vector3 origin,
             Quaternion facing, float damage)
         {
+            var vfxGuard = GetVfxGuard(field);
             for (int emission = 0; emission < pattern.RepeatCount; emission++)
             {
                 float emissionAt = firstEmissionAt + emission * pattern.RepeatInterval;
                 while (IsFieldActive(field) && Time.time < emissionAt) yield return null;
                 if (!IsFieldActive(field)) yield break;
 
+                bool launched = false;
                 for (int path = 0; path < pattern.MaximumCount; path++)
                 {
                     var projectile = ProjectileHitBox.Spawn(pattern, path, emission, origin, facing);
@@ -351,8 +360,11 @@ namespace BlueReaper.Stage
                         yield break;
                     }
                     deathProjectiles.Add(projectile);
-                    projectile.InitDeathProjectile(damage, pattern, path, emission, origin, facing, OnDeathProjectileReturned);
+                    projectile.InitDeathProjectile(damage, pattern, path, emission, origin, facing,
+                        OnDeathProjectileReturned, vfxGuard);
+                    launched = true;
                 }
+                if (launched) VfxAutoDespawn.Play(pattern.LaunchVfxPrefab, origin, facing, canPlay: vfxGuard);
             }
         }
 
