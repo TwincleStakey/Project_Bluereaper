@@ -17,7 +17,7 @@ public class JangsanbeomTelegraph : MonoBehaviour
     {
         mpb = new MaterialPropertyBlock();
         if (bodyRenderers == null || bodyRenderers.Length == 0)
-            bodyRenderers = System.Array.FindAll(GetComponentsInChildren<Renderer>(true), r => r.sharedMaterial != null && r.sharedMaterial.HasProperty(WarnId));
+            bodyRenderers = System.Array.FindAll(GetComponentsInChildren<Renderer>(true), r => r.sharedMaterial != null && r.sharedMaterial.HasProperty(WarnId) && r.sharedMaterial.shader.name != "BulletHeaven/WindKey");   // the key keeps its slow turn
         Apply(0f);
     }
 

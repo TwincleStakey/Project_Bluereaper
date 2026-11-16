@@ -33,7 +33,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AmbientBoost: 1.2
+    - _AmbientBoost: 0.5
     - _ClawHeight: 50
     - _ClawIntensity: 8
     - _ClawRedness: 0.05
@@ -41,16 +41,16 @@ Material:
     - _EyePulseAmount: 0.35
     - _EyePulseSpeed: 1.6
     - _FurLumMin: 0.35
-    - _RimIntensity: 4
+    - _RimIntensity: 0.4
     - _RimPower: 2.5
     - _SparkleAmount: 0.22
     - _SparkleDensity: 7
-    - _SparkleIntensity: 5
+    - _SparkleIntensity: 2
     - _SparkleSpeed: 3
     - _Warn: 0
-    - _WarnFurIntensity: 4
+    - _WarnFurIntensity: 1.2
     - _WarnPulseSpeed: 7
-    - _WarnRimIntensity: 12
+    - _WarnRimIntensity: 3
     - _WarnWaveFreq: 0.6
     - _WarnWaveSpeed: 6
     m_Colors:

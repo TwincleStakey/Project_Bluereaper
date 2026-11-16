@@ -40,12 +40,12 @@ Shader "BulletHeaven/JangsanbeomParasite"
         float T() { return _JSB_UseFixedTime > 0.5 ? _JSB_FixedTime : _Time.y; }
         float Gulp(float u)
         {
-            float w = frac(u * _GulpFreq - _WaveDir * T() * _GulpSpeed * (1 + _Warn));
+            float w = frac(u * _GulpFreq - _WaveDir * T() * _GulpSpeed);   // 11-16 Kido: no speed-up while warning
             return pow(saturate(sin(w * 6.2832) * 0.5 + 0.5), _GulpSharp);
         }
         float Beat()
         {
-            float t = T() * _BeatSpeed * (1 + 0.8 * _Warn);
+            float t = T() * _BeatSpeed;   // a calm heart, also while warning
             float p = frac(t);
             // 11-16 Kido ("핏줄이 맥박같이, 너무 반짝거려"): a soft swell and fade instead of the sharp lub-dub spikes
             float swell = smoothstep(0.0, 0.14, p) * (1 - smoothstep(0.14, 0.8, p));
@@ -103,7 +103,7 @@ Shader "BulletHeaven/JangsanbeomParasite"
                 float cn = vnoise(i.positionOS * 4.0 + float3(0, 0, i.uv.x * 2.0)) * 0.65 + vnoise(i.positionOS * 11.0) * 0.35;
                 half crackW = 0.06 + 0.10 * beat + 0.08 * i.gulp;
                 half crack = 1 - smoothstep(0.0, crackW, abs(cn - 0.5));
-                half glow = _GlowBase + _GlowPeak * beat * (1 + _Warn) + _GulpGlow * i.gulp;
+                half glow = _GlowBase + _GlowPeak * beat * (1 + 0.3 * _Warn) + _GulpGlow * i.gulp;
                 half mask = lerp(0.18, 1.0, crack) * inner;
                 // keep the hue deep red even at the peak (bright values would clip toward orange under ACES)
                 half3 gc = _GlowColor.rgb * glow * mask;

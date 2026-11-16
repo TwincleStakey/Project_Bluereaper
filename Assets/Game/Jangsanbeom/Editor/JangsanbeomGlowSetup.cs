@@ -89,10 +89,10 @@ public static class JangsanbeomGlowSetup
         mat.SetTexture("_BaseMap", baseTex);
         mat.SetTexture("_EyeMask", AssetDatabase.LoadAssetAtPath<Texture2D>(eye));
         // tuned for a 25x guardian-size boss seen from the game camera
-        mat.SetFloat("_AmbientBoost", 1.2f);
-        mat.SetFloat("_EyeIntensity", 8f); mat.SetColor("_EyeColor", new Color(5f, 0.25f, 0.12f, 1f)); mat.SetFloat("_Warn", 0f); mat.SetFloat("_WarnFurIntensity", 4f); mat.SetFloat("_ClawIntensity", 8f); mat.SetFloat("_ClawHeight", 50f); mat.SetFloat("_ClawRedness", 0.05f); mat.SetFloat("_WarnRimIntensity", 12f);
-        mat.SetFloat("_RimIntensity", 4f); mat.SetFloat("_RimPower", 2.5f); mat.SetFloat("_FurLumMin", 0.35f);
-        mat.SetFloat("_SparkleDensity", 7f); mat.SetFloat("_SparkleAmount", 0.22f); mat.SetFloat("_SparkleIntensity", 5f); mat.SetFloat("_SparkleSpeed", 3f);
+        mat.SetFloat("_AmbientBoost", 0.5f);   // 11-16 Kido: near-black, only the face shows a little
+        mat.SetFloat("_EyeIntensity", 8f); mat.SetColor("_EyeColor", new Color(5f, 0.25f, 0.12f, 1f)); mat.SetFloat("_Warn", 0f); mat.SetFloat("_WarnFurIntensity", 1.2f); mat.SetFloat("_ClawIntensity", 8f); mat.SetFloat("_ClawHeight", 50f); mat.SetFloat("_ClawRedness", 0.05f); mat.SetFloat("_WarnRimIntensity", 3f);
+        mat.SetFloat("_RimIntensity", 0.4f); mat.SetFloat("_RimPower", 2.5f); mat.SetFloat("_FurLumMin", 0.35f);
+        mat.SetFloat("_SparkleDensity", 7f); mat.SetFloat("_SparkleAmount", 0.22f); mat.SetFloat("_SparkleIntensity", 2f); mat.SetFloat("_SparkleSpeed", 3f);
         // optional overrides for tuning/debugging: Temp/jsb_glow_overrides.txt with lines "name value"
         if (File.Exists("Temp/jsb_glow_overrides.txt"))
             foreach (var line in File.ReadAllLines("Temp/jsb_glow_overrides.txt"))
@@ -160,6 +160,7 @@ public static class JangsanbeomGlowSetup
                 else r.sharedMaterials = r.sharedMaterials.Select(GramoMat).ToArray();   // gramophone parts: the Blender node materials don't survive FBX
             WindKeySetup.AddToJangsanbeom(go);   // 11-16: 태엽열쇠 on the lower back
             BossKeyMat(go);
+            FaceLight(go);
             var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/{c}.fbx");
             AnimationClip ac = null; foreach (var o in clip) if (o is AnimationClip a && !a.name.StartsWith("__preview")) ac = a;
             if (ac != null)
@@ -270,6 +271,17 @@ public static class JangsanbeomGlowSetup
                 foreach (var l in mapLights) l.intensity *= dim;
                 RenderSettings.ambientSkyColor *= dim; RenderSettings.ambientEquatorColor *= dim; RenderSettings.ambientGroundColor *= dim; RenderSettings.ambientLight *= dim; RenderSettings.fogColor *= dim;
             }
+            // the map's own emissive bits (seal plate, lava) ignore the lights: pull the exposure down too for a near-black frame
+            GameObject darkVol = null;
+            if (dim < 0.5f)
+            {
+                darkVol = new GameObject("JSB_DarkCapture") { hideFlags = HideFlags.HideAndDontSave };
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(darkVol, map);
+                var dv = darkVol.AddComponent<Volume>(); dv.isGlobal = true; dv.priority = 100;
+                var dp = ScriptableObject.CreateInstance<VolumeProfile>(); dp.hideFlags = HideFlags.HideAndDontSave;
+                var ca = dp.Add<ColorAdjustments>(true); ca.postExposure.Override(Mathf.Log(dim, 2f) * 0.4f);
+                dv.sharedProfile = dp;
+            }
             try {
 
             var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../ArtSource/Jangsanbeom/renders/map"));
@@ -307,6 +319,7 @@ public static class JangsanbeomGlowSetup
                 Object.DestroyImmediate(rt); Object.DestroyImmediate(ldr); Object.DestroyImmediate(tex);
             }
             } finally {
+                if (darkVol != null) { Object.DestroyImmediate(darkVol.GetComponent<Volume>().sharedProfile); Object.DestroyImmediate(darkVol); }
                 for (int li = 0; li < mapLights.Length; li++) if (mapLights[li]) mapLights[li].intensity = lightI0[li];
                 (RenderSettings.ambientSkyColor, RenderSettings.ambientEquatorColor, RenderSettings.ambientGroundColor, RenderSettings.ambientLight, RenderSettings.fogColor) = amb0;
             }
@@ -324,6 +337,19 @@ public static class JangsanbeomGlowSetup
     }
 
     // 11-16 Kido: the key turned too fast on the boss. Its own copy of key material A, slower ticks (the telegraph x2.5 still applies)
+    // a faint warm light just in front of the face, so in a near-black map the face is what reads (no shadows)
+    static void FaceLight(GameObject boss)
+    {
+        var head = boss.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Head");
+        var hips = boss.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Hips");
+        if (head == null || hips == null) return;
+        var old = head.Find("JSB_FaceLight"); if (old) Object.DestroyImmediate(old.gameObject);
+        var fwd = head.position - hips.position; fwd.y = 0; fwd.Normalize();
+        var l = new GameObject("JSB_FaceLight").AddComponent<Light>();
+        l.transform.SetParent(head, false); l.transform.position = head.position + fwd * 4f + Vector3.up * 2f;
+        l.type = LightType.Point; l.color = new Color(1f, 0.55f, 0.45f); l.intensity = 6f; l.range = 9f; l.shadows = LightShadows.None;
+    }
+
     static void BossKeyMat(GameObject boss)
     {
         foreach (var r in boss.GetComponentsInChildren<Renderer>(true))
@@ -333,7 +359,7 @@ public static class JangsanbeomGlowSetup
             var m = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (m == null) { m = new Material(r.sharedMaterial); AssetDatabase.CreateAsset(m, path); }
             else m.CopyPropertiesFromMaterial(r.sharedMaterial);
-            m.SetFloat("_TickRate", 0.45f);
+            m.SetFloat("_TickRate", 0.2f);   // 11-16: slower again (was 0.45); the telegraph no longer speeds it
             // 11-16 Kido: make the key on the back glow (the shared monster keys stay as they are)
             m.SetFloat("_GlowBase", 2.5f); m.SetFloat("_GlowPeak", 9f); m.SetFloat("_CrevGlow", 3.5f); m.SetFloat("_CollarGlow", 3.5f); m.SetFloat("_RimGlow", 1.4f);
             EditorUtility.SetDirty(m);
@@ -418,15 +444,15 @@ public static class JangsanbeomGlowSetup
         var path = $"{Root}/Materials/JSB_Parasite_{key}.mat";
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (m == null) { m = new Material(Shader.Find("BulletHeaven/JangsanbeomParasite")); AssetDatabase.CreateAsset(m, path); }
-        m.SetFloat("_GulpSpeed", 0.7f); m.SetFloat("_BeatSpeed", 0.8f);   // 11-16 Kido: a slow pulse, not a flicker (was 1.4; x1.8 while warning)   // 11-16 Kido: the blood gulp was too fast (was 1.6; the telegraph doubles it)
-        m.SetFloat("_GlowBase", 0.35f); m.SetFloat("_GlowPeak", 6f); m.SetFloat("_GulpGlow", 2f);   // gulp glow 5 -> 2: the travelling hot spots read as sparkle m.SetFloat("_GulpBulge", 0.16f);
+        m.SetFloat("_GulpSpeed", 0.7f); m.SetFloat("_BeatSpeed", 0.6f);   // 11-16 Kido: a slow pulse, not a flicker (was 1.4; x1.8 while warning)   // 11-16 Kido: the blood gulp was too fast (was 1.6; the telegraph doubles it)
+        m.SetFloat("_GlowBase", 0.06f); m.SetFloat("_GlowPeak", 0.9f); m.SetFloat("_GulpGlow", 0.25f);   // 11-16 Kido: a faint, pale heartbeat (was 0.35 / 6 / 2)   // gulp glow 5 -> 2: the travelling hot spots read as sparkle m.SetFloat("_GulpBulge", 0.16f);
         m.SetColor("_GlowColor", new Color(1f, 0.03f, 0.02f)); m.SetColor("_CrustColor", new Color(0.05f, 0.03f, 0.03f)); m.SetFloat("_CrustAmount", 0.45f);
         switch (key)
         {
-            case "Lip":   m.SetColor("_BaseColor", new Color(0.28f, 0.04f, 0.035f)); m.SetFloat("_GulpBulge", 0.05f); m.SetFloat("_GlowPeak", 3f); break;
-            case "Hole":  m.SetColor("_BaseColor", new Color(0.01f, 0f, 0f)); m.SetFloat("_CrustAmount", 0f); m.SetFloat("_GulpBulge", 0f); m.SetFloat("_GlowBase", 1.0f); m.SetFloat("_GlowPeak", 8f); break;
+            case "Lip":   m.SetColor("_BaseColor", new Color(0.28f, 0.04f, 0.035f)); m.SetFloat("_GulpBulge", 0.05f); m.SetFloat("_GlowPeak", 0.7f); break;
+            case "Hole":  m.SetColor("_BaseColor", new Color(0.01f, 0f, 0f)); m.SetFloat("_CrustAmount", 0f); m.SetFloat("_GulpBulge", 0f); m.SetFloat("_GlowBase", 0.15f); m.SetFloat("_GlowPeak", 1.2f); break;
             case "Blood": m.SetColor("_BaseColor", new Color(0.06f, 0.002f, 0.002f)); m.SetFloat("_CrustAmount", 0f); m.SetFloat("_Smoothness", 0.95f); m.SetFloat("_GulpBulge", 0f); m.SetFloat("_GlowBase", 0.05f); m.SetFloat("_GlowPeak", 2f); m.SetFloat("_GulpGlow", 0f); break;
-            case "Vein":  m.SetColor("_BaseColor", new Color(0.13f, 0.02f, 0.03f)); m.SetFloat("_GulpBulge", 0.04f); m.SetFloat("_GlowPeak", 4f); break;
+            case "Vein":  m.SetColor("_BaseColor", new Color(0.13f, 0.02f, 0.03f)); m.SetFloat("_GulpBulge", 0.04f); m.SetFloat("_GlowPeak", 0.8f); break;
         }
         EditorUtility.SetDirty(m); return m;
     }
@@ -518,7 +544,7 @@ public static class JangsanbeomGlowSetup
     {
         foreach (var r in boss.GetComponentsInChildren<Renderer>())
         {
-            if (r.sharedMaterial == null || !r.sharedMaterial.HasProperty("_Warn")) continue;
+            if (r.sharedMaterial == null || !r.sharedMaterial.HasProperty("_Warn") || r.sharedMaterial.shader.name == "BulletHeaven/WindKey") continue;
             var pb = new MaterialPropertyBlock(); r.GetPropertyBlock(pb); pb.SetFloat("_Warn", w); r.SetPropertyBlock(pb);
         }
     }

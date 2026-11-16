@@ -50,11 +50,11 @@ Material:
     - _GlowPeak: 9
     - _Metallic: 0.5
     - _NrmStr: 1
-    - _Phase: 0
+    - _Phase: 0.53
     - _RimGlow: 1.4
     - _Smoothness: 0.45
     - _TickAngle: 45
-    - _TickRate: 0.45
+    - _TickRate: 0.2
     - _TickSnap: 0.3
     - _Warn: 0
     - _Wobble: 4

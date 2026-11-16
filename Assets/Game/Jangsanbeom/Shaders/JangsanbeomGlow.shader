@@ -65,10 +65,10 @@ Shader "BulletHeaven/JangsanbeomGlow"
         // capture tools freeze time (same flag as the parasite shader); without it the captures ran everything 3x+ fast
         float _JSB_UseFixedTime; float _JSB_FixedTime;
         float T() { return _JSB_UseFixedTime > 0.5 ? _JSB_FixedTime : _Time.y; }
-        // lub-dub heartbeat shared with the parasite (_BeatSpeed 0.8 there), faster when warning
+        // lub-dub heartbeat shared with the parasite (_BeatSpeed 0.6 there), faster when warning
         float Beat(float warn)
         {
-            float p = frac(T() * 0.8 * (1 + 0.8 * warn));
+            float p = frac(T() * 0.6);
             return exp(-p * 10) + 0.6 * exp(-abs(p - 0.22) * 18);
         }
         ENDHLSL
@@ -154,7 +154,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
                 float h = hash31(cell);
                 // 11-16 Kido ("맥박같은 느낌, 너무 반짝거려"): the glints no longer blink on their own; they swell together
                 // with the heartbeat and a new set of cells takes over every few beats
-                float bt = T() * 0.8 * (1 + 0.8 * _Warn);
+                float bt = T() * 0.6;
                 float tw = saturate(Beat(_Warn)) * 0.85 + 0.15 * h;
                 float on = step(1 - _SparkleAmount, hash31(cell + floor(bt / 3.0)));
                 float3 f = frac(cellP) - 0.5; float dotShape = saturate(1 - length(f) * 2.2);

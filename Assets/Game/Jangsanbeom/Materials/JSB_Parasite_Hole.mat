@@ -25,13 +25,13 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BeatSpeed: 0.8
+    - _BeatSpeed: 0.6
     - _CrustAmount: 0
-    - _GlowBase: 1
-    - _GlowPeak: 8
+    - _GlowBase: 0.15
+    - _GlowPeak: 1.2
     - _GulpBulge: 0
     - _GulpFreq: 8
-    - _GulpGlow: 2
+    - _GulpGlow: 0.25
     - _GulpSharp: 10
     - _GulpSpeed: 0.7
     - _Smoothness: 0.75
