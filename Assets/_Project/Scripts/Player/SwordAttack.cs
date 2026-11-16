@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using BlueReaper.Core;
 using BlueReaper.HitBox;
 using UnityEngine;
@@ -26,9 +25,7 @@ namespace BlueReaper.Player
         public float Range => range;
         public float ArcAngle => arcAngle;
 
-        readonly Collider[] hits = new Collider[32];
-        // 콜라이더가 여러 개인 적을 한 번 휘두르기에 두 번 때리지 않도록
-        readonly HashSet<IDamageable> hitThisSwing = new();
+        readonly AreaHitQuery areaQuery = new();
         float cooldownLeft;
         Unit unit;
 
@@ -43,23 +40,20 @@ namespace BlueReaper.Player
 
             Vector3 origin = transform.position;
             Swung?.Invoke(origin, direction);
-            int count = Physics.OverlapSphereNonAlloc(origin, range, hits, HurtboxTarget.Mask, QueryTriggerInteraction.Collide);
-            hitThisSwing.Clear();
+            Vector3 forward = Vector3.ProjectOnPlane(direction, Vector3.up);
+            Quaternion facing = forward.sqrMagnitude >= 0.0001f
+                ? Quaternion.LookRotation(forward, Vector3.up)
+                : Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+            if (!(range > 0f)) return true;
+            var hits = areaQuery.Find(AreaHitShape.Sector, origin, facing,
+                new Vector3(range, range * 2f, 0f), arcAngle, unit, targetLayers);
             float damage = DamageFormula.Calculate(unit.Data.Attack, damageMultiplier);
 
-            for (int i = 0; i < count; i++)
+            foreach (var (target, collider) in hits)
             {
-                Collider hit = hits[i];
-                var target = HurtboxTarget.Find(hit, targetLayers, out var targetUnit);
-                if (target == null || targetUnit == unit) continue;
-
-                Vector3 toTarget = hit.transform.position - origin;
-                toTarget.y = 0f;
-                if (Vector3.Angle(direction, toTarget) > arcAngle * 0.5f) continue;
-
-                if (!hitThisSwing.Add(target)) continue;
+                Vector3 point = collider.ClosestPoint(origin);
                 target.TakeDamage(damage);
-                HitLanded?.Invoke(hit.ClosestPoint(origin));
+                HitLanded?.Invoke(point);
             }
             return true;
         }

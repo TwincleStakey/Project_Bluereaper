@@ -19,7 +19,8 @@
 ## 피해와 사망
 
 - 공격 판정은 `Hurtbox` 레이어의 피격용 Collider에서 부모의 `IDamageable`을 찾는다. 같은 부위가 공격에도 쓰이면 공격용 Collider와 피격용 Collider를 별도 GameObject에 배치한다. 근거리 패턴은 공격용 Collider만 켜고 끈다. 이동용 Collider는 기존 레이어를 사용한다.
-- 평타와 자동 조준의 `targetLayers`는 피해를 받는 `Unit`의 레이어를 지정한다. 물리 조회에는 `Hurtbox` 트리거를 포함하고, 자동 조준은 대상 `Enemy.Rank`로 보스 우선순위를 판단한다. 평타는 한 번 휘두를 때 같은 `IDamageable`에 한 번 피해를 전달한다.
+- 평타와 자동 조준의 `targetLayers`는 피해를 받는 `Unit`의 레이어를 지정한다. 물리 조회에는 `Hurtbox` 트리거를 포함하고, 자동 조준은 대상 `Enemy.Rank`로 보스 우선순위를 판단한다. 평타는 장판과 같은 영역 조회로 부채꼴에 걸친 Collider를 찾고, 한 번 휘두를 때 같은 `IDamageable`에 한 번 피해를 전달한다.
+- 원형·부채꼴은 높이와 실제 곡선 경계를 가진 영역에서 `BoxCollider`, `SphereCollider`, `CapsuleCollider`의 겹침을 계산한다. 직사각형은 Unity의 `OverlapBoxNonAlloc`으로 조회한다.
 - `Health.TakeDamage`는 이미 사망한 개체, 무적 상태, 0 이하 피해를 무시한다. 유효한 피해는 체력을 줄이고 `Damaged`를 발행한다. 그 타격으로 체력이 0이 되면 이어서 `Died`를 발행한다. `Kill`은 살아 있는 개체를 즉시 사망시키고 `Died`를 발행한다.
 - `Posture`는 비치명 피해량에 자세 피해 배율을 적용한다. 자세가 0이 되면 `GroggyStarted`를 발행하고 그로기 종료 시 최대치로 복구한다. 일반 감소는 유예 시간 이후 설정된 회복 시간에 따라 복구한다.
 - 플레이어 사망은 입력·이동·컨트롤러를 끄고 생존 타겟 목록에서 제외한다. 스테이지는 플레이어 본체를 풀로 반환하지 않는다.
