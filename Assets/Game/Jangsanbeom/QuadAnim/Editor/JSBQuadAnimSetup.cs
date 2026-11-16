@@ -21,7 +21,21 @@ public static class JSBQuadAnimSetup
     static readonly string[] Loops = { "idle", "walk", "trot", "gallop", "run" };
 
     [InitializeOnLoadMethod]
-    static void Watch() { EditorApplication.update += Tick; }
+    static void Watch()
+    {
+        EditorApplication.update += Tick;
+        EditorApplication.playModeStateChanged += s =>
+        {   // our Play run used the showcase as start scene; give the start scene back to RoomRunPlayStart's setting
+            if (s == PlayModeStateChange.EnteredEditMode && EditorPrefs.GetBool("JSBQ_Playing", false))
+            {
+                EditorPrefs.SetBool("JSBQ_Playing", false);
+                if (EditorPrefs.HasKey("JSBQ_RoomRunPref")) { EditorPrefs.SetBool("RoomRun.AlwaysPlayFromRoomRun", EditorPrefs.GetBool("JSBQ_RoomRunPref")); EditorPrefs.DeleteKey("JSBQ_RoomRunPref"); }
+                EditorSceneManager.playModeStartScene = EditorPrefs.GetBool("RoomRun.AlwaysPlayFromRoomRun", true) ? AssetDatabase.LoadAssetAtPath<SceneAsset>("Assets/Game/RoomRun/Scenes/RoomRun.unity") : null;
+                var back = EditorPrefs.GetString("JSBQ_ReturnScene", "");   // reopen the scene that was open before
+                if (back.Length > 0 && back != ScenePath && File.Exists(back)) EditorApplication.delayCall += () => EditorSceneManager.OpenScene(back, OpenSceneMode.Single);
+            }
+        };
+    }
     static void Tick()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
@@ -33,7 +47,8 @@ public static class JSBQuadAnimSetup
         }
         if (File.Exists("Temp/jsbq_play.trigger"))
         {
-            var arg = File.ReadAllText("Temp/jsbq_play.trigger").Trim(); File.Delete("Temp/jsbq_play.trigger");
+            string arg;
+            try { arg = File.ReadAllText("Temp/jsbq_play.trigger").Trim(); File.Delete("Temp/jsbq_play.trigger"); } catch (IOException) { return; }   // still being written
             Play(arg.Contains("record"));
         }
     }
@@ -48,7 +63,7 @@ public static class JSBQuadAnimSetup
             var mi = (ModelImporter)AssetImporter.GetAtPath(p);
             var name = Path.GetFileNameWithoutExtension(p);
             mi.animationType = ModelImporterAnimationType.Generic; mi.globalScale = BossScale; mi.useFileScale = true;
-            mi.importBlendShapes = false; mi.resampleCurves = false; mi.animationCompression = ModelImporterAnimationCompression.Off;
+            mi.importBlendShapes = false; mi.resampleCurves = true; mi.animationCompression = ModelImporterAnimationCompression.Off;   // resample: FBX stores Euler keys, +-180 wraps spun the body
             var clips = mi.defaultClipAnimations;
             foreach (var c in clips) { c.name = name; c.loopTime = Loops.Any(l => name.Contains(l)); }
             mi.clipAnimations = clips; mi.SaveAndReimport();
@@ -85,9 +100,9 @@ public static class JSBQuadAnimSetup
             WindKeySetup.AddToJangsanbeom(go);
             var keyMat = Mat("JSB_WindKey_Boss");
             if (keyMat != null) foreach (var r in go.GetComponentsInChildren<Renderer>(true)) if (r.sharedMaterial != null && r.sharedMaterial.shader.name == "BulletHeaven/WindKey") r.sharedMaterial = keyMat;
-            var an = go.GetComponent<Animator>() ?? go.AddComponent<Animator>(); an.runtimeAnimatorController = ctrl; an.applyRootMotion = false;
+            var an = go.GetComponent<Animator>(); if (an == null) an = go.AddComponent<Animator>(); an.runtimeAnimatorController = ctrl; an.applyRootMotion = false;
             an.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            var ct = go.GetComponent<JangsanbeomClawTrails>() ?? go.AddComponent<JangsanbeomClawTrails>();
+            var ct = go.GetComponent<JangsanbeomClawTrails>(); if (ct == null) ct = go.AddComponent<JangsanbeomClawTrails>();
             ct.trailMaterial = Mat("JSB_ClawTrail"); ct.minSpeed = 2.5f; ct.fullSpeed = 10f;
             if (go.GetComponent<JangsanbeomTelegraph>() == null) go.AddComponent<JangsanbeomTelegraph>();
             PrefabUtility.SaveAsPrefabAsset(go, Q + "/JSBQ_Boss.prefab");
@@ -106,7 +121,7 @@ public static class JSBQuadAnimSetup
         {
             UnityEngine.SceneManagement.SceneManager.SetActiveScene(scene);
             var boss = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(Q + "/JSBQ_Boss.prefab"), scene);
-            boss.transform.SetPositionAndRotation(new Vector3(10f, 0f, 30f), Quaternion.Euler(0, 180, 0));   // model faces -Y in Blender -> +Z in Unity; turned to face the camera
+            boss.transform.SetPositionAndRotation(new Vector3(0f, 0f, 10f), Quaternion.Euler(0, 180, 0));   // model faces -Y in Blender -> +Z in Unity; turned to face the camera
             var loader = new GameObject("JSBQ_Showcase");
             var sc = loader.AddComponent<JSBQuadShowcase>(); sc.animator = boss.GetComponent<Animator>(); sc.follow = boss.transform;
             loader.AddComponent<JSBQMapLoader>().mapScene = MapScene;
@@ -121,10 +136,13 @@ public static class JSBQuadAnimSetup
 
     public static void Play(bool record)
     {
-        EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
+        for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            if (UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).isDirty) { Debug.LogError("[JSBQ] an open scene has unsaved changes; not switching scenes"); File.WriteAllText("Temp/jsbq_play.err", "dirty scene"); return; }
         EditorPrefs.SetString("JSBQ_ReturnScene", UnityEngine.SceneManagement.SceneManager.GetActiveScene().path);
         EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-        var sc = Object.FindFirstObjectByType<JSBQuadShowcase>(); sc.record = record;
+        var sc = Object.FindFirstObjectByType<JSBQuadShowcase>(); sc.record = record; sc.trailMoves = "swipe,slam,bite";
+        sc.animator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(Q + "/JSBQ_MoveSet.controller");   // Build recreates the controller; a stale scene keeps the dead reference
+        sc.follow.SetPositionAndRotation(new Vector3(0f, 0f, 10f), Quaternion.Euler(0, 180, 0));   // the scene may be stale if it was open during Build
         var mv = Temp("jsbq_moves.txt");   // optional move list: lines "state seconds [speed] [hit,hit] [turn]"
         if (mv != null)
         {
@@ -139,6 +157,12 @@ public static class JSBQuadAnimSetup
                 sc.moves.Add(m);
             }
         }
+        EditorSceneManager.SaveScene(sc.gameObject.scene);
+        // RoomRunPlayStart boots the room run on Play (and re-applies after a reload): switch its pref off for this run, restored on exit
+        if (!EditorPrefs.HasKey("JSBQ_RoomRunPref")) EditorPrefs.SetBool("JSBQ_RoomRunPref", EditorPrefs.GetBool("RoomRun.AlwaysPlayFromRoomRun", true));
+        EditorPrefs.SetBool("RoomRun.AlwaysPlayFromRoomRun", false);
+        EditorSceneManager.playModeStartScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
+        EditorPrefs.SetBool("JSBQ_Playing", true);
         EditorApplication.isPlaying = true;
     }
     static string Temp(string f) => File.Exists("Temp/" + f) ? File.ReadAllText("Temp/" + f) : null;
@@ -150,7 +174,7 @@ public static class JSBQuadAnimSetup
         string n = src != null ? src.name : "";
         if (n.Contains("Banner") || n.Contains("Cloth") || n.Contains("Talisman")) return src;
         string key = n.Contains("Rope") ? "Rope" : (n.Contains("Bronze") || n.Contains("Gold") || n.Contains("Brass")) ? "Bronze" : n.Contains("Inside") ? "Inside" : "Rust";
-        return Mat("JSB_Gramo_" + key) ?? src;
+        var gm = Mat("JSB_Gramo_" + key); return gm != null ? gm : src;
     }
 }
 #endif

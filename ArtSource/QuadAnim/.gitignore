@@ -1,0 +1,10 @@
+# downloaded packs (re-download: Assets/Game/Jangsanbeom/QuadAnim/CREDITS.txt), intermediate outputs and review renders
+src/
+out/
+prev/
+logs/
+renders/play/
+renders/vid/
+renders/sheet*.png
+renders/seq.png
+__pycache__/

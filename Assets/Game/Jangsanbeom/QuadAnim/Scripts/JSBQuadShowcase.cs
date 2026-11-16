@@ -27,6 +27,9 @@ public class JSBQuadShowcase : MonoBehaviour
     public float camZoom = 2.7f;
     public bool walkByPaws = true;    // translate the root by the planted paw
     public List<Move> moves = new List<Move>();
+    public Vector3 arenaCenter = new Vector3(0f, 0f, 0f);
+    public float arenaRadius = 16f;   // locomotion steers back toward the centre beyond this
+    public string trailMoves = "";   // claw afterimages per move (e.g. "swipe,slam"); off: at 30 Hz Play sampling they drew big zigzag boxes
     public bool loop = true;
 
     [Header("Hit reaction")]
@@ -69,6 +72,8 @@ public class JSBQuadShowcase : MonoBehaviour
             foreach (var m in moves)
             {
                 currentMove = m.state;
+                var ct = animator.GetComponent<JangsanbeomClawTrails>();
+                if (ct != null) { bool on = false; foreach (var k in trailMoves.Split(',')) if (m.state.Contains(k)) on = true; if (!on) ct.ResetTrails(); ct.enabled = on; }
                 animator.speed = m.speed;
                 animator.CrossFadeInFixedTime(m.state, m.fade, 0, 0f);
                 yield return null;
@@ -78,6 +83,12 @@ public class JSBQuadShowcase : MonoBehaviour
                 {
                     if (hi < m.hits.Length && t >= m.hits[hi]) { hi++; StartCoroutine(Hit(m.speed)); }
                     if (m.turn != 0) follow.Rotate(0, m.turn * Time.deltaTime, 0, Space.World);
+                    var away = follow.position - arenaCenter; away.y = 0;
+                    if (away.magnitude > arenaRadius)
+                    {   // steer home: turn toward the centre
+                        float ang = Vector3.SignedAngle(follow.forward, -away, Vector3.up);
+                        follow.Rotate(0, Mathf.Clamp(ang, -120f * Time.deltaTime, 120f * Time.deltaTime), 0, Space.World);
+                    }
                     t += Time.deltaTime; yield return null;
                 }
             }
@@ -107,7 +118,10 @@ public class JSBQuadShowcase : MonoBehaviour
         float dt = Mathf.Max(Time.deltaTime, 1e-4f);
         // spring for the flinch (critically under-damped: one snap + small settle)
         float w = 2 * Mathf.PI * springFreq;
-        kickVel += (-w * w * kick - 2 * springDamp * w * kickVel) * dt; kick += kickVel * dt;
+        // sub-stepped: one 30 fps step of this stiff spring is unstable and blew the torso round in circles
+        int sub = Mathf.CeilToInt(dt * 480f); float h = dt / sub;
+        for (int k = 0; k < sub; k++) { kickVel += (-w * w * kick - 2 * springDamp * w * kickVel) * h; kick += kickVel * h; }
+        kick = Mathf.Clamp(kick, -45f, 45f);
         for (int i = 0; i < kickBones.Length; i++)
             if (kickBones[i] != null) kickBones[i].rotation = Quaternion.AngleAxis(kick * kickWeights[i], follow.TransformDirection(kickAxis)) * kickBones[i].rotation;
         flash = Mathf.MoveTowards(flash, 0f, dt * 5f);
@@ -134,7 +148,7 @@ public class JSBQuadShowcase : MonoBehaviour
         {
             var target = follow.position + Vector3.up * 3f;
             var off = camOffset * camZoom;
-            cam.transform.position = Vector3.Lerp(cam.transform.position, target + off, record ? 0.15f : dt * 4f);
+            cam.transform.position = Vector3.Lerp(cam.transform.position, target + off, record ? 0.35f : dt * 8f);
             cam.transform.rotation = Quaternion.LookRotation(-off);
         }
     }
