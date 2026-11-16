@@ -45,7 +45,7 @@ Material:
     - _RimPower: 2.5
     - _SparkleAmount: 0.22
     - _SparkleDensity: 7
-    - _SparkleIntensity: 9
+    - _SparkleIntensity: 5
     - _SparkleSpeed: 3
     - _Warn: 0
     - _WarnFurIntensity: 4

@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BeatSpeed: 1.4
+    - _BeatSpeed: 0.8
     - _CrustAmount: 0.45
     - _GlowBase: 0.35
     - _GlowPeak: 6

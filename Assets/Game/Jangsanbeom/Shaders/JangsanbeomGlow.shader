@@ -62,6 +62,15 @@ Shader "BulletHeaven/JangsanbeomGlow"
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_EyeMask); SAMPLER(sampler_EyeMask);
+        // capture tools freeze time (same flag as the parasite shader); without it the captures ran everything 3x+ fast
+        float _JSB_UseFixedTime; float _JSB_FixedTime;
+        float T() { return _JSB_UseFixedTime > 0.5 ? _JSB_FixedTime : _Time.y; }
+        // lub-dub heartbeat shared with the parasite (_BeatSpeed 0.8 there), faster when warning
+        float Beat(float warn)
+        {
+            float p = frac(T() * 0.8 * (1 + 0.8 * warn));
+            return exp(-p * 10) + 0.6 * exp(-abs(p - 0.22) * 18);
+        }
         ENDHLSL
 
         Pass
@@ -121,7 +130,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
 
                 // eyes: masked emission with a slow pulse
                 half eye = SAMPLE_TEXTURE2D(_EyeMask, sampler_EyeMask, i.uv).r;
-                half pulse = 1 - _EyePulseAmount * (0.5 + 0.5 * sin(_Time.y * _EyePulseSpeed));
+                half pulse = 1 - _EyePulseAmount * (0.5 + 0.5 * sin(T() * _EyePulseSpeed));
                 color += eye * _EyeColor.rgb * _EyeIntensity * pulse * (1 + _Warn * 1.5);
 
                 // claws: the reddish, non-fur parts of the paws near the floor (bind pose height), glowing red with the eye pulse
@@ -135,17 +144,19 @@ Shader "BulletHeaven/JangsanbeomGlow"
                 color += rim * fur * rimCol;
 
                 // warning telegraph: the fur glows red with a fast heartbeat and rings of light spreading out from the body centre
-                half beat = pow(0.5 + 0.5 * sin(_Time.y * _WarnPulseSpeed), 3);
-                half ring = 0.5 + 0.5 * sin(length(i.positionOS.xz) * _WarnWaveFreq * 6.2832 - _Time.y * _WarnWaveSpeed);
+                half beat = saturate(Beat(_Warn));   // 11-16 Kido: a pulse, not a flicker
+                half ring = 0.5 + 0.5 * sin(length(i.positionOS.xz) * _WarnWaveFreq * 6.2832 - T() * _WarnWaveSpeed * 0.5);
                 color += _Warn * fur * _WarnColor.rgb * _WarnFurIntensity * (0.6 + 0.4 * beat) * (0.55 + 0.45 * ring * ring);
 
-                // fur glints: random cells on the body light up and fade, faster when the camera moves
+                // fur glints: random cells on the body glow with the heartbeat
                 float3 cellP = i.positionOS * _SparkleDensity;
                 float3 cell = floor(cellP);
                 float h = hash31(cell);
-                float t = _Time.y * _SparkleSpeed + h * 37.0;
-                float tw = saturate(1 - abs(frac(t * 0.25) * 2 - 1) * 3);       // short blink once per cycle
-                float on = step(1 - _SparkleAmount, hash31(cell + floor(t * 0.25)));
+                // 11-16 Kido ("맥박같은 느낌, 너무 반짝거려"): the glints no longer blink on their own; they swell together
+                // with the heartbeat and a new set of cells takes over every few beats
+                float bt = T() * 0.8 * (1 + 0.8 * _Warn);
+                float tw = saturate(Beat(_Warn)) * 0.85 + 0.15 * h;
+                float on = step(1 - _SparkleAmount, hash31(cell + floor(bt / 3.0)));
                 float3 f = frac(cellP) - 0.5; float dotShape = saturate(1 - length(f) * 2.2);
                 half facing = pow(saturate(dot(reflect(-v, n), ml.direction) * 0.5 + 0.5), 4) + 0.35;
                 color += _SparkleColor.rgb * _SparkleIntensity * on * tw * dotShape * dotShape * fur * facing;

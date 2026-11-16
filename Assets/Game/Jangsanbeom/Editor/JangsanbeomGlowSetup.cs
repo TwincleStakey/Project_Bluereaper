@@ -92,7 +92,7 @@ public static class JangsanbeomGlowSetup
         mat.SetFloat("_AmbientBoost", 1.2f);
         mat.SetFloat("_EyeIntensity", 8f); mat.SetColor("_EyeColor", new Color(5f, 0.25f, 0.12f, 1f)); mat.SetFloat("_Warn", 0f); mat.SetFloat("_WarnFurIntensity", 4f); mat.SetFloat("_ClawIntensity", 8f); mat.SetFloat("_ClawHeight", 50f); mat.SetFloat("_ClawRedness", 0.05f); mat.SetFloat("_WarnRimIntensity", 12f);
         mat.SetFloat("_RimIntensity", 4f); mat.SetFloat("_RimPower", 2.5f); mat.SetFloat("_FurLumMin", 0.35f);
-        mat.SetFloat("_SparkleDensity", 7f); mat.SetFloat("_SparkleAmount", 0.22f); mat.SetFloat("_SparkleIntensity", 9f); mat.SetFloat("_SparkleSpeed", 3f);
+        mat.SetFloat("_SparkleDensity", 7f); mat.SetFloat("_SparkleAmount", 0.22f); mat.SetFloat("_SparkleIntensity", 5f); mat.SetFloat("_SparkleSpeed", 3f);
         // optional overrides for tuning/debugging: Temp/jsb_glow_overrides.txt with lines "name value"
         if (File.Exists("Temp/jsb_glow_overrides.txt"))
             foreach (var line in File.ReadAllLines("Temp/jsb_glow_overrides.txt"))
@@ -401,7 +401,7 @@ public static class JangsanbeomGlowSetup
         var path = $"{Root}/Materials/JSB_Parasite_{key}.mat";
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (m == null) { m = new Material(Shader.Find("BulletHeaven/JangsanbeomParasite")); AssetDatabase.CreateAsset(m, path); }
-        m.SetFloat("_GulpSpeed", 0.7f);   // 11-16 Kido: the blood gulp was too fast (was 1.6; the telegraph doubles it)
+        m.SetFloat("_GulpSpeed", 0.7f); m.SetFloat("_BeatSpeed", 0.8f);   // 11-16 Kido: a slow pulse, not a flicker (was 1.4; x1.8 while warning)   // 11-16 Kido: the blood gulp was too fast (was 1.6; the telegraph doubles it)
         m.SetFloat("_GlowBase", 0.35f); m.SetFloat("_GlowPeak", 6f); m.SetFloat("_GulpGlow", 5f); m.SetFloat("_GulpBulge", 0.16f);
         m.SetColor("_GlowColor", new Color(1f, 0.03f, 0.02f)); m.SetColor("_CrustColor", new Color(0.05f, 0.03f, 0.03f)); m.SetFloat("_CrustAmount", 0.45f);
         switch (key)
