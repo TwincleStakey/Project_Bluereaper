@@ -44,10 +44,17 @@ Material:
     - _SparkleDensity: 7
     - _SparkleIntensity: 9
     - _SparkleSpeed: 3
+    - _Warn: 0
+    - _WarnFurIntensity: 4
+    - _WarnPulseSpeed: 7
+    - _WarnRimIntensity: 12
+    - _WarnWaveFreq: 0.6
+    - _WarnWaveSpeed: 6
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _EyeColor: {r: 4, g: 1.4, b: 0.2, a: 1}
+    - _EyeColor: {r: 5, g: 0.25, b: 0.12, a: 1}
     - _RimColor: {r: 0.55, g: 0.75, b: 1.4, a: 1}
     - _SparkleColor: {r: 2.5, g: 2.8, b: 3.5, a: 1}
+    - _WarnColor: {r: 3, g: 0.18, b: 0.08, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

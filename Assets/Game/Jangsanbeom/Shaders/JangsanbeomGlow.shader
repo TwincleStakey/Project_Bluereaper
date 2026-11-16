@@ -10,7 +10,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
 
         [Header(Eyes)]
         [NoScaleOffset] _EyeMask ("Eye Mask (R)", 2D) = "black" {}
-        [HDR] _EyeColor ("Eye Color", Color) = (4, 1.4, 0.2, 1)
+        [HDR] _EyeColor ("Eye Color", Color) = (5, 0.25, 0.12, 1)
         _EyeIntensity ("Eye Intensity", Range(0, 20)) = 6
         _EyePulseSpeed ("Eye Pulse Speed", Range(0, 10)) = 1.6
         _EyePulseAmount ("Eye Pulse Amount", Range(0, 1)) = 0.35
@@ -27,6 +27,15 @@ Shader "BulletHeaven/JangsanbeomGlow"
         _SparkleDensity ("Glint Density (cells per metre)", Range(1, 600)) = 7
         _SparkleAmount ("Glint Amount", Range(0, 1)) = 0.12
         _SparkleSpeed ("Glint Twinkle Speed", Range(0, 20)) = 4
+
+        [Header(Warning Telegraph (driven by JangsanbeomTelegraph))]
+        _Warn ("Warn (0 = calm, 1 = about to attack)", Range(0, 1)) = 0
+        [HDR] _WarnColor ("Warn Color", Color) = (3, 0.18, 0.08, 1)
+        _WarnFurIntensity ("Warn Fur Glow", Range(0, 8)) = 4
+        _WarnRimIntensity ("Warn Rim Glow", Range(0, 20)) = 12
+        _WarnPulseSpeed ("Warn Heartbeat Speed", Range(0, 20)) = 7
+        _WarnWaveFreq ("Warn Wave Frequency (per metre)", Range(0, 5)) = 0.6
+        _WarnWaveSpeed ("Warn Wave Speed", Range(0, 20)) = 6
     }
 
     SubShader
@@ -42,6 +51,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
             half4 _EyeColor; half _EyeIntensity; half _EyePulseSpeed; half _EyePulseAmount;
             half4 _RimColor; half _RimPower; half _RimIntensity; half _FurLumMin;
             half4 _SparkleColor; half _SparkleIntensity; half _SparkleDensity; half _SparkleAmount; half _SparkleSpeed;
+            half _Warn; half4 _WarnColor; half _WarnFurIntensity; half _WarnRimIntensity; half _WarnPulseSpeed; half _WarnWaveFreq; half _WarnWaveSpeed;
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_EyeMask); SAMPLER(sampler_EyeMask);
@@ -105,11 +115,17 @@ Shader "BulletHeaven/JangsanbeomGlow"
                 // eyes: masked emission with a slow pulse
                 half eye = SAMPLE_TEXTURE2D(_EyeMask, sampler_EyeMask, i.uv).r;
                 half pulse = 1 - _EyePulseAmount * (0.5 + 0.5 * sin(_Time.y * _EyePulseSpeed));
-                color += eye * _EyeColor.rgb * _EyeIntensity * pulse;
+                color += eye * _EyeColor.rgb * _EyeIntensity * pulse * (1 + _Warn * 1.5);
 
                 // fur rim: silhouette glow on the pale fur
                 half rim = pow(1 - saturate(abs(dot(gn, v))), _RimPower);   // geometric normal: robust on the Tripo mesh
-                color += rim * fur * _RimColor.rgb * _RimIntensity;
+                half3 rimCol = lerp(_RimColor.rgb * _RimIntensity, _WarnColor.rgb * _WarnRimIntensity, _Warn);
+                color += rim * fur * rimCol;
+
+                // warning telegraph: the fur glows red with a fast heartbeat and rings of light spreading out from the body centre
+                half beat = pow(0.5 + 0.5 * sin(_Time.y * _WarnPulseSpeed), 3);
+                half ring = 0.5 + 0.5 * sin(length(i.positionOS.xz) * _WarnWaveFreq * 6.2832 - _Time.y * _WarnWaveSpeed);
+                color += _Warn * fur * _WarnColor.rgb * _WarnFurIntensity * (0.6 + 0.4 * beat) * (0.55 + 0.45 * ring * ring);
 
                 // fur glints: random cells on the body light up and fade, faster when the camera moves
                 float3 cellP = i.positionOS * _SparkleDensity;

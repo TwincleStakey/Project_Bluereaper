@@ -14,7 +14,7 @@ public static class JangsanbeomGlowSetup
 {
     const string Root = "Assets/Game/Jangsanbeom";
     const float BossScale = 25f;   // model is 0.43 m tall; x25 = 10.6 m tall, 25 m long (player is 1.8 m): Lost Ark guardian scale
-    static readonly string[] Clips = { "p1_howl_gramophone", "p2_charge_gramophone" };
+    static readonly string[] Clips = { "p0_telegraph_scrape", "p1_howl_gramophone", "p2_charge_gramophone" };
 
     [InitializeOnLoadMethod]
     static void Watch() { EditorApplication.update += Tick; }
@@ -52,7 +52,7 @@ public static class JangsanbeomGlowSetup
         mat.SetTexture("_EyeMask", AssetDatabase.LoadAssetAtPath<Texture2D>(eye));
         // tuned for a 25x guardian-size boss seen from the game camera
         mat.SetFloat("_AmbientBoost", 1.2f);
-        mat.SetFloat("_EyeIntensity", 8f);
+        mat.SetFloat("_EyeIntensity", 8f); mat.SetColor("_EyeColor", new Color(5f, 0.25f, 0.12f, 1f)); mat.SetFloat("_Warn", 0f); mat.SetFloat("_WarnFurIntensity", 4f); mat.SetFloat("_WarnRimIntensity", 12f);
         mat.SetFloat("_RimIntensity", 4f); mat.SetFloat("_RimPower", 2.5f); mat.SetFloat("_FurLumMin", 0.35f);
         mat.SetFloat("_SparkleDensity", 7f); mat.SetFloat("_SparkleAmount", 0.22f); mat.SetFloat("_SparkleIntensity", 9f); mat.SetFloat("_SparkleSpeed", 3f);
         // optional overrides for tuning/debugging: Temp/jsb_glow_overrides.txt with lines "name value"
@@ -114,9 +114,12 @@ public static class JangsanbeomGlowSetup
                     else r.sharedMaterial = mat;
                     Debug.Log($"[JSB] body renderer {r.name} ({r.GetType().Name}) -> {r.sharedMaterial.shader.name}, mats={r.sharedMaterials.Length}");
                 }
-                else if (r.name.StartsWith("HornInside")) r.sharedMaterial = Emissive("JSB_HornMouth", new Color(0.05f, 0.08f, 0.08f), new Color(0.2f, 1.6f, 1.5f));
-                else if (r.name.StartsWith("GoldBand")) r.sharedMaterial = Emissive("JSB_ChainGold", new Color(0.75f, 0.52f, 0.18f), new Color(0.6f, 0.38f, 0.08f));
-                else if (r.name.StartsWith("Link")) r.sharedMaterial = Emissive("JSB_ChainIron", new Color(0.16f, 0.16f, 0.18f), new Color(0.02f, 0.03f, 0.05f));
+                else if (r.name.StartsWith("SnakeBody") || r.name.StartsWith("SnakeTop"))
+                {
+                    r.sharedMaterials = r.sharedMaterials.Select(m => ParasiteMat(m != null ? m.name : "")).ToArray();
+                    var pb = new MaterialPropertyBlock(); r.GetPropertyBlock(pb); pb.SetFloat("_WaveDir", r.name.StartsWith("SnakeTop") ? 1f : -1f); r.SetPropertyBlock(pb);   // blood flows toward the gramophone
+                }
+                else r.sharedMaterials = r.sharedMaterials.Select(GramoMat).ToArray();   // gramophone parts: the Blender node materials don't survive FBX
             var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/{c}.fbx");
             AnimationClip ac = null; foreach (var o in clip) if (o is AnimationClip a && !a.name.StartsWith("__preview")) ac = a;
             if (ac != null)
@@ -180,6 +183,81 @@ public static class JangsanbeomGlowSetup
         try { CaptureInner(cam); } finally { ShaderUtil.allowAsyncCompilation = wasAsync; }
     }
 
+    // one parasite material per Blender slot (SnakeFlesh, HoleLip, HoleInside, Blood, Vein)
+    static Material ParasiteMat(string slot)
+    {
+        string key = slot.Contains("Lip") ? "Lip" : slot.Contains("HoleInside") ? "Hole" : slot.Contains("Blood") ? "Blood" : slot.Contains("Vein") ? "Vein" : "Flesh";
+        var path = $"{Root}/Materials/JSB_Parasite_{key}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(Shader.Find("BulletHeaven/JangsanbeomParasite")); AssetDatabase.CreateAsset(m, path); }
+        m.SetFloat("_GlowBase", 0.35f); m.SetFloat("_GlowPeak", 6f); m.SetFloat("_GulpGlow", 5f); m.SetFloat("_GulpBulge", 0.16f);
+        m.SetColor("_GlowColor", new Color(1f, 0.03f, 0.02f)); m.SetColor("_CrustColor", new Color(0.05f, 0.03f, 0.03f)); m.SetFloat("_CrustAmount", 0.45f);
+        switch (key)
+        {
+            case "Lip":   m.SetColor("_BaseColor", new Color(0.28f, 0.04f, 0.035f)); m.SetFloat("_GulpBulge", 0.05f); m.SetFloat("_GlowPeak", 3f); break;
+            case "Hole":  m.SetColor("_BaseColor", new Color(0.01f, 0f, 0f)); m.SetFloat("_CrustAmount", 0f); m.SetFloat("_GulpBulge", 0f); m.SetFloat("_GlowBase", 1.0f); m.SetFloat("_GlowPeak", 8f); break;
+            case "Blood": m.SetColor("_BaseColor", new Color(0.06f, 0.002f, 0.002f)); m.SetFloat("_CrustAmount", 0f); m.SetFloat("_Smoothness", 0.95f); m.SetFloat("_GulpBulge", 0f); m.SetFloat("_GlowBase", 0.05f); m.SetFloat("_GlowPeak", 2f); m.SetFloat("_GulpGlow", 0f); break;
+            case "Vein":  m.SetColor("_BaseColor", new Color(0.13f, 0.02f, 0.03f)); m.SetFloat("_GulpBulge", 0.04f); m.SetFloat("_GlowPeak", 4f); break;
+        }
+        EditorUtility.SetDirty(m); return m;
+    }
+
+    // rusty gramophone: URP Lit with the same CC0 rusty_metal_04 maps used in Blender; banners/cloth keep their imported image
+    static Material GramoMat(Material src)
+    {
+        string n = src != null ? src.name : "";
+        if (n.Contains("Banner") || n.Contains("Cloth") || n.Contains("Talisman")) return src;
+        string key = n.Contains("Rope") ? "Rope" : (n.Contains("Bronze") || n.Contains("Gold") || n.Contains("Brass")) ? "Bronze" : n.Contains("Inside") ? "Inside" : "Rust";
+        var path = $"{Root}/Materials/JSB_Gramo_{key}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
+        string T = $"{Root}/Textures/Rust/rusty_metal_04_";
+        var nrmImp = (TextureImporter)AssetImporter.GetAtPath(T + "nor_gl_1k.jpg");
+        if (nrmImp != null && nrmImp.textureType != TextureImporterType.NormalMap) { nrmImp.textureType = TextureImporterType.NormalMap; nrmImp.SaveAndReimport(); }
+        if (key == "Rope") { m.SetTexture("_BaseMap", null); m.SetColor("_BaseColor", new Color(0.35f, 0.05f, 0.04f)); m.SetFloat("_Metallic", 0f); m.SetFloat("_Smoothness", 0.25f); }
+        else
+        {
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(T + "diff_1k.jpg"));
+            m.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture2D>(T + "nor_gl_1k.jpg")); m.EnableKeyword("_NORMALMAP");
+            m.SetTextureScale("_BaseMap", new Vector2(2, 2));
+            m.SetColor("_BaseColor", key == "Bronze" ? new Color(1f, 0.8f, 0.45f) : key == "Inside" ? new Color(0.35f, 0.3f, 0.28f) : Color.white);
+            m.SetFloat("_Metallic", key == "Bronze" ? 0.9f : 0.6f); m.SetFloat("_Smoothness", key == "Bronze" ? 0.5f : 0.3f);
+        }
+        EditorUtility.SetDirty(m); return m;
+    }
+
+    static void PlaceFrontCam(Camera cam, GameObject boss)
+    {
+        var head = boss.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Head");
+        var hips = boss.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Hips");
+        if (head == null || hips == null) return;
+        var fwd = head.position - hips.position; fwd.y = 0; fwd.Normalize();
+        var look = (head.position + hips.position) * 0.5f; look.y = 3.5f;
+        float pitch = 62f * Mathf.Deg2Rad, dist = 40f;
+        cam.transform.position = look + fwd * Mathf.Cos(pitch) * dist + Vector3.up * Mathf.Sin(pitch) * dist;
+        cam.transform.LookAt(look); cam.fieldOfView = 40;
+    }
+
+    static void Shoot(Camera cam, RenderTexture rt, RenderTexture ldr, Texture2D tex, string file)
+    {
+        var req = new RenderPipeline.StandardRequest { destination = rt };
+        if (RenderPipeline.SupportsRenderRequest(cam, req)) RenderPipeline.SubmitRenderRequest(cam, req);
+        else { cam.targetTexture = rt; cam.Render(); cam.targetTexture = null; }
+        Graphics.Blit(rt, ldr);
+        var prev = RenderTexture.active; RenderTexture.active = ldr;
+        tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply(); RenderTexture.active = prev;
+        File.WriteAllBytes(file, tex.EncodeToPNG());
+    }
+
+    static void SetWarn(GameObject boss, float w)
+    {
+        foreach (var r in boss.GetComponentsInChildren<Renderer>())
+        {
+            if (r.sharedMaterial == null || !r.sharedMaterial.HasProperty("_Warn")) continue;
+            var pb = new MaterialPropertyBlock(); r.GetPropertyBlock(pb); pb.SetFloat("_Warn", w); r.SetPropertyBlock(pb);
+        }
+    }
+
     static void CaptureInner(Camera cam)
     {
         var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../ArtSource/Jangsanbeom/renders/glow"));
@@ -188,22 +266,44 @@ public static class JangsanbeomGlowSetup
         var ldr = new RenderTexture(1600, 900, 0, RenderTextureFormat.ARGB32);
         var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
         { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
-        float[] ts = { 0.3f, 1.6f, 2.6f, 3.5f };
         var anims = cam.gameObject.scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Animator>()).ToArray();
-        foreach (var only in anims)
-        for (int k = 0; k < ts.Length; k++)
+        const float beatSpeed = 1.4f;
+        Shader.SetGlobalFloat("_JSB_UseFixedTime", 1f);
+        try
         {
-            foreach (var an in anims) an.gameObject.SetActive(an == only);
-            var ctrl = only.runtimeAnimatorController; if (ctrl == null || ctrl.animationClips.Length == 0) continue;
-            var clip = ctrl.animationClips[0]; clip.SampleAnimation(only.gameObject, ts[k] % clip.length);
-            var req = new RenderPipeline.StandardRequest { destination = rt };
-            if (RenderPipeline.SupportsRenderRequest(cam, req)) RenderPipeline.SubmitRenderRequest(cam, req);
-            else { cam.targetTexture = rt; cam.Render(); cam.targetTexture = null; Debug.LogWarning("[JSB] StandardRequest unsupported, used Camera.Render"); }
-            Graphics.Blit(rt, ldr);
-            var prev = RenderTexture.active; RenderTexture.active = ldr;
-            tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0); tex.Apply(); RenderTexture.active = prev;
-            File.WriteAllBytes(Path.Combine(outDir, $"{only.name}_{k}.png"), tex.EncodeToPNG());
+            float[] ts = { 0.3f, 1.6f, 2.6f, 3.5f };
+            foreach (var only in anims)
+            {
+                foreach (var an in anims) an.gameObject.SetActive(an == only);
+                var ctrl = only.runtimeAnimatorController; if (ctrl == null || ctrl.animationClips.Length == 0) continue;
+                var clip = ctrl.animationClips[0];
+                bool warnClip = only.name.Contains("telegraph");
+                // stills: alternate heartbeat peak / rest so both are visible
+                for (int k = 0; k < ts.Length; k++)
+                {
+                    clip.SampleAnimation(only.gameObject, ts[k] % clip.length);
+                    PlaceFrontCam(cam, only.gameObject);
+                    SetWarn(only.gameObject, warnClip ? 1f : 0f);
+                    Shader.SetGlobalFloat("_JSB_FixedTime", (k + (k % 2 == 0 ? 0.02f : 0.6f)) / beatSpeed);
+                    Shoot(cam, rt, ldr, tex, Path.Combine(outDir, $"{only.name}_{k}.png"));
+                }
+                // frame sequence so the gulping and the heartbeat can be seen moving
+                var vdir = Path.Combine(outDir, $"vid_{only.name}"); Directory.CreateDirectory(vdir);
+                foreach (var f0 in Directory.GetFiles(vdir, "*.png")) File.Delete(f0);
+                int nf = Mathf.Min(150, Mathf.CeilToInt(clip.length * 30));
+                for (int f = 0; f < nf; f++)
+                {
+                    float t = f / 30f;
+                    clip.SampleAnimation(only.gameObject, t % clip.length);
+                    if (f == 0) PlaceFrontCam(cam, only.gameObject);
+                    SetWarn(only.gameObject, warnClip ? Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f) : 0f);
+                    Shader.SetGlobalFloat("_JSB_FixedTime", t);
+                    Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
+                }
+                SetWarn(only.gameObject, 0f);
+            }
         }
+        finally { Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); }
         Debug.Log($"[JSB] captured stills to {outDir}");
     }
 }
