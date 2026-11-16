@@ -346,6 +346,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d02ffe92a8beaea4ca86e49c92d62a9c, type: 2}
   - {fileID: 11400000, guid: cba1cb45937effd428a0edf812789620, type: 2}
   - {fileID: 11400000, guid: 56dac277a7f3c584da2c4b67f4e0b81c, type: 2}
+  spawnPattern: {fileID: 0}
+  deathPattern: {fileID: 0}
   aiTick: 0.1
   stopChasingDistance: 3
 --- !u!95 &2647093197652973279
@@ -535,8 +537,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
---- !u!1 &5335999795195390300
-GameObject:
 --- !u!1 &4254602962860378767
 GameObject:
   m_ObjectHideFlags: 0
@@ -656,6 +656,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
+--- !u!1 &5335999795195390300
+GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}

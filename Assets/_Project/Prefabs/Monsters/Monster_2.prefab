@@ -220,6 +220,7 @@ MonoBehaviour:
   rewardTable: {fileID: 11400000, guid: de4e49925961349439d4fd0d5c3b9581, type: 2}
   phaseInfo: {fileID: 11400000, guid: f36e4e31bf9af26488dfc51c04095c90, type: 2}
   sightRange: 7
+  outSightTrackingPercent: 0.5
 --- !u!114 &5246980696664095001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -234,6 +235,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Boss.EnemyAI
   patterns:
   - {fileID: 11400000, guid: 2b172d4e432be0144a9f861b9f2956ea, type: 2}
+  spawnPattern: {fileID: 0}
+  deathPattern: {fileID: 0}
   aiTick: 0.1
   stopChasingDistance: 5
 --- !u!95 &2647093197652973279
