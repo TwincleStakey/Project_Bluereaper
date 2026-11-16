@@ -22,7 +22,12 @@ MonoBehaviour:
   RectangleSize: {x: 2, y: 4}
   SectorAngle: 120
   PlacementDelaySeconds: 0
+  ContinueAfterPlacement: 0
   HitStartSeconds: 0.4
+  ExpansionMode: 0
+  ExpansionDurationSeconds: 1
+  ExpansionStartScale: 0
+  RingStartRadius: 0
   RepeatHits: 0
   HitDurationSeconds: 1
   HitRepeatIntervalSeconds: 0.2
