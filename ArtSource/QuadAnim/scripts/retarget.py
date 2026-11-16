@@ -122,11 +122,36 @@ s_body = sum(scale.values()) / 4
 print('SCALES', {k: round(v, 4) for k, v in scale.items()}, 'body', round(s_body, 4))
 pel_rest = s_point((P['pelvis'], 'h'), True)
 s_rest_q = {b: s_rot(b, True) for b in {v[2] for v in P['aim'].values()}}
-t_rest_q = {n: TB[n].matrix_local.to_quaternion() for n in order}
-ground = min(v.z for v in t_n.values())
-
 def swing(q, d_from, d_to):
     return d_from.rotation_difference(d_to) @ q
+t_rest_q = {n: TB[n].matrix_local.to_quaternion() for n in order}
+# The boss mesh was rigged mid-stride (left legs forward, right legs back, head turned a little), so "rest + source
+# change" kept that limp in every clip. Neutral = symmetric standing: centre bones lose their sideways lean, each
+# L/R pair takes the average of its own and its mirrored partner's direction.
+def _dir(n): return (t_rest_q[n] @ Y).normalized()
+def _mir(v): return Vector((-v.x, v.y, v.z))
+t_neu_q = dict(t_rest_q)
+for n in order:
+    if n.endswith('.L') or n.endswith('.R'):
+        o = n[:-2] + ('.R' if n.endswith('.L') else '.L')
+        if o not in TB: continue
+        d = (_dir(n) + _mir(_dir(o))).normalized()
+    elif n in P['aim']:
+        d = _dir(n); d = Vector((0.0, d.y, d.z)).normalized()
+    else:
+        continue
+    t_neu_q[n] = swing(t_rest_q[n], _dir(n), d)
+# Stand up: the rest hind legs are folded (hip 0.27 high on 0.375 of leg). Lift the hips so the hind leg reaches ~85 % of
+# its length and pitch the trunk down so the shoulders stay where they were (head/neck keep their own level).
+_hl = sum(TB[b].length for b in TARGET_LEGS['hind.L'][:3])
+_hh = TB['Thigh.L'].head_local.z - min(TB['HindToes.L'].head_local.z, TB['HindToes.R'].head_local.z)
+LIFT = float(os.environ.get('QA_LIFT', max(0.0, 0.85 * _hl - _hh)))
+_trunk = (TB['Neck1'].head_local - TB['Hips'].head_local); _trunk.x = 0
+_pitch = Matrix.Rotation(math.asin(min(0.9, LIFT / max(1e-4, _trunk.length))), 4, 'X').to_quaternion()
+for n in ('Hips', 'Spine1', 'Spine2', 'Spine3'): t_neu_q[n] = _pitch @ t_neu_q[n]
+print('NEUTRAL lift', round(LIFT, 4), 'pitch deg', round(math.degrees(_pitch.angle), 2))
+ground = min(v.z for v in t_n.values())
+
 
 def solve_frame():
     Pm = {}
@@ -142,14 +167,14 @@ def solve_frame():
             pp = Pm[b.parent.name]
             head = pp @ (TB[b.parent.name].matrix_local.inverted() @ b.head_local)
         if n == 'Hips':
-            head = b.head_local + (s_point((P['pelvis'], 'h')) - pel_rest) * s_body - drift
+            head = b.head_local + Vector((0, 0, LIFT)) + (s_point((P['pelvis'], 'h')) - pel_rest) * s_body - drift
         if n in P['aim']:
             pa, pb_, tw = P['aim'][n]
             d = (s_point(pb_) - s_point(pa)).normalized()
-            qc = s_rot(tw) @ s_rest_q[tw].inverted() @ t_rest_q[n]
-            if n in DELTA:   # torso: keep the target's own rest shape, add the source's change from its rest
+            qc = s_rot(tw) @ s_rest_q[tw].inverted() @ t_neu_q[n]
+            if n in DELTA:   # keep the target's own (symmetrised) stance, add the source's change from its neutral
                 d0 = (s_point(pb_, True) - s_point(pa, True)).normalized()
-                d = d0.rotation_difference(d) @ (t_rest_q[n] @ Y)
+                d = d0.rotation_difference(d) @ (t_neu_q[n] @ Y)
             q = swing(qc, qc @ Y, d)
         elif b.parent is not None:
             q = Pm[b.parent.name].to_quaternion() @ (TB[b.parent.name].matrix_local.inverted() @ b.matrix_local).to_quaternion()
