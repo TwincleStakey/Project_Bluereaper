@@ -78,7 +78,9 @@ namespace RoomRun
             {
                 MeshLib.Part("Stand-in", MeshLib.Capsule, cfg.ringEnemy, visual, Vector3.up * s, Vector3.one * s);
             }
-            renderers = visual.GetComponentsInChildren<Renderer>();
+            // 11-16: the 태엽열쇠 (wind-up key) turns in its own vertex shader; a rim slot or the hit-flash material would draw
+            // it un-turned, so it is left out of the material swaps
+            renderers = System.Array.FindAll(visual.GetComponentsInChildren<Renderer>(), r => !(r.sharedMaterial && r.sharedMaterial.shader && r.sharedMaterial.shader.name == "BulletHeaven/WindKey"));
             originalMats = new Material[renderers.Length][];
             baseMats = new Material[renderers.Length][];
             for (int i = 0; i < renderers.Length; i++)

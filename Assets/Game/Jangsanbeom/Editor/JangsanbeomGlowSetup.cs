@@ -120,6 +120,7 @@ public static class JangsanbeomGlowSetup
                     var pb = new MaterialPropertyBlock(); r.GetPropertyBlock(pb); pb.SetFloat("_WaveDir", r.name.StartsWith("SnakeTop") ? 1f : -1f); r.SetPropertyBlock(pb);   // blood flows toward the gramophone
                 }
                 else r.sharedMaterials = r.sharedMaterials.Select(GramoMat).ToArray();   // gramophone parts: the Blender node materials don't survive FBX
+            WindKeySetup.AddToJangsanbeom(go);   // 11-16: 태엽열쇠 on the lower back
             var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/{c}.fbx");
             AnimationClip ac = null; foreach (var o in clip) if (o is AnimationClip a && !a.name.StartsWith("__preview")) ac = a;
             if (ac != null)

@@ -202,6 +202,9 @@ namespace DarkMonsters
             gait.moveStride = Stride(m.move);
             gait.runStride = Stride(m.run);
 
+            // 11-16 Kido: every monster has a 태엽열쇠 (wind-up key) stuck in its back
+            WindKeySetup.AddToMonster(root);
+
             int tris = CountTris(smrs);
             PrefabUtility.SaveAsPrefabAsset(root, $"{Root}/Prefabs/{m.name}.prefab");
             Object.DestroyImmediate(root);

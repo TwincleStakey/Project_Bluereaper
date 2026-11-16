@@ -34,7 +34,9 @@ public class WindKeyAttach : MonoBehaviour
     public bool castShadows = false;
     public bool attachOnAwake = true;
 
-    public Transform Key { get; private set; }
+    // saved with the prefab when the key is placed in the editor (WindKeySetup), so spawning costs no probe at all
+    [SerializeField, HideInInspector] Transform key;
+    public Transform Key { get => key; private set => key = value; }
     const float MeshWidth = 0.864f, MeshHeight = 0.5f;
     static readonly Dictionary<(int, string), float> surfaceCache = new Dictionary<(int, string), float>();
 

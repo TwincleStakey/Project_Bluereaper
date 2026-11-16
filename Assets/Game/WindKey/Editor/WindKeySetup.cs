@@ -27,7 +27,7 @@ public static class WindKeySetup
         if (!File.Exists(trig) || EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
         var mode = File.ReadAllText(trig).Trim();
         File.Delete(trig);
-        try { BuildAssets(); if (mode != "assets") Demo(mode); } catch (System.Exception e) { Debug.LogError("[WindKey] " + e); }
+        try { if (mode == "wire") Wire(); else { BuildAssets(); if (mode != "assets") Demo(mode); } } catch (System.Exception e) { Debug.LogError("[WindKey] " + e); }
         File.WriteAllText("Temp/wk_build.done", System.DateTime.Now.ToString("o"));
     }
 
@@ -126,7 +126,9 @@ public static class WindKeySetup
 
     static WindKeyAttach AddKey(GameObject host, float width, float pitch, float sink, Vector3 offset, string[] hints = null, float yaw = 0f)
     {
-        var a = host.AddComponent<WindKeyAttach>();
+        var a = host.GetComponent<WindKeyAttach>();
+        if (a != null && a.Key != null) { Debug.Log($"[WindKey] {host.name}: already has a key"); return a; }
+        if (a == null) a = host.AddComponent<WindKeyAttach>();
         if (hints != null) a.boneHints = hints;
         a.yaw = yaw;
         a.keyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{Root}/Prefabs/WindKey.prefab");
@@ -137,6 +139,51 @@ public static class WindKeySetup
     }
 
     // humanoid clips only pose in the editor through AnimationMode (stopped again when the demo ends)
+    // ---- game wiring -------------------------------------------------------------------------------------------
+    public const float MonsterWidth = 1.3f, MonsterPitch = 55f, BossWidth = 5.5f;
+
+    // regular RoomRun monsters (DarkMonsters prefabs): called by DarkMonstersSetup on each prefab root before it is saved
+    public static void AddToMonster(GameObject root) => AddKey(root, MonsterWidth, MonsterPitch, 0.18f, Vector3.zero);
+
+    // 장산범: gramophone on the shoulders, snake round the middle, so the key stands on the lower back across the body
+    public static void AddToJangsanbeom(GameObject boss) => AddKey(boss, BossWidth, 0f, 0.2f, Vector3.zero, new[] { "Spine1" }, 90f);
+
+    static void ClearKey(GameObject host)
+    {
+        var a = host.GetComponent<WindKeyAttach>();
+        if (a != null) { if (a.Key) Object.DestroyImmediate(a.Key.gameObject); Object.DestroyImmediate(a); }
+        foreach (var t in host.GetComponentsInChildren<Transform>(true).Where(t => t.name == "WindKey").ToArray()) if (t) Object.DestroyImmediate(t.gameObject);
+    }
+
+    // puts keys on the existing DarkMonsters prefabs and on the 장산범 models in its glow test scene (no rebuild, no recapture)
+    public static void Wire()
+    {
+        BuildAssets();
+        foreach (var guid in AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/Game/DarkMonsters/Prefabs" }))
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try { ClearKey(root); AddToMonster(root); PrefabUtility.SaveAsPrefabAsset(root, path); }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+        var scenePath = "Assets/Game/Jangsanbeom/Scenes/JSB_GlowTest.unity";
+        var prevActive = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+        try
+        {
+            foreach (var g in scene.GetRootGameObjects())
+                if (g.name.StartsWith("p0_") || g.name.StartsWith("p1_") || g.name.StartsWith("p2_")) { ClearKey(g); AddToJangsanbeom(g); }
+            EditorSceneManager.SaveScene(scene);
+        }
+        finally
+        {
+            if (prevActive.IsValid() && prevActive.isLoaded) UnityEngine.SceneManagement.SceneManager.SetActiveScene(prevActive);
+            EditorSceneManager.CloseScene(scene, true);
+        }
+        AssetDatabase.SaveAssets();
+        Debug.Log("[WindKey] wired: DarkMonsters prefabs + 장산범 glow test scene");
+    }
+
     static void Pose(GameObject go, float t)
     {
         var an = go.GetComponentInChildren<Animator>();
