@@ -44,7 +44,7 @@ namespace Underworld
         // LiftGammaGain lift offset. Was -0.035 plus SMH shadows -0.08 plus darkening split toning: 74 % of the frame
         // measured pure black (luma < 10). Slightly positive now so the dark field reads as luma 10-25, not 0.
         public float shadowLift = 0.008f;
-        public float bloomIntensity = 1.25f, bloomThreshold = 0.95f, bloomScatter = 0.75f;   // lava / fire bloom wide
+        public float bloomIntensity = 1.25f, bloomThreshold = 0.95f, bloomScatter = 0.75f, bloomClamp = 6f;   // lava / fire bloom wide
         public float vignette = 0.45f, vignetteSmooth = 0.5f, grain = 0.1f;
 
         [Header("Lighting")]
@@ -123,6 +123,7 @@ namespace Underworld
             lgg.lift.Override(new Vector4(1f, 1f, 1f, shadowLift)); lgg.gamma.Override(new Vector4(1f, 1f, 1f, 0f)); lgg.gain.Override(new Vector4(1f, 1f, 1f, 0f));
             var bl = p.Add<Bloom>(true);
             bl.intensity.Override(bloomIntensity); bl.threshold.Override(bloomThreshold); bl.scatter.Override(bloomScatter);
+            bl.clamp.Override(bloomClamp);   // 11-16 white-out: one hot / NaN pixel can never feed a screen-wide bloom
             bl.tint.Override(new Color(1f, 0.9f, 0.8f)); bl.highQualityFiltering.Override(true);
             var vg = p.Add<Vignette>(true); vg.intensity.Override(vignette); vg.smoothness.Override(vignetteSmooth); vg.color.Override(new Color(0.004f, 0.005f, 0.008f));
             var fg = p.Add<FilmGrain>(true); fg.type.Override(FilmGrainLookup.Thin1); fg.intensity.Override(grain); fg.response.Override(0.8f);

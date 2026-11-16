@@ -22,6 +22,7 @@ Shader "Underworld/LavaField"
         _Flow("Drift speed (m/s)", Float) = 0.12
         _Breathe("Emission breathing", Range(0, 1)) = 0.25
         _NoShadow("Ignore shadows", Float) = 1
+        _MaxLum("Hard ceiling: output luminance (pre-exposure)", Range(0.2, 3)) = 1.0
     }
     SubShader
     {
@@ -37,7 +38,7 @@ Shader "Underworld/LavaField"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             TEXTURE2D(_BaseMap); TEXTURE2D(_EmisMap); TEXTURE2D(_NormalMap); TEXTURE2D(_HeightMap); SAMPLER(sampler_BaseMap);
             CBUFFER_START(UnityPerMaterial)
-            float4 _BaseMap_ST, _EmisTint, _MoltenCol; float _MoltenLo; float _Tile, _AlbedoMul, _EmisPow, _EmisGain, _Flow, _Breathe, _NoShadow;
+            float4 _BaseMap_ST, _EmisTint, _MoltenCol; float _MoltenLo; float _Tile, _AlbedoMul, _EmisPow, _EmisGain, _Flow, _Breathe, _NoShadow, _MaxLum;
             CBUFFER_END
             struct A { float4 p : POSITION; float3 n : NORMAL; };
             struct V { float4 cs : SV_POSITION; float3 ws : TEXCOORD0; float fog : TEXCOORD1; };
@@ -66,7 +67,7 @@ Shader "Underworld/LavaField"
                 float w = smoothstep(0.3, 0.7, UWFbm(p * 0.025 + 3.0));
                 float3 alb = lerp(a.alb, b.alb, w);
                 float3 em = lerp(a.em, b.em, w);
-                float3 tn = normalize(lerp(a.n, b.n, w));
+                float3 tn = normalize(lerp(a.n, b.n, w) + float3(0, 0, 1e-3));
                 float h = lerp(a.h, b.h, w);
                 float3 N = normalize(float3(tn.x, tn.z, tn.y));
 
@@ -79,13 +80,20 @@ Shader "Underworld/LavaField"
                 // emission from the downloaded map; contrast so only the seams glow, slow breathing rolling across the sea
                 float e = dot(em, float3(0.33, 0.34, 0.33));
                 float breathe = 1.0 + _Breathe * sin(t * 0.7 + UWNoise(p * 0.04) * 6.2831);
-                float3 emis = em * pow(saturate(e), _EmisPow - 1.0) * _EmisTint.rgb * _EmisGain * breathe;
+                // 11-16 white-out fix: with _EmisPow = 1 this was pow(0, 0) on every black texel of the emissive map = NaN on the
+                // GPU; bloom spread those NaN/Inf pixels into screen-wide white discs (only in the HDR game view).
+                float3 emis = em * pow(max(e, 1e-4), max(_EmisPow - 1.0, 0.0)) * _EmisTint.rgb * _EmisGain * breathe;
 
                 // molten lava in the low gaps between the downloaded crust plates (from the set's own height map)
                 float molten = 1.0 - smoothstep(_MoltenLo - 0.15, _MoltenLo + 0.1, h);
                 emis += _MoltenCol.rgb * molten * breathe;
                 lit *= 1.0 - molten;
                 float3 col = lit + emis;
+                // hard ceiling (11-16): 저승 sits at +1.6 EV (x3) through ACES, so 1.0 here already reads as hot orange.
+                // Scale the whole colour (keeps the hue: lava stays orange, never white) and never let a NaN through.
+                col = max(col, 0.0);
+                float lum = dot(col, float3(0.2126, 0.7152, 0.0722));
+                col *= min(1.0, _MaxLum / max(lum, 1e-4));
                 col = MixFog(col, i.fog);
                 return half4(col, 1);
             }

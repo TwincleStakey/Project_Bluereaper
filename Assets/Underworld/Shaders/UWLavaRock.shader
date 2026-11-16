@@ -14,6 +14,7 @@ Shader "Underworld/LavaRock"
         _GlowFall("Under-glow falloff (m)", Range(0.2, 10)) = 2.0
         _SeaY("Lava surface height", Float) = -6
         _NrmStr("Normal strength", Range(0, 2)) = 1
+        _EmisMax("Hard ceiling: emission per channel", Range(0.1, 2)) = 0.6
     }
     SubShader
     {
@@ -24,7 +25,7 @@ Shader "Underworld/LavaRock"
         TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
         CBUFFER_START(UnityPerMaterial)
         float4 _BaseMap_ST, _Tint, _AmbLift, _GlowCol;
-        float _GlowInt, _GlowFall, _SeaY, _NrmStr;
+        float _GlowInt, _GlowFall, _SeaY, _NrmStr, _EmisMax;
         CBUFFER_END
         ENDHLSL
         Pass
@@ -72,7 +73,8 @@ Shader "Underworld/LavaRock"
                 s.albedo = alb; s.smoothness = 0.08; s.occlusion = 1; s.alpha = 1; s.normalTS = float3(0, 0, 1);
                 float h = max(i.positionWS.y - _SeaY, 0.0);
                 float glow = exp(-h / _GlowFall) * saturate(0.35 - N.y * 0.65 + 0.65);   // faces turned down / sideways catch more
-                s.emission = alb * (_AmbLift.rgb + _GlowCol.rgb * _GlowInt * glow);
+                // 11-16 white-out pass: the under-glow is a warm rim near the lava, never a light source (hard per-channel ceiling)
+                s.emission = min(alb * (_AmbLift.rgb + _GlowCol.rgb * _GlowInt * glow), _EmisMax);
                 half4 col = UniversalFragmentPBR(d, s);
                 col.rgb = MixFog(col.rgb, i.fog);
                 return col;

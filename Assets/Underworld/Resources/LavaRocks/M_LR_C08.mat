@@ -34,7 +34,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _GlowFall: 4
-    - _GlowInt: 10
+    - _GlowInt: 2.5
     - _NrmStr: 1
     - _SeaY: -6
     m_Colors:
