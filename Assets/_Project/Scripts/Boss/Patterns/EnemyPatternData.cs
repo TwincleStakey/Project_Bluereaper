@@ -9,9 +9,10 @@ namespace BlueReaper.Data
     {
         public bool SelfDestructAfterPattern = false;
         public AnimationClip MotionClip = null;
+        public GameObject TelegraphPrefab;
+        [Min(0f)] public float TelegraphDurationSeconds;
         public VfxAutoDespawn CastVfxPrefab;
         [Min(0f)] public float CastVfxDelaySeconds;
-        public int TelegraphType = 0; //todo
         public float RestTime = 0f;
         public float ChasingDistance = 10f;
         public PatternImplData[] Implementations = null;

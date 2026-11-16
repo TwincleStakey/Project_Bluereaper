@@ -233,7 +233,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Boss.EnemyAI
   patterns:
-  - {fileID: 11400000, guid: ac7d99686c1ac1f42b855fc134220be4, type: 2}
+  - {fileID: 11400000, guid: c0133bd2c1bd42428b3aaf6bc464905c, type: 2}
   spawnPattern: {fileID: 0}
   deathPattern: {fileID: 0}
   aiTick: 0.1

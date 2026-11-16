@@ -24,13 +24,24 @@ namespace BlueReaper.Boss
         [SerializeField] float aiTick = 0.1f;
         [SerializeField] float stopChasingDistance = 3f;
 
+        private readonly struct AreaPlacement
+        {
+            internal readonly Matrix4x4 Layout;
+            internal readonly Quaternion Facing;
+
+            internal AreaPlacement(Transform origin)
+            {
+                Layout = origin.localToWorldMatrix;
+                Facing = Quaternion.Euler(0f, origin.eulerAngles.y, 0f);
+            }
+        }
+
         private struct AreaCast
         {
             internal AreaAttackPatternData Pattern;
             internal float NextAt, HitAt, EndsAt, Damage;
             internal bool Placed, HasHit;
-            internal Matrix4x4 Layout;
-            internal Quaternion Facing;
+            internal AreaPlacement Placement;
         }
 
         private PatternState currentPatternState;
@@ -40,6 +51,7 @@ namespace BlueReaper.Boss
         private Posture posture;
         private NavMeshAgent agent;
         private Animator animator;
+        private GameObject activeTelegraph;
         private Coroutine coAIUpdate = null;
         private Coroutine coMeleeHitWindow = null;
         private MeleeHitBox[] meleeHitBoxes;
@@ -155,6 +167,7 @@ namespace BlueReaper.Boss
             StopMeleeHitWindow();
             StopForwardTracking();
             StopAllCoroutines();
+            ReturnTelegraph();
             coAIUpdate = null;
             trackingDirection = Vector3.zero;
             hasChaseDestination = false;
@@ -265,6 +278,7 @@ namespace BlueReaper.Boss
         private IEnumerator IEForwardTracking(EnemyActionData settings, float duration)
         {
             agent.ResetPath();
+            agent.velocity = Vector3.zero;
             hasChaseDestination = false;
             agent.speed = speedBeforeTracking * settings.TrackingMoveRatio;
             agent.angularSpeed = angularSpeedBeforeTracking * settings.TrackingRotationRatio;
@@ -373,8 +387,55 @@ namespace BlueReaper.Boss
         {
             StopMeleeHitWindow();
             StopForwardTracking();
-            if (!pattern || !unit.Data || health.IsDead) yield break;
+            if (!pattern || !unit.Data || health.IsDead || !isActiveAndEnabled) yield break;
+
+            StageController stage = Stage;
+            StageField field = stage ? stage.GetActiveField(unit) : null;
+            bool CanStart() => !health.IsDead && isActiveAndEnabled
+                && (ReferenceEquals(stage, null) || (stage && field && stage.GetActiveField(unit) == field));
+            if (!CanStart()) yield break;
+
             currentPatternState = PatternState.Executing;
+            AreaPlacement? telegraphCaster = null;
+            AreaPlacement? telegraphField = null;
+            if (pattern.TelegraphPrefab && pattern.TelegraphDurationSeconds > 0f
+                && float.IsFinite(pattern.TelegraphDurationSeconds))
+            {
+                if (pattern.TelegraphPrefab.GetComponentInChildren<VfxAutoDespawn>(true))
+                {
+                    Debug.LogWarning("Telegraph pool return is owned by EnemyAI. Use a telegraph prefab without VfxAutoDespawn.", pattern);
+                    currentPatternState = PatternState.Done;
+                    yield break;
+                }
+
+                var area = (pattern.Implementations ?? Array.Empty<PatternImplData>())
+                    .OfType<AreaAttackPatternData>().FirstOrDefault(effect => effect);
+                bool fieldRelative = area && area.PlacementOrigin == AreaPlacementOrigin.Field;
+                if (fieldRelative && !field)
+                {
+                    Debug.LogWarning("Field-relative telegraph requires an active field.", pattern);
+                    currentPatternState = PatternState.Done;
+                    yield break;
+                }
+                if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
+
+                telegraphCaster = new AreaPlacement(transform);
+                telegraphField = field ? new AreaPlacement(field.LayoutOrigin) : null;
+                var placement = fieldRelative ? telegraphField.GetValueOrDefault() : telegraphCaster.Value;
+                Vector3 position = area ? placement.Layout.MultiplyPoint3x4(area.LocalCenter) : transform.position;
+                Quaternion rotation = area ? placement.Facing * Quaternion.Euler(0f, area.LocalYaw, 0f) : placement.Facing;
+                ObjectPool.Spawn(pattern.TelegraphPrefab, position, rotation,
+                    beforeEnable: instance => activeTelegraph = instance);
+                float endsAt = Time.time + pattern.TelegraphDurationSeconds;
+                while (Time.time < endsAt && CanStart()) yield return null;
+                ReturnTelegraph();
+                if (!CanStart())
+                {
+                    currentPatternState = PatternState.Done;
+                    yield break;
+                }
+            }
+
             float startedAt = Time.time;
             PlayMotion(pattern.MotionClip);
             Coroutine castVfx = pattern.CastVfxPrefab
@@ -443,7 +504,7 @@ namespace BlueReaper.Boss
 
             bool areasRunning = areaCasts != null;
             if (areasRunning)
-                StartCoroutine(ExecuteAreaEffects(areaCasts, () => areasRunning = false));
+                StartCoroutine(ExecuteAreaEffects(areaCasts, telegraphCaster, telegraphField, () => areasRunning = false));
 
             while (pendingBulletEffects > 0 || areasRunning || coMeleeHitWindow != null || Time.time < motionUntil)
                 yield return null;
@@ -463,6 +524,13 @@ namespace BlueReaper.Boss
             currentPatternState = PatternState.Done;
         }
 
+        private void ReturnTelegraph()
+        {
+            var instance = activeTelegraph;
+            activeTelegraph = null;
+            if (instance) ObjectPool.Despawn(instance);
+        }
+
         private Func<bool> GetVfxGuard(bool afterDeath = false) =>
             Stage ? Stage.GetVfxGuard(Stage.GetActiveField(unit, afterDeath)) : null;
 
@@ -475,7 +543,8 @@ namespace BlueReaper.Boss
                 VfxAutoDespawn.Play(pattern.CastVfxPrefab, transform.position, transform.rotation, canPlay: canPlay);
         }
 
-        private IEnumerator ExecuteAreaEffects(List<AreaCast> casts, Action onFinished)
+        private IEnumerator ExecuteAreaEffects(List<AreaCast> casts, AreaPlacement? telegraphCaster,
+            AreaPlacement? telegraphField, Action onFinished)
         {
             StageController stage = Stage;
             StageField field = stage ? stage.GetActiveField(unit) : null;
@@ -509,10 +578,9 @@ namespace BlueReaper.Boss
                             casts.RemoveAt(next);
                             continue;
                         }
-                        Transform origin = cast.Pattern.PlacementOrigin == AreaPlacementOrigin.Field
-                            ? field.LayoutOrigin : transform;
-                        cast.Layout = origin.localToWorldMatrix;
-                        cast.Facing = Quaternion.Euler(0f, origin.eulerAngles.y, 0f);
+                        cast.Placement = cast.Pattern.PlacementOrigin == AreaPlacementOrigin.Field
+                            ? telegraphField ?? new AreaPlacement(field.LayoutOrigin)
+                            : telegraphCaster ?? new AreaPlacement(transform);
                         cast.Placed = true;
                         cast.NextAt = cast.HitAt;
                         casts[next] = cast;
@@ -527,8 +595,8 @@ namespace BlueReaper.Boss
                     }
 
                     var pattern = cast.Pattern;
-                    Vector3 center = cast.Layout.MultiplyPoint3x4(pattern.LocalCenter);
-                    Quaternion facing = cast.Facing * Quaternion.Euler(0f, pattern.LocalYaw, 0f);
+                    Vector3 center = cast.Placement.Layout.MultiplyPoint3x4(pattern.LocalCenter);
+                    Quaternion facing = cast.Placement.Facing * Quaternion.Euler(0f, pattern.LocalYaw, 0f);
                     if (!cast.HasHit) VfxAutoDespawn.Play(pattern.AttackVfxPrefab, center, facing, canPlay: vfxGuard);
 
                     var hits = areaQuery.Find(pattern.Shape, center, facing, pattern.HitSize,
@@ -536,8 +604,8 @@ namespace BlueReaper.Boss
                     foreach (AreaAttackShapeData shape in pattern.AdditionalShapes ?? Array.Empty<AreaAttackShapeData>())
                     {
                         if (shape == null) continue;
-                        areaQuery.Append(shape.Shape, cast.Layout.MultiplyPoint3x4(shape.LocalCenter),
-                            cast.Facing * Quaternion.Euler(0f, shape.LocalYaw, 0f), shape.HitSize,
+                        areaQuery.Append(shape.Shape, cast.Placement.Layout.MultiplyPoint3x4(shape.LocalCenter),
+                            cast.Placement.Facing * Quaternion.Euler(0f, shape.LocalYaw, 0f), shape.HitSize,
                             shape.SectorAngle, unit, targets, shape.InnerRadius);
                     }
 
