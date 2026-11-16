@@ -14,7 +14,7 @@ public static class JangsanbeomGlowSetup
 {
     const string Root = "Assets/Game/Jangsanbeom";
     const float BossScale = 25f;   // model is 0.43 m tall; x25 = 10.6 m tall, 25 m long (player is 1.8 m): Lost Ark guardian scale
-    static readonly string[] Clips = { "p0_telegraph_scrape", "p1_howl_gramophone", "p2_charge_gramophone" };
+    static readonly string[] Clips = { "p0_telegraph_scrape", "p0_telegraph_scrape_L", "p1_howl_gramophone", "p2_charge_gramophone" };   // _L = mirrored left-paw scrape (11-16)
 
     [InitializeOnLoadMethod]
     static void Watch() { EditorApplication.update += Tick; }
@@ -249,6 +249,9 @@ public static class JangsanbeomGlowSetup
             bool loopClip = false;
             if (!string.IsNullOrEmpty(clipFbx))
             {
+                AssetDatabase.ImportAsset(clipFbx);
+                if (AssetImporter.GetAtPath(clipFbx) is ModelImporter cmi && (cmi.animationType != ModelImporterAnimationType.Generic || Mathf.Abs(cmi.globalScale - BossScale) > 0.01f))
+                { cmi.animationType = ModelImporterAnimationType.Generic; cmi.globalScale = BossScale; cmi.useFileScale = true; cmi.SaveAndReimport(); }
                 var alt = AssetDatabase.LoadAllAssetsAtPath(clipFbx).OfType<AnimationClip>().FirstOrDefault(c => !c.name.StartsWith("__preview"));
                 if (alt != null) { clip = alt; loopClip = true; }
             }
