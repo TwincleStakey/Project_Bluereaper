@@ -28,8 +28,8 @@ public static class JangsanbeomGlowSetup
         if (File.Exists("Temp/jsb_map.trigger") && !EditorApplication.isPlayingOrWillChangePlaymode && !EditorApplication.isCompiling && !EditorApplication.isUpdating)
         {
             var args = File.ReadAllText("Temp/jsb_map.trigger").Trim().Split(' '); File.Delete("Temp/jsb_map.trigger"); var clipName = args[0]; var ci = System.Globalization.CultureInfo.InvariantCulture;
-            float zoomArg = args.Length > 1 ? float.Parse(args[1], ci) : 2.7f, tzArg = args.Length > 2 ? float.Parse(args[2], ci) : 7f;
-            try { MapCapture(clipName.Length > 0 ? clipName : "p0_telegraph_scrape", zoomArg, tzArg); } catch (System.Exception e) { Debug.LogError("[JSB] map " + e); File.WriteAllText("Temp/jsb_map.err", e.ToString()); }
+            float zoomArg = args.Length > 1 ? float.Parse(args[1], ci) : 2.7f, tzArg = args.Length > 2 ? float.Parse(args[2], ci) : 7f, dimArg = args.Length > 3 ? float.Parse(args[3], ci) : 1f;
+            try { MapCapture(clipName.Length > 0 ? clipName : "p0_telegraph_scrape", zoomArg, tzArg, dimArg); } catch (System.Exception e) { Debug.LogError("[JSB] map " + e); File.WriteAllText("Temp/jsb_map.err", e.ToString()); }
             File.WriteAllText("Temp/jsb_map.done", System.DateTime.Now.ToString("o"));
         }
         const string trig = "Temp/jsb_glow.trigger";
@@ -223,7 +223,7 @@ public static class JangsanbeomGlowSetup
     // post, seen by the RoomRun game camera (offset (0,17,-14.5) x zoom). Uses the boss as set up by Build() in JSB_GlowTest.
     // Edit mode only; StageMood/LookFX grades run only in RoomRun Play, so they are not in these frames.
     const string MapScene = "Assets/Game/BossSeal/BossSeal.unity";
-    public static void MapCapture(string clipName, float zoom = 2.7f, float targetZ = 7f)
+    public static void MapCapture(string clipName, float zoom = 2.7f, float targetZ = 7f, float dim = 1f)
     {
         var openedMap = !UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene).isLoaded;
         var map = openedMap ? EditorSceneManager.OpenScene(MapScene, OpenSceneMode.Additive) : UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene);
@@ -261,6 +261,16 @@ public static class JangsanbeomGlowSetup
             var p0 = cam.transform.position; var r0 = cam.transform.rotation; var far0 = cam.farClipPlane;
             cam.transform.position = target + off; cam.transform.rotation = Quaternion.LookRotation(-off); cam.farClipPlane = Mathf.Max(far0, off.magnitude + 150f);
             foreach (var ps in Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None)) ps.Simulate(12f, true, true);
+            // capture-only darkening (11-16 Kido: "좀 더 많이 어둡게"): the map's lights, ambient and fog x dim, restored below
+            var mapLights = map.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Light>(true)).ToArray();
+            var lightI0 = mapLights.Select(l => l.intensity).ToArray();
+            var amb0 = (RenderSettings.ambientSkyColor, RenderSettings.ambientEquatorColor, RenderSettings.ambientGroundColor, RenderSettings.ambientLight, RenderSettings.fogColor);
+            if (dim < 0.999f)
+            {
+                foreach (var l in mapLights) l.intensity *= dim;
+                RenderSettings.ambientSkyColor *= dim; RenderSettings.ambientEquatorColor *= dim; RenderSettings.ambientGroundColor *= dim; RenderSettings.ambientLight *= dim; RenderSettings.fogColor *= dim;
+            }
+            try {
 
             var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../ArtSource/Jangsanbeom/renders/map"));
             var vdir = Path.Combine(outDir, $"vid_{clipName}"); Directory.CreateDirectory(vdir);
@@ -296,6 +306,10 @@ public static class JangsanbeomGlowSetup
                 cam.transform.position = p0; cam.transform.rotation = r0; cam.farClipPlane = far0;
                 Object.DestroyImmediate(rt); Object.DestroyImmediate(ldr); Object.DestroyImmediate(tex);
             }
+            } finally {
+                for (int li = 0; li < mapLights.Length; li++) if (mapLights[li]) mapLights[li].intensity = lightI0[li];
+                (RenderSettings.ambientSkyColor, RenderSettings.ambientEquatorColor, RenderSettings.ambientGroundColor, RenderSettings.ambientLight, RenderSettings.fogColor) = amb0;
+            }
         }
         finally
         {
@@ -319,7 +333,10 @@ public static class JangsanbeomGlowSetup
             var m = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (m == null) { m = new Material(r.sharedMaterial); AssetDatabase.CreateAsset(m, path); }
             else m.CopyPropertiesFromMaterial(r.sharedMaterial);
-            m.SetFloat("_TickRate", 0.45f); EditorUtility.SetDirty(m);
+            m.SetFloat("_TickRate", 0.45f);
+            // 11-16 Kido: make the key on the back glow (the shared monster keys stay as they are)
+            m.SetFloat("_GlowBase", 2.5f); m.SetFloat("_GlowPeak", 9f); m.SetFloat("_CrevGlow", 3.5f); m.SetFloat("_CollarGlow", 3.5f); m.SetFloat("_RimGlow", 1.4f);
+            EditorUtility.SetDirty(m);
             r.sharedMaterial = m;
         }
     }

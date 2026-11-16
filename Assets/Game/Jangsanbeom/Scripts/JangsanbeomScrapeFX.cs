@@ -137,7 +137,7 @@ public class JangsanbeomScrapeFX : MonoBehaviour
             e.position = at + side * Random.Range(-1.2f, 1.2f) + dir * Random.Range(-0.5f, 0.5f);
             e.velocity = -dir * Random.Range(1f, 4f) * k + Vector3.up * Random.Range(0.6f, 2.2f) + side * Random.Range(-1.5f, 1.5f);
             e.startSize = Random.Range(3.5f, 6f); e.startLifetime = Random.Range(1.0f, 1.8f);
-            e.startColor = new Color(0.56f, 0.38f, 0.26f, 0.7f); e.rotation = Random.Range(0, 360);
+            e.startColor = new Color(0.3f, 0.21f, 0.15f, 0.6f);   // unlit: kept dim so it does not glow in a dark map e.rotation = Random.Range(0, 360);
             dust.Emit(e, 1);
         }
         for (int i = 0; i < nc; i++)   // clods: thrown back along the drag
