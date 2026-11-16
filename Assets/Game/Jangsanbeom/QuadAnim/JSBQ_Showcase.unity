@@ -178,11 +178,11 @@ MonoBehaviour:
     - 1.2
     turn: 0
   - state: jsbq_walk
-    seconds: 3
+    seconds: 4
     fade: 0.15
     speed: 1
     hits: []
-    turn: 25
+    turn: 20
   - state: jsbq_roar
     seconds: 3.2
     fade: 0.15
@@ -196,11 +196,11 @@ MonoBehaviour:
     hits: []
     turn: 40
   - state: jsbq_gallop
-    seconds: 2.4
+    seconds: 3
     fade: 0.15
     speed: 1
     hits: []
-    turn: 70
+    turn: 35
   - state: jsbq_swipe
     seconds: 1.6
     fade: 0.15

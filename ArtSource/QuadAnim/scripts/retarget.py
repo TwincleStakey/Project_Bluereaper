@@ -18,7 +18,11 @@ prof_name, src_path, act_name, out_base = a[0], a[1], a[2], a[3]
 speed = float(a[4]) if len(a) > 4 else 1.0
 OUT_FPS = int(a[5]) if len(a) > 5 else 30
 TRIM = (float(a[6]), float(a[7])) if len(a) > 7 else None   # source frame range to keep
-TRAVEL = float(os.environ.get('QA_TRAVEL', '1'))   # keep this share of the source's horizontal body travel (knock-back deaths)
+BODY = float(os.environ.get('QA_BODY', '1'))       # exaggerate trunk/neck flex (the boss is longer and heavier than the source)
+BOUNCE = float(os.environ.get('QA_BOUNCE', str(BODY)))   # exaggerate the hips' up-down
+TORSO = ('Hips', 'Spine1', 'Spine2', 'Spine3', 'Neck1', 'Neck2', 'Head')
+TRAVEL = float(os.environ.get('QA_TRAVEL', '1'))
+STRIDE = float(os.environ.get('QA_STRIDE', '1'))   # longer paw reach fore/aft (heavier, slower steps)   # keep this share of the source's horizontal body travel (knock-back deaths)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from profiles import PROFILES, TARGET_LEGS
 P = PROFILES[prof_name]
@@ -112,6 +116,11 @@ s_toe = {k: s_point(P['legs'][k][1], True) for k in TARGET_LEGS}
 t_n, s_n = {}, {}
 for fr in ('hind', 'front'):
     t_n[fr + '.L'], t_n[fr + '.R'] = neutral_pair((t_toe[fr + '.L'], t_toe[fr + '.R']), t_cx)
+    # stance width: paws this share of the way from under the hip/shoulder joint to the rest paw spread (the rest is splayed)
+    _w = float(os.environ.get('QA_HIND_W' if fr == 'hind' else 'QA_FRONT_W', '1'))
+    _jx = (abs(TB[TARGET_LEGS[fr + '.L'][0]].head_local.x - t_cx) + abs(TB[TARGET_LEGS[fr + '.R'][0]].head_local.x - t_cx)) / 2
+    for sd, sg in (('.L', 1), ('.R', -1)):
+        _px = abs(t_n[fr + sd].x - t_cx); t_n[fr + sd].x = t_cx + sg * (_jx + (_px - _jx) * _w)
     s_n[fr + '.L'], s_n[fr + '.R'] = neutral_pair((s_toe[fr + '.L'], s_toe[fr + '.R']), s_cx)
 scale = {}
 for k in TARGET_LEGS:
@@ -147,8 +156,11 @@ _hl = sum(TB[b].length for b in TARGET_LEGS['hind.L'][:3])
 _hh = TB['Thigh.L'].head_local.z - min(TB['HindToes.L'].head_local.z, TB['HindToes.R'].head_local.z)
 LIFT = float(os.environ.get('QA_LIFT', max(0.0, 0.85 * _hl - _hh)))
 _trunk = (TB['Neck1'].head_local - TB['Hips'].head_local); _trunk.x = 0
-_pitch = Matrix.Rotation(math.asin(min(0.9, LIFT / max(1e-4, _trunk.length))), 4, 'X').to_quaternion()
+_stalk = math.radians(float(os.environ.get('QA_STALK', '0')))   # extra trunk pitch: shoulders lower, hunting crouch
+_pitch = Matrix.Rotation(math.asin(min(0.9, LIFT / max(1e-4, _trunk.length))) + _stalk, 4, 'X').to_quaternion()
 for n in ('Hips', 'Spine1', 'Spine2', 'Spine3'): t_neu_q[n] = _pitch @ t_neu_q[n]
+_drop = Matrix.Rotation(math.radians(float(os.environ.get('QA_HEAD_DROP', '0'))), 4, 'X').to_quaternion()   # head carried low
+for n in ('Neck1', 'Neck2', 'Head'): t_neu_q[n] = _drop @ _pitch @ t_neu_q[n]
 print('NEUTRAL lift', round(LIFT, 4), 'pitch deg', round(math.degrees(_pitch.angle), 2))
 ground = min(v.z for v in t_n.values())
 
@@ -167,14 +179,18 @@ def solve_frame():
             pp = Pm[b.parent.name]
             head = pp @ (TB[b.parent.name].matrix_local.inverted() @ b.head_local)
         if n == 'Hips':
-            head = b.head_local + Vector((0, 0, LIFT)) + (s_point((P['pelvis'], 'h')) - pel_rest) * s_body - drift
+            hv = (s_point((P['pelvis'], 'h')) - pel_rest) * s_body; hv.z *= BOUNCE
+            head = b.head_local + Vector((0, 0, LIFT)) + hv - drift
         if n in P['aim']:
             pa, pb_, tw = P['aim'][n]
             d = (s_point(pb_) - s_point(pa)).normalized()
             qc = s_rot(tw) @ s_rest_q[tw].inverted() @ t_neu_q[n]
             if n in DELTA:   # keep the target's own (symmetrised) stance, add the source's change from its neutral
                 d0 = (s_point(pb_, True) - s_point(pa, True)).normalized()
-                d = d0.rotation_difference(d) @ (t_neu_q[n] @ Y)
+                r = d0.rotation_difference(d)
+                if n in TORSO and BODY != 1:
+                    ax, an = r.to_axis_angle(); r = Quaternion(ax, an * BODY)
+                d = r @ (t_neu_q[n] @ Y)
             q = swing(qc, qc @ Y, d)
         elif b.parent is not None:
             q = Pm[b.parent.name].to_quaternion() @ (TB[b.parent.name].matrix_local.inverted() @ b.matrix_local).to_quaternion()
@@ -185,6 +201,7 @@ def solve_frame():
     for k, (up, lo, paw, toes) in TARGET_LEGS.items():
         off = s_point(P['legs'][k][1]) - s_n[k]
         off.x *= LAT
+        off.y *= STRIDE
         G = t_n[k] + off * scale[k] - drift
         G.z = max(G.z, ground)
         qpaw = Pm[paw].to_quaternion(); dp = (qpaw @ Y).normalized()
