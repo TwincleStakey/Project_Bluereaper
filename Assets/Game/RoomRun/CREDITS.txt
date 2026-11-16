@@ -17,3 +17,19 @@ Grass / village depth trees (11-13, baked by Editor/EdgeDepthBake.cs), all CC BY
 - "Coniferous Forest Assets Pack" by Dari
   https://sketchfab.com/3d-models/coniferous-forest-assets-pack-240ce9cf0ad3474f809a59f9446e63cd
   EF_TallPine / EF_Fir / EF_DeadConiferA (from SnowPlague/ThirdParty/Trees TR_Pine, TR_Fir, TR_DeadConifer_A)
+
+대전 앞 court props (11-16, Resources/EdgeFeatures/PP_*, baked by Editor/PalacePropsBake.cs from ThirdParty/PalaceProps,
+converted by ArtSource/PalaceProps/convert_palace_props.py: decimated, retextured dark/greyed, rescaled).
+All by KOREA HERITAGE SERVICE [KHS] (https://sketchfab.com/KHS_Asset), Creative Commons Attribution 4.0 (CC BY 4.0):
+- "Gyeongbokgung_Geunjeongjeon_Dumu" https://sketchfab.com/3d-models/1a6fe27f9cd04fc591b71d0a417d0f03 (PP_Dumu)
+- "Gyeongbokgung_Geunjeongjeon_IncenseBurnerB" https://sketchfab.com/3d-models/c0b91f8896164e60ba6299a5e4f86864 (PP_IncenseB)
+- "Gyeongbokgung_Geunjeongjeon_IncenseBunnerC" https://sketchfab.com/3d-models/61775871db37497d8dad1004745f0e6c (PP_IncenseC)
+- "Gwanghwamun Gate_HaetaeA" https://sketchfab.com/3d-models/e11f9ee66df74288be83f9fede578bd4 (PP_Haetae)
+- "Brazer" https://sketchfab.com/3d-models/2ee7e644ce694ee4acce57acf4484375 (PP_Brazier)
+- "Flag" https://sketchfab.com/3d-models/f41f3364f6614209ae0f063c8223e65c (PP_Flag)
+- "Hwacha" https://sketchfab.com/3d-models/59ae879f47cb4bf3b9f2defd1e8c1f02 (PP_Hwacha)
+- "Spear" https://sketchfab.com/3d-models/948e9e031c354b3ba84f29bc44237894 (PP_Spear)
+- "HwandoA" https://sketchfab.com/3d-models/fb23b5a305c043a79f14b4fd463e6604 (PP_Hwando)
+- "Woldo" https://sketchfab.com/3d-models/5510105e64a94dda9ee8ba47e809e2ed (PP_Woldo)
+Fab / Quixel Megascans (Fab Standard License, free listing; no attribution required, credited anyway):
+- "Old Wooden Beam" https://www.fab.com/listings/13d1a4c3-1f5b-4e85-85bd-a5a343c1620f (PP_Beam, darkened to charred)

@@ -7,6 +7,7 @@
 // stand just outside the north edge. A house (EF_ThatchHouse: outside a corner, only its corner inside, box collider) is
 // supported but not placed: from the top-down camera its thatch roof read as a flat wooden slab (11-13 shots).
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -138,7 +139,7 @@ namespace RoomRun
             int n = 0;
             float k = Lift.TryGetValue(run.Room.id, out var l) ? l : 1f;
             foreach (var f in list) if (Place(f, c, hx, hz, holder.transform, k, run.Room.id) != null) n++;
-            if (run.Room.id == "palace") n += PalaceWalls(c, hx, hz, holder.transform, k);
+            if (run.Room.id == "palace") { n += PalaceWalls(c, hx, hz, holder.transform, k); n += PalaceProps(c, holder.transform); }
             Debug.Log($"[EdgeFeatures] {run.Room.id}: {n} features at the edges");
         }
 
@@ -181,6 +182,101 @@ namespace RoomRun
             Run(new Vector3(c.x - hx, 0, nz), new Vector3(c.x - 27f, 0, nz), 180f, float.NaN, Vector3.forward, c.z + hz);         // north-west, face south
             Run(new Vector3(c.x + 27f, 0, nz), new Vector3(c.x + hx, 0, nz), 180f, float.NaN, Vector3.forward, c.z + hz);         // north-east
             Debug.Log($"[EdgeFeatures] palace: {n} hanok wall pieces ({len:0.0} m)");
+            return n;
+        }
+
+        // 11-16 (Kido: "이것도 애셋들좀 채워넣어봐 너무 심심해", refs ArtSource/PalaceProps / Downloads/palace_props/refs): downloaded
+        // heritage props (KHS 경복궁 근정전 set, CC BY) baked by Editor/PalacePropsBake.cs. Like the refs (Shadow Tactics, PoE2,
+        // Diablo IV courts): big pieces only against the walls and the hall approach (해태 pair outside the north edge on the
+        // road, 향로 and 드무 along the north wall, 화로 flanking the side gates, burnt 화차 and charred beams in the corners);
+        // inside the court only flat battle aftermath (fallen banners, dropped spears / 월도 / 환도, a few charred beams) in
+        // loose groups of 1-3 with open lanes between. No colliders anywhere (arena rule), no lights.
+        // what, x, z (court coordinates, as LookStudyRuins), yaw, scale, lay (deg about X: 90 = an upright model lying down),
+        // flat (scale of the model's depth: a lying banner is pressed flat), tilt (deg about Z)
+        struct PP { public string what; public float x, z, yaw, s, lay, flat, tilt; public PP(string w, float x, float z, float yaw, float s = 1, float lay = 0, float flat = 1, float tilt = 0) { what = w; this.x = x; this.z = z; this.yaw = yaw; this.s = s; this.lay = lay; this.flat = flat; this.tilt = tilt; } }
+        static readonly PP[] PalaceSet =
+        {
+            // north: the hall approach (road |x| < 3.9 runs to the terrace) and the north wall (|x| > 27)
+            new PP("PP_Haetae", -9f, 48f, 180f, 0.9f), new PP("PP_Haetae", 9f, 48f, 180f, 0.9f),
+            new PP("PP_IncenseC", -17f, 46.4f, 10f), new PP("PP_IncenseC", 17f, 46.4f, -10f),
+            new PP("PP_Dumu", -32f, 44.4f, 0f, 1.2f), new PP("PP_Dumu", 32f, 44.4f, 40f, 1.2f),
+            new PP("PP_Brazier", -44f, 44.2f, 0f, 4.5f),
+            // side walls (side gates at z 0..12 stay open; braziers flank them)
+            new PP("PP_Brazier", -49.6f, -2.5f, 0f, 4.5f), new PP("PP_Brazier", 49.6f, 14.5f, 90f, 4.5f),
+            new PP("PP_Dumu", -49.4f, 24f, 90f, 1.1f), new PP("PP_Dumu", 49.4f, -18f, 20f, 1.1f),
+            new PP("PP_IncenseB", -49.6f, -12f, 0f, 3f), new PP("PP_IncenseB", 49.2f, 21f, 30f, 3f, 82f),   // one knocked over
+            // corners: burnt 화차 and charred beams
+            new PP("PP_Hwacha", -47f, -33f, 75f, 1f, 0f, 1f, 8f), new PP("PP_Hwacha", 46f, 33f, 200f, 1f, 0f, 1f, 6f), new PP("PP_Hwacha", 44f, -45f, 160f, 1f, 0f, 1f, -10f),
+            new PP("PP_Beam", -48.5f, 36f, 80f, 2.6f), new PP("PP_Beam", -47f, 37.5f, 30f, 2.6f, 0f, 1f, 4f), new PP("PP_Beam", -48f, 33.8f, 120f, 2.4f),
+            new PP("PP_Beam", 47.5f, -36f, 70f, 2.6f), new PP("PP_Beam", 46.1f, -34.6f, 15f, 2.4f, 0f, 1f, -5f),
+            new PP("PP_Beam", -22f, -47f, 10f, 2.6f), new PP("PP_Beam", -19.6f, -46.2f, 150f, 2.4f),
+            new PP("PP_Beam", 28f, -46.5f, 170f, 2.6f), new PP("PP_Beam", 30.4f, -47.2f, 60f, 2.4f, 0f, 1f, 4f),
+            new PP("PP_Beam", 48.5f, 41f, 100f, 2.6f), new PP("PP_Beam", -47.5f, -44f, 40f, 2.6f), new PP("PP_Beam", -45.5f, -45.5f, 110f, 2.4f),
+        };
+
+        // Inside the court: "battle aftermath" islands on a jittered 12 m grid (two or three in any game view), about a quarter of
+        // the cells left empty as rest lanes. Each island is a fallen banner with a dropped weapon or two, or 2-3 charred
+        // beams; nothing on the rank-stone rows (x +-12), the hall road (|x| < 5 north of z 28) or the spawn spot.
+        static IEnumerable<PP> Islands()
+        {
+            var r = new System.Random(1116);
+            float Rn(float a, float b) => a + (float)r.NextDouble() * (b - a);
+            string[] weapons = { "PP_Spear", "PP_Woldo", "PP_Hwando" };
+            for (float gz = -41f; gz <= 37f; gz += 12f)
+            for (float gx = -42f; gx <= 42f; gx += 12f)
+            {
+                float x = gx + Rn(-3.5f, 3.5f), z = gz + Rn(-3.2f, 3.2f);
+                double roll = r.NextDouble(), kind = r.NextDouble();
+                float yaw = Rn(0f, 360f);
+                if (roll < 0.27) continue;                                              // rest lane
+                if (Mathf.Abs(Mathf.Abs(x) - 12f) < 3f) x = Mathf.Sign(x) * (Mathf.Abs(x) < 12f ? 8.5f : 15.5f);   // off the rank-stone rows
+                if (Mathf.Abs(x) < 5f && z > 28f) continue;                              // hall road
+                if (new Vector2(x, z).magnitude < 4f) { x += 5f; }                       // spawn spot
+                if (kind < 0.55)
+                {
+                    yield return new PP("PP_Flag", x, z, yaw, Rn(0.66f, 0.78f), -88f, 0.3f, Rn(-3f, 3f));   // cloth face up (face down it shaded black)
+                    int nw = r.NextDouble() < 0.5 ? 1 : 2;
+                    for (int i = 0; i < nw; i++)
+                    {
+                        string w = weapons[r.Next(weapons.Length)];
+                        float a = Rn(0f, 6.28f), d = Rn(2.5f, 4.5f);
+                        yield return new PP(w, x + Mathf.Cos(a) * d, z + Mathf.Sin(a) * d, Rn(0f, 360f), 1.3f, w == "PP_Hwando" ? 90f : 0f);
+                    }
+                }
+                else
+                {
+                    int nb = r.NextDouble() < 0.5 ? 2 : 3;
+                    for (int i = 0; i < nb; i++)
+                        yield return new PP("PP_Beam", x + Rn(-1.6f, 1.6f), z + Rn(-1.6f, 1.6f), yaw + Rn(-30f, 30f), Rn(2.3f, 2.8f), 0f, 1f, Rn(-4f, 4f));
+                    if (r.NextDouble() < 0.4) yield return new PP("PP_Spear", x + Rn(-3f, 3f), z + Rn(-3f, 3f), Rn(0f, 360f), 1.3f);
+                }
+            }
+        }
+
+        static int PalaceProps(Vector3 c, Transform parent)
+        {
+            int n = 0;
+            // court coordinates are the stage's (LookStudyRuins: arena x +-54, z -49.5..45.75; the room centre is the stage origin)
+            var off = new Vector3(c.x, 0f, c.z);
+            foreach (var p in PalaceSet.Concat(Islands()))
+            {
+                var prefab = Resources.Load<GameObject>("EdgeFeatures/" + p.what);
+                if (!prefab) { Debug.LogWarning("[EdgeFeatures] no prefab " + p.what); continue; }
+                var go = Instantiate(prefab, parent);
+                go.name = p.what;
+                go.transform.rotation = Quaternion.Euler(0f, p.yaw, 0f) * Quaternion.Euler(p.lay, 0f, p.tilt);
+                go.transform.localScale = new Vector3(p.s, p.s, p.s * p.flat);
+                var at = new Vector3(p.x, 0f, p.z) + off;
+                float gy = Ground(at + Vector3.up * 0.5f, c.y);
+                go.transform.position = new Vector3(at.x, gy, at.z);
+                // rest on the ground: the lowest point a hair under the floor (big pieces sink a little more)
+                var wb = WorldBounds(go);
+                bool big = wb.size.y > 0.6f;
+                go.transform.position += Vector3.up * (gy - wb.min.y - (big ? 0.06f : 0.015f));
+                if (!big) foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                n++;
+            }
+            Debug.Log($"[EdgeFeatures] palace: {n} props (centre {c})");
             return n;
         }
 
