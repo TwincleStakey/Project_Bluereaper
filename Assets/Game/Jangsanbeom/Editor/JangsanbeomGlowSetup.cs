@@ -28,8 +28,8 @@ public static class JangsanbeomGlowSetup
         if (File.Exists("Temp/jsb_map.trigger") && !EditorApplication.isPlayingOrWillChangePlaymode && !EditorApplication.isCompiling && !EditorApplication.isUpdating)
         {
             var args = File.ReadAllText("Temp/jsb_map.trigger").Trim().Split(' '); File.Delete("Temp/jsb_map.trigger"); var clipName = args[0]; var ci = System.Globalization.CultureInfo.InvariantCulture;
-            float zoomArg = args.Length > 1 ? float.Parse(args[1], ci) : 2.7f, tzArg = args.Length > 2 ? float.Parse(args[2], ci) : 7f, dimArg = args.Length > 3 ? float.Parse(args[3], ci) : 1f; var clipFbx = args.Length > 4 ? args[4] : null;
-            try { MapCapture(clipName.Length > 0 ? clipName : "p0_telegraph_scrape", zoomArg, tzArg, dimArg, clipFbx); } catch (System.Exception e) { Debug.LogError("[JSB] map " + e); File.WriteAllText("Temp/jsb_map.err", e.ToString()); }
+            float zoomArg = args.Length > 1 ? float.Parse(args[1], ci) : 2.7f, tzArg = args.Length > 2 ? float.Parse(args[2], ci) : 7f, dimArg = args.Length > 3 ? float.Parse(args[3], ci) : 1f; var clipFbx = args.Length > 4 && args[4] != "-" ? args[4] : null; float lapArg = args.Length > 5 ? float.Parse(args[5], ci) : 0f;
+            try { MapCapture(clipName.Length > 0 ? clipName : "p0_telegraph_scrape", zoomArg, tzArg, dimArg, clipFbx, lapArg); } catch (System.Exception e) { Debug.LogError("[JSB] map " + e); File.WriteAllText("Temp/jsb_map.err", e.ToString()); }
             File.WriteAllText("Temp/jsb_map.done", System.DateTime.Now.ToString("o"));
         }
         const string trig = "Temp/jsb_glow.trigger";
@@ -224,7 +224,7 @@ public static class JangsanbeomGlowSetup
     // post, seen by the RoomRun game camera (offset (0,17,-14.5) x zoom). Uses the boss as set up by Build() in JSB_GlowTest.
     // Edit mode only; StageMood/LookFX grades run only in RoomRun Play, so they are not in these frames.
     const string MapScene = "Assets/Game/BossSeal/BossSeal.unity";
-    public static void MapCapture(string clipName, float zoom = 2.7f, float targetZ = 7f, float dim = 1f, string clipFbx = null)
+    public static void MapCapture(string clipName, float zoom = 2.7f, float targetZ = 7f, float dim = 1f, string clipFbx = null, float lapRadius = 0f)
     {
         var openedMap = !UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene).isLoaded;
         var map = openedMap ? EditorSceneManager.OpenScene(MapScene, OpenSceneMode.Additive) : UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene);
@@ -265,7 +265,7 @@ public static class JangsanbeomGlowSetup
 
             var cam = map.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Camera>(true)).First(c => c.CompareTag("MainCamera"));
             AssetDatabase.Refresh();   // picks up a re-exported FBX
-            var target = new Vector3(10f, 0.3f, targetZ);
+            var target = lapRadius > 0 ? new Vector3(0f, 0.3f, targetZ) : new Vector3(10f, 0.3f, targetZ);
             var off = new Vector3(0, 17f, -14.5f) * zoom;
             var p0 = cam.transform.position; var r0 = cam.transform.rotation; var far0 = cam.farClipPlane;
             cam.transform.position = target + off; cam.transform.rotation = Quaternion.LookRotation(-off); cam.farClipPlane = Mathf.Max(far0, off.magnitude + 150f);
@@ -302,14 +302,49 @@ public static class JangsanbeomGlowSetup
             try
             {
                 { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
-                int nf = loopClip ? 120 : Mathf.CeilToInt(clip.length * 30);
+                // 11-16 Kido: the gallop must travel ("제자리 저러면 어떻게해"): run a lap of the arena, the body turning with
+                // the path and banking into the curve; speed = how fast the planted paws move back in the in-place clip
+                float lapSpeed = 0f; Quaternion lapBase = Quaternion.identity; var r0b = boss.transform.rotation; var p0b = boss.transform.position;
+                if (lapRadius > 0)
+                {
+                    boss.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+                    clip.SampleAnimation(boss, 0f);
+                    var fL = boss.transform.InverseTransformDirection(head.position - hips.position); fL.y = 0; fL.Normalize();
+                    lapBase = Quaternion.Inverse(Quaternion.LookRotation(fL));
+                    var toes = new[] { "HindToes.L", "HindToes.R", "FrontToes.L", "FrontToes.R" }.Select(n => boss.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == n)).Where(t => t != null).ToArray();
+                    var prev = new Vector3[toes.Length]; float sum = 0; int cnt = 0; float dt = clip.length / 120f;
+                    for (int k = 0; k <= 120; k++)
+                    {
+                        clip.SampleAnimation(boss, k * dt);
+                        float low = toes.Min(t => t.position.y);
+                        for (int ti = 0; ti < toes.Length; ti++)
+                        {
+                            var pp = toes[ti].position;
+                            if (k > 0 && pp.y < low + 0.35f) { sum += -Vector3.Dot(pp - prev[ti], fL) / dt; cnt++; }
+                            prev[ti] = pp;
+                        }
+                    }
+                    lapSpeed = cnt > 0 ? Mathf.Clamp(sum / cnt, 4f, 40f) : 15f;
+                    Debug.Log($"[JSB] lap: radius {lapRadius} speed {lapSpeed:F1} m/s from {cnt} planted samples");
+                    File.WriteAllText("Temp/jsb_lap.txt", $"speed {lapSpeed:F2} samples {cnt}");
+                }
+                int nf = lapRadius > 0 ? Mathf.Min(360, Mathf.CeilToInt(2f * Mathf.PI * lapRadius / lapSpeed * 30f)) : loopClip ? 120 : Mathf.CeilToInt(clip.length * 30);
+                System.Action<float> place = tt =>
+                {
+                    if (lapRadius <= 0) return;
+                    float th = -Mathf.PI * 0.5f + lapSpeed * tt / lapRadius;   // start at the south (near the camera), run anticlockwise
+                    var pos = new Vector3(Mathf.Cos(th), 0, Mathf.Sin(th)) * lapRadius;
+                    var tan = new Vector3(-Mathf.Sin(th), 0, Mathf.Cos(th));
+                    var rot = Quaternion.AngleAxis(-10f, tan) * Quaternion.LookRotation(tan) * lapBase;   // bank ~10 deg into the curve
+                    boss.transform.SetPositionAndRotation(pos, rot);
+                };
                 for (int f = 0; f < nf; f++)
                 {
                     float t = f / 30f;
                     if (f == 0 && trails != null) trails.ResetTrails();
                     if (f == 0 && scrape != null) scrape.ResetFX();
-                    if (trails != null && f > 0) { clip.SampleAnimation(boss, loopClip ? (t - 1f / 60f) % clip.length : t - 1f / 60f); trails.Sample(t - 1f / 60f); if (scrape != null) scrape.Sample(t - 1f / 60f); }
-                    clip.SampleAnimation(boss, loopClip ? t % clip.length : Mathf.Min(t, clip.length));
+                    if (trails != null && f > 0) { place(t - 1f / 60f); clip.SampleAnimation(boss, loopClip ? (t - 1f / 60f) % clip.length : t - 1f / 60f); trails.Sample(t - 1f / 60f); if (scrape != null) scrape.Sample(t - 1f / 60f); }
+                    place(t); clip.SampleAnimation(boss, loopClip ? t % clip.length : Mathf.Min(t, clip.length));
                     if (trails != null) trails.Sample(t);
                     if (scrape != null) scrape.Sample(t);
                     SetWarn(boss, loopClip ? 0f : Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f));
