@@ -43,11 +43,11 @@ public static class JangsanbeomGlowSetup
     static string DebugSkin()
     {
         var sb = new System.Text.StringBuilder();
-        var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{Root}/Models/p1_howl_gramophone.fbx");
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{Root}/Models/p0_telegraph_scrape.fbx");
         var go = (GameObject)Object.Instantiate(model); go.hideFlags = HideFlags.HideAndDontSave;
         try
         {
-            var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/p1_howl_gramophone.fbx").OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview"));
+            var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/p0_telegraph_scrape.fbx").OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview"));
             sb.AppendLine($"clip {clip.name} len {clip.length} curves {AnimationUtility.GetCurveBindings(clip).Length}");
             foreach (var b in AnimationUtility.GetCurveBindings(clip).Take(6)) sb.AppendLine($"  bind {b.path} {b.propertyName}");
             var smrs = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
@@ -274,14 +274,14 @@ public static class JangsanbeomGlowSetup
                     if (trails != null) trails.Sample(t);
                     SetWarn(boss, Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f));
                     Shader.SetGlobalFloat("_JSB_FixedTime", t);
-                    Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
+                    SyncSkin(boss); Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
                 }
                 SetWarn(boss, 0f);
                 Debug.Log($"[JSB] map capture {clipName}: {nf} frames, clip {clip.length:F2}s -> {vdir}");
             }
             finally
             {
-                Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f);
+                Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); ClearSkin();
                 cam.transform.position = p0; cam.transform.rotation = r0; cam.farClipPlane = far0;
                 Object.DestroyImmediate(rt); Object.DestroyImmediate(ldr); Object.DestroyImmediate(tex);
             }
@@ -382,6 +382,41 @@ public static class JangsanbeomGlowSetup
         File.WriteAllBytes(file, tex.EncodeToPNG());
     }
 
+    // 11-16: edit-mode captures never skinned the body. SampleAnimation moves the bones (rigid children like the gramophone
+    // follow), but SkinnedMeshRenderers only re-skin in the player loop, which does not run between our renders, so the fur
+    // and the parasite stood still in every capture. Bake each skinned mesh per frame and draw the baked copy instead.
+    static readonly System.Collections.Generic.Dictionary<SkinnedMeshRenderer, MeshRenderer> skinProxies = new System.Collections.Generic.Dictionary<SkinnedMeshRenderer, MeshRenderer>();
+    static void SyncSkin(GameObject boss)
+    {
+        foreach (var smr in boss.GetComponentsInChildren<SkinnedMeshRenderer>())
+        {
+            if (!skinProxies.TryGetValue(smr, out var mr) || mr == null)
+            {
+                var go = new GameObject("SkinProxy_" + smr.name) { hideFlags = HideFlags.HideAndDontSave };
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, boss.scene);
+                go.AddComponent<MeshFilter>().sharedMesh = new Mesh { name = smr.name + "_baked", hideFlags = HideFlags.HideAndDontSave };
+                mr = go.AddComponent<MeshRenderer>(); mr.shadowCastingMode = smr.shadowCastingMode; mr.receiveShadows = smr.receiveShadows;
+                skinProxies[smr] = mr;
+            }
+            var mesh = mr.GetComponent<MeshFilter>().sharedMesh;
+            smr.BakeMesh(mesh, true);
+            mr.transform.SetPositionAndRotation(smr.transform.position, smr.transform.rotation); mr.transform.localScale = Vector3.one;
+            mr.sharedMaterials = smr.sharedMaterials;
+            var pb = new MaterialPropertyBlock(); smr.GetPropertyBlock(pb); mr.SetPropertyBlock(pb);
+            mr.enabled = smr.enabled && smr.gameObject.activeInHierarchy;
+            smr.forceRenderingOff = true;
+        }
+    }
+    static void ClearSkin()
+    {
+        foreach (var kv in skinProxies)
+        {
+            if (kv.Key != null) kv.Key.forceRenderingOff = false;
+            if (kv.Value != null) { Object.DestroyImmediate(kv.Value.GetComponent<MeshFilter>().sharedMesh); Object.DestroyImmediate(kv.Value.gameObject); }
+        }
+        skinProxies.Clear();
+    }
+
     static void SetWarn(GameObject boss, float w)
     {
         foreach (var r in boss.GetComponentsInChildren<Renderer>())
@@ -407,7 +442,7 @@ public static class JangsanbeomGlowSetup
             float[] ts = { 0.3f, 1.6f, 2.6f, 3.5f };
             foreach (var only in anims)
             {
-                foreach (var an in anims) an.gameObject.SetActive(an == only);
+                foreach (var an in anims) an.gameObject.SetActive(an == only); ClearSkin();
                 var ctrl = only.runtimeAnimatorController; if (ctrl == null || ctrl.animationClips.Length == 0) continue;
                 var clip = ctrl.animationClips[0];
                 bool warnClip = only.name.Contains("telegraph");
@@ -425,7 +460,7 @@ public static class JangsanbeomGlowSetup
                     PlaceFrontCam(cam, only.gameObject);
                     SetWarn(only.gameObject, warnClip ? 1f : 0f);
                     Shader.SetGlobalFloat("_JSB_FixedTime", (k + (k % 2 == 0 ? 0.02f : 0.6f)) / beatSpeed);
-                    Shoot(cam, rt, ldr, tex, Path.Combine(outDir, $"{only.name}_{k}.png"));
+                    SyncSkin(only.gameObject); Shoot(cam, rt, ldr, tex, Path.Combine(outDir, $"{only.name}_{k}.png"));
                 }
                 // frame sequence so the gulping and the heartbeat can be seen moving
                 var vdir = Path.Combine(outDir, $"vid_{only.name}"); Directory.CreateDirectory(vdir);
@@ -442,12 +477,12 @@ public static class JangsanbeomGlowSetup
                     if (f == 0) PlaceFrontCam(cam, only.gameObject);
                     SetWarn(only.gameObject, warnClip ? Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f) : 0f);
                     Shader.SetGlobalFloat("_JSB_FixedTime", t);
-                    Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
+                    SyncSkin(only.gameObject); Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
                 }
                 SetWarn(only.gameObject, 0f);
             }
         }
-        finally { Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); }
+        finally { Shader.SetGlobalFloat("_JSB_UseFixedTime", 0f); ClearSkin(); }
         Debug.Log($"[JSB] captured stills to {outDir}");
     }
 }
