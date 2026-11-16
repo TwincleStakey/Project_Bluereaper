@@ -137,7 +137,9 @@ def pose_body(k, f=None):
     dz, yaw, pitch, roll = k.get("hips", (0, 0, 0, 0))
     tx, ty = k.get("T", (0, 0))
     h = B("Hips"); h.location = hips_loc(dz, tx, ty)
-    h.rotation_euler = (math.radians(pitch), math.radians(yaw), math.radians(roll))
+    # v5: k["Y"] = whole-body yaw (deg, + = turn left / CCW from above) on top of the hips yaw; the head turns with it
+    # (only the hips/spine yaw relative to the body is countered below)
+    h.rotation_euler = (math.radians(pitch), math.radians(yaw + k.get("Y", 0.0)), math.radians(roll))
     syaw, spitch, sroll = k.get("spine", (0, 0, 0))
     for n, wgt in (("Spine", 0.3), ("Spine1", 0.35), ("Spine2", 0.35)):
         b = B(n); b.rotation_euler = (math.radians(spitch * wgt), math.radians(syaw * wgt), math.radians(sroll * wgt))
@@ -199,10 +201,11 @@ def resolve(k):
     shR = rig.matrix_world @ B("RightArm").head; shL = rig.matrix_world @ B("LeftArm").head
     mid = (shR + shL) * 0.5 + Vector((0, 0, -0.15))
     twoh = k.get("lhand", 1.0) > 0.5
-    for _ in range(12):
+    reach = k.get("reach", REACH)
+    for _ in range(40):
         Sm = sword_m(p, d, None)
-        er = ((Sm @ RH_REL).translation - shR).length - REACH
-        el = ((Sm @ LH_REL).translation - shL).length - REACH if twoh else -1
+        er = ((Sm @ RH_REL).translation - shR).length - reach
+        el = ((Sm @ LH_REL).translation - shL).length - reach if twoh else -1
         ex = max(er, el)
         if ex <= 0.002: break
         p = p + (mid - p).normalized() * ex * 1.1
@@ -579,6 +582,181 @@ for _n in ROOT:
     _L, _h, _keys = CLIPS[_n]
     CLIPS[_n] = (_L, _h, [(f, with_feet(_n, f, k)) for f, k in _keys])
 
+# ------------------------------------------------------------------ v5 wide whole-body sweeps (11-16)
+# Kido (11-16, after the v3/v4 build): "동작이 너무 좁고 범위도 작고 이상해 ... 넓게 베라고 수십번 말했는데",
+# "마지막 3타 돌면서 베라고 했지, 위로 올라가는 동작이 왜 있어", "좌우 돌면서 전신 3가지", "칼 위로 올라가는 동작 만들지마".
+# v3/v4 turned only the hips/chest over planted feet with bent arms (tip ~1.0-1.5 m from the body) and hit 3's turn was a
+# Unity-side yaw. v5 keys EVERY attack frame from per-channel curves (monotone cubic through the control rows below):
+#  Y  whole-body yaw (deg, + = turn left / CCW from above; 0 = facing the cursor), the head turns with it
+#  th blade bearing (world, same convention), bp blade pitch (deg, kept flat), gb grip bearing relative to the body,
+#  rg grip radius asked for (resolve() pulls it in until both wrists reach: REACH 0.43 of the 0.44 arm = arms straight),
+#  zg grip height, dz/hp hips drop / forward lean, sy/sp chest yaw / pitch on top of the hips, lean = hips shift (m)
+#  toward the grip.
+# Hit 1: coil right (blade pulled back flat to the right side), turn ~175 deg left while the blade sweeps ~275 deg
+# right-back -> front (contact f5) -> left-back, then turn back to face the cursor with the blade out to the left.
+# Hit 2: the mirror. Hit 3: a 380 deg clockwise spin pivoting on the left foot (keyed in the clip; the old
+# GreatswordCombat.SpinYaw is off), blade flat and out to the front-right the whole turn, then settle into the ST stance.
+# Feet: hit 1's right foot steps up level with the left (square stance, root advances 0.18 m); planted feet turn in place
+# (yaw follows 60% of the body turn, the hips take the rest); in the spin the left foot turns in place under the pivot
+# and the right foot swings round off the ground. No key ever raises the blade: bp is -3..-6 deg and zg ~ chest height.
+WIDE = ("BZ_Slash1", "BZ_Slash2", "BZ_Slash3")
+WIDE_REACH = 0.43
+CH = ("Y", "th", "gb", "rg", "zg", "bp", "dz", "hp", "sy", "sp", "lean")
+def _rows(*rows):
+    """rows: (frame, dict); missing channels carry over from the row before"""
+    out = []; cur = {}
+    for f, d in rows:
+        cur = dict(cur); cur.update(d); out.append((f, cur))
+    return out
+def _pchip(xs, ys, x):
+    if x <= xs[0]: return ys[0]
+    if x >= xs[-1]: return ys[-1]
+    n = len(xs); i = max(j for j in range(n - 1) if xs[j] <= x)
+    sec = [(ys[j + 1] - ys[j]) / (xs[j + 1] - xs[j]) for j in range(n - 1)]
+    def tan(j):
+        if j == 0: return sec[0]
+        if j == n - 1: return sec[-1]
+        a, b = sec[j - 1], sec[j]
+        if a * b <= 0: return 0.0
+        w1 = 2 * (xs[j + 1] - xs[j]) + (xs[j] - xs[j - 1]); w2 = (xs[j + 1] - xs[j]) + 2 * (xs[j] - xs[j - 1])
+        return (w1 + w2) / (w1 / a + w2 / b)
+    h = xs[i + 1] - xs[i]; u = (x - xs[i]) / h
+    m0, m1 = tan(i) * h, tan(i + 1) * h
+    u2, u3 = u * u, u * u * u
+    return (2*u3 - 3*u2 + 1) * ys[i] + (u3 - 2*u2 + u) * m0 + (-2*u3 + 3*u2) * ys[i + 1] + (u3 - u2) * m1
+def sample(rows, f):
+    xs = [a for a, _ in rows]
+    return {c: _pchip(xs, [d[c] for _, d in rows], f) for c in CH}
+def ease(u): u = max(0.0, min(1.0, u)); return u * u * (3 - 2 * u)
+def hv(deg, r): a = math.radians(deg); return Vector((math.sin(a) * r, -math.cos(a) * r))
+
+# v5b (Kido 10:25 "1, 2타 너무 많이 돌릴 필요 없이 ... 레퍼런스 버서커 평타처럼", "빠르기도 너무 빠르고"): body turn and sweep
+# as read from berserker_ref_sheet.png (A55-63): blade ~210 deg in 3+3 f, body ~115 deg, no extra whirl. Spacing as the
+# reference: contact to contact 15 f (hit 1 cancel f10 + hit 2 contact f5) and 21 f (hit 2 cancel f18 + hit 3 contact f8).
+W1 = _rows(
+    (0,  dict(Y=-8,  th=-150, gb=-62, rg=0.40, zg=1.02, bp=-6, dz=-0.10, hp=10, sy=-8,  sp=8,  lean=0.0)),
+    (2,  dict(Y=-55, th=-125, gb=-40, rg=0.50, zg=1.10, bp=-5, dz=-0.16, hp=12, sy=-20, sp=10, lean=0.0)),
+    (3,  dict(Y=-32, th=-78,  gb=-18, rg=0.90, zg=1.14, bp=-4, dz=-0.20, hp=16, sy=-12, sp=12, lean=0.05)),
+    (4,  dict(Y=-6,  th=-32,  gb=-6,  rg=1.00, zg=1.15, bp=-4, dz=-0.22, hp=20, sy=-5,  sp=14, lean=0.12)),
+    (5,  dict(Y=22,  th=12,   gb=-2,  rg=1.00, zg=1.15, bp=-4, dz=-0.23, hp=23, sy=0,   sp=16, lean=0.15)),
+    (6,  dict(Y=42,  th=48,   gb=4,   rg=1.00, zg=1.15, bp=-4, dz=-0.23, hp=22, sy=5,   sp=15, lean=0.14)),
+    (7,  dict(Y=55,  th=72,   gb=12,  rg=0.95, zg=1.14, bp=-4, dz=-0.22, hp=19, sy=8,   sp=13, lean=0.10)),
+    (8,  dict(Y=60,  th=86,   gb=22,  rg=0.85, zg=1.13, bp=-4, dz=-0.21, hp=17, sy=9,   sp=12, lean=0.06)),
+    (10, dict(Y=40,  th=84,   gb=42,  rg=0.55, zg=1.11, bp=-4, dz=-0.18, hp=13, sy=5,   sp=10, lean=0.0)),
+    (16, dict(Y=28,  th=80,   gb=50,  rg=0.45, zg=1.10, bp=-4, dz=-0.14, hp=10, sy=2,   sp=9,  lean=0.0)),
+)
+W1_CANCEL = 10
+W2 = _rows(
+    (0,  sample(W1, W1_CANCEL)),
+    (2,  dict(Y=55,   th=125,  gb=40,  rg=0.50, zg=1.10, bp=-5, dz=-0.16, hp=12, sy=20,  sp=10, lean=0.0)),
+    (3,  dict(Y=32,   th=78,   gb=18,  rg=0.90, zg=1.14, bp=-4, dz=-0.20, hp=16, sy=12,  sp=12, lean=0.05)),
+    (4,  dict(Y=6,    th=32,   gb=6,   rg=1.00, zg=1.15, bp=-4, dz=-0.22, hp=20, sy=5,   sp=14, lean=0.12)),
+    (5,  dict(Y=-22,  th=-12,  gb=2,   rg=1.00, zg=1.15, bp=-4, dz=-0.23, hp=23, sy=0,   sp=16, lean=0.15)),
+    (6,  dict(Y=-42,  th=-48,  gb=-4,  rg=1.00, zg=1.15, bp=-4, dz=-0.23, hp=22, sy=-5,  sp=15, lean=0.14)),
+    (8,  dict(Y=-60,  th=-88,  gb=-20, rg=0.90, zg=1.13, bp=-4, dz=-0.21, hp=17, sy=-9,  sp=12, lean=0.07)),
+    (13, dict(Y=-62,  th=-104, gb=-40, rg=0.65, zg=1.12, bp=-4, dz=-0.19, hp=14, sy=-7,  sp=11, lean=0.0)),
+    (18, dict(Y=-36,  th=-100, gb=-55, rg=0.45, zg=1.10, bp=-4, dz=-0.15, hp=11, sy=-3,  sp=10, lean=0.0)),
+    (20, dict(Y=-32,  th=-98,  gb=-56, rg=0.45, zg=1.10, bp=-4, dz=-0.14, hp=10, sy=-2,  sp=9,  lean=0.0)),
+)
+W2_CANCEL = 18
+# hit 3 (the reference's f87-95 is a raised overhead blow; Kido wants a flat turning slash instead): 4 f flat coil,
+# 380 deg clockwise spin f4-f12 (contact f8, mid-turn), 2 f overshoot, settle, step into ST (f22-28)
+_s = sample(W2, W2_CANCEL)
+W3 = _rows(
+    (0,  _s),
+    (4,  dict(Y=-12,  th=-62,  gb=-40, rg=0.80, zg=1.10, bp=-4, dz=-0.20, hp=14, sy=-6,  sp=10, lean=0.0)),
+    (6,  dict(Y=-102, th=-157, gb=-38, rg=1.00, zg=1.10, bp=-4, dz=-0.24, hp=16, sy=-10, sp=12, lean=0.0)),
+    (8,  dict(Y=-192, th=-247, gb=-38, rg=1.00, zg=1.10, bp=-4, dz=-0.25, hp=16, sy=-10, sp=12, lean=0.0)),
+    (10, dict(Y=-282, th=-337, gb=-38, rg=1.00, zg=1.10, bp=-4, dz=-0.24, hp=16, sy=-10, sp=12, lean=0.0)),
+    (12, dict(Y=-372, th=-427, gb=-40, rg=0.95, zg=1.10, bp=-4, dz=-0.22, hp=15, sy=-8,  sp=11, lean=0.0)),
+    (14, dict(Y=-390, th=-452, gb=-48, rg=0.75, zg=1.10, bp=-4, dz=-0.20, hp=14, sy=-6,  sp=10, lean=0.0)),
+    (18, dict(Y=-376, th=-448, gb=-60, rg=0.50, zg=1.10, bp=-4, dz=-0.16, hp=11, sy=-3,  sp=9,  lean=0.0)),
+    (30, dict(Y=-368, th=-442, gb=-62, rg=0.45, zg=1.10, bp=-4, dz=-0.12, hp=9,  sy=-2,  sp=8,  lean=0.0)),
+)
+W3_SPIN = (4, 12)
+W3_LEN, W3_HIT, W3_STEP = 30, 8, 22
+
+def _wide_key(c, T, lf, rf):
+    gw = c["Y"] + c["gb"]
+    g2 = Vector(T) + hv(gw, c["rg"])
+    p = (g2.x, g2.y, c["zg"])
+    d = bdir(c["th"], math.tan(math.radians(c["bp"])))
+    lean = hv(gw, c["lean"])
+    return dict(p=p, d=d, hips=(c["dz"], 0.0, c["hp"], 0.0), Y=c["Y"], spine=(c["sy"], c["sp"], 0.0),
+                T=(T[0] + lean.x, T[1] + lean.y), lf=lf, rf=rf, lhand=1.0, reach=WIDE_REACH)
+
+def _rot(v, deg): return Matrix.Rotation(math.radians(deg), 2) @ Vector(v)
+WROOT = {}
+FOLLOW = 0.75   # planted feet turn in place by this share of the body turn (0.6 left 63-67 deg thigh twist)
+def build_wide():
+    # clip-space = Blender world at that frame (Unity moves the root by WROOT, so a planted foot at world point W sits at
+    # W + (0, r) in the clip). Feet/yaw state is handed from each hit's cancel frame to the next hit's frame 0.
+    out = {}
+    # ---- hit 1
+    L = 16; r = [0.18 * ease(f / 3.0) for f in range(L + 1)]
+    WROOT["BZ_Slash1"] = r
+    lw = Vector((0.17, -0.16)); rw0, rw1 = Vector((-0.20, 0.16)), Vector((-0.26, -0.20))
+    ly, ry = 15.0, -20.0; Yp = W1[0][1]["Y"]; keys = []; st = {}
+    for f in range(L + 1):
+        c = sample(W1, f); dY = c["Y"] - Yp; Yp = c["Y"]
+        ly += FOLLOW * dY; ry += FOLLOW * dY
+        u = f / 3.0; rwf = rw0.lerp(rw1, ease(u)); rl = 0.08 * math.sin(math.pi * min(1.0, u)) if u < 1 else 0.0
+        L_ = lw + Vector((0, r[f])); R_ = rwf + Vector((0, r[f]))
+        keys.append((f, _wide_key(c, (0.0, 0.0), (L_.x, L_.y, 0.0, ly), (R_.x, R_.y, rl, ry))))
+        if f == W1_CANCEL: st = dict(L=L_.copy(), R=R_.copy(), ly=ly, ry=ry)
+    out["BZ_Slash1"] = (L, 5, keys)
+    # ---- hit 2 (from hit 1 at its cancel frame; stands, both feet planted and turning in place)
+    L = 20; WROOT["BZ_Slash2"] = [0.0] * (L + 1)
+    ly, ry = st["ly"], st["ry"]; Yp = W2[0][1]["Y"]; keys = []
+    for f in range(L + 1):
+        c = sample(W2, f); dY = c["Y"] - Yp; Yp = c["Y"]
+        ly += FOLLOW * dY; ry += FOLLOW * dY
+        keys.append((f, _wide_key(c, (0.0, 0.0), (st["L"].x, st["L"].y, 0.0, ly), (st["R"].x, st["R"].y, 0.0, ry))))
+        if f == W2_CANCEL: st2 = dict(L=st["L"].copy(), R=st["R"].copy(), ly=ly, ry=ry)
+    out["BZ_Slash2"] = (L, 5, keys)
+    # ---- hit 3 (spin about the left foot, then step into ST with a short root advance)
+    st = st2; L = W3_LEN
+    r = [0.16 * ease((f - W3_STEP) / 6.0) for f in range(L + 1)]
+    WROOT["BZ_Slash3"] = r
+    P = st["L"].copy(); R0 = st["R"].copy(); a, b = W3_SPIN
+    H2 = P * 0.6                     # weight onto the pivot foot before the turn
+    Y2 = sample(W3, a)["Y"]
+    ly, ry = st["ly"], st["ry"]; Yp = W3[0][1]["Y"]; keys = []
+    L_end_w = Vector((0.17, -0.32)); R_end_w = Vector((-0.20, 0.0))   # ST round the root at its final 0.16 advance
+    Lw = P.copy(); Rw = R0.copy()
+    for f in range(L + 1):
+        c = sample(W3, f); dY = c["Y"] - Yp; Yp = c["Y"]
+        lift_r = lift_l = 0.0
+        if f <= a:
+            T = H2 * ease(f / a); g = FOLLOW
+            Rc = R0.copy()
+        elif f <= b:
+            u = (f - a) / (b - a); ang = c["Y"] - Y2
+            T = P + _rot(H2 - P, ang)
+            Rc = P + _rot((R0 - P) * (1.0 - 0.3 * math.sin(math.pi * u)), ang)    # right foot pulled in, swung round
+            lift_r = 0.11 * math.sin(math.pi * u); g = 1.0
+        else:
+            T = H2.lerp(Vector((0, 0)), ease((f - b) / 4.0)); g = FOLLOW
+            Rc = R0.copy()
+        ly += g * dY; ry += g * dY
+        Lc = P.copy()
+        if f >= W3_STEP:   # left foot steps forward into ST, right foot squares up after it
+            u = (f - W3_STEP) / 5.0; Lc = P.lerp(L_end_w, ease(u)); lift_l = 0.08 * math.sin(math.pi * min(1, u)) if u < 1 else 0
+            ly = ly + (_near(ly, 15.0) - ly) * ease(u) * 0.5
+        if f >= W3_STEP + 2:
+            u = (f - W3_STEP - 2) / 4.0; Rc = R0.lerp(R_end_w, ease(u)); lift_r = 0.05 * math.sin(math.pi * min(1, u)) if u < 1 else 0
+            ry = ry + (_near(ry, -20.0) - ry) * ease(u) * 0.5
+        rr = r[f]
+        keys.append((f, _wide_key(c, (T.x, T.y), (Lc.x, Lc.y + rr, lift_l, ly), (Rc.x, Rc.y + rr, lift_r, ry))))
+    out["BZ_Slash3"] = (L, W3_HIT, keys)
+    return out
+def _near(cur, target):
+    """target + k*360 closest to cur"""
+    return target + 360.0 * round((cur - target) / 360.0)
+
+CLIPS.update(build_wide())
+for _n in WIDE: ROOT[_n] = WROOT[_n]
+
 # run -- heavy warrior run, 20 f cycle, sword resting back on the right shoulder, body leaning forward (no reference yet)
 def run_key(ph):
     a = 2 * math.pi * ph
@@ -627,7 +805,7 @@ for name, (length, hit, keys) in CLIPS.items():
     for i, (f, k) in enumerate(keys):
         sc.frame_set(f)
         key_pose(f, k, keys[i - 1][1] if i > 0 else None, keys[i + 1][1] if i + 1 < len(keys) else None)
-    if name in ROOT:
+    if name in ROOT and name not in WIDE:
         # v3: feet keyed every frame at (world plant - root advance) so they stay planted while Unity moves the root
         for fr in range(0, length + 1):
             ft = feet_at(name, fr)
@@ -717,13 +895,75 @@ for o in [SC, RH, LH, PR, PL, FL, FR, KL, KR]: bpy.data.objects.remove(o)
 for a in list(bpy.data.actions):
     if a.name.endswith("_ctrl") or "_BZ_" in a.name: bpy.data.actions.remove(a)
 
+# ------------------------------------------------------------------ v5 per-frame blade / body / leg log (baked FK only)
+# blade from the baked right hand (the sword is a child of RightHand in GS_Hero.fbx): grip, tip, pitch from horizontal,
+# tip height vs chest (Spine2 head) height, tip radius from the root (clip origin + root advance) and from the hips,
+# body yaw (hips forward, unwrapped), thigh twist, knee direction vs toes, planted-foot slide (world = clip - root).
+WIDE_LOG = []
+def wide_log():
+    rows = []; bad = []
+    W3x = rig.matrix_world
+    for name, length, hit in baked:
+        if name not in WIDE: continue
+        rig.animation_data.action = bpy.data.actions[name]
+        yprev = None; ywr = 0.0; feetprev = {}
+        for f in range(0, length + 1):
+            sc.frame_set(f); bpy.context.view_layer.update()
+            hand = W3x @ B("RightHand").matrix
+            Sn = hand @ hand_rest.inverted() @ S_rest
+            g = Sn.translation; bd = Sn.to_3x3().col[1].normalized(); tip = g + bd * tip_len
+            pitch = math.degrees(math.asin(max(-1, min(1, bd.z))))
+            chest = (W3x @ B("Spine2").head).z
+            r = ROOT[name][f]
+            root = Vector((0, -r, 0))      # in clip space the root sits at the origin; world = clip + (0, -r)
+            tr = math.hypot(tip.x, tip.y)
+            hips = W3x @ B("Hips").head
+            trh = math.hypot(tip.x - hips.x, tip.y - hips.y)
+            hz = (W3x.to_3x3() @ B("Hips").matrix.to_3x3()).col[2]     # hips local Z = facing at rest (-Y)
+            y = math.degrees(math.atan2(hz.x, -hz.y))
+            if yprev is not None:
+                dy = (y - yprev + 180) % 360 - 180; ywr += dy
+            else: ywr = y
+            yprev = y
+            tb = math.degrees(math.atan2(tip.x - hips.x, -(tip.y - hips.y)))
+            tw = {}; kv = {}; slide = {}
+            for side in ("Left", "Right"):
+                tw[side] = visual_local(B(side + "UpLeg"))[0]
+                hp_ = W3x @ B(side + "UpLeg").head; kn = W3x @ B(side + "Leg").head; an = W3x @ B(side + "Foot").head
+                to = W3x @ B(side + "ToeBase").head
+                line = (an - hp_).normalized(); ko = kn - hp_; ko = ko - line * ko.dot(line); ko.z = 0
+                td = to - an; td.z = 0
+                kv[side] = math.degrees(ko.to_2d().angle_signed(td.to_2d())) if ko.length > 1e-4 and td.length > 1e-4 else 0.0
+                wpos = Vector((an.x, an.y - r)); planted = an.z < ANK + 0.02
+                pp = feetprev.get(side)
+                slide[side] = (wpos - pp[0]).length if pp and pp[1] and planted else 0.0
+                feetprev[side] = (wpos, planted)
+            row = dict(clip=name, frame=f, body_yaw=round(ywr, 1), tip_bearing=round(tb, 1), blade_pitch=round(pitch, 1),
+                       tip_z=round(tip.z, 3), chest_z=round(chest, 3), tip_minus_chest=round(tip.z - chest, 3),
+                       grip_z=round(g.z, 3), tip_r_root=round(tr, 3), tip_r_hips=round(trh, 3), root_adv=round(r, 3),
+                       thigh_tw_L=round(tw["Left"]), thigh_tw_R=round(tw["Right"]), knee_vs_toe_L=round(kv["Left"]),
+                       knee_vs_toe_R=round(kv["Right"]), slide_L_cm=round(slide["Left"] * 100, 1), slide_R_cm=round(slide["Right"] * 100, 1))
+            rows.append(row)
+            if abs(pitch) > 15: bad.append(f"{name} f{f}: blade pitch {pitch:+.1f}")
+            if abs(tip.z - chest) > 0.25: bad.append(f"{name} f{f}: tip {tip.z:.2f} vs chest {chest:.2f}")
+            if max(abs(tw["Left"]), abs(tw["Right"])) > 60: bad.append(f"{name} f{f}: thigh twist L{tw['Left']:+.0f} R{tw['Right']:+.0f}")
+            if max(slide.values()) > 0.02: bad.append(f"{name} f{f}: planted foot slide L{slide['Left']*100:.1f} R{slide['Right']*100:.1f} cm")
+    p = os.path.join(OUT, "wide_sweep_blade_log.csv")
+    with open(p, "w") as fh:
+        fh.write(",".join(rows[0].keys()) + "\n")
+        for rw in rows: fh.write(",".join(str(v) for v in rw.values()) + "\n")
+    with open(os.path.join(OUT, "wide_sweep_check.txt"), "w") as fh:
+        fh.write("\n".join(bad) if bad else "all frames pass\n")
+    print("WIDE LOG", p, "violations:", len(bad)); [print("  ", b) for b in bad[:60]]
+wide_log()
+
 # ------------------------------------------------------------------ check renders (top-down like the game, 55 deg)
 if RENDER:
     for o in sc.objects:
         if o.name in ("GS_EyeFlame", "GS_EyeWisps_orig", "GS_HeroA", "GS_RigA"): o.hide_render = True
     cam = bpy.data.objects.get("BZ_Cam") or bpy.data.objects.new("BZ_Cam", bpy.data.cameras.new("BZ_Cam"))
     if cam.name not in sc.collection.objects: sc.collection.objects.link(cam)
-    cam.data.type = "ORTHO"; cam.data.ortho_scale = 4.2
+    cam.data.type = "ORTHO"; cam.data.ortho_scale = 5.6   # v5: room for the ~2 m sweep
     pitch = math.radians(55)
     cam.location = Vector((0, 0, 0.9)) + Vector((0, math.cos(pitch), math.sin(pitch))) * 8   # behind the character, looking down
     cam.rotation_euler = (math.radians(90 - 55), 0, math.radians(180))
@@ -736,6 +976,14 @@ if RENDER:
     for name, length, hit in baked:
         rig.animation_data.action = bpy.data.actions[name]
         d = os.path.join(OUT, name); os.makedirs(d, exist_ok=True)
+        for f in range(0, length + 1):
+            sc.frame_set(f); sc.render.filepath = os.path.join(d, f"f_{f:03d}.png")
+            bpy.ops.render.render(write_still=True)
+    # v5: straight top-down (the sweep circle reads true), root advance applied so the floor grid stays put
+    cam.location = Vector((0, 0, 10)); cam.rotation_euler = (0, 0, 0)
+    for name, length, hit in baked:
+        rig.animation_data.action = bpy.data.actions[name]
+        d = os.path.join(OUT, name + "_top"); os.makedirs(d, exist_ok=True)
         for f in range(0, length + 1):
             sc.frame_set(f); sc.render.filepath = os.path.join(d, f"f_{f:03d}.png")
             bpy.ops.render.render(write_still=True)
@@ -758,14 +1006,14 @@ print("done", baked)
 # ------------------------------------------------------------------ save a copy (new name) + FBX for Unity
 if not ONLY:
     rig.animation_data.action = bpy.data.actions["BZ_Slash1"]
-    bpy.ops.wm.save_as_mainfile(filepath="C:/Users/imsoh/Downloads/gs_anim/gs_hero_berserker_anim_v3.blend", copy=True)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "gs_hero_berserker_anim_v5.blend"), copy=True)
     for a in list(bpy.data.actions):
         if not a.name.startswith("BZ_"): bpy.data.actions.remove(a)
     for o in bpy.context.view_layer.objects: o.select_set(False)
     for n in ("GS_Rig", "GS_Hero"):
         o = bpy.data.objects[n]; o.hide_viewport = False; o.hide_set(False); o.select_set(True)
     bpy.context.view_layer.objects.active = rig
-    fbx = os.environ.get("BZ_FBX", "F:/UnityProject/BulletHeavenArt/Assets/Game/GSHero/Art/GS_BerserkerAnims.fbx")
+    fbx = os.environ.get("BZ_FBX", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Assets", "Game", "GSHero", "Art", "GS_BerserkerAnims.fbx"))
     bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, object_types={"ARMATURE", "MESH"}, add_leaf_bones=False,
                              bake_anim=True, bake_anim_use_all_actions=True, bake_anim_use_nla_strips=False,
                              bake_anim_force_startend_keying=True, bake_anim_simplify_factor=0.0, use_armature_deform_only=True)

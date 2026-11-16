@@ -599,6 +599,10 @@ namespace RoomRun
                 if (token.StartsWith("tag=")) { sweepTag = "_" + token.Substring(4); continue; }
                 // "vfxs=1" (11-16 slash VFX size check): the "#" sweep test only stands and does two 3-hit combos (SweepTest.VfxMode)
                 if (token.StartsWith("vfxs=")) { SweepTest.VfxMode = token.EndsWith("1"); continue; }
+                // "wide=1|2|3" (11-16 wide sweep capture, see GSSweepTest), "wide=0" off; "sway=0" = the old dragged-blade
+                // spring (SplitBody.LegacySway) for A/B, "sway=1" the calm one
+                if (token.StartsWith("wide=")) { int.TryParse(token.Substring(5), out SweepTest.WideMode); continue; }
+                if (token.StartsWith("sway=")) { SplitBody.LegacySway = token.EndsWith("0"); continue; }
                 if (token.StartsWith("z="))
                 {
                     zooms = System.Array.ConvertAll(token.Substring(2).Split(','), s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
@@ -671,6 +675,8 @@ namespace RoomRun
                         e.enabled = false; // the Animator keeps playing their walk
                         if (!calm) continue;
                         float ang = (k - (swarm - 1) * 0.5f) * 28f * Mathf.Deg2Rad, r = 2.6f + 0.8f * (k % 2);
+                        // 11-16: a big still swarm (more than 12) stands in a ring all round, 2.4 - 4.4 m, so a sweep's reach shows
+                        if (swarm > 12) { ang = k * (360f / swarm) * Mathf.Deg2Rad + 0.3f; r = 2.4f + 1.0f * (k % 3); }
                         var cc = e.GetComponent<CharacterController>(); if (cc) cc.enabled = false;
                         var p = pp0 + new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang)) * r;
                         p.y = Physics.Raycast(p + Vector3.up * 30f, Vector3.down, out var gh, 60f, Ground.GroundMask) ? gh.point.y : pp0.y;

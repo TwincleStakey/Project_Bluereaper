@@ -19,10 +19,38 @@ namespace RoomRun
         public static bool VfxMode;
         public const float VfxA = 0.8f, VfxB = 2.95f;
 
+        // 11-16 wide sweep capture (token wide=N, cursor fixed north): 1 = two 3-hit combos at close zoom (z0.8), two at the
+        // default zoom (1.6), then a walk N / E / S / W at close zoom; 2 = the walk only (close); 3 = one combo at the default
+        // zoom (with enemies round the player from "calm=1 grass+25*"). Fire is held 0.5 s, so the buffer chains 1 -> 2 -> 3.
+        public static int WideMode;
+        public const float WideClose = 0.8f, WideDefault = 1.6f;
+        static readonly float[] WideCombos1 = { 0.6f, 3.4f, 6.6f, 9.4f };
+        public const float WideWalk1 = 12.4f, WideWalkLen = 1.4f;
+        static void Zoom(float z) { var rig = RunDirector.Instance ? RunDirector.Instance.Rig : null; if (rig && Mathf.Abs(rig.Zoom - z) > 1e-3f) { rig.Zoom = z; rig.Snap(); } }
+
+        PlayerCommand ReadWide(float t, PlayerCommand c)
+        {
+            float walkAt = WideMode == 1 ? WideWalk1 : WideMode == 2 ? 0.6f : 99f;
+            if (WideMode == 1) Zoom(t < 6.2f || t >= walkAt - 0.4f ? WideClose : WideDefault);
+            else Zoom(WideMode == 2 ? WideClose : WideDefault);
+            var combos = WideMode == 1 ? WideCombos1 : WideMode == 3 ? new[] { 1.0f } : new float[0];
+            foreach (var a in combos) if (t >= a && t < a + 0.5f) { Phase = "combo"; c.fire = true; return c; }
+            if (t >= walkAt && t < walkAt + 4f * WideWalkLen)
+            {
+                int i = (int)((t - walkAt) / WideWalkLen);
+                Vector2[] d = { new Vector2(0f, 1f), new Vector2(1f, 0f), new Vector2(0f, -1f), new Vector2(-1f, 0f) };
+                string[] n = { "walkN", "walkE", "walkS", "walkW" };
+                c.move = d[i]; Phase = n[i]; return c;
+            }
+            Phase = "idle";
+            return c;
+        }
+
         public PlayerCommand Read(PlayerController p, Camera cam)
         {
             float t = T;
             var c = new PlayerCommand { aimDir = Vector3.forward };
+            if (WideMode > 0) return ReadWide(t, c);
             if (VfxMode)
             {
                 bool fireA = t >= VfxA && t < VfxA + 0.5f, fireB = t >= VfxB && t < VfxB + 0.5f;
@@ -72,7 +100,7 @@ namespace RoomRun
             vis = an ? an.transform.parent : null;
             foreach (var t in p.GetComponentsInChildren<Transform>()) if (t.name == "Greatsword") { tipT = t; break; }
             if (tipT) bladeLen = BladeTrail.MeasureBlade(tipT);
-            log.WriteLine("frame,time,phase,step,stepT,animT,rootX,rootZ,hipsX,hipsY,hipsZ,lfX,lfY,lfZ,rfX,rfY,rfZ,gripX,gripY,gripZ,tipX,tipY,tipZ,visYaw,velX,velZ,timeScale,tipR,vfxR,vfxScale,lights");
+            log.WriteLine("frame,time,phase,step,stepT,animT,rootX,rootZ,hipsX,hipsY,hipsZ,lfX,lfY,lfZ,rfX,rfY,rfZ,gripX,gripY,gripZ,tipX,tipY,tipZ,visYaw,velX,velZ,timeScale,tipR,vfxR,vfxScale,lights,hipsYaw,chestYaw,bladeYaw,layerW,spinYaw");
         }
 
         readonly System.Collections.Generic.Dictionary<Mesh, float> meshR = new System.Collections.Generic.Dictionary<Mesh, float>();
@@ -130,7 +158,19 @@ namespace RoomRun
             log.WriteLine(string.Format(ic, "{0},{1:0.000},{2},{3},{4:0.000},{5:0.000},{6:0.0000},{7:0.0000},{8:0.0000},{9:0.0000},{10:0.0000},{11:0.0000},{12:0.0000},{13:0.0000},{14:0.0000},{15:0.0000},{16:0.0000},{17:0.0000},{18:0.0000},{19:0.0000},{20:0.0000},{21:0.0000},{22:0.0000},{23:0.0},{24:0.00},{25:0.00},{26:0.00},{27:0.000},{28:0.000},{29:0.00},{30}",
                 f, T, Phase, gs ? gs.StepIndex : -1, gs ? gs.StepT : 0f, animT, root.x, root.z, hips.x, hips.y, hips.z, lf.x, lf.y, lf.z, rf.x, rf.y, rf.z,
                 grip.x, grip.y, grip.z, tip.x, tip.y, tip.z, Mathf.Atan2(fw.x, fw.z) * Mathf.Rad2Deg, v.x, v.z, Time.timeScale,
-                dt.magnitude, vr, vs, nl));
+                dt.magnitude, vr, vs, nl) + Extra(p));
+        }
+
+        // 11-16 wide sweep: body / chest / blade yaw in world (0 = +Z, + = east) to compare with the clip sampled in edit mode
+        string Extra(PlayerController p)
+        {
+            float Yw(Vector3 v) { v.y = 0f; return v.sqrMagnitude < 1e-8f ? 0f : Mathf.Atan2(v.x, v.z) * Mathf.Rad2Deg; }
+            var h = an.GetBoneTransform(HumanBodyBones.Hips);
+            var l = an.GetBoneTransform(HumanBodyBones.LeftUpperArm); var r = an.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            float chest = l && r ? Yw(Vector3.Cross(r.position - l.position, Vector3.up)) : 0f;
+            int L = an.GetLayerIndex("AttackFull");
+            return string.Format(System.Globalization.CultureInfo.InvariantCulture, ",{0:0.0},{1:0.0},{2:0.0},{3:0.00},{4:0.0}",
+                h ? Yw(h.forward) : 0f, chest, tipT ? Yw(tipT.forward) : 0f, L >= 0 ? an.GetLayerWeight(L) : -1f, gs ? gs.SpinYaw : 0f);
         }
 
         public void CloseLog() { if (log != null) { log.Close(); log = null; } }

@@ -66,6 +66,8 @@ namespace Underworld
                 float dx = Mathf.Max(plaza.xMin - x, 0f, x - plaza.xMax), dz = Mathf.Max(plaza.yMin - z, 0f, z - plaza.yMax);
                 float d = Mathf.Max(dx, dz);
                 if (d < 5f) continue;
+                // 11-16 Kido: rocks on the camera (south) side loomed up as orange shards at the screen bottom
+                if (z < plaza.yMin + 4f) continue;
                 bool ledge = rnd.NextDouble() < 0.3;
                 float s = ledge ? F(2.2f, 3.2f) : F(3.5f, 6.5f);
                 float r = (ledge ? 3.5f : 3.2f) * s;

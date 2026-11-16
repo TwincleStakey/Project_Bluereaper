@@ -170,24 +170,30 @@ namespace RoomRun
             // 11-16 VFX size (Kido: "칼끝보다 조금 크게"): the arc's outer edge is ~1.48 m per unit vfxScale (vfxs=1 log);
             // blade tip at contact 1.53 / 1.28 / 1.14 m, so the edge sits ~20 % past it (1.85 / 1.55 / 1.41 m).
             // Visual only: radius / halfAngle (gameplay) unchanged.
+            // 11-16 wide sweep (v5, Kido: "넓게", "레퍼런스 버서커 평타처럼", "빠르기도 너무 빠르고"): whole-body turning sweeps
+            // keyed every frame in gs_berserker_anim.py. Hit 1: body ~115 deg, blade ~200 deg right -> front -> left, contact f5;
+            // hit 2 the mirror (~220 deg); hit 3 a flat 380 deg spin in the clip (contact mid-turn f8). Cancel frames give the
+            // reference's contact-to-contact spacing: 10 + 5 = 15 f, 18 + 8 = 21 f (berserker_timing.md). Blade tip ~2.0 m
+            // (Blender); in game the tip runs ~1.75-1.82 m from the root (SweepTest tipR). Slash arc outer edge ~1.48 m per unit
+            // vfxScale: 1.75 -> ~2.55 m = ~1.4x the tip radius (berserker_ref_sheet.png A61/A80: the reference's arc sits
+            // 1.1-1.4x its blade tip). Gameplay radius / halfAngle unchanged (4.6 m / 115 covers the ~210 deg sweep).
             steps = new[]
             {
-                new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 9f / 16f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = 1.25f, vfxRoll = 180f },
-                new Step { state = "SweepB", hitAt = 5f / 20f, cancelAt = 9f / 20f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = 1.05f, vfxRoll = 0f },
-                // 11-15 aim mode pass (Kido: "3타 ... 한바퀴 돌면서 360도 베기"): hit 3 = a 360 spin (clip 24 f, the turn
-                // itself is SpinYaw over f3-f11 about the planted left foot), hit at mid-turn f7, all round
-                new Step { state = "SweepC", hitAt = 7f / 24f, cancelAt = 14f / 24f, radius = 5.2f, halfAngle = 180f, damage = 7, lunge = 0f, vfxScale = 0.95f, vfxRoll = 0f, finisher = true },
+                new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 10f / 16f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = VfxWide, vfxRoll = 180f },
+                new Step { state = "SweepB", hitAt = 5f / 20f, cancelAt = 18f / 20f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = VfxWide, vfxRoll = 0f },
+                new Step { state = "SweepC", hitAt = 8f / 30f, cancelAt = 22f / 30f, radius = 5.2f, halfAngle = 180f, damage = 7, lunge = 0f, vfxScale = VfxWide, vfxRoll = 0f, finisher = true },
             };
             // the Free Slash arcs back on for the berserker (Kido: "칼 베는거 vfx도 넣어놨잖아"), tinted to the eye flame
             slashVfx = true;
-            dashStep = new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 0.5f, radius = 5.4f, halfAngle = 75f, damage = 5, lunge = 17f, vfxScale = 1.25f, vfxRoll = 180f };
-            attackSpeed = 1f; windupSpeed = 1f; strikeSpeed = 1f; recoverSpeed = 1.3f;
+            dashStep = new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 10f / 16f, radius = 5.4f, halfAngle = 75f, damage = 5, lunge = 17f, vfxScale = VfxWide, vfxRoll = 180f };
+            // v5: every phase at 1x (the 1.3x recovery made the combo ~30 % shorter than the reference)
+            attackSpeed = 1f; windupSpeed = 1f; strikeSpeed = 1f; recoverSpeed = 1f;
             strikeLead = 0.08f; strikeTail = 0.04f;
             // v2 (11-15 2nd pass): the contact pose freezes 2 f on top of the clip's own 1 f hold (3 f slam), hit-stop a
             // touch longer, a small shake even on a whiff so the stop reads in game
-            impactHold = 0.066f; impactHoldHit = 0.04f;
+            impactHold = 0.033f; impactHoldHit = 0.033f;   // v5: the reference holds ~1 f on contact
             hitStop = 0.07f;
-            endAt = 0.8f; leanDeg = 5f; lungeWindow = 0.14f;
+            endAt = 1f; leanDeg = 5f; lungeWindow = 0.14f;   // v5: clips end on a held flat guard; play them out
             // v3: no steering while swinging and no BodyLean pulse (the clip leans); any root move not from RootPath slides the feet
             moveWhileSwing = 0f; leanDeg = 0f;
         }
@@ -198,10 +204,12 @@ namespace RoomRun
         // ever goes forward. Scaled by leg length (Unity world / Blender 0.8078 m).
         static readonly Dictionary<string, float[]> RootPath = new Dictionary<string, float[]>
         {
-            { "SweepA", new[] { 0f, 0f, 0f, .10f, .25f, .35f, .40f, .43f, .45f, .46f, .47f, .48f, .485f, .49f, .495f, .50f, .50f } },
-            { "SweepB", new[] { 0f, 0f, 0f, .09f, .22f, .32f, .37f, .40f, .42f, .43f, .44f, .445f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f } },
-            { "SweepC", new[] { 0f, 0f, .04f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f,
-                                .10f, .10f, .10f, .10f, .10f, .10f, .10f, .10f } },   // spin: one short step in, then on the spot
+            // v5 (clips.txt of the 11-16 bake): hit 1 = the right foot steps up level with the left (0.18 m), hit 2 on the spot,
+            // hit 3 spins on the spot and steps into the ready stance at the end (0.16 m)
+            { "SweepA", new[] { 0f, .047f, .133f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f } },
+            { "SweepB", new[] { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f } },
+            { "SweepC", new[] { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f,
+                                .012f, .041f, .08f, .119f, .148f, .16f, .16f, .16f } },
         };
         const float BlenderLegLen = 0.8078f;
         float legScale = -1f;
@@ -231,8 +239,9 @@ namespace RoomRun
             if (!Berserker) return t > cur.hitAt - strikeLead - 0.12f && t < cur.hitAt + strikeTail + 0.12f;
             float f = t * len * 30f, hf = cur.hitAt * len * 30f;
             // v3: hits 1-2 trail over the whole flat arc (f2 -> f8, hit 2 on round to f10)
-            if (!cur.finisher) return f > hf - 3.2f && f < hf + (cur.state == "SweepB" ? 5f : 3.6f);
-            return f > 2.5f && f < 12f;   // spin: the whole revolution (a full ring)
+            // v5: hits 1-2 from the end of the wind-up (f2) through the follow-through (f8); spin f4-f13 (the whole turn)
+            if (!cur.finisher) return f > hf - 3.2f && f < hf + (cur.state == "SweepB" ? 4.5f : 3.6f);
+            return f > 3.5f && f < 13.5f;
         }
 
         // hit 3 spin: the visual turns a full revolution (clockwise from above, on from hit 2's sweep) over clip f3-f11,
@@ -240,9 +249,12 @@ namespace RoomRun
         public float SpinYaw { get; private set; }
         public Vector3 SpinPivot { get; private set; }
         public const float SpinFrom = 3f, SpinTo = 11f;
+        public static bool ClipSpins = true;
+        public const float VfxWide = 1.75f;
         void UpdateSpin()
         {
-            if (step < 0 || !Berserker || !cur.finisher || cur.state != "SweepC") { SpinYaw = 0f; return; }
+            // v5: the 360 spin is keyed in BZ_Slash3 itself (pivot on the left foot), so the visual is not turned here
+            if (ClipSpins || step < 0 || !Berserker || !cur.finisher || cur.state != "SweepC") { SpinYaw = 0f; return; }
             float f = t * len * 30f;
             if (f < SpinFrom) { SpinYaw = 0f; return; }
             if (SpinYaw == 0f)
@@ -412,8 +424,11 @@ namespace RoomRun
             // the old -90 about X stood it up as a wall). Mirror = flip local Z, which is the world axis across the aim.
             // Outer edge ~1.48 m from the centre per unit scale (11-16 measure); the berserker scales it to the blade tip.
             tr.position = pc.transform.position + Vector3.up * vfxHeight;
-            tr.rotation = Quaternion.LookRotation(aim) * Quaternion.Euler(0, 45f, 0);
-            tr.localScale = new Vector3(s.vfxScale, s.vfxScale, s.vfxRoll > 90f ? -s.vfxScale : s.vfxScale);
+            // 11-16: the mirror is a reflection across the aim line: aim frame x flipped, i.e. yaw -45 with local X flipped
+            // (flipping local Z after the +45 yaw reflected across a 45 deg line and put hit 1's arc on the left, behind)
+            bool mirror = s.vfxRoll > 90f;
+            tr.rotation = Quaternion.LookRotation(aim) * Quaternion.Euler(0, mirror ? -45f : 45f, 0);
+            tr.localScale = new Vector3(mirror ? -s.vfxScale : s.vfxScale, s.vfxScale, s.vfxScale);
             ps.Clear(true);
             ps.Play(true);
             if (s.finisher)

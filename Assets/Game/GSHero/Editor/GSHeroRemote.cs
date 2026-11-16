@@ -101,8 +101,10 @@ namespace GSHero
             string Tex(string n) => UseFlatTextures && AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/" + n + "_flat.png") ? n + "_flat.png" : n + ".png";
             var baseTex = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/" + Tex("GS_Hero_basecolor"));
             var emTex = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/GS_Hero_emission.png");
-            var swTex = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/" + Tex("GS_Greatsword_basecolor_iron"));
-            log.Add("textures: " + Tex("GS_Hero_basecolor") + ", " + Tex("GS_Shirt_basecolor") + ", " + Tex("GS_Greatsword_basecolor_iron"));
+            // 11-16 (Kido: "칼 텍스쳐가 안 들어간 거 같이 생겼어"): the sword keeps its original iron map (blood, red wrap) even with
+            // the flat textures on; the _flat copy plus _Steel 0.85 had turned it into a plain grey slab
+            var swTex = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/GS_Greatsword_basecolor_iron.png");
+            log.Add("textures: " + Tex("GS_Hero_basecolor") + ", " + Tex("GS_Shirt_basecolor") + ", GS_Greatsword_basecolor_iron.png (sword always original)");
             log.Add("textures base=" + (baseTex != null) + " em=" + (emTex != null) + " sword=" + (swTex != null));
 
             // 11-15 readability pass: URP/Lit made the near-black GS textures a black/navy blob from the top-down camera in the
@@ -169,8 +171,9 @@ namespace GSHero
                 body.SetColor("_HatColor", new Color(0.64f, 0.52f, 0.33f)); body.SetFloat("_HatAmount", 0.95f);
                 shirt.SetColor("_BaseColor", new Color(1.3f, 1.3f, 1.3f)); shirt.SetFloat("_Lift", 0.18f); shirt.SetFloat("_Desat", 0f);
                 sword.SetColor("_BaseColor", Color.white); sword.SetFloat("_Lift", 0.1f); sword.SetFloat("_Desat", 0.6f);
-                sword.SetFloat("_Steel", 0.85f); sword.SetColor("_SteelColor", new Color(0.66f, 0.68f, 0.70f));
-                sword.SetFloat("_Metal", 0.4f); sword.SetFloat("_EdgeGlint", 0.9f); sword.SetFloat("_TopKey", 1.0f);
+                // 11-16: _Steel 0.85 -> 0.28 (the texture shows through), edge line 0.9 -> 0.5 (still reads from above)
+                sword.SetFloat("_Steel", 0.28f); sword.SetColor("_SteelColor", new Color(0.66f, 0.68f, 0.70f));
+                sword.SetFloat("_Metal", 0.4f); sword.SetFloat("_EdgeGlint", 0.5f); sword.SetFloat("_TopKey", 1.0f);
                 sword.SetFloat("_RimStrength", 0.5f);
             }
             foreach (var m in new[] { body, sword, shirt }) EditorUtility.SetDirty(m);

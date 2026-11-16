@@ -950,6 +950,11 @@ namespace LocoSplit
                 }
                 catch (System.Exception e) { Note("posefix failed: " + e); }
             }
+            else if (cmd == "bzprobe")
+            {
+                // 11-16: berserker attack clips sampled on the humanoid player, blade bearing per frame (GSHero/Editor/BZProbe.cs)
+                try { Note(BZProbe.Run()); } catch (System.Exception e) { Note("bzprobe failed: " + e); }
+            }
             else if (cmd == "idletest")
             {
                 try { Note(IdleTest()); } catch (System.Exception e) { Note("idletest failed: " + e); }

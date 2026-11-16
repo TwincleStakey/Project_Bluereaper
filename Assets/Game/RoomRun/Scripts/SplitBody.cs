@@ -48,6 +48,14 @@ namespace RoomRun
         public float dragSlant = 30f;          // blade yaw out to the sword side from straight behind the velocity
         public float springHz = 1.7f, springDamp = 0.38f;
         public float wagDeg = 6f, rollDeg = 7f, bobHeight = 0.05f, tipHeight = 0.07f, shoulderSwing = 6f;
+        // 11-16 calm drag (Kido: "살짝 흔들리는 건 좋은데 너무 막 좌우로 확확 돌아서 이상해"): the blade spring was underdamped
+        // (1.7 Hz, damping 0.38) right next to the ~1.5 Hz step rhythm, and the step signal was clipped (flat tops, sharp
+        // turns) driving a 6 deg yaw wag and a 7 deg roll wag at double frequency, so the dragged blade snapped side to side and
+        // overshot on stops/turns. Now: critically damped, the step signal unclipped and low-passed (sine-like), yaw wag 4 deg,
+        // roll 2 deg following the step smoothly. Shots token sway=0 = the old values for A/B.
+        public static bool LegacySway = false;
+        public float calmHz = 2.2f, calmDamp = 1.0f, calmWag = 4f, calmRoll = 2f, calmMaxRate = 300f;
+        float bearS, hwS; bool wedgeInit;
 
         public float Twist { get; private set; }         // shown upper-body twist (deg, + = to the left)
         public float BladeOffset { get; private set; }   // v3: spring yaw added to the animated blade (deg)
@@ -91,9 +99,28 @@ namespace RoomRun
             footR = anim.GetBoneTransform(HumanBodyBones.RightFoot);
         }
 
+        // 11-16: the "Greatsword" grip node is not animated, so whatever the drag spring (and LSPoseFix, after this) turned
+        // it by stayed in its localRotation: an attack started with the blade still turned in the hand by the last drag
+        // offset (20-60 deg off the keyed swing, growing with play time). Back to the grip's rest rotation every frame
+        // before anything adds to it.
+        Quaternion swordRest; bool swordRestSet;
+        void ResetSword()
+        {
+            if (!sword && anim)
+            {
+                var hand = anim.GetBoneTransform(HumanBodyBones.RightHand);
+                sword = hand ? hand.Find("Greatsword") : null;
+                if (sword) bladeLen = BladeTrail.MeasureBlade(sword);
+            }
+            if (!sword) return;
+            if (!swordRestSet) { swordRest = sword.localRotation; swordRestSet = true; }
+            sword.localRotation = swordRest;
+        }
+
         void LateUpdate()
         {
             Bind();
+            ResetSword();
             if (!On) { RunFeel(); return; }
             AimSplit();
             if (Feel) RunFeel();
@@ -133,7 +160,7 @@ namespace RoomRun
         }
 
         // ---------------- v3 run feel ----------------
-        float chestLook, headLook, sp, lean, bank, lastVisYaw, psi, psiVel, weight, psiPrev, uVel;
+        float chestLook, headLook, sp, lean, bank, lastVisYaw, psi, psiVel, weight, psiPrev, uVel, stepS;
         Vector3 leanVec, leanVel;
         Transform armL;
         bool psiInit;
@@ -176,7 +203,8 @@ namespace RoomRun
 
             // footstep signal from the feet along the travel (+1 left foot ahead, -1 right foot ahead), any leg clip
             float step = 0f;
-            if (footL && footR) step = Mathf.Clamp(Vector3.Dot(footL.position - footR.position, On ? vdir : fwd) / 0.55f, -1f, 1f) * sp;
+            if (footL && footR) step = Mathf.Clamp(Vector3.Dot(footL.position - footR.position, On ? vdir : fwd) / (LegacySway ? 0.55f : 0.9f), -1f, 1f) * sp;
+            if (!LegacySway) { stepS += (step - stepS) * (1f - Mathf.Exp(-dt / 0.07f)); step = stepS; }
 
             // look: chest a little, head the rest
             var aim = pc.AimDir; aim.y = 0f;
@@ -233,12 +261,13 @@ namespace RoomRun
                 // behind the velocity, turned out toward the sword (right) side by dragSlant
                 var back = -v.normalized;
                 var slanted = Vector3.RotateTowards(back, right, dragSlant * Mathf.Deg2Rad, 0f);
-                float runYaw = Yaw(slanted) + wagDeg * step;
+                float runYaw = Yaw(slanted) + (LegacySway ? wagDeg : calmWag) * step;
                 target = Mathf.LerpAngle(animYaw, runYaw, Mathf.Clamp01(sp * 1.4f));
             }
-            float om = 2f * Mathf.PI * springHz;
+            float om = 2f * Mathf.PI * (LegacySway ? springHz : calmHz);
+            float damp = LegacySway ? springDamp : calmDamp;
             float err = Mathf.DeltaAngle(psi, target);
-            psiVel += (om * om * err - 2f * springDamp * om * psiVel) * dt;
+            psiVel += (om * om * err - 2f * damp * om * psiVel) * dt;
             psi += psiVel * dt;
             // never in toward the legs: at most 15 deg inward of straight behind the body, 75 out to the sword side
             var behind = -fwd;
@@ -255,12 +284,22 @@ namespace RoomRun
                 float dist = toB.magnitude;
                 float hw = dist > 0.25f ? Mathf.Asin(Mathf.Clamp01(0.24f / dist)) * Mathf.Rad2Deg + 6f : 100f;
                 float bear = Yaw(toB);
+                if (!LegacySway)
+                {
+                    // 11-16: the wedge edge follows the grip->hips bearing, which swings ~20 deg with every strafe step; a
+                    // blade parked on the edge (strafing toward the sword side) swung 40 deg with it. Low-passed (0.25 s).
+                    float kf = 1f - Mathf.Exp(-dt / 0.25f);
+                    if (!wedgeInit) { bearS = bear; hwS = hw; wedgeInit = true; }
+                    bearS = Mathf.LerpAngle(bearS, bear, kf); hwS = Mathf.Lerp(hwS, hw, kf);
+                    bear = bearS; hw = hwS;
+                }
                 float backU = Mathf.Repeat(Yaw(-fwd) - bear, 360f);
                 float uT = Mathf.Repeat(target - bear, 360f);
                 if (uT < hw || uT > 360f - hw) uT = backU >= 180f ? 360f - hw : hw;
                 float uNow = Mathf.Repeat(psiPrev - bear, 360f);
                 if (uNow < hw || uNow > 360f - hw) uNow = uNow < 180f ? hw : 360f - hw;
-                uVel += (om * om * (uT - uNow) - 2f * springDamp * om * uVel) * dt;
+                uVel += (om * om * (uT - uNow) - 2f * damp * om * uVel) * dt;
+                if (!LegacySway) uVel = Mathf.Clamp(uVel, -calmMaxRate, calmMaxRate);   // no snap round on a direction change
                 uNow += uVel * dt;
                 if (uNow < hw || uNow > 360f - hw) { uNow = Mathf.Clamp(uNow, hw, 360f - hw); uVel = 0f; }
                 psi = psiPrev = bear + uNow;
@@ -271,7 +310,8 @@ namespace RoomRun
             var gp = sword.position;
             sword.rotation = Quaternion.AngleAxis(BladeOffset, Vector3.up) * sword.rotation;
             // roll wag with the steps (the blade scrapes)
-            sword.rotation = Quaternion.AngleAxis(w * rollDeg * (2f * Mathf.Abs(step) - sp), sword.forward) * sword.rotation;
+            float rollNow = LegacySway ? rollDeg * (2f * Mathf.Abs(step) - sp) : calmRoll * step;
+            sword.rotation = Quaternion.AngleAxis(w * rollNow, sword.forward) * sword.rotation;
             // tip held just above the ground, bobbing between footfalls
             var b2 = sword.forward;
             var tip = gp + b2 * bladeLen;

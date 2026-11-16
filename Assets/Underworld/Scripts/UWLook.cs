@@ -754,6 +754,10 @@ namespace Underworld
                 if (Mathf.Abs(x - gx) > 15f) Put("Boulder", x, zMax + F(0.4f, 1.4f), F(0, 360), F(4.3f, 6f), false, 0f);
                 Put("Boulder", x, zMin - F(0.4f, 1.4f), F(0, 360), F(4.3f, 6f), false, 0f);
             }
+            // 11-16 Kido: the glowing lava sea showed through gaps in the south lip row as orange shards at the screen bottom;
+            // a second, staggered row just behind it closes them (fixed values, no rnd calls, so the layout after this is unchanged)
+            for (float x = xMin + 1.5f; x <= xMax; x += 4.5f)
+                Put("Boulder", x, zMin - 2.4f, Mathf.Repeat(x * 73f, 360f), 5f, false, 0f);
             for (float z = zMin; z <= zMax; z += F(3f, 6f))
             {
                 Put("Boulder", xMin - F(0.4f, 1.4f), z, F(0, 360), F(4.3f, 6f), false, 0f);
