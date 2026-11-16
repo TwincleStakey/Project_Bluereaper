@@ -74,7 +74,7 @@ namespace RoomRun
         int atkLayer = -1;
         int step = -1;
         float t, len, sinceEnd = 99f, layerW, hitStopLeft;
-        bool hitDone, buffered, vfxDone, startedThisFrame;
+        bool hitDone, buffered, vfxDone, startedThisFrame, firePrev;
         float speedUsed;
         int lastStep = -1;
         Step cur;
@@ -98,6 +98,7 @@ namespace RoomRun
             if (anim.runtimeAnimatorController)
                 foreach (var c in anim.runtimeAnimatorController.animationClips) clipLen[c.name] = c.length;
             if (clipLen.ContainsKey("BZ_Slash1")) UseBerserker();
+            if (Berserker && !GetComponent<ArmStretch>()) gameObject.AddComponent<ArmStretch>().Setup(this, anim);
             feet = new[]
             {
                 anim.GetBoneTransform(HumanBodyBones.LeftFoot), anim.GetBoneTransform(HumanBodyBones.RightFoot),
@@ -179,13 +180,14 @@ namespace RoomRun
             // 1.1-1.4x its blade tip). Gameplay radius / halfAngle unchanged (4.6 m / 115 covers the ~210 deg sweep).
             steps = new[]
             {
-                new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 10f / 16f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = VfxWide, vfxRoll = 180f },
+                // v6: hit 1 is the big 28 f clip now (contact f9); in the combo it chains from f18
+                new Step { state = "SweepA", hitAt = 9f / 28f, cancelAt = 18f / 28f, radius = 5.0f, halfAngle = 150f, damage = 4, lunge = 0f, vfxScale = VfxSingle, vfxRoll = 180f },
                 new Step { state = "SweepB", hitAt = 5f / 20f, cancelAt = 18f / 20f, radius = 4.6f, halfAngle = 115f, damage = 3, lunge = 0f, vfxScale = VfxWide, vfxRoll = 0f },
                 new Step { state = "SweepC", hitAt = 8f / 30f, cancelAt = 22f / 30f, radius = 5.2f, halfAngle = 180f, damage = 7, lunge = 0f, vfxScale = VfxWide, vfxRoll = 0f, finisher = true },
             };
             // the Free Slash arcs back on for the berserker (Kido: "칼 베는거 vfx도 넣어놨잖아"), tinted to the eye flame
             slashVfx = true;
-            dashStep = new Step { state = "SweepA", hitAt = 5f / 16f, cancelAt = 10f / 16f, radius = 5.4f, halfAngle = 75f, damage = 5, lunge = 17f, vfxScale = VfxWide, vfxRoll = 180f };
+            dashStep = new Step { state = "SweepA", hitAt = 9f / 28f, cancelAt = 20f / 28f, radius = 5.4f, halfAngle = 75f, damage = 5, lunge = 17f, vfxScale = VfxWide, vfxRoll = 180f };
             // v5: every phase at 1x (the 1.3x recovery made the combo ~30 % shorter than the reference)
             attackSpeed = 1f; windupSpeed = 1f; strikeSpeed = 1f; recoverSpeed = 1f;
             strikeLead = 0.08f; strikeTail = 0.04f;
@@ -198,6 +200,19 @@ namespace RoomRun
             moveWhileSwing = 0f; leanDeg = 0f;
         }
 
+        // 11-16 single big hit (Kido 17:26-17:27 KST: "1타로 좀 크게 해봐 3타말고 단타", "지금보다 훨씬 크고 넓게 배게해",
+        // "팔좀 늘려도되 롤처럼"): every click plays hit 1 only (no 2/3 chain); BZ_Slash1 is now a 28 f stand-alone heavy sweep
+        // (gs_berserker_anim.py v6 W1B: coil far right, deep lunge 0.45 m, ~290 deg flat sweep right-back -> front (contact f9)
+        // -> behind the left shoulder, hips ~140 deg + chest +-25, arms straight) and ArmStretch pulls both hands out along the
+        // swing (LoL-style stretch, f3-f18) so the tip reaches ~2.6-2.8 m. A new click from f20 (0.67 s) restarts hit 1.
+        // Hit sector widened to 150 deg each side; slash arc ~1.3x the stretched tip radius. SingleHit = false = the old
+        // 3-hit combo (hit 1 is still the new big clip there).
+        public static bool SingleHit = true;
+        public static float VfxSingle = 2.35f;      // ~3.5 m outer edge (1.48 m per unit)
+        public static Step SingleStep => new Step { state = "SweepA", hitAt = 9f / 28f, cancelAt = 20f / 28f, radius = 5.0f, halfAngle = 150f, damage = 5, lunge = 0f, vfxScale = VfxSingle, vfxRoll = 180f };
+        public float ClipFrame => step >= 0 ? t * len * 30f : -1f;   // ArmStretch / logs
+        public string CurrentState => step >= 0 ? cur.state : null;
+
         // v3 root motion (ArtSource/GSHero/gs_berserker_anim.py ROOT, Blender metres, one value per clip frame at 30 fps):
         // how far the body has advanced along the aim. The clips keep the hips over the root and the planted feet at
         // (plant - ROOT[f]), so moving the root by the same table keeps the feet still in the world and the body only
@@ -206,7 +221,9 @@ namespace RoomRun
         {
             // v5 (clips.txt of the 11-16 bake): hit 1 = the right foot steps up level with the left (0.18 m), hit 2 on the spot,
             // hit 3 spins on the spot and steps into the ready stance at the end (0.16 m)
-            { "SweepA", new[] { 0f, .047f, .133f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f, .18f } },
+            // v6 single big hit 1 (28 f): the lunge, 0.45 m over f1-f10 (left foot out f1-5, back foot swept up f7-13)
+            { "SweepA", new[] { 0f, 0f, .015f, .057f, .117f, .188f, .262f, .333f, .393f, .435f, .45f, .45f, .45f, .45f, .45f,
+                                .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f, .45f } },
             { "SweepB", new[] { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f } },
             { "SweepC", new[] { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f,
                                 .012f, .041f, .08f, .119f, .148f, .16f, .16f, .16f } },
@@ -240,6 +257,7 @@ namespace RoomRun
             float f = t * len * 30f, hf = cur.hitAt * len * 30f;
             // v3: hits 1-2 trail over the whole flat arc (f2 -> f8, hit 2 on round to f10)
             // v5: hits 1-2 from the end of the wind-up (f2) through the follow-through (f8); spin f4-f13 (the whole turn)
+            if (cur.state == "SweepA" && len * 30f > 24f) return f > 5f && f < 14.5f;   // v6 big hit 1: the whole ~290 deg pass
             if (!cur.finisher) return f > hf - 3.2f && f < hf + (cur.state == "SweepB" ? 4.5f : 3.6f);
             return f > 3.5f && f < 13.5f;
         }
@@ -280,7 +298,7 @@ namespace RoomRun
         /// Raised when a swing starts so the body snaps to the cursor before the blade moves.
         public event System.Action SwingStarted;
 
-        void StartStep(int i) => StartStep(i, steps[i]);
+        void StartStep(int i) => StartStep(i, SingleHit && Berserker ? SingleStep : steps[i]);
 
         void StartStep(int i, Step s)
         {
@@ -323,14 +341,17 @@ namespace RoomRun
                 if (hitStopLeft <= 0f) Time.timeScale = 1f;
             }
 
-            if (fireHeld && canAct) buffered = true;
+            // single hit: a click buffers one swing; a held button only repeats once the swing reaches its cancel frame (a
+            // 0.15 s click used to re-buffer on its later frames and play every hit twice)
+            if (fireHeld && canAct && (!SingleHit || !Berserker || !firePrev || step < 0 || t >= cur.cancelAt)) buffered = true;
+            firePrev = fireHeld;
             if (rolling) Cancel();
             if (!canAct) { buffered = false; if (step >= 0) Cancel(); }
 
             if (step < 0)
             {
                 sinceEnd += dt;
-                if (buffered && canAct && !rolling) StartStep(sinceEnd < comboResetTime ? (lastStep + 1) % steps.Length : 0);
+                if (buffered && canAct && !rolling) StartStep(SingleHit || sinceEnd >= comboResetTime ? 0 : (lastStep + 1) % steps.Length);
             }
             else
             {
@@ -343,7 +364,7 @@ namespace RoomRun
                 if (slashVfx && !vfxDone && t >= s.hitAt - 0.12f) { vfxDone = true; PlayVfx(s); }
                 if (t >= s.cancelAt && buffered && !rolling)
                 {
-                    int next = step + 1 < steps.Length ? step + 1 : 0;
+                    int next = SingleHit ? 0 : step + 1 < steps.Length ? step + 1 : 0;
                     StartStep(next);
                 }
                 else if (t >= 1f || (t >= endAt && !buffered)) { step = -1; sinceEnd = 0f; }

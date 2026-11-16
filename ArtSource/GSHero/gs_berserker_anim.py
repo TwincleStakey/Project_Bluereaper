@@ -700,7 +700,7 @@ def build_wide():
     for f in range(L + 1):
         c = sample(W1, f); dY = c["Y"] - Yp; Yp = c["Y"]
         ly += FOLLOW * dY; ry += FOLLOW * dY
-        u = f / 3.0; rwf = rw0.lerp(rw1, ease(u)); rl = 0.08 * math.sin(math.pi * min(1.0, u)) if u < 1 else 0.0
+        u = f / 3.0; rwf = rw0.lerp(rw1, ease(u)); rl = 0.07 * math.sin(math.pi * min(1.0, u)) if u < 1 else 0.0
         L_ = lw + Vector((0, r[f])); R_ = rwf + Vector((0, r[f]))
         keys.append((f, _wide_key(c, (0.0, 0.0), (L_.x, L_.y, 0.0, ly), (R_.x, R_.y, rl, ry))))
         if f == W1_CANCEL: st = dict(L=L_.copy(), R=R_.copy(), ly=ly, ry=ry)
@@ -755,6 +755,50 @@ def _near(cur, target):
     return target + 360.0 * round((cur - target) / 360.0)
 
 CLIPS.update(build_wide())
+
+# ------------------------------------------------------------------ v6 single big hit 1 (11-16 17:26-17:27 KST)
+# Kido: "1타로 좀 크게 해봐 3타말고 단타", "지금보다 훨씬 크고 넓게 배게해". GreatswordCombat now plays only hit 1 per click
+# (Single = true), so BZ_Slash1 becomes a stand-alone heavy sweep: coil far right (blade behind the right shoulder),
+# a deep lunge step (left foot 0.45 m out, root follows; the back foot is swept round and up through contact, f7-13,
+# so the clip ends in ST),
+# then a ~300 deg flat sweep right-back -> front (contact f9) -> behind the left shoulder over 8 frames (~37 deg/frame,
+# reference-like), hips ~140 deg + chest +-25 on top (~190 deg shoulder turn), arms straight, hips shifted toward the grip
+# for reach. 28 frames (0.93 s). Grip at chest height; blade pitch keyed -8..-10 through the pass because Unity's humanoid
+# retarget lifts it ~10 deg (1st in-game check: +4..+7 with -4..-5 keyed), so in game it stays flat / slightly down.
+# Hits 2/3 are untouched (built from the old W1 above; the old BZ_Slash1 rows stay in W1 for that hand-off).
+W1B = _rows(
+    (0,  dict(Y=-10, th=-140, gb=-55, rg=0.45, zg=1.05, bp=-5, dz=-0.10, hp=10, sy=-8,  sp=8,  lean=0.0)),
+    (3,  dict(Y=-55, th=-158, gb=-62, rg=0.70, zg=1.10, bp=-6, dz=-0.18, hp=12, sy=-22, sp=10, lean=0.05)),
+    (5,  dict(Y=-65, th=-152, gb=-55, rg=0.95, zg=1.12, bp=-8, dz=-0.24, hp=16, sy=-25, sp=12, lean=0.15)),
+    (7,  dict(Y=-32, th=-82,  gb=-22, rg=1.00, zg=1.08, bp=-10, dz=-0.27, hp=20, sy=-12, sp=14, lean=0.22)),
+    (9,  dict(Y=4,   th=0,    gb=-4,  rg=1.00, zg=1.04, bp=-10, dz=-0.28, hp=22, sy=0,   sp=16, lean=0.24)),
+    (11, dict(Y=42,  th=80,   gb=12,  rg=1.00, zg=1.06, bp=-10, dz=-0.27, hp=20, sy=14,  sp=14, lean=0.22)),
+    (13, dict(Y=72,  th=140,  gb=28,  rg=0.95, zg=1.10, bp=-9, dz=-0.26, hp=18, sy=24,  sp=12, lean=0.18)),
+    (15, dict(Y=76,  th=150,  gb=38,  rg=0.80, zg=1.12, bp=-8, dz=-0.24, hp=16, sy=24,  sp=11, lean=0.08)),
+    (21, dict(Y=40,  th=138,  gb=55,  rg=0.55, zg=1.10, bp=-6, dz=-0.18, hp=12, sy=10,  sp=10, lean=0.0)),
+    (28, dict(Y=22,  th=122,  gb=62,  rg=0.45, zg=1.08, bp=-5, dz=-0.14, hp=10, sy=4,   sp=9,  lean=0.0)),
+)
+B1_LEN, B1_HIT, B1_ADV, B1_FOLLOW = 28, 9, 0.45, 0.5
+def build_big1():
+    L = B1_LEN
+    r = [B1_ADV * ease((f - 1) / 9.0) for f in range(L + 1)]
+    WROOT["BZ_Slash1"] = r
+    l0, l1 = Vector((0.17, -0.16)), Vector((0.19, -0.16 - B1_ADV))        # world, -Y = forward
+    r0, r1 = Vector((-0.20, 0.16)), Vector((-0.20, 0.16 - B1_ADV))
+    keys = []
+    for f in range(L + 1):
+        c = sample(W1B, f)
+        ul = (f - 1) / 4.0; ur = (f - 7) / 6.0    # back foot swept round with the turn right after contact
+        Lw = l0.lerp(l1, ease(ul)); Rw = r0.lerp(r1, ease(ur))
+        ll = 0.10 * math.sin(math.pi * ul) if 0 < ul < 1 else 0.0
+        rl = 0.07 * math.sin(math.pi * ur) if 0 < ur < 1 else 0.0
+        # feet yaw tied to the body yaw (not accumulated): front foot pivots with half the turn, the back foot (pivoting on
+        # its ball, then swept round) with 0.8 of it, so neither thigh winds up and the end pose is near ST
+        ly = 15.0 + 0.5 * c["Y"]; ry = -20.0 + 0.8 * c["Y"]
+        L_ = Lw + Vector((0, r[f])); R_ = Rw + Vector((0, r[f]))
+        keys.append((f, _wide_key(c, (0.0, 0.0), (L_.x, L_.y, ll, ly), (R_.x, R_.y, rl, ry))))
+    return (L, B1_HIT, keys)
+if not os.environ.get("BZ_OLD1"): CLIPS["BZ_Slash1"] = build_big1()
 for _n in WIDE: ROOT[_n] = WROOT[_n]
 
 # run -- heavy warrior run, 20 f cycle, sword resting back on the right shoulder, body leaning forward (no reference yet)

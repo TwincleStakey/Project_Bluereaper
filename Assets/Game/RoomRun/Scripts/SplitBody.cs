@@ -55,6 +55,18 @@ namespace RoomRun
         // roll 2 deg following the step smoothly. Shots token sway=0 = the old values for A/B.
         public static bool LegacySway = false;
         public float calmHz = 2.2f, calmDamp = 1.0f, calmWag = 4f, calmRoll = 2f, calmMaxRate = 300f;
+        // 11-16 walk grip fix (Kido 17:27 KST: "걸을때 무기쥔 손이 이상한데"): the drag spring, the step roll and the tip-height
+        // pitch all turned the sword INSIDE a fixed hand (the "Greatsword" grip node), 30-80 deg off the keyed grip while
+        // walking: the handle swivelled through the fist and the wrist never moved (in-game log: up to 138 deg walking back,
+        // 125 walking left). Now the turn is carried by the arm: the upper arm takes armShare (about the shoulder), the
+        // forearm forearmShare (about the elbow), the wrist the rest, and the sword stays seated in the palm exactly as keyed.
+        // The carried turn is capped at maxCarry: walking backward the spring wanted the blade 140 deg round (trailing in
+        // FRONT of the body), which no wrist can hold. Shots token hand=0 = the old in-hand turn for A/B.
+        public static bool HandCarries = true;
+        [Range(0f, 1f)] public float armShare = 0.35f, forearmShare = 0.35f;
+        public float maxCarry = 55f;
+        public float GripSlip { get; private set; }    // deg the sword is turned inside the hand this frame (logs)
+        public float WristBend { get; private set; }   // deg the hand is turned against the forearm by this pass (logs)
         float bearS, hwS; bool wedgeInit;
 
         public float Twist { get; private set; }         // shown upper-body twist (deg, + = to the left)
@@ -250,6 +262,32 @@ namespace RoomRun
             if (head) head.rotation = Quaternion.AngleAxis(w * headLook * 0.6f, Vector3.up) * Quaternion.AngleAxis(-w * lean * 0.4f, right) * head.rotation;
 
             if (!sword) return;
+            var swordQ0 = sword.rotation;
+            DragSword(dt, w, v, fwd, right, step);
+            // hand fix: hand the sword's extra turn to the forearm + wrist, sword back to its keyed seat in the palm
+            var D = sword.rotation * Quaternion.Inverse(swordQ0);
+            GripSlip = Quaternion.Angle(sword.localRotation, swordRest);
+            WristBend = 0f;
+            var fore = anim.GetBoneTransform(HumanBodyBones.RightLowerArm); var handT = anim.GetBoneTransform(HumanBodyBones.RightHand);
+            if (HandCarries && fore && handT)
+            {
+                sword.rotation = swordQ0;
+                float ang = Quaternion.Angle(Quaternion.identity, D);
+                if (ang > maxCarry) D = Quaternion.Slerp(Quaternion.identity, D, maxCarry / ang);
+                var up = Quaternion.Slerp(Quaternion.identity, D, armShare);
+                var A = Quaternion.Slerp(Quaternion.identity, D, armShare + forearmShare);
+                var Bq = D * Quaternion.Inverse(A);
+                A = A * Quaternion.Inverse(up);
+                if (armR) armR.rotation = up * armR.rotation; else A = up * A;
+                fore.rotation = A * fore.rotation;
+                handT.rotation = Bq * handT.rotation;
+                WristBend = Quaternion.Angle(Quaternion.identity, Bq);
+                GripSlip = Quaternion.Angle(sword.localRotation, swordRest);
+            }
+        }
+
+        void DragSword(float dt, float w, Vector3 v, Vector3 fwd, Vector3 right, float step)
+        {
             // sword: spring on the blade's world yaw about the grip
             var bdf = sword.forward; bdf.y = 0f;
             if (bdf.sqrMagnitude < 1e-4f) return;

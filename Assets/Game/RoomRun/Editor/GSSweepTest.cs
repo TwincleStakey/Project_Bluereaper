@@ -28,8 +28,33 @@ namespace RoomRun
         public const float WideWalk1 = 12.4f, WideWalkLen = 1.4f;
         static void Zoom(float z) { var rig = RunDirector.Instance ? RunDirector.Instance.Rig : null; if (rig && Mathf.Abs(rig.Zoom - z) > 1e-3f) { rig.Zoom = z; rig.Snap(); } }
 
+        // 11-16 single big hit capture: 4 = three single swings close (z0.8), two at the default zoom (1.6), then the walk
+        // N / E / S / W close (walking hand check); 5 = one swing at the default zoom (enemies from "calm=1 grass+25*");
+        // 6 = the walk only, close. Fire is a 0.15 s click, so each click is exactly one hit 1.
+        static readonly float[] Single4 = { 0.6f, 2.3f, 4.0f, 6.2f, 7.9f };
+        public const float SingleWalk4 = 9.8f;
+        public static float HandZoom = 0.3f;   // mode 6: tight on the hero for the walking-hand check
+        PlayerCommand ReadSingle(float t, PlayerCommand c)
+        {
+            float walkAt = WideMode == 4 ? SingleWalk4 : WideMode == 6 ? 0.6f : 99f;
+            if (WideMode == 4) Zoom(t < 5.6f || t >= walkAt - 0.4f ? WideClose : WideDefault);
+            else Zoom(WideMode == 6 ? HandZoom : WideDefault);
+            var clicks = WideMode == 4 ? Single4 : WideMode == 5 ? new[] { 1.0f } : new float[0];
+            foreach (var a in clicks) if (t >= a && t < a + 0.15f) { Phase = "hit"; c.fire = true; return c; }
+            if (t >= walkAt && t < walkAt + 4f * WideWalkLen)
+            {
+                int i = (int)((t - walkAt) / WideWalkLen);
+                Vector2[] d = { new Vector2(0f, 1f), new Vector2(1f, 0f), new Vector2(0f, -1f), new Vector2(-1f, 0f) };
+                string[] n = { "walkN", "walkE", "walkS", "walkW" };
+                c.move = d[i]; Phase = n[i]; return c;
+            }
+            Phase = gs && gs.Attacking ? "swing" : "idle";
+            return c;
+        }
+
         PlayerCommand ReadWide(float t, PlayerCommand c)
         {
+            if (WideMode >= 4) return ReadSingle(t, c);
             float walkAt = WideMode == 1 ? WideWalk1 : WideMode == 2 ? 0.6f : 99f;
             if (WideMode == 1) Zoom(t < 6.2f || t >= walkAt - 0.4f ? WideClose : WideDefault);
             else Zoom(WideMode == 2 ? WideClose : WideDefault);
@@ -100,7 +125,7 @@ namespace RoomRun
             vis = an ? an.transform.parent : null;
             foreach (var t in p.GetComponentsInChildren<Transform>()) if (t.name == "Greatsword") { tipT = t; break; }
             if (tipT) bladeLen = BladeTrail.MeasureBlade(tipT);
-            log.WriteLine("frame,time,phase,step,stepT,animT,rootX,rootZ,hipsX,hipsY,hipsZ,lfX,lfY,lfZ,rfX,rfY,rfZ,gripX,gripY,gripZ,tipX,tipY,tipZ,visYaw,velX,velZ,timeScale,tipR,vfxR,vfxScale,lights,hipsYaw,chestYaw,bladeYaw,layerW,spinYaw");
+            log.WriteLine("frame,time,phase,step,stepT,animT,rootX,rootZ,hipsX,hipsY,hipsZ,lfX,lfY,lfZ,rfX,rfY,rfZ,gripX,gripY,gripZ,tipX,tipY,tipZ,visYaw,velX,velZ,timeScale,tipR,vfxR,vfxScale,lights,hipsYaw,chestYaw,bladeYaw,layerW,spinYaw,clipF,stretch,bladePitch,chestY,gripSlip,wristBend,bladeOff");
         }
 
         readonly System.Collections.Generic.Dictionary<Mesh, float> meshR = new System.Collections.Generic.Dictionary<Mesh, float>();
@@ -169,8 +194,12 @@ namespace RoomRun
             var l = an.GetBoneTransform(HumanBodyBones.LeftUpperArm); var r = an.GetBoneTransform(HumanBodyBones.RightUpperArm);
             float chest = l && r ? Yw(Vector3.Cross(r.position - l.position, Vector3.up)) : 0f;
             int L = an.GetLayerIndex("AttackFull");
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture, ",{0:0.0},{1:0.0},{2:0.0},{3:0.00},{4:0.0}",
-                h ? Yw(h.forward) : 0f, chest, tipT ? Yw(tipT.forward) : 0f, L >= 0 ? an.GetLayerWeight(L) : -1f, gs ? gs.SpinYaw : 0f);
+            var st = p.GetComponent<ArmStretch>(); var sb = p.GetComponent<SplitBody>();
+            var uc = an.GetBoneTransform(HumanBodyBones.UpperChest) ?? an.GetBoneTransform(HumanBodyBones.Chest);
+            float pitch = tipT ? Mathf.Asin(Mathf.Clamp(tipT.forward.y, -1f, 1f)) * Mathf.Rad2Deg : 0f;
+            return string.Format(System.Globalization.CultureInfo.InvariantCulture, ",{0:0.0},{1:0.0},{2:0.0},{3:0.00},{4:0.0},{5:0.0},{6:0.00},{7:0.0},{8:0.000},{9:0.0},{10:0.0},{11:0.0}",
+                h ? Yw(h.forward) : 0f, chest, tipT ? Yw(tipT.forward) : 0f, L >= 0 ? an.GetLayerWeight(L) : -1f, gs ? gs.SpinYaw : 0f,
+                gs ? gs.ClipFrame : -1f, st ? st.Amount : 0f, pitch, uc ? uc.position.y : 0f, sb ? sb.GripSlip : 0f, sb ? sb.WristBend : 0f, sb ? sb.BladeOffset : 0f);
         }
 
         public void CloseLog() { if (log != null) { log.Close(); log = null; } }

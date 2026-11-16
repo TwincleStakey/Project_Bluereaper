@@ -1,0 +1,10 @@
+single big hit 1 (2026-11-16, 2nd capture 18:20)
+per click: 1 swing, 28 f = 0.93 s (contact f9 = 0.30 s), next click from f20
+body: hips 142 deg, chest 188 deg (in game)
+blade arc 309 deg flat (right-back -> front -> behind left)
+blade pitch during the pass (f4-f15): -5.7 .. +2.2 deg; tip at most +0.09 m above the UpperChest bone
+tip reach 2.79 m (arms stretched +0.55 m f3-f19; 2.10 m without); slash VFX outer edge 3.69 m (1.32x)
+hit sector radius 5.0 m, halfAngle 150; no new lights (11 = scene lights, same as before)
+walk hand: sword turned inside the fist up to 138 deg (walk back) / 113 (walk left) / 96 (idle) -> 0 now;
+  the turn is carried by upper arm 35% / forearm 35% / wrist 30%, capped at 55 deg; wrist bend max 16 deg
+Blender rule check: all frames pass (blender_blade_log.csv)

@@ -603,6 +603,11 @@ namespace RoomRun
                 // spring (SplitBody.LegacySway) for A/B, "sway=1" the calm one
                 if (token.StartsWith("wide=")) { int.TryParse(token.Substring(5), out SweepTest.WideMode); continue; }
                 if (token.StartsWith("sway=")) { SplitBody.LegacySway = token.EndsWith("0"); continue; }
+                // 11-16 single big hit: "hand=0|1" = walk grip fix off/on (SplitBody.HandCarries), "single=0|1" = 3-hit combo /
+                // single hit 1 (GreatswordCombat.SingleHit), "stretch=0|1" = arm stretch off/on; all also tag the clip name
+                if (token.StartsWith("hand=")) { SplitBody.HandCarries = token.EndsWith("1"); sweepTag = "_hand" + token.Substring(5); continue; }
+                if (token.StartsWith("single=")) { GreatswordCombat.SingleHit = token.EndsWith("1"); continue; }
+                if (token.StartsWith("stretch=")) { ArmStretch.On = token.EndsWith("1"); continue; }
                 if (token.StartsWith("z="))
                 {
                     zooms = System.Array.ConvertAll(token.Substring(2).Split(','), s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
