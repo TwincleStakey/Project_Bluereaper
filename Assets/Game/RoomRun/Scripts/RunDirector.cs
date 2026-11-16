@@ -123,6 +123,29 @@ namespace RoomRun
             return sb.ToString();
         }
 
+        // Stage switcher entries for the dev panel (config order). Group: a room with a boss (prefab, or "boss" in its id)
+        // is 보스, a devOnly room is 개발용, the rest are 필드.
+        List<LookStudyDevTools.StageEntry> StageList()
+        {
+            var list = new List<LookStudyDevTools.StageEntry>();
+            for (int i = 0; i < config.rooms.Count; i++)
+            {
+                var r = config.rooms[i];
+                string group = r.bossPrefab || r.id.Contains("boss") ? "보스" : r.devOnly ? "개발용" : "필드";
+                list.Add(new LookStudyDevTools.StageEntry { id = r.id, name = r.displayName, group = group, key = i < FieldKeys.Length ? FieldKeys[i].ToString() : null });
+            }
+            return list;
+        }
+
+        // PageUp / PageDown: previous / next stage in config order (wraps)
+        public void StepStage(int dir)
+        {
+            int n = config.rooms.Count;
+            if (n == 0) return;
+            int i = Room != null ? config.rooms.FindIndex(r => r.id == Room.id) : -1;
+            DevJump(config.rooms[((i < 0 ? 0 : i + dir) % n + n) % n].id);
+        }
+
         public void DevJump(string roomId)
         {
             var room = config.Room(roomId);
@@ -140,6 +163,8 @@ namespace RoomRun
             for (int i = 0; i < config.rooms.Count && i < FieldKeys.Length; i++)
                 if (kb[FieldKeys[i]].wasPressedThisFrame) { DevJump(config.rooms[i].id); return; }
             if (kb[Key.F7].wasPressedThisFrame && !string.IsNullOrEmpty(previousRoomId)) DevJump(previousRoomId);
+            if (kb[Key.PageUp].wasPressedThisFrame) StepStage(-1);
+            else if (kb[Key.PageDown].wasPressedThisFrame) StepStage(1);
         }
 
         public void OnPlayerDied()
@@ -275,17 +300,13 @@ namespace RoomRun
             foreach (var l in FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
                 if (l.gameObject != Rig.gameObject) l.enabled = false;
 
-            // The environment panel lives in the art scripts, which this assembly cannot reference, so it is found by name.
-            // A stage loaded in Single mode takes the previous panel with it, so each room gets a fresh one.
+            // The environment panel (LookStudy.Runtime). A stage loaded in Single mode takes the previous panel with it,
+            // so each room gets a fresh one; it gets the stage switcher list (11-16: grid, search, recent/favourites).
             if (config.devTools)
             {
-                var devTools = FindType("LookStudyDevTools");
-                if (devTools != null)
-                {
-                    var panel = FindAnyObjectByType(devTools) as Component;
-                    if (!panel) panel = new GameObject("LookStudyDevTools").AddComponent(devTools);
-                    panel.SendMessage("SetFieldKeys", FieldKeyHelp(), SendMessageOptions.DontRequireReceiver);
-                }
+                var panel = FindAnyObjectByType<LookStudyDevTools>();
+                if (!panel) panel = new GameObject("LookStudyDevTools").AddComponent<LookStudyDevTools>();
+                panel.SetStages(StageList(), room.id, DevJump);
             }
 
             if (!string.IsNullOrEmpty(room.groundMeshName))
@@ -327,20 +348,6 @@ namespace RoomRun
             }
             meshBaseline.Clear();
             foreach (var m in all) if (m) meshBaseline.Add(m.GetInstanceID());
-        }
-
-        // The art scripts can move between assemblies (they now have their own asmdef), so search all of them.
-        static System.Type devToolsType;
-        static System.Type FindType(string name)
-        {
-            if (devToolsType != null) return devToolsType;
-            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
-            {
-                var t = asm.GetType(name, false);
-                if (t != null && typeof(MonoBehaviour).IsAssignableFrom(t)) return devToolsType = t;
-            }
-            Debug.LogWarning($"[RoomRun] {name} not found, so the environment panel is not shown.");
-            return null;
         }
 
         static IEnumerable<T> Collect<T>(GameObject[] roots) where T : Component

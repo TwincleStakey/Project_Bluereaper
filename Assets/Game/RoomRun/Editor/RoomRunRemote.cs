@@ -852,9 +852,11 @@ namespace RoomRun
             Application.logMessageReceived += onLog;
             run.Player.DebugInvulnerable = true;
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            var keys = new[] { UnityEngine.InputSystem.Key.F6, UnityEngine.InputSystem.Key.F7, UnityEngine.InputSystem.Key.F6, UnityEngine.InputSystem.Key.F2,
-                UnityEngine.InputSystem.Key.F3, UnityEngine.InputSystem.Key.F4, UnityEngine.InputSystem.Key.F5, UnityEngine.InputSystem.Key.F1 };
-            foreach (var key in keys)
+            // 11-16: stage switcher keys (PageDown/PageUp step, F12 jump, F7 back), then the panel's stage tab itself
+            var K = new[] { UnityEngine.InputSystem.Key.PageDown, UnityEngine.InputSystem.Key.PageUp, UnityEngine.InputSystem.Key.F12, UnityEngine.InputSystem.Key.F7 };
+            string dir = Path.Combine(Dir, "stage_switcher");
+            Directory.CreateDirectory(dir);
+            foreach (var key in K)
             {
                 string before = run.Room.id;
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(kb, new UnityEngine.InputSystem.LowLevel.KeyboardState(key));
@@ -862,9 +864,36 @@ namespace RoomRun
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(kb, new UnityEngine.InputSystem.LowLevel.KeyboardState());
                 for (int f = 0; f < 10 && !run.Transitioning; f++) yield return null;
                 while (run.Transitioning) yield return null;
-                yield return new WaitForSeconds(2.5f);
-                var panel = GameObject.Find("FieldKeys");
-                Note($"{key}: {before} -> {run.Room.id} player={run.Player.transform.position} area={run.AreaCenter}/{run.AreaSize} inCombat={run.InCombat} enemies={run.Enemies.Count} hp={run.Player.Health.current} panelKeys={(panel ? panel.GetComponent<UnityEngine.UI.Text>().text.Replace('\n', '|') : "none")}");
+                yield return new WaitForSeconds(1.5f);
+                Note($"{key}: {before} -> {run.Room.id} hp={run.Player.Health.current}");
+            }
+            int shot = 0;
+            System.Collections.IEnumerator Capture(string what)
+            {
+                yield return new WaitForSeconds(0.4f);
+                yield return new WaitForEndOfFrame();
+                var tex = ScreenCapture.CaptureScreenshotAsTexture();
+                File.WriteAllBytes(Path.Combine(dir, $"panel_{shot++}_{what}.png"), tex.EncodeToPNG());
+                Note($"stagepanel capture {what} {tex.width}x{tex.height}");
+                Object.Destroy(tex);
+            }
+            yield return Capture("stages");
+            var search = GameObject.Find("StageSearch")?.GetComponent<UnityEngine.UI.InputField>();
+            Note("search box " + (search ? "found" : "MISSING"));
+            if (search)
+            {
+                search.text = "ㅈㅅ";
+                yield return Capture("search_chosung");
+                UnityEngine.UI.Button first = null;
+                foreach (var b in search.transform.parent.GetComponentsInChildren<UnityEngine.UI.Button>())
+                    if (b.transform.parent.name == "Grid" && b.transform.parent.parent.GetSiblingIndex() >= 0 && first == null && b.transform.parent.GetSiblingIndex() > 3) first = b;
+                Note("first match " + (first ? first.name : "none"));
+                if (first) first.onClick.Invoke();
+                for (int f = 0; f < 10 && !run.Transitioning; f++) yield return null;
+                while (run.Transitioning) yield return null;
+                yield return new WaitForSeconds(2f);
+                Note("after search click: room=" + run.Room.id);
+                yield return Capture("after_jump");
             }
             Application.logMessageReceived -= onLog;
             Note($"devkeys done, errors={errors}");

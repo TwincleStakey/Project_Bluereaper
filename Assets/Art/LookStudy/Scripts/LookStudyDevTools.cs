@@ -90,30 +90,237 @@ public class LookStudyDevTools : MonoBehaviour
     float sat0, con0, exp0; Color filter0 = Color.white; Quaternion sunRot0;
     float fpsT; int fpsN;
     float vd;
-    string fieldKeys; Text fieldKeysText;
 
-    // Sent by the room run (by name, it lives in another assembly): the field jump keys to list at the top of the panel.
-    public void SetFieldKeys(string text)
+    // ---------- stage switcher (11-16). The panel has two tabs: 스테이지 (this) and 환경·설정 (everything else), so it
+    // stays short. The room run (RunDirector.PrepareStage) hands over its rooms; buttons are grouped 필드/보스/개발용 in a
+    // 3-column grid, with a search box (name, id or 초성; Enter = first match; '/' focuses it), ◀ ▶ (= PageUp/PageDown)
+    // and a quick row of favourites (★) and recent stages, both kept in PlayerPrefs.
+    public struct StageEntry { public string id, name, group, key; }
+    List<StageEntry> stages; string stageId; System.Action<string> stageJump;
+    Transform body, stageBox, settingsBox, tabRow;
+    InputField stageSearch;
+    readonly List<(GameObject go, StageEntry e, Color baseCol)> stageButtons = new List<(GameObject, StageEntry, Color)>();
+    readonly List<(GameObject header, Transform grid, bool quick)> stageGroups = new List<(GameObject, Transform, bool)>();
+    int tab;
+    const string FavKey = "RR.StageFav", RecentKey = "RR.StageRecent", TabKey = "RR.DevTab";
+    static readonly string[] GroupOrder = { "필드", "보스", "개발용" };
+    static readonly Color FavIdle = new Color(0.33f, 0.29f, 0.17f), FirstMatch = new Color(0.22f, 0.4f, 0.52f);
+
+    public void SetStages(List<StageEntry> list, string currentId, System.Action<string> jump)
     {
-        fieldKeys = text;
-        if (panel) ShowFieldKeys();
+        stages = list; stageId = currentId; stageJump = jump;
+        var recent = PrefList(RecentKey);
+        recent.Remove(currentId); recent.Insert(0, currentId);
+        if (recent.Count > 7) recent.RemoveRange(7, recent.Count - 7);
+        PlayerPrefs.SetString(RecentKey, string.Join(",", recent));
+        if (panel) { BuildStages(); SetTab(PlayerPrefs.GetInt(TabKey, 0)); }
     }
 
-    void ShowFieldKeys()
+    static List<string> PrefList(string key) =>
+        new List<string>(PlayerPrefs.GetString(key, "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
+
+    void SetTab(int t)
     {
-        if (string.IsNullOrEmpty(fieldKeys)) return;
-        if (!fieldKeysText)
+        if (stages == null) t = 1;
+        tab = t;
+        PlayerPrefs.SetInt(TabKey, t);
+        if (tabRow) tabRow.gameObject.SetActive(stages != null);
+        if (stageBox) stageBox.gameObject.SetActive(t == 0);
+        if (settingsBox) settingsBox.gameObject.SetActive(t == 1);
+        RefreshToggles();
+    }
+
+    void JumpStage(string id) { if (stageJump != null && !string.IsNullOrEmpty(id)) stageJump(id); }
+
+    void StepStage(int dir)
+    {
+        if (stages == null || stages.Count == 0) return;
+        int i = stages.FindIndex(s => s.id == stageId);
+        JumpStage(stages[((i < 0 ? 0 : i + dir) % stages.Count + stages.Count) % stages.Count].id);
+    }
+
+    void ToggleFav()
+    {
+        var fav = PrefList(FavKey);
+        if (!fav.Remove(stageId)) fav.Add(stageId);
+        PlayerPrefs.SetString(FavKey, string.Join(",", fav));
+        BuildStages();
+    }
+
+    static string ShortName(string n)
+    {
+        int p = n.IndexOf(" (");
+        return p > 0 ? n.Substring(0, p) : n;
+    }
+
+    // first consonants of Hangul syllables ("저승" -> "ㅈㅅ"), so a stage can be found by 초성
+    static string Chosung(string s)
+    {
+        const string Cho = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+        var sb = new System.Text.StringBuilder(s.Length);
+        foreach (char c in s) sb.Append(c >= '가' && c <= '힣' ? Cho[(c - '가') / 588] : c);
+        return sb.ToString();
+    }
+
+    static bool StageMatches(StageEntry e, string q)
+    {
+        string name = e.name.Replace(" ", "");
+        return name.Contains(q) || Chosung(name).Contains(q) || e.id.ToLowerInvariant().Contains(q.ToLowerInvariant())
+            || (e.key != null && e.key.ToLowerInvariant() == q.ToLowerInvariant());
+    }
+
+    void BuildStages()
+    {
+        if (!stageBox || stages == null) return;
+        for (int i = stageBox.childCount - 1; i >= 0; i--) Destroy(stageBox.GetChild(i).gameObject);
+        stageButtons.Clear(); stageGroups.Clear();
+        var keep = body; body = stageBox;
+        var fav = PrefList(FavKey);
+        var cur = stages.Find(s => s.id == stageId);
+
+        // ◀  current stage  ☆  ▶
+        var r = NewRow();
+        r.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+        Fixed(MakeButton(r, "◀", () => StepStage(-1)), 34);
+        var lgo = new GameObject("Current", typeof(Text), typeof(LayoutElement));
+        lgo.transform.SetParent(r, false);
+        var lt = lgo.GetComponent<Text>();
+        lt.text = cur.name ?? "-"; lt.font = font; lt.fontSize = 16; lt.fontStyle = FontStyle.Bold; lt.alignment = TextAnchor.MiddleCenter;
+        lt.color = new Color(0.86f, 0.95f, 0.87f); lt.raycastTarget = false;
+        lgo.GetComponent<LayoutElement>().flexibleWidth = 1;
+        var fb = MakeButton(r, fav.Contains(stageId) ? "★" : "☆", ToggleFav);
+        Fixed(fb, 34);
+        if (fav.Contains(stageId)) fb.GetComponentInChildren<Text>().color = new Color(1f, 0.84f, 0.35f);
+        Fixed(MakeButton(r, "▶", () => StepStage(1)), 34);
+
+        stageSearch = MakeSearch();
+
+        // favourites first, then recent ones (not the current stage)
+        var quick = new List<string>(fav);
+        foreach (var id in PrefList(RecentKey)) if (!quick.Contains(id)) quick.Add(id);
+        quick.Remove(stageId);
+        var qh = SmallLabel("★ 즐겨찾기 · 최근");
+        var qg = Grid();
+        int n = 0;
+        foreach (var id in quick)
         {
-            Section("필드 이동 (키)");
-            panel.transform.GetChild(panel.transform.childCount - 1).SetSiblingIndex(0);
-            var go = new GameObject("FieldKeys", typeof(Text), typeof(LayoutElement));
-            go.transform.SetParent(panel.transform, false);
-            go.transform.SetSiblingIndex(1);
-            fieldKeysText = go.GetComponent<Text>();
-            fieldKeysText.font = font; fieldKeysText.fontSize = 14; fieldKeysText.color = Color.white; fieldKeysText.raycastTarget = false;
+            int k = stages.FindIndex(s => s.id == id);
+            if (k < 0 || n++ >= 6) continue;
+            StageButton(qg, stages[k], fav.Contains(id), false);
         }
-        fieldKeysText.text = fieldKeys;
-        fieldKeysText.GetComponent<LayoutElement>().minHeight = 18 * fieldKeys.Split('\n').Length;
+        stageGroups.Add((qh, qg, true));
+
+        foreach (var g in GroupOrder)
+        {
+            if (!stages.Exists(s => s.group == g)) continue;
+            var h = SmallLabel(g);
+            var grid = Grid();
+            foreach (var s in stages) if (s.group == g) StageButton(grid, s, fav.Contains(s.id), true);
+            stageGroups.Add((h, grid, false));
+        }
+        var hint = SmallLabel("F키 바로가기 · PgUp/PgDn 이전/다음 · F7 직전 · / 검색");
+        hint.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+        body = keep;
+        FilterStages("");
+    }
+
+    void StageButton(Transform grid, StageEntry e, bool isFav, bool searchable)
+    {
+        string label = ShortName(e.name) + (e.key != null ? $" <size=11><color=#8fa39a>{e.key}</color></size>" : "");
+        var b = MakeButton(grid, label, () => JumpStage(e.id));
+        var t = b.GetComponentInChildren<Text>();
+        t.resizeTextForBestFit = true; t.resizeTextMinSize = 10; t.resizeTextMaxSize = 14; t.horizontalOverflow = HorizontalWrapMode.Wrap;
+        var col = e.id == stageId ? Active : isFav ? FavIdle : Idle;
+        b.GetComponent<Image>().color = col;
+        if (searchable) stageButtons.Add((b.gameObject, e, col));
+    }
+
+    void FilterStages(string q)
+    {
+        q = (q ?? "").Replace("/", "").Replace(" ", "");
+        bool searching = q.Length > 0;
+        bool first = true;
+        foreach (var (go, e, col) in stageButtons)
+        {
+            bool on = !searching || StageMatches(e, q);
+            go.SetActive(on);
+            go.GetComponent<Image>().color = on && searching && first ? FirstMatch : col;
+            if (on && searching) first = false;
+        }
+        foreach (var (header, grid, isQuick) in stageGroups)
+        {
+            bool any = false;
+            for (int i = 0; i < grid.childCount; i++) any |= grid.GetChild(i).gameObject.activeSelf;
+            bool vis = any && !(isQuick && searching);
+            header.SetActive(vis); grid.gameObject.SetActive(vis);
+        }
+    }
+
+    InputField MakeSearch()
+    {
+        var go = new GameObject("StageSearch", typeof(Image), typeof(LayoutElement));
+        go.SetActive(false);
+        go.transform.SetParent(body, false);
+        go.GetComponent<Image>().color = new Color(0.03f, 0.04f, 0.05f, 0.9f);
+        go.GetComponent<LayoutElement>().minHeight = 28;
+        Text Child(string name, Color c, FontStyle style)
+        {
+            var tgo = new GameObject(name, typeof(Text));
+            tgo.transform.SetParent(go.transform, false);
+            var t = tgo.GetComponent<Text>();
+            t.font = font; t.fontSize = 14; t.color = c; t.fontStyle = style; t.alignment = TextAnchor.MiddleLeft; t.supportRichText = false;
+            var rt = t.rectTransform; rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = new Vector2(8, 1); rt.offsetMax = new Vector2(-8, -1);
+            return t;
+        }
+        var text = Child("Text", Color.white, FontStyle.Normal);
+        var ph = Child("Placeholder", new Color(0.55f, 0.62f, 0.6f), FontStyle.Italic);
+        ph.text = "검색: 이름 · 초성(ㅈㅅ) · id   Enter = 이동";
+        var f = go.AddComponent<InputField>();
+        f.textComponent = text; f.placeholder = ph; f.targetGraphic = go.GetComponent<Image>();
+        go.SetActive(true);
+        f.onValueChanged.AddListener(FilterStages);
+        f.onEndEdit.AddListener(s =>
+        {
+            var kb = Keyboard.current;
+            if (kb == null || !(kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) return;
+            foreach (var (b, e, _) in stageButtons) if (b.activeSelf) { JumpStage(e.id); return; }
+        });
+        return f;
+    }
+
+    Transform Grid()
+    {
+        var go = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup));
+        go.transform.SetParent(body, false);
+        var g = go.GetComponent<GridLayoutGroup>();
+        g.cellSize = new Vector2(113, 27); g.spacing = new Vector2(4, 4);
+        g.constraint = GridLayoutGroup.Constraint.FixedColumnCount; g.constraintCount = 3;
+        return go.transform;
+    }
+
+    GameObject SmallLabel(string text)
+    {
+        var go = new GameObject(text, typeof(Text), typeof(LayoutElement));
+        go.transform.SetParent(body, false);
+        var t = go.GetComponent<Text>();
+        t.text = text; t.font = font; t.fontSize = 12; t.color = new Color(0.6f, 0.72f, 0.66f); t.raycastTarget = false; t.alignment = TextAnchor.LowerLeft;
+        go.GetComponent<LayoutElement>().minHeight = 17;
+        return go;
+    }
+
+    static void Fixed(Button b, float w)
+    {
+        var le = b.gameObject.AddComponent<LayoutElement>();
+        le.preferredWidth = le.minWidth = w; le.flexibleWidth = 0;
+    }
+
+    Transform Box(string name)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(VerticalLayoutGroup));
+        go.transform.SetParent(panel.transform, false);
+        var l = go.GetComponent<VerticalLayoutGroup>();
+        l.spacing = 5; l.childControlWidth = true; l.childControlHeight = true; l.childForceExpandHeight = false; l.childForceExpandWidth = true;
+        return go.transform;
     }
 
     void OnEnable() => current = this;
@@ -148,7 +355,8 @@ public class LookStudyDevTools : MonoBehaviour
         if (sh) pixelMat = new Material(sh);
         font = Font.CreateDynamicFontFromOSFont(new[] { "Malgun Gothic", "맑은 고딕", "Arial" }, 14);
         BuildUi();
-        ShowFieldKeys();
+        BuildStages();
+        SetTab(PlayerPrefs.GetInt(TabKey, 0));
         ApplyAll();
 #if !UNITY_EDITOR
         var args = System.Environment.GetCommandLineArgs();
@@ -174,6 +382,15 @@ public class LookStudyDevTools : MonoBehaviour
         {
             fpsText.text = $"{fpsN / fpsT:0} FPS   {fpsT / fpsN * 1000f:0.0} ms";
             fpsT = 0; fpsN = 0;
+        }
+        // '/' opens the panel on the stage tab and focuses the search box
+        var kb = Keyboard.current;
+        if (kb != null && kb.slashKey.wasPressedThisFrame && stageSearch && !stageSearch.isFocused && stages != null)
+        {
+            panelRoot.gameObject.SetActive(true);
+            SetTab(0);
+            stageSearch.text = "";
+            stageSearch.ActivateInputField();
         }
     }
 
@@ -362,6 +579,15 @@ public class LookStudyDevTools : MonoBehaviour
         lay.childControlWidth = true; lay.childControlHeight = true; lay.childForceExpandHeight = false; lay.childForceExpandWidth = true;
         panel.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
+        // tabs: 스테이지 (stage switcher, filled by SetStages) / 환경·설정 (everything below)
+        body = panel.transform;
+        tabRow = NewRow();
+        Toggle(tabRow, "스테이지", () => tab == 0, () => SetTab(0));
+        Toggle(tabRow, "환경 · 설정", () => tab == 1, () => SetTab(1));
+        stageBox = Box("Stages");
+        settingsBox = Box("Settings");
+        body = settingsBox;
+
         // frame pacing (same PlayerPrefs keys as FrameCap): uncapped by default; the 60 cap and VSync for testing
         Section("프레임");
         var r = NewRow();
@@ -451,7 +677,7 @@ public class LookStudyDevTools : MonoBehaviour
     void Section(string title)
     {
         var go = new GameObject(title, typeof(Text), typeof(LayoutElement));
-        go.transform.SetParent(panel.transform, false);
+        go.transform.SetParent(body, false);
         var t = go.GetComponent<Text>();
         t.text = title; t.font = font; t.fontSize = 15; t.fontStyle = FontStyle.Bold; t.color = new Color(0.72f, 0.86f, 0.74f); t.raycastTarget = false;
         go.GetComponent<LayoutElement>().minHeight = 22;
@@ -460,7 +686,7 @@ public class LookStudyDevTools : MonoBehaviour
     Transform NewRow()
     {
         var go = new GameObject("Row", typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-        go.transform.SetParent(panel.transform, false);
+        go.transform.SetParent(body, false);
         var h = go.GetComponent<HorizontalLayoutGroup>();
         h.spacing = 4; h.childControlWidth = true; h.childControlHeight = true; h.childForceExpandWidth = true; h.childForceExpandHeight = true;
         go.GetComponent<LayoutElement>().minHeight = 30;
@@ -542,6 +768,7 @@ public class LookStudyDevTools : MonoBehaviour
         Application.runInBackground = true;
         var log = new List<string>();
         yield return new WaitForSeconds(4f);
+        SetTab(1);
         yield return Shot(dir, "00_default", log);
 
         var mouse = Mouse.current;
