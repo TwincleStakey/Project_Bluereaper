@@ -20,11 +20,42 @@ public static class JangsanbeomGlowSetup
     static void Watch() { EditorApplication.update += Tick; }
     static void Tick()
     {
+        if (File.Exists("Temp/jsb_debug.trigger") && !EditorApplication.isCompiling && !EditorApplication.isPlaying)
+        {
+            File.Delete("Temp/jsb_debug.trigger");
+            try { File.WriteAllText("Temp/jsb_debug.txt", DebugSkin()); } catch (System.Exception e) { File.WriteAllText("Temp/jsb_debug.txt", e.ToString()); }
+        }
         const string trig = "Temp/jsb_glow.trigger";
         if (!File.Exists(trig) || EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
         File.Delete(trig);
         try { Build(); } catch (System.Exception e) { Debug.LogError("[JSB] " + e); }
         File.WriteAllText("Temp/jsb_glow.done", System.DateTime.Now.ToString("o"));
+    }
+
+    // why does the body not follow the bones? sample the charge at two times and compare skinned vertices
+    static string DebugSkin()
+    {
+        var sb = new System.Text.StringBuilder();
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{Root}/Models/p1_howl_gramophone.fbx");
+        var go = (GameObject)Object.Instantiate(model); go.hideFlags = HideFlags.HideAndDontSave;
+        try
+        {
+            var clip = AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/p1_howl_gramophone.fbx").OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview"));
+            sb.AppendLine($"clip {clip.name} len {clip.length} curves {AnimationUtility.GetCurveBindings(clip).Length}");
+            foreach (var b in AnimationUtility.GetCurveBindings(clip).Take(6)) sb.AppendLine($"  bind {b.path} {b.propertyName}");
+            var smrs = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            var hips = go.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Hips");
+            foreach (var smr in smrs)
+            {
+                var m0 = new Mesh(); var m1 = new Mesh();
+                clip.SampleAnimation(go, 0.1f); var h0 = hips ? hips.position : Vector3.zero; smr.BakeMesh(m0);
+                clip.SampleAnimation(go, 1.5f); var h1 = hips ? hips.position : Vector3.zero; smr.BakeMesh(m1);
+                float d = 0; var a = m0.vertices; var b2 = m1.vertices; for (int i = 0; i < a.Length; i += 50) d = Mathf.Max(d, (a[i] - b2[i]).magnitude);
+                sb.AppendLine($"smr {smr.name} bones {smr.bones.Length} nullBones {smr.bones.Count(x => x == null)} root {(smr.rootBone ? smr.rootBone.name : "none")} weightsPerVert {smr.sharedMesh.GetBonesPerVertex().Length} bindposes {smr.sharedMesh.bindposes.Length} vtxMove {d:F3} hipsMove {(h1 - h0).magnitude:F3} quality {smr.quality}");
+            }
+        }
+        finally { Object.DestroyImmediate(go); }
+        return sb.ToString();
     }
 
     [MenuItem("Tools/Jangsanbeom/Build Glow Test Scene")]
@@ -240,10 +271,11 @@ public static class JangsanbeomGlowSetup
         var hips = boss.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Hips");
         if (head == null || hips == null) return;
         var fwd = head.position - hips.position; fwd.y = 0; fwd.Normalize();
-        var look = (head.position + hips.position) * 0.5f; look.y = 3.5f;
-        float pitch = 62f * Mathf.Deg2Rad, dist = 40f;
+        var look = (head.position + hips.position) * 0.5f; look.y = 4f;
+        // the real game camera (RoomRun CameraRig): offset (0, 17, -14.5) x zoom 1.6, fov 30 -> pitch 49.5 deg, 35.8 m away
+        float pitch = 30f * Mathf.Deg2Rad, dist = 62f;   // Kido: not from the top of the head; pulled back like the 11-13 reference shot
         cam.transform.position = look + fwd * Mathf.Cos(pitch) * dist + Vector3.up * Mathf.Sin(pitch) * dist;
-        cam.transform.LookAt(look); cam.fieldOfView = 40;
+        cam.transform.LookAt(look); cam.fieldOfView = 30;
     }
 
     static void Shoot(Camera cam, RenderTexture rt, RenderTexture ldr, Texture2D tex, string file)
