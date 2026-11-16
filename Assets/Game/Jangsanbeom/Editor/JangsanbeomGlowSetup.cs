@@ -28,8 +28,8 @@ public static class JangsanbeomGlowSetup
         if (File.Exists("Temp/jsb_map.trigger") && !EditorApplication.isPlayingOrWillChangePlaymode && !EditorApplication.isCompiling && !EditorApplication.isUpdating)
         {
             var args = File.ReadAllText("Temp/jsb_map.trigger").Trim().Split(' '); File.Delete("Temp/jsb_map.trigger"); var clipName = args[0]; var ci = System.Globalization.CultureInfo.InvariantCulture;
-            float zoomArg = args.Length > 1 ? float.Parse(args[1], ci) : 2.7f, tzArg = args.Length > 2 ? float.Parse(args[2], ci) : 7f, dimArg = args.Length > 3 ? float.Parse(args[3], ci) : 1f;
-            try { MapCapture(clipName.Length > 0 ? clipName : "p0_telegraph_scrape", zoomArg, tzArg, dimArg); } catch (System.Exception e) { Debug.LogError("[JSB] map " + e); File.WriteAllText("Temp/jsb_map.err", e.ToString()); }
+            float zoomArg = args.Length > 1 ? float.Parse(args[1], ci) : 2.7f, tzArg = args.Length > 2 ? float.Parse(args[2], ci) : 7f, dimArg = args.Length > 3 ? float.Parse(args[3], ci) : 1f; var clipFbx = args.Length > 4 ? args[4] : null;
+            try { MapCapture(clipName.Length > 0 ? clipName : "p0_telegraph_scrape", zoomArg, tzArg, dimArg, clipFbx); } catch (System.Exception e) { Debug.LogError("[JSB] map " + e); File.WriteAllText("Temp/jsb_map.err", e.ToString()); }
             File.WriteAllText("Temp/jsb_map.done", System.DateTime.Now.ToString("o"));
         }
         const string trig = "Temp/jsb_glow.trigger";
@@ -224,7 +224,7 @@ public static class JangsanbeomGlowSetup
     // post, seen by the RoomRun game camera (offset (0,17,-14.5) x zoom). Uses the boss as set up by Build() in JSB_GlowTest.
     // Edit mode only; StageMood/LookFX grades run only in RoomRun Play, so they are not in these frames.
     const string MapScene = "Assets/Game/BossSeal/BossSeal.unity";
-    public static void MapCapture(string clipName, float zoom = 2.7f, float targetZ = 7f, float dim = 1f)
+    public static void MapCapture(string clipName, float zoom = 2.7f, float targetZ = 7f, float dim = 1f, string clipFbx = null)
     {
         var openedMap = !UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene).isLoaded;
         var map = openedMap ? EditorSceneManager.OpenScene(MapScene, OpenSceneMode.Additive) : UnityEngine.SceneManagement.SceneManager.GetSceneByPath(MapScene);
@@ -245,6 +245,14 @@ public static class JangsanbeomGlowSetup
             }
             var boss = test.GetRootGameObjects().First(g => g.name == clipName);
             var an = boss.GetComponent<Animator>(); var clip = an.runtimeAnimatorController.animationClips[0];
+            // optional: another clip on the same AutoRig (e.g. the retargeted QuadAnim gallop), looped for 4 s
+            bool loopClip = false;
+            if (!string.IsNullOrEmpty(clipFbx))
+            {
+                var alt = AssetDatabase.LoadAllAssetsAtPath(clipFbx).OfType<AnimationClip>().FirstOrDefault(c => !c.name.StartsWith("__preview"));
+                if (alt != null) { clip = alt; loopClip = true; }
+            }
+            string outName = string.IsNullOrEmpty(clipFbx) ? clipName : Path.GetFileNameWithoutExtension(clipFbx);
             var trails = boss.GetComponent<JangsanbeomClawTrails>();
             var scrape = boss.GetComponent<JangsanbeomScrapeFX>(); if (scrape != null) scrape.Build(); if (trails != null) trails.Build();   // DontSave children were not in the saved scene
             // face the camera (-Z): measure hips->head at t=0 and turn the root about Y
@@ -285,7 +293,7 @@ public static class JangsanbeomGlowSetup
             try {
 
             var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../ArtSource/Jangsanbeom/renders/map"));
-            var vdir = Path.Combine(outDir, $"vid_{clipName}"); Directory.CreateDirectory(vdir);
+            var vdir = Path.Combine(outDir, $"vid_{outName}"); Directory.CreateDirectory(vdir);
             foreach (var f0 in Directory.GetFiles(vdir, "*.png")) File.Delete(f0);
             var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.DefaultHDR);
             var ldr = new RenderTexture(1600, 900, 0, RenderTextureFormat.ARGB32);
@@ -294,17 +302,17 @@ public static class JangsanbeomGlowSetup
             try
             {
                 { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
-                int nf = Mathf.CeilToInt(clip.length * 30);
+                int nf = loopClip ? 120 : Mathf.CeilToInt(clip.length * 30);
                 for (int f = 0; f < nf; f++)
                 {
                     float t = f / 30f;
                     if (f == 0 && trails != null) trails.ResetTrails();
                     if (f == 0 && scrape != null) scrape.ResetFX();
-                    if (trails != null && f > 0) { clip.SampleAnimation(boss, t - 1f / 60f); trails.Sample(t - 1f / 60f); if (scrape != null) scrape.Sample(t - 1f / 60f); }
-                    clip.SampleAnimation(boss, Mathf.Min(t, clip.length));
+                    if (trails != null && f > 0) { clip.SampleAnimation(boss, loopClip ? (t - 1f / 60f) % clip.length : t - 1f / 60f); trails.Sample(t - 1f / 60f); if (scrape != null) scrape.Sample(t - 1f / 60f); }
+                    clip.SampleAnimation(boss, loopClip ? t % clip.length : Mathf.Min(t, clip.length));
                     if (trails != null) trails.Sample(t);
                     if (scrape != null) scrape.Sample(t);
-                    SetWarn(boss, Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f));
+                    SetWarn(boss, loopClip ? 0f : Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f));
                     Shader.SetGlobalFloat("_JSB_FixedTime", t); Shader.SetGlobalFloat("_WK_FixedTime", t);
                     SyncSkin(boss); Shoot(cam, rt, ldr, tex, Path.Combine(vdir, $"f{f:000}.png"));
                 }
