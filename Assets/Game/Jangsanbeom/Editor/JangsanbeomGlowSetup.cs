@@ -307,6 +307,7 @@ public static class JangsanbeomGlowSetup
                 { var w = new RenderPipeline.StandardRequest { destination = rt }; if (RenderPipeline.SupportsRenderRequest(cam, w)) RenderPipeline.SubmitRenderRequest(cam, w); }
                 // 11-16 Kido: the gallop must travel ("제자리 저러면 어떻게해"): run a lap of the arena, the body turning with
                 // the path and banking into the curve; speed = how fast the planted paws move back in the in-place clip
+                float[] lapCum = null; float lapCycle = 0f, lapLen = 1f;
                 float lapSpeed = 0f; Quaternion lapBase = Quaternion.identity; var r0b = boss.transform.rotation; var p0b = boss.transform.position;
                 if (lapRadius > 0)
                 {
@@ -315,27 +316,40 @@ public static class JangsanbeomGlowSetup
                     var fL = boss.transform.InverseTransformDirection(head.position - hips.position); fL.y = 0; fL.Normalize();
                     lapBase = Quaternion.Inverse(Quaternion.LookRotation(fL));
                     var toes = new[] { "HindToes.L", "HindToes.R", "FrontToes.L", "FrontToes.R" }.Select(n => boss.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == n)).Where(t => t != null).ToArray();
-                    var prev = new Vector3[toes.Length]; float sum = 0; int cnt = 0; float dt = clip.length / 120f;
-                    for (int k = 0; k <= 120; k++)
+                    // 11-16 Kido: "걸을 때마다 조금씩 나가야지, 일정 속도로 미끄러지면 이상해" -> the root advances each step by
+                    // exactly what the planted paws push back (distance table over one cycle), not at a constant speed
+                    var prev = new Vector3[toes.Length]; float sum = 0; int cnt = 0; float dt = clip.length / 240f;
+                    lapCum = new float[241];
+                    for (int k = 0; k <= 240; k++)
                     {
                         clip.SampleAnimation(boss, k * dt);
                         float low = toes.Min(t => t.position.y);
+                        float vs = 0; int vn = 0;
                         for (int ti = 0; ti < toes.Length; ti++)
                         {
                             var pp = toes[ti].position;
-                            if (k > 0 && pp.y < low + 0.35f) { sum += -Vector3.Dot(pp - prev[ti], fL) / dt; cnt++; }
+                            if (k > 0 && pp.y < low + 0.35f) { float v = -Vector3.Dot(pp - prev[ti], fL) / dt; sum += v; cnt++; vs += v; vn++; }
                             prev[ti] = pp;
                         }
+                        if (k > 0) lapCum[k] = lapCum[k - 1] + Mathf.Max(0f, vn > 0 ? vs / vn : 0f) * dt;
                     }
                     lapSpeed = cnt > 0 ? Mathf.Clamp(sum / cnt, 4f, 40f) : 15f;
+                    lapCycle = lapCum[240]; lapLen = clip.length;
                     Debug.Log($"[JSB] lap: radius {lapRadius} speed {lapSpeed:F1} m/s from {cnt} planted samples");
-                    File.WriteAllText("Temp/jsb_lap.txt", $"speed {lapSpeed:F2} samples {cnt}");
+                    File.WriteAllText("Temp/jsb_lap.txt", $"speed {lapSpeed:F2} samples {cnt} perCycle {lapCycle:F2}m over {clip.length:F2}s");
                 }
-                int nf = lapRadius > 0 ? Mathf.Min(360, Mathf.CeilToInt(2f * Mathf.PI * lapRadius / lapSpeed * 30f)) : loopClip ? 120 : Mathf.CeilToInt(clip.length * 30);
+                int nf = lapRadius > 0 ? Mathf.Min(360, Mathf.CeilToInt(2f * Mathf.PI * lapRadius / Mathf.Max(lapSpeed, lapCycle / lapLen) * 30f)) : loopClip ? 120 : Mathf.CeilToInt(clip.length * 30);
                 System.Action<float> place = tt =>
                 {
                     if (lapRadius <= 0) return;
-                    float th = -Mathf.PI * 0.5f + lapSpeed * tt / lapRadius;   // start at the south (near the camera), run anticlockwise
+                    float dist = lapSpeed * tt;
+                    if (lapCum != null && lapCycle > 0.01f)
+                    {
+                        float cyc = Mathf.Floor(tt / lapLen), u = (tt - cyc * lapLen) / lapLen * 240f;
+                        int i0 = Mathf.Clamp((int)u, 0, 239);
+                        dist = cyc * lapCycle + Mathf.Lerp(lapCum[i0], lapCum[i0 + 1], u - i0);
+                    }
+                    float th = -Mathf.PI * 0.5f + dist / lapRadius;   // start at the south (near the camera), run anticlockwise
                     var pos = new Vector3(Mathf.Cos(th), 0, Mathf.Sin(th)) * lapRadius;
                     var tan = new Vector3(-Mathf.Sin(th), 0, Mathf.Cos(th));
                     var rot = Quaternion.AngleAxis(-10f, tan) * Quaternion.LookRotation(tan) * lapBase;   // bank ~10 deg into the curve
