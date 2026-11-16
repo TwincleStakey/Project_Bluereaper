@@ -35,12 +35,13 @@ namespace BlueReaper.Data.Editor
             Quaternion.Euler(0f, (origin ? origin.eulerAngles.y : 0f) + shape.LocalYaw, 0f);
 
         internal static Vector3[] Outline(AreaAttackShapeData shape, Vector3 center, Quaternion facing,
-            float radius)
+            float radius, Vector2? rectangleSize = null)
         {
             if (shape.Shape == AreaHitShape.Rectangle)
             {
-                Vector3 right = facing * Vector3.right * (Mathf.Max(0.01f, shape.RectangleSize.x) * 0.5f);
-                Vector3 forward = facing * Vector3.forward * (Mathf.Max(0.01f, shape.RectangleSize.y) * 0.5f);
+                Vector2 size = rectangleSize ?? shape.RectangleSize;
+                Vector3 right = facing * Vector3.right * (Mathf.Max(0.01f, size.x) * 0.5f);
+                Vector3 forward = facing * Vector3.forward * (Mathf.Max(0.01f, size.y) * 0.5f);
                 return new[] { center - right - forward, center + right - forward,
                     center + right + forward, center - right + forward, center - right - forward };
             }
@@ -60,15 +61,17 @@ namespace BlueReaper.Data.Editor
         }
 
         internal static void DrawShape(AreaAttackShapeData shape, Transform origin, Color color, bool height,
-            int pickControl = 0)
+            int pickControl = 0, (Vector3 Size, float InnerRadius)? evaluated = null)
         {
             if (shape == null) return;
             var center = Center(shape, origin);
             var facing = Facing(shape, origin);
-            float radius = Mathf.Max(0.01f, shape.Radius);
-            Vector3[] outer = Outline(shape, center, facing, radius);
-            Vector3[] inner = shape.Shape == AreaHitShape.Donut && shape.InnerRadius > 0f
-                ? Outline(shape, center, facing, shape.InnerRadius) : null;
+            float radius = evaluated?.Size.x ?? Mathf.Max(0.01f, shape.Radius);
+            float innerRadius = evaluated?.InnerRadius ?? shape.InnerRadius;
+            Vector2? rectangleSize = evaluated.HasValue ? new Vector2(evaluated.Value.Size.x, evaluated.Value.Size.z) : null;
+            Vector3[] outer = Outline(shape, center, facing, radius, rectangleSize);
+            Vector3[] inner = shape.Shape == AreaHitShape.Donut && innerRadius > 0f
+                ? Outline(shape, center, facing, innerRadius) : null;
 
             if (Event.current.type == EventType.Layout && pickControl != 0)
             {
@@ -82,7 +85,7 @@ namespace BlueReaper.Data.Editor
             if (inner != null) Handles.DrawAAPolyLine(2f, inner);
             if (!height) return;
 
-            Vector3 half = Vector3.up * (Mathf.Max(0.01f, shape.Height) * 0.5f);
+            Vector3 half = Vector3.up * ((evaluated?.Size.y ?? Mathf.Max(0.01f, shape.Height)) * 0.5f);
             DrawHeight(outer, half);
             if (inner != null) DrawHeight(inner, half);
         }

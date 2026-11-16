@@ -59,9 +59,8 @@ namespace BlueReaper.Data.Editor
                         previewTime = warning + HitTime(effect);
                         Refresh();
                     }
-                    EditorGUILayout.LabelField(effect.name, effect.RepeatHits
-                        ? $"배치 {warning + effect.PlacementDelaySeconds:0.###}초 · 반복"
-                        : $"배치 {warning + effect.PlacementDelaySeconds:0.###}초");
+                    EditorGUILayout.LabelField(effect.name, $"배치 {warning + effect.PlacementDelaySeconds:0.###}초"
+                        + (effect.ContinueAfterPlacement ? " · 배치까지만 대기" : ""));
                 }
                 else
                 {
@@ -105,13 +104,10 @@ namespace BlueReaper.Data.Editor
 
         private static float HitTime(AreaAttackPatternData effect) => Mathf.Max(0f, effect.HitStartSeconds);
 
-        private static float EndTime(AreaAttackPatternData effect) =>
-            HitTime(effect) + (effect.RepeatHits ? Mathf.Max(0f, effect.HitDurationSeconds) : 0f);
+        private static float EndTime(AreaAttackPatternData effect) => HitTime(effect) + effect.ActiveDuration;
 
         private static bool HasValidTiming(AreaAttackPatternData effect) =>
-            float.IsFinite(effect.HitStartSeconds) && effect.PlacementDelaySeconds >= 0f
-            && effect.PlacementDelaySeconds <= HitTime(effect)
-            && (!effect.RepeatHits || (float.IsFinite(effect.HitDurationSeconds) && float.IsFinite(effect.HitRepeatIntervalSeconds)));
+            effect.GetValidationError() == null;
 
         internal static float TelegraphDuration(EnemyPatternData pattern) =>
             pattern.TelegraphPrefab && float.IsFinite(pattern.TelegraphDurationSeconds)
@@ -123,7 +119,7 @@ namespace BlueReaper.Data.Editor
         internal static bool IsHighlighted(AreaAttackPatternData effect, float time, float lastHit)
         {
             float hit = HitTime(effect);
-            return hit <= time && (hit == lastHit || (effect.RepeatHits && time < EndTime(effect)));
+            return hit <= time && (hit == lastHit || time < EndTime(effect));
         }
 
         private void DrawScene(SceneView view)
@@ -156,9 +152,11 @@ namespace BlueReaper.Data.Editor
                 bool highlighted = IsHighlighted(effect, time + 0.0001f, lastHit);
                 Color color = highlighted ? AreaPatternPreview.SelectedColor : AreaPatternPreview.OutlineColor;
                 if (time < effect.PlacementDelaySeconds) color.a *= 0.45f;
-                AreaPatternPreview.DrawShape(shape, origin, color, false);
+                float elapsed = time - HitTime(effect);
+                AreaPatternPreview.DrawShape(shape, origin, color, false, evaluated: effect.EvaluateHitShape(elapsed));
                 foreach (var additional in effect.AdditionalShapes ?? System.Array.Empty<AreaAttackShapeData>())
-                    AreaPatternPreview.DrawShape(additional, origin, color, false);
+                    AreaPatternPreview.DrawShape(additional, origin, color, false,
+                        evaluated: effect.EvaluateHitShape(elapsed, additional));
                 if (highlighted)
                     Handles.Label(AreaPatternPreview.Center(shape, origin), $"{effect.name} · {warning + HitTime(effect):0.###}초");
             }

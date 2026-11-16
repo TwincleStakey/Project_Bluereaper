@@ -13,6 +13,7 @@ namespace BlueReaper.Data.Editor
         private int selectedShape;
         private bool showPreview = true;
         private bool editHeight;
+        private float previewElapsed;
         private Transform caster;
         private StageField field;
 
@@ -76,10 +77,18 @@ namespace BlueReaper.Data.Editor
 
             EditorGUILayout.Space();
             DrawField(nameof(effect.PlacementDelaySeconds), "배치 지연 (초)");
+            DrawField(nameof(effect.ContinueAfterPlacement), "배치까지만 대기");
             DrawField(nameof(effect.HitStartSeconds), "첫 판정 (초)");
-            if (serializedObject.FindProperty(nameof(effect.PlacementDelaySeconds)).floatValue >
-                Mathf.Max(0f, serializedObject.FindProperty(nameof(effect.HitStartSeconds)).floatValue))
-                EditorGUILayout.HelpBox("배치 시각은 첫 판정보다 늦을 수 없습니다.", MessageType.Warning);
+            DrawField(nameof(effect.ExpansionMode), "범위 변화");
+            var expansion = (AreaExpansionMode)serializedObject.FindProperty(nameof(effect.ExpansionMode)).enumValueIndex;
+            if (expansion != AreaExpansionMode.None)
+            {
+                DrawField(nameof(effect.ExpansionDurationSeconds), "확대 시간 (초)");
+                if (expansion == AreaExpansionMode.Filled)
+                    DrawField(nameof(effect.ExpansionStartScale), "시작 크기 비율");
+                else
+                    DrawField(nameof(effect.RingStartRadius), "시작 바깥 반경");
+            }
             DrawField(nameof(effect.RepeatHits), "반복 판정");
             if (serializedObject.FindProperty(nameof(effect.RepeatHits)).boolValue)
             {
@@ -91,6 +100,8 @@ namespace BlueReaper.Data.Editor
             DrawField(nameof(effect.HitVfxPrefab), "피격 VFX");
             DrawField(nameof(effect.HitVfxDelaySeconds), "피격 VFX 지연 (초)");
             if (serializedObject.ApplyModifiedProperties()) Refresh();
+            string error = effect.GetValidationError();
+            if (error != null) EditorGUILayout.HelpBox(error, MessageType.Warning);
             if (GUILayout.Button("범위 효과 애셋 저장")) AssetDatabase.SaveAssetIfDirty(effect);
 
             EditorGUILayout.Space();
@@ -99,6 +110,8 @@ namespace BlueReaper.Data.Editor
             if (showPreview)
             {
                 editHeight = EditorGUILayout.Toggle("높이 편집", editHeight);
+                if (effect.ExpansionMode != AreaExpansionMode.None && error == null)
+                    previewElapsed = EditorGUILayout.Slider("확대 미리보기 (초)", previewElapsed, 0f, effect.ExpansionDurationSeconds);
                 if (effect.PlacementOrigin == AreaPlacementOrigin.Field)
                     field = (StageField)EditorGUILayout.ObjectField("미리보기 필드", field, typeof(StageField), true);
                 else caster = (Transform)EditorGUILayout.ObjectField("미리보기 시전자", caster, typeof(Transform), true);
@@ -150,6 +163,8 @@ namespace BlueReaper.Data.Editor
             var effect = (AreaAttackPatternData)target;
             var origin = Origin(effect);
             int count = effect.AdditionalShapes?.Length ?? 0;
+            bool showExpansion = Event.current.type == EventType.Repaint && effect.ExpansionMode != AreaExpansionMode.None
+                && effect.GetValidationError() == null;
             selectedShape = Mathf.Clamp(selectedShape, 0, count);
             for (int i = 0; i <= count; i++)
             {
@@ -158,6 +173,9 @@ namespace BlueReaper.Data.Editor
                 var shape = AreaPatternPreview.GetShape(effect, i);
                 AreaPatternPreview.DrawShape(shape, origin,
                     selected ? AreaPatternPreview.SelectedColor : AreaPatternPreview.OutlineColor, selected && editHeight, control);
+                if (showExpansion && shape != null)
+                    AreaPatternPreview.DrawShape(shape, origin, Color.yellow, false,
+                        evaluated: effect.EvaluateHitShape(previewElapsed, i == 0 ? null : shape));
                 var input = Event.current;
                 if (input.type == EventType.MouseDown && input.button == 0 && !input.alt
                     && GUIUtility.hotControl == 0 && HandleUtility.nearestControl == control)
