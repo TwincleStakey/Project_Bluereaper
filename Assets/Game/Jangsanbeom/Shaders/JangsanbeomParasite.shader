@@ -47,7 +47,10 @@ Shader "BulletHeaven/JangsanbeomParasite"
         {
             float t = T() * _BeatSpeed * (1 + 0.8 * _Warn);
             float p = frac(t);
-            return exp(-p * 10) + 0.6 * exp(-abs(p - 0.22) * 18);   // lub-dub
+            // 11-16 Kido ("핏줄이 맥박같이, 너무 반짝거려"): a soft swell and fade instead of the sharp lub-dub spikes
+            float swell = smoothstep(0.0, 0.14, p) * (1 - smoothstep(0.14, 0.8, p));
+            float echo = smoothstep(0.2, 0.3, p) * (1 - smoothstep(0.3, 0.6, p));
+            return swell + 0.35 * echo;
         }
         ENDHLSL
 

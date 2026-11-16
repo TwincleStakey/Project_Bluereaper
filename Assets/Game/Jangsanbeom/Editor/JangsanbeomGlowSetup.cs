@@ -402,7 +402,7 @@ public static class JangsanbeomGlowSetup
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (m == null) { m = new Material(Shader.Find("BulletHeaven/JangsanbeomParasite")); AssetDatabase.CreateAsset(m, path); }
         m.SetFloat("_GulpSpeed", 0.7f); m.SetFloat("_BeatSpeed", 0.8f);   // 11-16 Kido: a slow pulse, not a flicker (was 1.4; x1.8 while warning)   // 11-16 Kido: the blood gulp was too fast (was 1.6; the telegraph doubles it)
-        m.SetFloat("_GlowBase", 0.35f); m.SetFloat("_GlowPeak", 6f); m.SetFloat("_GulpGlow", 5f); m.SetFloat("_GulpBulge", 0.16f);
+        m.SetFloat("_GlowBase", 0.35f); m.SetFloat("_GlowPeak", 6f); m.SetFloat("_GulpGlow", 2f);   // gulp glow 5 -> 2: the travelling hot spots read as sparkle m.SetFloat("_GulpBulge", 0.16f);
         m.SetColor("_GlowColor", new Color(1f, 0.03f, 0.02f)); m.SetColor("_CrustColor", new Color(0.05f, 0.03f, 0.03f)); m.SetFloat("_CrustAmount", 0.45f);
         switch (key)
         {

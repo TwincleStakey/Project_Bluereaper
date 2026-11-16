@@ -31,7 +31,7 @@ Material:
     - _GlowPeak: 4
     - _GulpBulge: 0.04
     - _GulpFreq: 8
-    - _GulpGlow: 5
+    - _GulpGlow: 2
     - _GulpSharp: 10
     - _GulpSpeed: 0.7
     - _Smoothness: 0.75
