@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BlueReaper.Core;
+using BlueReaper.HitBox;
 using UnityEngine;
 
 namespace BlueReaper.Player
@@ -14,7 +15,8 @@ namespace BlueReaper.Player
         [SerializeField] float range = 2.2f;
         [SerializeField, Range(0f, 360f)] float arcAngle = 120f;
         [SerializeField] float cooldown = 0.35f;
-        [SerializeField] LayerMask targetLayers; // Monster, Boss
+        [Tooltip("피격 대상 Unit의 레이어")]
+        [SerializeField] LayerMask targetLayers;
 
         /// <summary>휘두를 때마다: (플레이어 위치, 휘두른 방향)</summary>
         public event Action<Vector3, Vector3> Swung;
@@ -41,20 +43,23 @@ namespace BlueReaper.Player
 
             Vector3 origin = transform.position;
             Swung?.Invoke(origin, direction);
-            int count = Physics.OverlapSphereNonAlloc(origin, range, hits, targetLayers);
+            int count = Physics.OverlapSphereNonAlloc(origin, range, hits, HurtboxTarget.Mask, QueryTriggerInteraction.Collide);
             hitThisSwing.Clear();
             float damage = DamageFormula.Calculate(unit.Data.Attack, damageMultiplier);
 
             for (int i = 0; i < count; i++)
             {
-                Vector3 toTarget = hits[i].transform.position - origin;
+                Collider hit = hits[i];
+                var target = HurtboxTarget.Find(hit, targetLayers, out var targetUnit);
+                if (target == null || targetUnit == unit) continue;
+
+                Vector3 toTarget = hit.transform.position - origin;
                 toTarget.y = 0f;
                 if (Vector3.Angle(direction, toTarget) > arcAngle * 0.5f) continue;
 
-                var target = hits[i].GetComponentInParent<IDamageable>();
-                if (target == null || !hitThisSwing.Add(target)) continue;
+                if (!hitThisSwing.Add(target)) continue;
                 target.TakeDamage(damage);
-                HitLanded?.Invoke(hits[i].ClosestPoint(origin));
+                HitLanded?.Invoke(hit.ClosestPoint(origin));
             }
             return true;
         }

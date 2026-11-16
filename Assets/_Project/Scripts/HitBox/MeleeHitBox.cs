@@ -44,7 +44,7 @@ namespace BlueReaper.HitBox
         {
             if (!armed || !owner || other.transform.IsChildOf(owner.transform)) return;
             if (owner.GetComponent<Enemy>() && other.GetComponentInParent<Enemy>()) return;
-            var target = other.GetComponentInParent<IDamageable>();
+            var target = HurtboxTarget.Find(other);
             if (target == null) return;
             if (onContact != null) onContact(target);
             else if (hitTargets.Add(target)) target.TakeDamage(damage);
