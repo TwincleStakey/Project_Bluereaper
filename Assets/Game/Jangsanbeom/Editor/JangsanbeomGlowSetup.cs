@@ -52,7 +52,7 @@ public static class JangsanbeomGlowSetup
         mat.SetTexture("_EyeMask", AssetDatabase.LoadAssetAtPath<Texture2D>(eye));
         // tuned for a 25x guardian-size boss seen from the game camera
         mat.SetFloat("_AmbientBoost", 1.2f);
-        mat.SetFloat("_EyeIntensity", 8f); mat.SetColor("_EyeColor", new Color(5f, 0.25f, 0.12f, 1f)); mat.SetFloat("_Warn", 0f); mat.SetFloat("_WarnFurIntensity", 4f); mat.SetFloat("_WarnRimIntensity", 12f);
+        mat.SetFloat("_EyeIntensity", 8f); mat.SetColor("_EyeColor", new Color(5f, 0.25f, 0.12f, 1f)); mat.SetFloat("_Warn", 0f); mat.SetFloat("_WarnFurIntensity", 4f); mat.SetFloat("_ClawIntensity", 8f); mat.SetFloat("_ClawHeight", 50f); mat.SetFloat("_ClawRedness", 0.05f); mat.SetFloat("_WarnRimIntensity", 12f);
         mat.SetFloat("_RimIntensity", 4f); mat.SetFloat("_RimPower", 2.5f); mat.SetFloat("_FurLumMin", 0.35f);
         mat.SetFloat("_SparkleDensity", 7f); mat.SetFloat("_SparkleAmount", 0.22f); mat.SetFloat("_SparkleIntensity", 9f); mat.SetFloat("_SparkleSpeed", 3f);
         // optional overrides for tuning/debugging: Temp/jsb_glow_overrides.txt with lines "name value"
@@ -126,6 +126,13 @@ public static class JangsanbeomGlowSetup
             {
                 AssetDatabase.DeleteAsset($"{Root}/Animation/{c}.controller"); var ctrl = AnimatorController.CreateAnimatorControllerAtPathWithClip($"{Root}/Animation/{c}.controller", ac);
                 var an = go.GetComponent<Animator>(); if (an == null) an = go.AddComponent<Animator>(); an.runtimeAnimatorController = ctrl;
+                // red claw afterimages + attack telegraph driver
+                var trailMatPath = $"{Root}/Materials/JSB_ClawTrail.mat";
+                var trailMat = AssetDatabase.LoadAssetAtPath<Material>(trailMatPath);
+                if (trailMat == null) { trailMat = new Material(Shader.Find("BulletHeaven/JangsanbeomTrail")); AssetDatabase.CreateAsset(trailMat, trailMatPath); }
+                var ct = go.GetComponent<JangsanbeomClawTrails>(); if (ct == null) ct = go.AddComponent<JangsanbeomClawTrails>();
+                ct.trailMaterial = trailMat; ct.minSpeed = 2.5f; ct.fullSpeed = 10f; ct.Build(); Debug.Log($"[JSB] claw trails on {go.name}: {go.GetComponentsInChildren<LineRenderer>(true).Length}");
+                if (go.GetComponent<JangsanbeomTelegraph>() == null) go.AddComponent<JangsanbeomTelegraph>();
             }
         }
 
@@ -279,9 +286,16 @@ public static class JangsanbeomGlowSetup
                 var clip = ctrl.animationClips[0];
                 bool warnClip = only.name.Contains("telegraph");
                 // stills: alternate heartbeat peak / rest so both are visible
+                var trails = only.GetComponent<JangsanbeomClawTrails>();
                 for (int k = 0; k < ts.Length; k++)
                 {
+                    if (trails != null)
+                    {   // run the claw trail over the 0.3 s before the still so its afterimage shows
+                        trails.ResetTrails();
+                        for (float tt = ts[k] - 0.3f; tt < ts[k]; tt += 1f / 60f) { clip.SampleAnimation(only.gameObject, Mathf.Max(0, tt) % clip.length); trails.Sample(tt); }
+                    }
                     clip.SampleAnimation(only.gameObject, ts[k] % clip.length);
+                    if (trails != null) trails.Sample(ts[k]);
                     PlaceFrontCam(cam, only.gameObject);
                     SetWarn(only.gameObject, warnClip ? 1f : 0f);
                     Shader.SetGlobalFloat("_JSB_FixedTime", (k + (k % 2 == 0 ? 0.02f : 0.6f)) / beatSpeed);
@@ -294,7 +308,11 @@ public static class JangsanbeomGlowSetup
                 for (int f = 0; f < nf; f++)
                 {
                     float t = f / 30f;
+                    if (f == 0 && trails != null) trails.ResetTrails();
+                    if (trails != null && f > 0)   // half steps between frames keep fast swipes as smooth arcs
+                    { clip.SampleAnimation(only.gameObject, (t - 1f / 60f) % clip.length); trails.Sample(t - 1f / 60f); }
                     clip.SampleAnimation(only.gameObject, t % clip.length);
+                    if (trails != null) trails.Sample(t);
                     if (f == 0) PlaceFrontCam(cam, only.gameObject);
                     SetWarn(only.gameObject, warnClip ? Mathf.Clamp01(t / 0.3f) * Mathf.Clamp01((clip.length - t) / 0.5f) : 0f);
                     Shader.SetGlobalFloat("_JSB_FixedTime", t);

@@ -29,6 +29,12 @@ Shader "BulletHeaven/JangsanbeomGlow"
         _SparkleSpeed ("Glint Twinkle Speed", Range(0, 20)) = 4
 
         [Header(Warning Telegraph (driven by JangsanbeomTelegraph))]
+        [Header(Claws)]
+        [HDR] _ClawColor ("Claw Glow Color", Color) = (4, 0.15, 0.08, 1)
+        _ClawIntensity ("Claw Glow", Range(0, 20)) = 8
+        _ClawHeight ("Claw Height (object units above the floor)", Range(0, 100)) = 50
+        _ClawRedness ("Claw Redness Threshold", Range(0, 1)) = 0.05
+
         _Warn ("Warn (0 = calm, 1 = about to attack)", Range(0, 1)) = 0
         [HDR] _WarnColor ("Warn Color", Color) = (3, 0.18, 0.08, 1)
         _WarnFurIntensity ("Warn Fur Glow", Range(0, 8)) = 4
@@ -51,6 +57,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
             half4 _EyeColor; half _EyeIntensity; half _EyePulseSpeed; half _EyePulseAmount;
             half4 _RimColor; half _RimPower; half _RimIntensity; half _FurLumMin;
             half4 _SparkleColor; half _SparkleIntensity; half _SparkleDensity; half _SparkleAmount; half _SparkleSpeed;
+            half4 _ClawColor; half _ClawIntensity; half _ClawHeight; half _ClawRedness;
             half _Warn; half4 _WarnColor; half _WarnFurIntensity; half _WarnRimIntensity; half _WarnPulseSpeed; half _WarnWaveFreq; half _WarnWaveSpeed;
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
@@ -116,6 +123,11 @@ Shader "BulletHeaven/JangsanbeomGlow"
                 half eye = SAMPLE_TEXTURE2D(_EyeMask, sampler_EyeMask, i.uv).r;
                 half pulse = 1 - _EyePulseAmount * (0.5 + 0.5 * sin(_Time.y * _EyePulseSpeed));
                 color += eye * _EyeColor.rgb * _EyeIntensity * pulse * (1 + _Warn * 1.5);
+
+                // claws: the reddish, non-fur parts of the paws near the floor (bind pose height), glowing red with the eye pulse
+                half redness = albedo.r - max(albedo.g, albedo.b);
+                half claw = smoothstep(_ClawRedness, _ClawRedness + 0.08, redness) * (1 - smoothstep(_ClawHeight * 0.6, _ClawHeight, i.positionOS.y));
+                color += claw * _ClawColor.rgb * _ClawIntensity * pulse * (1 + _Warn * 2);
 
                 // fur rim: silhouette glow on the pale fur
                 half rim = pow(1 - saturate(abs(dot(gn, v))), _RimPower);   // geometric normal: robust on the Tripo mesh
