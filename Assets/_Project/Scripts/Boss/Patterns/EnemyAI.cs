@@ -23,6 +23,7 @@ namespace BlueReaper.Boss
         [SerializeField] EnemyPatternData deathPattern;
         [SerializeField] float aiTick = 0.1f;
         [SerializeField] float stopChasingDistance = 3f;
+        [SerializeField] TargetRule chaseTargetRule = new();
 
         private readonly struct AreaPlacement
         {
@@ -183,6 +184,8 @@ namespace BlueReaper.Boss
             var wait = new WaitForSeconds(Mathf.Max(0.01f, aiTick));
 
             EnemyActionData selectedAction = null;
+            var chaseTargets = new List<Transform>();
+            var actionTargets = new List<Transform>();
 
             while (!health.IsDead)
             {
@@ -192,38 +195,40 @@ namespace BlueReaper.Boss
                     continue;
                 }
 
-                Transform target = null;
-                foreach (var player in Owner.Players)
-                    if (player && player.gameObject.activeInHierarchy) { target = player; break; }
-
-                if(target && (target.position - transform.position).sqrMagnitude > Owner.SightRange * Owner.SightRange)
-                {
-                    agent.speed = unit.Data.MoveSpeed * Owner.OutSightTrackingPercent;
-                    agent.angularSpeed = 360f * Owner.OutSightTrackingPercent;
-                }
-                else
-                {
-                    agent.speed = unit.Data.MoveSpeed;
-                    agent.angularSpeed = 360f;
-                }
+                EnemyTargetSelector.Select(Owner, Owner.Players, chaseTargetRule, chaseTargets);
+                if (chaseTargets.Count > 1) chaseTargets.RemoveRange(1, chaseTargets.Count - 1);
 
                 if (spawnPatternPending && spawnPattern)
                 {
                     spawnPatternPending = false;
-                    Vector3 directionToTarget = target ? target.position - transform.position : transform.forward;
-                    directionToTarget.y = 0f;
-                    trackingDirection = directionToTarget.normalized;
-                    if (trackingDirection != Vector3.zero)
-                        transform.rotation = Quaternion.LookRotation(trackingDirection);
-
-                    yield return ExecuteAction(spawnPattern, target);
-                    trackingDirection = Vector3.zero;
-                    PlayLocomotion(false);
-                    yield return wait;
-                    continue;
+                    bool resolved = ResolveTargets(spawnPattern, chaseTargets, actionTargets);
+                    if (resolved || spawnPattern.TargetMode == ActionTargetMode.Inherit)
+                    {
+                        Transform spawnTarget = FirstTarget(actionTargets);
+                        UpdateChaseSpeed(spawnTarget);
+                        FaceTarget(spawnTarget, spawnPattern.TargetMode == ActionTargetMode.Inherit);
+                        yield return ExecuteAction(spawnPattern, actionTargets);
+                        trackingDirection = Vector3.zero;
+                        PlayLocomotion(false);
+                        yield return wait;
+                        continue;
+                    }
                 }
 
-                if (target && !selectedAction) selectedAction = SelectNextPattern();
+                if (selectedAction)
+                {
+                    if (selectedAction.TargetMode == ActionTargetMode.Inherit)
+                    {
+                        if (!ResolveTargets(selectedAction, chaseTargets, actionTargets)) selectedAction = null;
+                    }
+                    else if (selectedAction.TargetMode == ActionTargetMode.Select)
+                    {
+                        actionTargets.RemoveAll(target => !IsCurrentPlayer(target));
+                        if (actionTargets.Count == 0) selectedAction = null;
+                    }
+                }
+                if (!selectedAction && (chaseTargets.Count > 0 || Owner.Players.Any(EnemyTargetSelector.IsAlive)))
+                    selectedAction = SelectNextPattern(chaseTargets, actionTargets);
 
                 EnemyPatternData firstPattern = selectedAction switch
                 {
@@ -231,7 +236,9 @@ namespace BlueReaper.Boss
                     EnemyPatternSequenceData { Steps: { Length: > 0 } steps } => steps[0],
                     _ => null
                 };
-                if (!target || !firstPattern)
+                Transform target = FirstTarget(actionTargets);
+                UpdateChaseSpeed(target);
+                if (!firstPattern || (!target && selectedAction.TargetMode != ActionTargetMode.None))
                 {
                     if (!firstPattern) selectedAction = null;
                     if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
@@ -240,22 +247,27 @@ namespace BlueReaper.Boss
                     continue;
                 }
 
-                Vector3 direction = target.position - transform.position;
-                direction.y = 0f;
-                Vector3 destination = target.position - direction.normalized * firstPattern.ChasingDistance;
-                if (!MoveTo(destination) || !IsCompleteDestination())
+                if (target)
                 {
-                    PlayLocomotion(agent.isActiveAndEnabled && agent.isOnNavMesh && agent.hasPath);
-                    yield return wait;
-                    continue;
+                    Vector3 direction = target.position - transform.position;
+                    direction.y = 0f;
+                    Vector3 destination = target.position - direction.normalized * firstPattern.ChasingDistance;
+                    if (!MoveTo(destination) || !IsCompleteDestination())
+                    {
+                        PlayLocomotion(agent.isActiveAndEnabled && agent.isOnNavMesh && agent.hasPath);
+                        yield return wait;
+                        continue;
+                    }
+                }
+                else
+                {
+                    hasChaseDestination = false;
                 }
 
-                agent.isStopped = true;
-                trackingDirection = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.zero;
-                if (trackingDirection != Vector3.zero)
-                    transform.rotation = Quaternion.LookRotation(trackingDirection);
+                if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
+                FaceTarget(target);
 
-                yield return ExecuteAction(selectedAction, target);
+                yield return ExecuteAction(selectedAction, actionTargets);
                 trackingDirection = Vector3.zero;
                 selectedAction = null;
 
@@ -263,6 +275,45 @@ namespace BlueReaper.Boss
                 yield return wait;
             }
             coAIUpdate = null;
+        }
+
+        private static Transform FirstTarget(IReadOnlyList<Transform> targets) => targets.Count > 0 ? targets[0] : null;
+
+        private bool IsCurrentPlayer(Transform target) =>
+            EnemyTargetSelector.IsAlive(target) && Owner.Players.Contains(target);
+
+        private void UpdateChaseSpeed(Transform target)
+        {
+            bool outsideSight = target && (target.position - transform.position).sqrMagnitude > Owner.SightRange * Owner.SightRange;
+            float ratio = outsideSight ? Owner.OutSightTrackingPercent : 1f;
+            agent.speed = unit.Data.MoveSpeed * ratio;
+            agent.angularSpeed = 360f * ratio;
+        }
+
+        private void FaceTarget(Transform target, bool useForwardIfMissing = false)
+        {
+            Vector3 direction = target ? target.position - transform.position
+                : useForwardIfMissing ? transform.forward : Vector3.zero;
+            direction.y = 0f;
+            trackingDirection = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.zero;
+            if (trackingDirection != Vector3.zero) transform.rotation = Quaternion.LookRotation(trackingDirection);
+        }
+
+        private bool ResolveTargets(EnemyActionData action, IReadOnlyList<Transform> inherited, List<Transform> results)
+        {
+            results.Clear();
+            switch (action.TargetMode)
+            {
+                case ActionTargetMode.None:
+                    return true;
+                case ActionTargetMode.Select:
+                    EnemyTargetSelector.Select(Owner, Owner.Players, action.TargetRule, results);
+                    break;
+                default:
+                    results.AddRange(inherited);
+                    break;
+            }
+            return results.Count > 0;
         }
 
         private void StartForwardTracking(EnemyActionData settings)
@@ -315,34 +366,56 @@ namespace BlueReaper.Boss
             if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
         }
 
-        private EnemyActionData SelectNextPattern()
+        private EnemyActionData SelectNextPattern(IReadOnlyList<Transform> chaseTargets, List<Transform> actionTargets)
         {
             Owner.CalcPhase();
+            actionTargets.Clear();
             if (patterns == null) return null;
 
             var candidates = patterns.Where(action => action && action.RequirePhase != null
                 && action.RequirePhase.Contains(Owner.Phase)
                 && (action is EnemyPatternData
                     || (action is EnemyPatternSequenceData { Steps: { Length: > 0 } steps }
-                        && steps.All(step => step)))).ToArray();
-            return candidates.Length > 0 ? candidates[UnityEngine.Random.Range(0, candidates.Length)] : null;
+                        && steps.All(step => step)))).ToList();
+            while (candidates.Count > 0)
+            {
+                int index = UnityEngine.Random.Range(0, candidates.Count);
+                var action = candidates[index];
+                if (ResolveTargets(action, chaseTargets, actionTargets)) return action;
+                candidates.RemoveAt(index);
+            }
+            return null;
         }
 
-        private IEnumerator ExecuteAction(EnemyActionData action, Transform target)
+        private IEnumerator ExecuteAction(EnemyActionData action, IReadOnlyList<Transform> targets)
         {
             if (action is EnemyPatternData pattern)
             {
-                yield return ExecutePattern(pattern, target, action.CanForwardTracking);
+                yield return ExecutePattern(pattern, targets, action.CanForwardTracking);
                 yield break;
             }
 
             if (action is EnemyPatternSequenceData { Steps: { Length: > 0 } steps })
             {
+                List<Transform> stepTargets = null;
                 foreach (EnemyPatternData step in steps)
                 {
                     if (health.IsDead || !step) yield break;
+                    if (step.TargetMode == ActionTargetMode.Inherit)
+                    {
+                        yield return ExecutePattern(step, targets, action.CanForwardTracking);
+                        continue;
+                    }
 
-                    yield return ExecutePattern(step, target, action.CanForwardTracking);
+                    stepTargets ??= new List<Transform>();
+                    if (!ResolveTargets(step, targets, stepTargets)) continue;
+                    Quaternion facing = transform.rotation;
+                    Vector3 direction = trackingDirection;
+                    FaceTarget(FirstTarget(stepTargets));
+                    yield return ExecutePattern(step, stepTargets, action.CanForwardTracking);
+                    if (health.IsDead) yield break;
+                    transform.rotation = facing;
+                    trackingDirection = direction;
                 }
             }
         }
@@ -384,7 +457,7 @@ namespace BlueReaper.Boss
             if (!animator.GetCurrentAnimatorStateInfo(0).IsName(state)) animator.Play(state, 0, 0f);
         }
 
-        private IEnumerator ExecutePattern(EnemyPatternData pattern, Transform target, bool canForwardTracking)
+        private IEnumerator ExecutePattern(EnemyPatternData pattern, IReadOnlyList<Transform> targets, bool canForwardTracking)
         {
             StopMeleeHitWindow();
             StopForwardTracking();
@@ -489,13 +562,17 @@ namespace BlueReaper.Boss
                             break;
                         }
 
-                        pendingBulletEffects++;
-                        StartCoroutine(ExecuteBulletEffect(bulletAttack, target, onBulletFinished));
+                        int volleys = bulletAttack.AimAtTargetEachEmission ? Mathf.Max(1, targets.Count) : 1;
+                        for (int i = 0; i < volleys; i++)
+                        {
+                            pendingBulletEffects++;
+                            Transform target = i < targets.Count ? targets[i] : null;
+                            StartCoroutine(ExecuteBulletEffect(bulletAttack, target, onBulletFinished));
+                        }
                         break;
 
                     case SummonPatternData summonAttack when summonAttack:
-                        if (Stage) Stage.SummonEnemies(unit, target, summonAttack);
-                        else Debug.LogWarning("Summoning requires a StageController.", summonAttack);
+                        Summon(summonAttack, targets);
                         break;
                 }
             }
@@ -523,6 +600,23 @@ namespace BlueReaper.Boss
             }
 
             currentPatternState = PatternState.Done;
+        }
+
+        private void Summon(SummonPatternData pattern, IReadOnlyList<Transform> targets, Vector3? deathOrigin = null)
+        {
+            if (!Stage)
+            {
+                Debug.LogWarning("Summoning requires a StageController.", pattern);
+                return;
+            }
+
+            if (pattern.SummonPositionType != SummonPositionType.Target)
+            {
+                Stage.SummonEnemies(unit, null, pattern, deathOrigin);
+                return;
+            }
+
+            foreach (var target in targets) Stage.SummonEnemies(unit, target, pattern, deathOrigin);
         }
 
         private void ReturnTelegraph()
@@ -679,7 +773,7 @@ namespace BlueReaper.Boss
                     if (health.IsDead) yield break;
                     if (bulletAttack.AimAtTargetEachEmission)
                     {
-                        if (!target || !target.gameObject.activeInHierarchy || !Owner.Players.Contains(target)) break;
+                        if (!IsCurrentPlayer(target)) break;
                         origin = transform.position;
                         Vector3 aim = target.position - origin;
                         aim.y = 0f;
@@ -775,11 +869,11 @@ namespace BlueReaper.Boss
                 activeMelee.HitVfxPrefab ? GetVfxGuard(meleeAfterDeath) : null);
         }
 
-        private static DamageResult DamageWithVfx(IDamageable target, Collider collider, Vector3 origin, Quaternion facing,
+        private DamageResult DamageWithVfx(IDamageable target, Collider collider, Vector3 origin, Quaternion facing,
             float damage, VfxAutoDespawn prefab, float delay, Func<bool> canPlay)
         {
             Vector3 point = prefab && collider ? collider.ClosestPoint(origin) : origin;
-            var result = target.TakeDamage(damage);
+            var result = target.TakeDamage(damage, unit);
             if (result is DamageResult.Applied or DamageResult.Killed)
                 VfxAutoDespawn.Play(prefab, point, facing, delay, canPlay);
             return result;
@@ -805,6 +899,7 @@ namespace BlueReaper.Boss
             if (pattern.CastVfxPrefab)
                 VfxAutoDespawn.Play(pattern.CastVfxPrefab, origin, facing,
                     Mathf.Max(0f, diedAt + pattern.CastVfxDelaySeconds - Time.time), GetVfxGuard(afterDeath: true));
+            List<Transform> summonTargets = null;
             bool meleeRegistered = false;
             foreach (PatternImplData effect in pattern.Implementations ?? Array.Empty<PatternImplData>())
             {
@@ -826,8 +921,18 @@ namespace BlueReaper.Boss
                         break;
 
                     case SummonPatternData summon when summon:
-                        Transform target = Owner.Players.FirstOrDefault(player => player && player.gameObject.activeInHierarchy);
-                        Stage.SummonEnemies(unit, target, summon, deathOrigin: origin);
+                        if (summonTargets == null)
+                        {
+                            summonTargets = new List<Transform>();
+                            if (pattern.TargetMode != ActionTargetMode.None)
+                            {
+                                EnemyTargetSelector.Select(Owner, Owner.Players,
+                                    pattern.TargetMode == ActionTargetMode.Select ? pattern.TargetRule : chaseTargetRule, summonTargets);
+                                if (pattern.TargetMode == ActionTargetMode.Inherit && summonTargets.Count > 1)
+                                    summonTargets.RemoveRange(1, summonTargets.Count - 1);
+                            }
+                        }
+                        Summon(summon, summonTargets, origin);
                         break;
                 }
             }

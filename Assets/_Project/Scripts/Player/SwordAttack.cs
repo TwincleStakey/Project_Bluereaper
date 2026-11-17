@@ -52,7 +52,7 @@ namespace BlueReaper.Player
             foreach (var (target, collider) in hits)
             {
                 Vector3 point = collider.ClosestPoint(origin);
-                target.TakeDamage(damage);
+                target.TakeDamage(damage, unit);
                 HitLanded?.Invoke(point);
             }
             return true;

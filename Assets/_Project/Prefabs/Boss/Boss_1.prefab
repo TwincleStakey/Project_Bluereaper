@@ -235,6 +235,7 @@ GameObject:
   - component: {fileID: 2647093197652973279}
   - component: {fileID: 1979026647588797828}
   - component: {fileID: 5018838254179247499}
+  - component: {fileID: 1089090144097445118}
   m_Layer: 8
   m_Name: Boss_1
   m_TagString: Untagged
@@ -350,6 +351,21 @@ MonoBehaviour:
   deathPattern: {fileID: 0}
   aiTick: 0.1
   stopChasingDistance: 3
+  chaseTargetRule:
+    Filters:
+    - Metric: 0
+      Minimum: 0
+      Maximum: 999999
+    - Metric: 3
+      Minimum: 0
+      Maximum: 9999
+    SortBy:
+    - Metric: 0
+      Descending: 1
+    - Metric: 3
+      Descending: 0
+    SelectionMode: 0
+    Count: 1
 --- !u!95 &2647093197652973279
 Animator:
   serializedVersion: 7
@@ -411,6 +427,19 @@ MonoBehaviour:
   refillDuration: 3
   groggyTime: 4
   postureDamageRatio: 5
+--- !u!114 &1089090144097445118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4179467722401266599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b42a30dbc4bf1b84d9864d70bed4618b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.EnemyAggro
+  aggroPerDamage: 1
 --- !u!1 &4210311558196961191
 GameObject:
   m_ObjectHideFlags: 0

@@ -288,6 +288,7 @@ GameObject:
   - component: {fileID: 5246980696664095001}
   - component: {fileID: 2647093197652973279}
   - component: {fileID: 1979026647588797828}
+  - component: {fileID: 3320942007723350861}
   m_Layer: 7
   m_Name: Monster_1
   m_TagString: Untagged
@@ -397,6 +398,16 @@ MonoBehaviour:
   deathPattern: {fileID: 0}
   aiTick: 0.1
   stopChasingDistance: 3
+  chaseTargetRule:
+    Filters:
+    - Metric: 3
+      Minimum: 0
+      Maximum: 999
+    SortBy:
+    - Metric: 3
+      Descending: 0
+    SelectionMode: 0
+    Count: 1
 --- !u!95 &2647093197652973279
 Animator:
   serializedVersion: 7
@@ -441,6 +452,19 @@ NavMeshAgent:
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &3320942007723350861
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4179467722401266599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b42a30dbc4bf1b84d9864d70bed4618b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.EnemyAggro
+  aggroPerDamage: 1
 --- !u!1 &8128564471890522944
 GameObject:
   m_ObjectHideFlags: 0

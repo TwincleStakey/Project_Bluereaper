@@ -47,7 +47,7 @@ namespace BlueReaper.HitBox
             var target = HurtboxTarget.Find(other);
             if (target == null) return;
             if (onContact != null) onContact(target, other);
-            else if (hitTargets.Add(target)) target.TakeDamage(damage);
+            else if (hitTargets.Add(target)) target.TakeDamage(damage, owner);
         }
     }
 }

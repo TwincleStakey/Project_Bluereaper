@@ -133,7 +133,7 @@ namespace BlueReaper.HitBox
                 var guard = vfxGuard;
                 Vector3 point = hitVfx ? other.ClosestPoint(transform.position) : default;
                 Quaternion rotation = transform.rotation;
-                var result = target.TakeDamage(damage);
+                var result = target.TakeDamage(damage, owner);
                 if (result is DamageResult.Applied or DamageResult.Killed)
                     VfxAutoDespawn.Play(hitVfx, point, rotation, vfxDelay, guard);
                 ReturnToPool();

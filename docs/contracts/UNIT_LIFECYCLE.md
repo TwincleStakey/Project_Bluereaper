@@ -21,9 +21,10 @@
 - 공격 판정은 `Hurtbox` 레이어의 피격용 Collider에서 부모의 `IDamageable`을 찾는다. 같은 부위가 공격에도 쓰이면 공격용 Collider와 피격용 Collider를 별도 GameObject에 배치한다. 근거리 패턴은 공격용 Collider만 켜고 끈다. 이동용 Collider는 기존 레이어를 사용한다.
 - 평타와 자동 조준의 `targetLayers`는 피해를 받는 `Unit`의 레이어를 지정한다. 물리 조회에는 `Hurtbox` 트리거를 포함하고, 자동 조준은 대상 `Enemy.Rank`로 보스 우선순위를 판단한다. 평타는 장판과 같은 영역 조회로 부채꼴에 걸친 Collider를 찾고, 한 번 휘두를 때 같은 `IDamageable`에 한 번 피해를 전달한다.
 - 원형·부채꼴·도넛은 높이와 실제 곡선 경계를 가진 영역에서 `BoxCollider`, `SphereCollider`, `CapsuleCollider`의 겹침을 계산한다. 도넛 중앙이 안전 구역이며, 판정 높이 안에서 피격 영역이 링의 안쪽이나 바깥쪽 경계에 닿으면 적중한다. 직사각형은 Unity의 `OverlapBoxNonAlloc`으로 조회한다.
-- `Health.TakeDamage`는 이미 사망한 개체, 무적 상태, 0 이하 피해를 무시한다. 유효한 피해는 체력을 줄이고 `Damaged`를 발행한다. 그 타격으로 체력이 0이 되면 이어서 `Died`를 발행한다. `Kill`은 살아 있는 개체를 즉시 사망시키고 `Died`를 발행한다.
+- `Health.TakeDamage`는 이미 사망한 개체, 무적 상태, 0 이하 피해를 무시한다. 유효한 피해는 체력을 줄이고 `DamageApplied`로 선택적 공격자와 실제 HP 감소량을 전달한 뒤, 기존 `Damaged`에 요청 피해량을 전달한다. 그 타격으로 체력이 0이 되면 이어서 `Died`를 발행한다. `Kill`은 살아 있는 개체를 즉시 사망시키고 `Died`를 발행한다.
 - `IDamageable.TakeDamage`는 이번 호출의 `DamageResult`를 반환한다. 체력이 줄지 않으면 `Ignored`, 줄면 `Applied`, 이번 피해로 체력이 0이 되면 `Killed`다. 결과는 이벤트 구독자 호출 전에 확정한다. 적 패턴의 피격 VFX는 `Applied`와 `Killed`에 예약한다.
 - `Posture`는 비치명 피해량에 자세 피해 배율을 적용한다. 자세가 0이 되면 `GroggyStarted`를 발행하고 그로기 종료 시 최대치로 복구한다. 일반 감소는 유예 시간 이후 설정된 회복 시간에 따라 복구한다.
+- [EnemyAggro](../../Assets/_Project/Scripts/Core/EnemyAggro.cs)는 적 개체별로 공격자마다 실제 HP 감소량 × 배율을 누적한다. 공격자 없는 피해나 `Kill`은 어그로를 올리지 않는다. `AddAggro`는 피해 없이 지정한 양을 추가한다. 비활성화·풀 재사용 시 누적 수치를 초기화한다. 배율을 지정할 프리팹은 `EnemyAggro` 컴포넌트를 추가해 설정한다. 별도 설정이 없는 적은 활성화 전에 기본 배율 1을 사용한다.
 - 플레이어 사망은 입력·이동·컨트롤러를 끄고 생존 타겟 목록에서 제외한다. 스테이지는 플레이어 본체를 풀로 반환하지 않는다.
 - 적 사망 시 `EnemyAI.OnHealthDied`가 행동과 일반 탄을 정리하고 연출을 시작한다. `StageController.OnUnitDied`는 소속 필드와 집계 여부를 확인한다. AI는 한 프레임 뒤 `CanRunDeathPattern`을 확인해 사망 효과를 실행한다. 효과 구성은 [적 패턴 계약](ENEMY_PATTERNS.md)을 참조한다.
 - 생존 적을 필드 전환으로 회수할 때는 사망 이벤트가 발생하지 않는다. 사망 연출이 진행 중이면 완료 통지를 받아 본체를 회수한다. AI가 없거나 비활성인 사망 적은 스테이지가 직접 회수한다.
