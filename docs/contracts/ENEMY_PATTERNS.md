@@ -53,6 +53,12 @@
 - 고정 배치 스텝은 좌표마다 전조를 풀에서 대여한다. 첫 범위 효과의 로컬 중심·회전을 그 좌표계에 적용한 위치가 전조의 기준이다. 같은 범위 효과의 같은 판정 틱에서는 여러 좌표에 겹친 대상에게 한 번만 피해를 준다. 배치 후 계속되는 장판은 예약 당시 좌표를 유지한다.
 - 탄막은 각 확정 좌표를 경로의 기준점으로 사용한다. 이 모드에서는 회차별 실시간 재조준을 적용하지 않는다. 근거리·소환·시전 VFX는 각각의 기존 배치를 사용한다. 사망 패턴은 전용 경로에서 기존 사망 기준으로 실행한다.
 
+## 대상 발밑 배치 편집
+
+- 패턴 Inspector에서 `Placement Mode`를 바꾸면 현재 모드의 동작을 확인할 수 있다. 시퀀스 Inspector는 앞에 `CaptureTargets`가 없는 `ReuseCaptured` 스텝 번호를 표시한다. 캡처 대상의 생존 여부는 실행 시점에 결정된다.
+- 고정 배치 스텝의 SceneView 미리보기에는 발밑 월드 좌표와 시전자 Y 회전을 입력한다. 재사용 스텝에는 앞선 캡처와 같은 값을 입력하면 같은 위치에서 전조 기준과 범위를 확인할 수 있다. 입력값은 미리보기에만 사용한다.
+- [대상 발밑 배치 예제](../../Assets/_Project/Data/Bosses/TargetPlacementExample/TargetPlacementExample.asset)는 가까운 대상 최대 3명의 발밑 전조·장판, 같은 좌표의 확산 탄막, 후속 폭발을 순서대로 실행하도록 구성했다. Inspector 편집 검사는 `Tools > BlueReaper > Check Target Placement Editors`에서 실행할 수 있다.
+
 ## 패턴 VFX
 
 - `EnemyPatternData.CastVfxPrefab`은 스텝 시작 또는 사망 시점 기준 `CastVfxDelaySeconds`에 재생한다. 일반·스폰 패턴은 스텝 종료나 중단 시 남은 시전 연출을 취소한다. 사망 패턴의 연출은 활성 필드에서 사망 좌표를 사용한다.
