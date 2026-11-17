@@ -1,6 +1,0 @@
-{
-  "name": "DarkCrypt.Runtime",
-  "rootNamespace": "DarkCrypt",
-  "references": ["Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
-  "autoReferenced": true
-}

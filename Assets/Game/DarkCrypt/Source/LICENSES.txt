@@ -1,8 +1,0 @@
-DarkCrypt source assets (copied 2026-11-14)
-- Fab_*: Quixel Megascans via Fab (Fab Standard License) - castle_floor_stone_tdblbcyt, castle_wall_sbxuw, stone_pillar_selvF, historic_medieval_farm_candle_beeswax_burnt_02_xmnnffi
-- PH_*: Poly Haven, CC0 1.0 - large_iron_gate, painted_wooden_bench, wooden_candlestick
-- Crystals: poly.pizza, CC0 1.0 - iPoly3D (7), Quaternius (1); see Crystals/_crystals_list.txt (v3: no longer placed)
-- SF_CrystalCluster2, SF_VioletCrystalFormation: Sketchfab, CC BY 4.0 (see ../CREDITS.txt)
-- Fab_Debris: Quixel Megascans via Fab (Fab Standard License) - debris decal phhh0kp2 (copied 2026-11-15)
-- Fab_dirt_ground_xdhhefr_2k: Quixel Megascans via Fab (Fab Standard License) - dirt ground surface, grout/patch blend in DarkCrypt/Floor (copied 2026-11-15)
-- Generated/DC_StainRGBA.png: made from the Megascans blood stain decal sg3bdgoc (Fab Standard License) already in SnowPlague/ThirdParty/Megascans

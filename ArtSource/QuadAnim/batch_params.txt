@@ -1,7 +1,0 @@
-Stance shared by the tiger clips (11-16, Kido: heavy stalking predator, not splayed/toddling):
-  QA_HIND_W=0.2 QA_FRONT_W=0.5 QA_STALK=6 QA_HEAD_DROP=14
-walk:   QA_STRIDE=1.45 QA_BODY=1.5 QA_BOUNCE=1.6 speed 0.7
-trot:   QA_STRIDE=1.3  QA_BODY=1.5 QA_BOUNCE=1.6 speed 0.75
-gallop: QA_HEAD_DROP=6 QA_BODY=2.0 QA_BOUNCE=2.2 speed 0.62
-idle, roar: speed 1
-predator/smilodon clips: defaults (death: QA_TRAVEL=0.15)

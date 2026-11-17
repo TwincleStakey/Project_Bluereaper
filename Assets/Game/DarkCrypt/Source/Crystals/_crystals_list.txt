@@ -1,8 +1,0 @@
-crystal_cluster_a.glb | poly.pizza/m/3saqXqoOti | author: iPoly3D | CC0 1.0 | 27396 bytes
-crystal_cluster_b.glb | poly.pizza/m/WzWPKHFMkL | author: iPoly3D | CC0 1.0 | 35600 bytes
-crystal_cluster_c.glb | poly.pizza/m/Wj8Qjq38T8 | author: iPoly3D | CC0 1.0 | 11704 bytes
-crystal_cluster_d.glb | poly.pizza/m/dxCmHfpqc5 | author: iPoly3D | CC0 1.0 | 17296 bytes
-crystal_cluster_spiky.glb | poly.pizza/m/nyCeR6poJX | author: iPoly3D | CC0 1.0 | 88416 bytes
-crystal_cluster_quaternius_pink.glb | poly.pizza/m/STixpWYaTd | author: Quaternius | CC0 1.0 | 90384 bytes
-crystal_shard_a.glb | poly.pizza/m/wkuYn6x3UL | author: iPoly3D | CC0 1.0 | 9900 bytes
-crystal_shard_b.glb | poly.pizza/m/xVFoDfiScT | author: iPoly3D | CC0 1.0 | 10404 bytes

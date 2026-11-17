@@ -1,4 +1,0 @@
-d_game_z1.6 0 -6 1.6
-d_edge_plate 14 -10 0.6
-d_edge_plate_n -4 14 0.6
-d_full_z3.6 0 4 3.6

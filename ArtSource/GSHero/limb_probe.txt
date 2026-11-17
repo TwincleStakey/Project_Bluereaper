@@ -1,4 +1,0 @@
-# 11-15 limb fix probe (BZ_PROBE=1 blender -b gs_hero_work_fixed.blend --python gs_berserker_anim.py)
-Legs, hips down 0.25, knee locked to its X hinge: pole -90 (1st pass) -> thigh roll +177/-177, knee behind the line; pole +90 -> thigh roll -3/+3, knee 0.285 forward.
-Arms: pole -90 correct, but the straight T-pose chain never bent (forearm rotation 0 in every baked frame) until a +X seed rotation is keyed on the forearm.
-Per-bone twist tables: ingame_shots/limb_fix/limb_twist_before.txt / limb_twist_after.txt

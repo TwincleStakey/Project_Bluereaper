@@ -1,2 +1,0 @@
-2026-11-16T14:44:49 [WindKey] perf 1920x1080 frame ms: without keys 9.36/4.86, with 300 extra keys 5.10/4.62
-2026-11-16T14:50:59 [WindKey] perf 1920x1080 frame ms: without keys 8.04/4.77, with 300 extra keys 5.98/5.52

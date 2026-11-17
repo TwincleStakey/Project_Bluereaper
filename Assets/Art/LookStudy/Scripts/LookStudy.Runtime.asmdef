@@ -1,4 +1,0 @@
-{
-  "name": "LookStudy.Runtime",
-  "references": ["Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime", "Unity.InputSystem", "UnityEngine.UI"]
-}
