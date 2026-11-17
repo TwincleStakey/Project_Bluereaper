@@ -36,7 +36,20 @@ namespace RoomRun
         public static float HandZoom = 0.3f;   // mode 6: tight on the hero for the walking-hand check
         PlayerCommand ReadSingle(float t, PlayerCommand c)
         {
-            float walkAt = WideMode == 4 ? SingleWalk4 : WideMode == 6 ? 0.6f : 99f;
+            float walkAt = WideMode == 4 ? SingleWalk4 : WideMode == 6 || WideMode == 7 ? 0.6f : 99f;
+            // 11-17 mode 7: the walk in 8 directions (N, NE, E, SE, S, SW, W, NW), close
+            if (WideMode == 7)
+            {
+                Zoom(HandZoom);
+                if (t >= walkAt && t < walkAt + 8f * WideWalkLen)
+                {
+                    int k = (int)((t - walkAt) / WideWalkLen);
+                    float ang = k * 45f * Mathf.Deg2Rad;
+                    string[] n8 = { "walkN", "walkNE", "walkE", "walkSE", "walkS", "walkSW", "walkW", "walkNW" };
+                    c.move = new Vector2(Mathf.Sin(ang), Mathf.Cos(ang)); Phase = n8[k]; return c;
+                }
+                Phase = "idle"; return c;
+            }
             if (WideMode == 4) Zoom(t < 5.6f || t >= walkAt - 0.4f ? WideClose : WideDefault);
             else Zoom(WideMode == 6 ? HandZoom : WideDefault);
             var clicks = WideMode == 4 ? Single4 : WideMode == 5 ? new[] { 1.0f } : new float[0];
@@ -115,6 +128,7 @@ namespace RoomRun
         GreatswordCombat gs;
         Transform tipT, vis;
         float bladeLen = 1.2f;
+        Vector3 faceAxis = Vector3.right;
 
         public void OpenLog(string path, PlayerController p)
         {
@@ -125,7 +139,31 @@ namespace RoomRun
             vis = an ? an.transform.parent : null;
             foreach (var t in p.GetComponentsInChildren<Transform>()) if (t.name == "Greatsword") { tipT = t; break; }
             if (tipT) bladeLen = BladeTrail.MeasureBlade(tipT);
-            log.WriteLine("frame,time,phase,step,stepT,animT,rootX,rootZ,hipsX,hipsY,hipsZ,lfX,lfY,lfZ,rfX,rfY,rfZ,gripX,gripY,gripZ,tipX,tipY,tipZ,visYaw,velX,velZ,timeScale,tipR,vfxR,vfxScale,lights,hipsYaw,chestYaw,bladeYaw,layerW,spinYaw,clipF,stretch,bladePitch,chestY,gripSlip,wristBend,bladeOff");
+            // 11-16 flat hold check: the blade's face normal = the thinner of the sword meshes' local X / Y extents
+            faceAxis = Vector3.right;
+            if (tipT)
+            {
+                var mn = Vector3.one * 1e9f; var mx = -mn;
+                foreach (var mf in tipT.GetComponentsInChildren<MeshFilter>())
+                {
+                    if (!mf.sharedMesh) continue;
+                    var b = mf.sharedMesh.bounds;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        var c = tipT.InverseTransformPoint(mf.transform.TransformPoint(new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z)));
+                        mn = Vector3.Min(mn, c); mx = Vector3.Max(mx, c);
+                    }
+                }
+                faceAxis = (mx.x - mn.x) < (mx.y - mn.y) ? Vector3.right : Vector3.up;
+                Debug.Log($"[RoomRun] sweep log: sword extents {mx - mn}, face normal local {faceAxis}");
+                foreach (var r in tipT.GetComponentsInChildren<Renderer>(true))
+                {
+                    var m = r.sharedMaterial;
+                    Texture t = m && m.HasProperty("_BaseMap") ? m.GetTexture("_BaseMap") : null;
+                    Debug.Log($"[RoomRun] sword renderer {r.name}: enabled {r.enabled}, mats {r.sharedMaterials.Length}, mat {(m ? m.name : "null")}, shader {(m && m.shader ? m.shader.name : "-")}, _BaseMap {(t ? t.name + " " + t.width : "none")}, MPB {r.HasPropertyBlock()}, _Steel {(m && m.HasProperty("_Steel") ? m.GetFloat("_Steel") : -1f)}");
+                }
+            }
+            log.WriteLine("frame,time,phase,step,stepT,animT,rootX,rootZ,hipsX,hipsY,hipsZ,lfX,lfY,lfZ,rfX,rfY,rfZ,gripX,gripY,gripZ,tipX,tipY,tipZ,visYaw,velX,velZ,timeScale,tipR,vfxR,vfxScale,lights,hipsYaw,chestYaw,bladeYaw,layerW,spinYaw,clipF,stretch,bladePitch,chestY,gripSlip,wristBend,bladeOff,bladeFlat,bladeLowY,flatRoll,longToBody,faceToCam");
         }
 
         readonly System.Collections.Generic.Dictionary<Mesh, float> meshR = new System.Collections.Generic.Dictionary<Mesh, float>();
@@ -197,9 +235,11 @@ namespace RoomRun
             var st = p.GetComponent<ArmStretch>(); var sb = p.GetComponent<SplitBody>();
             var uc = an.GetBoneTransform(HumanBodyBones.UpperChest) ?? an.GetBoneTransform(HumanBodyBones.Chest);
             float pitch = tipT ? Mathf.Asin(Mathf.Clamp(tipT.forward.y, -1f, 1f)) * Mathf.Rad2Deg : 0f;
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture, ",{0:0.0},{1:0.0},{2:0.0},{3:0.00},{4:0.0},{5:0.0},{6:0.00},{7:0.0},{8:0.000},{9:0.0},{10:0.0},{11:0.0}",
+            return string.Format(System.Globalization.CultureInfo.InvariantCulture, ",{0:0.0},{1:0.0},{2:0.0},{3:0.00},{4:0.0},{5:0.0},{6:0.00},{7:0.0},{8:0.000},{9:0.0},{10:0.0},{11:0.0},{12:0.00},{13:0.000},{14:0.0},{15:0.00},{16:0.00}",
                 h ? Yw(h.forward) : 0f, chest, tipT ? Yw(tipT.forward) : 0f, L >= 0 ? an.GetLayerWeight(L) : -1f, gs ? gs.SpinYaw : 0f,
-                gs ? gs.ClipFrame : -1f, st ? st.Amount : 0f, pitch, uc ? uc.position.y : 0f, sb ? sb.GripSlip : 0f, sb ? sb.WristBend : 0f, sb ? sb.BladeOffset : 0f);
+                gs ? gs.ClipFrame : -1f, st ? st.Amount : 0f, pitch, uc ? uc.position.y : 0f, sb ? sb.GripSlip : 0f, sb ? sb.WristBend : 0f, sb ? sb.BladeOffset : 0f,
+                tipT ? Mathf.Abs(Vector3.Dot(tipT.TransformDirection(faceAxis), Vector3.up)) : 0f, tipT ? Mathf.Min(tipT.position.y, (tipT.position + tipT.forward * bladeLen).y) - p.transform.position.y : 0f,
+                sb ? sb.FlatRollDeg : 0f, sb ? sb.LongToBody : 0f, sb ? sb.FaceToCam : 0f);
         }
 
         public void CloseLog() { if (log != null) { log.Close(); log = null; } }

@@ -758,3 +758,39 @@ eyes 2
 rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
 rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
 rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[10:43:54] got rrplayer
+[10:43:55] rr imports ok
+berserker clips: BZ_Dash 1.00s, BZ_Idle 1.33s, BZ_Run 0.67s, BZ_Slash3 1.00s, BZ_Slash2 0.67s, BZ_Slash1 0.53s
+rr controller: berserker clips
+rr controller ok, loco children 5
+avatar valid=True human=True
+textures: GS_Hero_basecolor_flat.png, GS_Shirt_basecolor_flat.png, GS_Greatsword_basecolor_iron.png (sword always original)
+textures base=True em=True sword=True
+materials: shader GSHero/Readable
+hat mesh: 243 of 11483 verts marked (head-space y -0.02..0.23) -> Assets/Game/GSHero/Generated/GS_Hero_HatMask.asset
+renderer GS_Hero SkinnedMeshRenderer bounds (1.53, 1.92, 0.50) center (0.00, 0.84, -0.02)
+renderer GS_Sword MeshRenderer bounds (0.50, 0.89, 1.39) center (0.80, 1.63, 0.41)
+renderer GS_Shirt SkinnedMeshRenderer bounds (0.70, 0.52, 0.34) center (0.00, 1.32, 0.00)
+GS_EyeL pos (-0.033, 1.661, 0.091) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+GS_EyeR pos (0.029, 1.659, 0.087) lossyScale (100.000, 100.000, 100.000) parent mixamorig:Head
+eyes 2
+build: saved Assets/Game/GSHero/Generated/GS_HeroPreview.prefab
+rrplayer gs: top y ref 1.672 gs 1.799 -> body scale 0.929
+rrplayer gs: sword parent was mixamorig:RightHand, axis 2, grip off hand 0.049, hand lossy 92.910
+rrplayer gs: sword keeps the FBX grip (berserker clips)
+GS_EyeL pos (-0.031, 1.544, 0.084) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+GS_EyeR pos (0.027, 1.541, 0.081) lossyScale (92.910, 92.910, 92.910) parent mixamorig:Head
+eyes 2
+rrplayer gs: hat: 706 verts, centre xz -0.006,0.018, profile y:r -0.02:0.07 0.00:0.08 0.02:0.08 0.04:0.09 0.06:0.18 0.08:0.18 0.10:0.18 0.12:0.18 0.14:0.12 0.16:0.11 0.17:0.06 0.19:0.06 0.21:0.01
+rrplayer gs: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab
+rrplayer: saved Assets/Game/GSHero/Generated/RR_GSHeroPlayer.prefab; vfx ok, finisher ok, grass tex ok
+[11:14:11] got bzprobe
+[11:14:11] bzprobe: BZ_Slash3 30 f max tip r 2.02; BZ_Slash2 20 f max tip r 2.00; BZ_Slash1 16 f max tip r 2.00;
+[11:16:22] got bzprobe
+[11:16:22] bzprobe: BZ_Slash3 30 f max tip r 2.02; BZ_Slash2 20 f max tip r 2.00; BZ_Slash1 16 f max tip r 2.00;
+[18:14:09] got reimport Assets/Game/GSHero/Art/GS_BerserkerAnims.fbx
+[18:14:09] reimported Assets/Game/GSHero/Art/GS_BerserkerAnims.fbx
+[18:14:11] got bzprobe
+[18:14:11] bzprobe: BZ_Slash3 30 f max tip r 2.02; BZ_Slash2 20 f max tip r 2.00; BZ_Slash1 28 f max tip r 2.10;
+[18:19:50] got reimport Assets/Game/GSHero/Art/GS_BerserkerAnims.fbx
+[18:19:50] reimported Assets/Game/GSHero/Art/GS_BerserkerAnims.fbx

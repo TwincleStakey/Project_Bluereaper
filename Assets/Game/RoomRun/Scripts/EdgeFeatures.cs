@@ -139,7 +139,7 @@ namespace RoomRun
             int n = 0;
             float k = Lift.TryGetValue(run.Room.id, out var l) ? l : 1f;
             foreach (var f in list) if (Place(f, c, hx, hz, holder.transform, k, run.Room.id) != null) n++;
-            if (run.Room.id == "palace") { n += PalaceWalls(c, hx, hz, holder.transform, k); n += PalaceProps(c, holder.transform); }
+            if (run.Room.id == "palace") { n += PalaceWalls(c, hx, hz, holder.transform, k); n += PalaceProps(c, holder.transform); n += PalaceStage.Build(c, holder.transform); }
             Debug.Log($"[EdgeFeatures] {run.Room.id}: {n} features at the edges");
         }
 
@@ -258,7 +258,9 @@ namespace RoomRun
             int n = 0;
             // court coordinates are the stage's (LookStudyRuins: arena x +-54, z -49.5..45.75; the room centre is the stage origin)
             var off = new Vector3(c.x, 0f, c.z);
-            foreach (var p in PalaceSet.Concat(Islands()))
+            // 11-17: the jittered "battle aftermath" islands (lying banners that read as dark squares, single spears too thin
+            // for this camera) are replaced by PalaceStage's vignettes and edge bands; set RR.PalaceStage 0 for the 11-16 look
+            foreach (var p in PalaceStage.Enabled ? PalaceSet : PalaceSet.Concat(Islands()))
             {
                 var prefab = Resources.Load<GameObject>("EdgeFeatures/" + p.what);
                 if (!prefab) { Debug.LogWarning("[EdgeFeatures] no prefab " + p.what); continue; }

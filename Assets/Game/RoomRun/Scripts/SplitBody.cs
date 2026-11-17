@@ -116,6 +116,29 @@ namespace RoomRun
         // offset (20-60 deg off the keyed swing, growing with play time). Back to the grip's rest rotation every frame
         // before anything adds to it.
         Quaternion swordRest; bool swordRestSet;
+        // 11-16 flat hold (Kido 21:38 KST: "칼이 면쪽이 보이게 눕히고 있다가 바로 배는게 이어지게 ... 손에 쥐고있는칼만 90도
+        // 돌려"): the grip node is rolled about the blade's own long axis (local +Z) so the face lies flat for the top-down
+        // camera. A fixed 90 deg roll did it in idle / walk (keyed edge-up) but stood the blade half on edge in the swing,
+        // which is keyed flat already (log bladeFlat 0.06-0.5 vs 1.0). So the roll is solved every frame: the turn about the
+        // blade axis that brings the face normal closest to world up (~90 in idle and walk, ~0 in the swing), eased at
+        // flatRate, held while the blade points near straight up/down. The face stays up from the hold into the sweep.
+        // Arms, hands and clips untouched. Shots token flat=0 = the old seat for A/B.
+        // 11-17 (Kido 09:03-09:08: "좌우로 움직일때 칼이 계속 flip돼", "칼날중에 더 긴쪽이 항상 몸쪽 짧은쪽이 바깥쪽",
+        // "칼끝 긴쪽 몸쪽이라고 했는데 정반대로 했자나", "뒤로갈때 칼이 스자나"): "a face up" had two answers and the solve
+        // jumped between them (180 deg flips), and world up is not what the 55 deg camera sees. The blade is asymmetric:
+        // its point sits on one edge (GS_Greatsword.fbx: the tip is on the +y edge), so that edge is the LONG one. Rule now:
+        // the width line is turned square to the camera's view (face to the camera) and its long edge points toward the
+        // body (hips), with hysteresis on that side choice and a roll-speed cap, so it can never flip. Same rule in the
+        // swing. Shots token flat=0 = the old seat.
+        public static float GripSlide = 0.10f;   // m the sword moves toward the pommel through the fist
+        Vector3 swordPos0; bool swordPosSet;
+        public static bool FlatHold = true;
+        public float flatRate = 1800f;    // deg/s cap on the roll in the hand: the swing turns the hand ~30 deg a frame, so 450 lagged (edge-on at contact / recovery); the side hysteresis is what stops flips
+        float flatRoll; Vector3 faceAxis = Vector3.right, longAxis = Vector3.up; bool faceSet; float bodySign = 1f; bool sideSet;
+        public float FlatRollDeg => flatRoll;           // logs
+        public float LongToBody { get; private set; }   // logs: long edge . (toward body), + = body side
+        public float FaceToCam { get; private set; }    // logs: |face normal . view|
+        Quaternion Seat => swordRest * Quaternion.AngleAxis(FlatHold ? flatRoll : 0f, Vector3.forward);
         void ResetSword()
         {
             if (!sword && anim)
@@ -126,16 +149,213 @@ namespace RoomRun
             }
             if (!sword) return;
             if (!swordRestSet) { swordRest = sword.localRotation; swordRestSet = true; }
-            sword.localRotation = swordRest;
+            if (FlatHold) SolveFlat();
+            sword.localRotation = Seat;
+            // 11-17 grip slide (Kido: "칼을 안쥐고있어"): the fist sat on the pommel end; slide the sword through the fist so
+            // the hand wraps the handle ~1/3 below the guard (pommel out under the fist). Shots token slide=<m>.
+            if (!swordPosSet) { swordPos0 = sword.localPosition; swordPosSet = true; }
+            sword.localPosition = swordPos0 - (sword.localRotation * Vector3.forward) * GripSlide;
+            if (FlatHold) LiftTip();
+        }
+
+        // flat hold: the idle / walk-back seat ran the tip 0.1-0.27 m into the ground (it lay in the grass once flat); pitch
+        // the blade up about the grip just enough to keep the tip minTipY over the root (never during the swing, tip > 0.3)
+        public float minTipY = 0.08f;
+        void LiftTip()
+        {
+            var a = sword.forward;
+            float ground = transform.position.y, gy = sword.position.y - ground, ty = gy + a.y * bladeLen;
+            if (ty >= minTipY || bladeLen < 0.2f) return;
+            var h = new Vector3(a.x, 0f, a.z);
+            if (h.sqrMagnitude < 1e-4f) return;
+            h.Normalize();
+            float s = Mathf.Clamp((minTipY - gy) / bladeLen, -0.95f, 0.95f), c = Mathf.Sqrt(1f - s * s);
+            sword.rotation = Quaternion.FromToRotation(a, h * c + Vector3.up * s) * sword.rotation;
+        }
+
+        void SolveFlat()
+        {
+            if (!faceSet) MeasureBlade();
+            var parent = sword.parent ? sword.parent.rotation : Quaternion.identity;
+            float r = RollTo(parent * swordRest, flatRoll, true);
+            float dt = Time.deltaTime;
+            flatRoll = dt > 0f ? Mathf.MoveTowardsAngle(flatRoll, r, flatRate * dt) : r;
+        }
+
+        // long edge = the side of the blade the point sits on, in sword space (vertices; the editor reads non-readable meshes)
+        void MeasureBlade()
+        {
+            faceSet = true;
+            var pts = new System.Collections.Generic.List<Vector3>(4096);
+            foreach (var mf in sword.GetComponentsInChildren<MeshFilter>())
+            {
+                var m = mf.sharedMesh; if (!m) continue;
+                Vector3[] vs;
+                try { vs = m.vertices; } catch { continue; }
+                foreach (var v in vs) pts.Add(sword.InverseTransformPoint(mf.transform.TransformPoint(v)));
+            }
+            if (pts.Count == 0) { Debug.LogWarning("[RoomRun] flat hold: sword mesh unreadable, long edge unknown"); return; }
+            float zmax = float.MinValue; Vector3 tip = Vector3.zero;
+            foreach (var p in pts) if (p.z > zmax) { zmax = p.z; tip = p; }
+            var mn = Vector3.one * 1e9f; var mx = -mn;
+            foreach (var p in pts) if (p.z > zmax * 0.55f && p.z < zmax * 0.85f) { mn = Vector3.Min(mn, p); mx = Vector3.Max(mx, p); }
+            if (mx.x < mn.x) return;
+            faceAxis = (mx.x - mn.x) < (mx.y - mn.y) ? Vector3.right : Vector3.up;   // thin axis
+            var w = faceAxis == Vector3.right ? Vector3.up : Vector3.right;            // width axis
+            float mid = Vector3.Dot((mn + mx) * 0.5f, w), off = Vector3.Dot(tip, w) - mid;
+            // 11-17 09:49 Kido first said "또 칼 방향 반대자나", then "아니야 맞어": the point-side edge toward the body stays
+            longAxis = w * (off >= 0f ? 1f : -1f);
+            Debug.Log($"[RoomRun] flat hold: blade width {Vector3.Dot(mx - mn, w):0.000} thick {Vector3.Dot(mx - mn, faceAxis):0.000}, tip off-centre {off:0.000} -> long edge local {longAxis}");
+        }
+
+        Camera viewCam;
+        // roll (deg, about the blade axis, added to rotation q) that puts the width square to the view with the long edge
+        // toward the body; keep = the answer when the blade looks straight along the view
+        float RollTo(Quaternion q, float keep, bool updateSide)
+        {
+            if (!viewCam || !viewCam.isActiveAndEnabled) viewCam = Camera.main;
+            var view = viewCam ? viewCam.transform.forward : Vector3.down;
+            var a = q * Vector3.forward;
+            var c = Vector3.Cross(a, view);
+            if (c.sqrMagnitude < 0.04f) return keep;   // blade along the view
+            c.Normalize();
+            var mid = sword.position + a * (bladeLen * 0.5f);
+            var toBody = (hips ? hips.position : transform.position + Vector3.up) - mid;
+            toBody -= a * Vector3.Dot(toBody, a);
+            if (toBody.sqrMagnitude > 1e-6f)
+            {
+                float d = Vector3.Dot(c, toBody.normalized);
+                if (updateSide && (Mathf.Abs(d) > 0.25f || !sideSet) && d != 0f) { bodySign = Mathf.Sign(d); sideSet = true; }   // hysteresis: no flip near the edge case
+            }
+            c *= bodySign;
+            var w = q * longAxis;
+            return Vector3.SignedAngle(w, c, a);
         }
 
         void LateUpdate()
         {
             Bind();
             ResetSword();
-            if (!On) { RunFeel(); return; }
-            AimSplit();
-            if (Feel) RunFeel();
+            if (!On) RunFeel();
+            else { AimSplit(); if (Feel) RunFeel(); }
+            // the drag spring pitches the blade again after the seat lift (walking down / left the tip went 5 cm under): lift once more
+            if (OffHand) FreeArm();
+            if (GripFist) Fist();
+            if (FlatHold) { if (sword) LiftTip(); FaceUp(); }
+        }
+
+        // 11-17 sword hand (Kido 09:49: "칼 쥐고 있는 손이 너무 이상해", "칼을 안쥐고있어"): the clips leave the right fingers
+        // half open, so the handle sat beside an open claw. Every finger bone is curled toward the handle: the axis is
+        // (bone direction x direction to the handle centre line), proximal / middle / distal by fistDeg; the thumb wraps
+        // the other side by thumbDeg. Applied every frame after the arm passes; shots token fist=0 = the clip's hand.
+        public static bool GripFist = true;
+        public Vector3 fistDeg = new Vector3(85f, 95f, 70f);
+        public Vector3 thumbDeg = new Vector3(25f, 35f, 35f);
+        Transform[][] fingersR;
+        void Fist()
+        {
+            if (!sword || !anim) return;
+            if (fingersR == null)
+            {
+                HumanBodyBones[][] ids =
+                {
+                    new[] { HumanBodyBones.RightIndexProximal, HumanBodyBones.RightIndexIntermediate, HumanBodyBones.RightIndexDistal },
+                    new[] { HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightMiddleIntermediate, HumanBodyBones.RightMiddleDistal },
+                    new[] { HumanBodyBones.RightRingProximal, HumanBodyBones.RightRingIntermediate, HumanBodyBones.RightRingDistal },
+                    new[] { HumanBodyBones.RightLittleProximal, HumanBodyBones.RightLittleIntermediate, HumanBodyBones.RightLittleDistal },
+                    new[] { HumanBodyBones.RightThumbProximal, HumanBodyBones.RightThumbIntermediate, HumanBodyBones.RightThumbDistal },
+                };
+                fingersR = new Transform[ids.Length][];
+                for (int i = 0; i < ids.Length; i++) { fingersR[i] = new Transform[3]; for (int j = 0; j < 3; j++) fingersR[i][j] = anim.GetBoneTransform(ids[i][j]); }
+            }
+            var a = sword.forward; var o = sword.position;
+            for (int i = 0; i < fingersR.Length; i++)
+            {
+                var ch = fingersR[i];
+                for (int j = 0; j < 3; j++)
+                {
+                    var b = ch[j]; if (!b) continue;
+                    var tip = j < 2 && ch[j + 1] ? ch[j + 1].position : (b.childCount > 0 ? b.GetChild(0).position : b.position + (b.position - (j > 0 && ch[j - 1] ? ch[j - 1].position : b.parent.position)));
+                    var dir = tip - b.position; if (dir.sqrMagnitude < 1e-8f) continue;
+                    var toAxis = o + a * Vector3.Dot(b.position - o, a) - b.position;   // to the handle centre line
+                    var k = Vector3.Cross(dir, toAxis); if (k.sqrMagnitude < 1e-10f) continue;
+                    float deg = i == 4 ? thumbDeg[j] : fistDeg[j];
+                    // only what is still missing: stop once the bone points past the handle
+                    float now = Vector3.Angle(dir, toAxis);
+                    float want = Mathf.Min(deg, Mathf.Max(0f, now - 15f) + 20f);
+                    b.rotation = Quaternion.AngleAxis(want, k.normalized) * b.rotation;
+                }
+            }
+        }
+
+        // 11-17 free (left) arm (Kido 09:03: "칼 안잡은손이 너무 이상해 래퍼런스처럼해봐"): the clips kept it bent and tucked
+        // against the belly. The reference (berserker_walk_ref_sheet.png, dash end A f166-178) holds it out wide for
+        // balance: upper arm out to the side and down ~45 deg, a little back, elbow nearly straight, forearm carrying on
+        // outward. Aimed in the body frame (visual forward) every frame outside attacks / rolls, a counter-swing with the
+        // steps; eased out over 0.12 s into a swing (the clip's two-hand grip owns the arm there) and back in after.
+        // Shots token offhand=0 = the clip's arm.
+        public static bool OffHand = true;
+        // 11-17 09:55 v2 (Kido: "a포즈자나", then the run reference "녹음 2026-11-17 095220.mp4" with "달리는것만 이거보고해
+        // 왼손하고"): the reference runner keeps the left hand OFF the sword: elbow bent ~90, fist forward at chest height,
+        // pumping against the legs; the right hand drags the blade low behind on the sword side. Only while running
+        // (weight = speed), idle keeps the clip's arm.
+        // v3 (Kido 14:03: "왼쪽 오른쪽 가든 앞으로 손 하고 있어서 너무 이상하자나"): the reference runner faces where it runs;
+        // ours faces the cursor, so the pose is blended by the travel direction in the body frame and the pump swings
+        // along the travel axis. Forward: fist at lower chest, close in. Sideways: elbow bent, fist by the ribs, small
+        // sideways swing. Backward: arm low by the hip, small swing.
+        public Vector3 offUpper = new Vector3(-0.20f, -0.88f, 0.22f);    // forward run (body frame: x right, y up, z forward)
+        public Vector3 offFore = new Vector3(0.18f, 0.05f, 0.98f);
+        public Vector3 sideUpper = new Vector3(-0.28f, -0.95f, -0.05f), sideFore = new Vector3(0.10f, 0.75f, 0.30f);
+        public Vector3 backUpper = new Vector3(-0.22f, -0.95f, -0.22f), backFore = new Vector3(-0.05f, -0.75f, 0.30f);
+        public float offSwing = 26f, sideSwing = 12f, backSwing = 8f;     // deg with the steps, along the travel axis
+        Vector3 travelS = Vector3.forward;
+        float offW, stepNow; Transform foreL, handL;
+        public float OffWeight => offW;
+        void FreeArm()
+        {
+            if (!armL || !visual || !anim) return;
+            if (!foreL) { foreL = anim.GetBoneTransform(HumanBodyBones.LeftLowerArm); handL = anim.GetBoneTransform(HumanBodyBones.LeftHand); }
+            if (!foreL || !handL) return;
+            bool busy = (gs && gs.Attacking) || (pc && pc.Rolling);
+            float dt = Time.deltaTime;
+            float run01 = pc ? Mathf.Clamp01(new Vector2(pc.Velocity.x, pc.Velocity.z).magnitude / Mathf.Max(0.1f, pc.moveSpeed) * 1.5f) : 0f;
+            offW = Mathf.MoveTowards(offW, busy ? 0f : run01, dt / 0.12f);
+            if (offW <= 0.001f) return;
+            var fwd = visual.forward; fwd.y = 0f; if (fwd.sqrMagnitude < 1e-4f) return; fwd.Normalize();
+            var right = Vector3.Cross(Vector3.up, fwd);
+            Vector3 B(Vector3 v) => (right * v.x + Vector3.up * v.y + fwd * v.z).normalized;
+            // left leg forward (step > 0 = left foot ahead) -> left arm back
+            var v = pc ? pc.Velocity : Vector3.zero; v.y = 0f;
+            var tl = v.sqrMagnitude > 0.04f ? new Vector3(Vector3.Dot(v, right), 0f, Vector3.Dot(v, fwd)).normalized : travelS;
+            travelS = Vector3.Slerp(travelS, tl, 1f - Mathf.Exp(-dt / 0.15f));   // smooth across direction changes
+            float wf = Mathf.Max(0f, travelS.z), wb = Mathf.Max(0f, -travelS.z), ws = Mathf.Abs(travelS.x), sum = Mathf.Max(1e-3f, wf + wb + ws);
+            wf /= sum; wb /= sum; ws /= sum;
+            var up0 = (B(offUpper) * wf + B(sideUpper) * ws + B(backUpper) * wb).normalized;
+            var fo0 = (B(offFore) * wf + B(sideFore) * ws + B(backFore) * wb).normalized;
+            var travelW = right * travelS.x + fwd * travelS.z; if (travelW.sqrMagnitude < 1e-4f) travelW = fwd;
+            var swing = Quaternion.AngleAxis((offSwing * wf + sideSwing * ws + backSwing * wb) * stepNow, Vector3.Cross(Vector3.up, travelW.normalized));
+            var tu = swing * up0; var tf = swing * fo0;
+            var cu = foreL.position - armL.position;
+            if (cu.sqrMagnitude > 1e-6f)
+                armL.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(cu, tu), offW) * armL.rotation;
+            var cf = handL.position - foreL.position;
+            if (cf.sqrMagnitude > 1e-6f)
+                foreL.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(cf, tf), offW) * foreL.rotation;
+        }
+
+        // flat hold, last: the walk drag spring's step roll / pitch turned the face back on edge every step (bladeFlat
+        // dipped 0.75 -> 0.05 twice a stride). A pure roll about the blade axis puts the face up again; the tip does not move.
+        void FaceUp()
+        {
+            if (!sword || !faceSet) return;
+            float phi = Mathf.Clamp(RollTo(sword.rotation, 0f, false), -45f, 45f);   // only the drag's residual roll
+            if (Mathf.Abs(phi) > 0.05f) sword.rotation = Quaternion.AngleAxis(phi, sword.forward) * sword.rotation;
+            if (!viewCam) return;
+            var a = sword.forward; var w = sword.rotation * longAxis;
+            var mid = sword.position + a * (bladeLen * 0.5f);
+            var tb = (hips ? hips.position : transform.position) - mid; tb -= a * Vector3.Dot(tb, a);
+            LongToBody = tb.sqrMagnitude > 1e-6f ? Vector3.Dot(w, tb.normalized) : 0f;
+            FaceToCam = Mathf.Abs(Vector3.Dot(sword.rotation * faceAxis, viewCam.transform.forward));
         }
 
         void AimSplit()
@@ -217,6 +437,7 @@ namespace RoomRun
             float step = 0f;
             if (footL && footR) step = Mathf.Clamp(Vector3.Dot(footL.position - footR.position, On ? vdir : fwd) / (LegacySway ? 0.55f : 0.9f), -1f, 1f) * sp;
             if (!LegacySway) { stepS += (step - stepS) * (1f - Mathf.Exp(-dt / 0.07f)); step = stepS; }
+            stepNow = step;
 
             // look: chest a little, head the rest
             var aim = pc.AimDir; aim.y = 0f;
@@ -266,7 +487,7 @@ namespace RoomRun
             DragSword(dt, w, v, fwd, right, step);
             // hand fix: hand the sword's extra turn to the forearm + wrist, sword back to its keyed seat in the palm
             var D = sword.rotation * Quaternion.Inverse(swordQ0);
-            GripSlip = Quaternion.Angle(sword.localRotation, swordRest);
+            GripSlip = Quaternion.Angle(sword.localRotation, Seat);
             WristBend = 0f;
             var fore = anim.GetBoneTransform(HumanBodyBones.RightLowerArm); var handT = anim.GetBoneTransform(HumanBodyBones.RightHand);
             if (HandCarries && fore && handT)
@@ -282,7 +503,7 @@ namespace RoomRun
                 fore.rotation = A * fore.rotation;
                 handT.rotation = Bq * handT.rotation;
                 WristBend = Quaternion.Angle(Quaternion.identity, Bq);
-                GripSlip = Quaternion.Angle(sword.localRotation, swordRest);
+                GripSlip = Quaternion.Angle(sword.localRotation, Seat);
             }
         }
 

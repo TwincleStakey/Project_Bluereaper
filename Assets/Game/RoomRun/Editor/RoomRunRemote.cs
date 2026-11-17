@@ -608,6 +608,11 @@ namespace RoomRun
                 if (token.StartsWith("hand=")) { SplitBody.HandCarries = token.EndsWith("1"); sweepTag = "_hand" + token.Substring(5); continue; }
                 if (token.StartsWith("single=")) { GreatswordCombat.SingleHit = token.EndsWith("1"); continue; }
                 if (token.StartsWith("stretch=")) { ArmStretch.On = token.EndsWith("1"); continue; }
+                // 11-16 flat hold: "flat=0|1" = the old sword seat / the face rolled flat in the hand (SplitBody.FlatHold)
+                if (token.StartsWith("flat=")) { SplitBody.FlatHold = !token.EndsWith("0"); continue; }
+                if (token.StartsWith("offhand=")) { SplitBody.OffHand = !token.EndsWith("0"); continue; }
+                if (token.StartsWith("fist=")) { SplitBody.GripFist = !token.EndsWith("0"); continue; }
+                if (token.StartsWith("slide=")) { SplitBody.GripSlide = float.Parse(token.Substring(6), System.Globalization.CultureInfo.InvariantCulture); continue; }
                 if (token.StartsWith("z="))
                 {
                     zooms = System.Array.ConvertAll(token.Substring(2).Split(','), s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
@@ -845,7 +850,7 @@ namespace RoomRun
             Object.Destroy(rt); Object.Destroy(tex);
             if (seeTag != "") PlayerPrefs.SetInt(SeeThroughFX.ModeKey, 2);
             RunDirector.DevNoEnemies = false; FieldLighting.OutlineThroughEnemies = FieldLighting.OutlineThroughEnemiesDefault; FieldLighting.ForceOutline = false; FieldLighting.OutlineV1 = false; SplitBody.LegacyEase = false; SwingFacing.LegacyBerserker = false;
-            sweepTag = ""; SweepTest.VfxMode = false; SplitBody.On = true; SplitBody.Feel = true;   // aim mode default (split=0 = v3 travel facing, feel=0 = frozen old split)
+            sweepTag = ""; SweepTest.VfxMode = false; SplitBody.On = true; SplitBody.Feel = true; SplitBody.FlatHold = true; SplitBody.OffHand = true; SplitBody.GripFist = true;   // aim mode default (split=0 = v3 travel facing, feel=0 = frozen old split)
             SessionState.SetString(KeyState, "stopping");
         }
 

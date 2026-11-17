@@ -29,13 +29,14 @@ public static class JangsanbeomHeavyWalk
                 a.Length > 3 ? float.Parse(a[3], ci) : 0.5f,
                 a.Length > 4 ? float.Parse(a[4], ci) : 1.25f,
                 a.Length > 5 ? float.Parse(a[5], ci) : 0f,
-                a.Length > 6 ? float.Parse(a[6], ci) : 0f);
+                a.Length > 6 ? float.Parse(a[6], ci) : 0f,
+                a.Length > 7 ? float.Parse(a[7], ci) : 0f);
         }
         catch (System.Exception e) { log = "ERROR " + e; }
         File.WriteAllText("Temp/jsb_heavy.done", log);
     }
 
-    static string Bake(string srcFbx, string outAnim, float holdFrac, float drop, float slow, float flexDeg, float rollDeg)
+    static string Bake(string srcFbx, string outAnim, float holdFrac, float drop, float slow, float flexDeg, float rollDeg, float narrow)
     {
         var src = AssetDatabase.LoadAllAssetsAtPath(srcFbx).OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview"));
         var model = AssetDatabase.LoadAssetAtPath<GameObject>(srcFbx);
@@ -98,11 +99,28 @@ public static class JangsanbeomHeavyWalk
             var fl = all.FirstOrDefault(t => t.name == "FrontToes.L"); var fr = all.FirstOrDefault(t => t.name == "FrontToes.R");
             float sideRange = 0.01f;
             if (fl && fr) for (int k = 0; k <= N; k += 4) { src.SampleAnimation(go, k * L / N); sideRange = Mathf.Max(sideRange, Mathf.Abs(fl.position.y - fr.position.y)); }
-            bool flex = (flexDeg > 0 || rollDeg > 0) && sp1 && sp3 && nk && hind.Length > 0 && gMax - gMin > 1e-4f;
+            // 11-17 Kido: "뒷다리가 양옆으로 벌어져 있어 이상해, 사자처럼": swing each thigh in (about the body axis) so the hind paw
+            // lands as wide as the front paws do, under the body; narrow = 0..1 blend toward the front width
+            var thighs = new[] { "Thigh.L", "Thigh.R" }.Select(n => all.FirstOrDefault(t => t.name == n)).ToArray();
+            var hindToes = new[] { "HindToes.L", "HindToes.R" }.Select(n => all.FirstOrDefault(t => t.name == n)).ToArray();
+            float frontW = 0, hindW = 0; int wn = 0;
+            if (fl && fr && thighs.All(t => t) && hindToes.All(t => t))
+                for (int k = 0; k <= N; k += 8)
+                {
+                    src.SampleAnimation(go, k * L / N);
+                    frontW += Mathf.Abs(Vector3.Dot(fl.position - fr.position, Vector3.Cross(Vector3.up, (headT.position - hipsT.position).normalized))) * 0.5f;
+                    hindW += Mathf.Abs(Vector3.Dot(hindToes[0].position - hindToes[1].position, Vector3.Cross(Vector3.up, (headT.position - hipsT.position).normalized))) * 0.5f;
+                    wn++;
+                }
+            if (wn > 0) { frontW /= wn; hindW /= wn; }
+            bool doNarrow = narrow > 0 && wn > 0 && hindW > frontW;
+            sb.AppendLine($"paw half-width front {frontW:F2} hind {hindW:F2} -> {(doNarrow ? Mathf.Lerp(hindW, frontW, narrow).ToString("F2") : "unchanged")}");
+            bool flex = (flexDeg > 0 || rollDeg > 0 || narrow > 0) && sp1 && sp3 && nk && hind.Length > 0 && gMax - gMin > 1e-4f;
 
             var dst = new AnimationClip { name = Path.GetFileNameWithoutExtension(outAnim), frameRate = 30 };
             int nf = Mathf.CeilToInt(Lout * 30);
-            var flexPaths = flex ? new[] { sp1, sp3, nk }.Select(t => AnimationUtility.CalculateTransformPath(t, go.transform)).ToArray() : new string[0];
+            var flexBones = flex ? (new[] { sp1, sp3, nk }).Concat(doNarrow ? thighs : new Transform[0]).ToArray() : new Transform[0];
+            var flexPaths = flex ? flexBones.Select(t => AnimationUtility.CalculateTransformPath(t, go.transform)).ToArray() : new string[0];
             foreach (var b in AnimationUtility.GetCurveBindings(src))
             {
                 if (flexPaths.Contains(b.path) && (b.propertyName.StartsWith("m_LocalRotation") || b.propertyName.StartsWith("localEulerAngles"))) continue;   // rebuilt below
@@ -114,9 +132,9 @@ public static class JangsanbeomHeavyWalk
             }
             if (flex)
             {
-                var bones = new[] { sp1, sp3, nk }; var qk = new Keyframe[3, 4][];
-                for (int j = 0; j < 3; j++) for (int c = 0; c < 4; c++) qk[j, c] = new Keyframe[nf + 1];
-                var prevQ = new Quaternion[3];
+                var bones = flexBones; int nb = bones.Length; var qk = new Keyframe[nb, 4][];
+                for (int j = 0; j < nb; j++) for (int c = 0; c < 4; c++) qk[j, c] = new Keyframe[nf + 1];
+                var prevQ = new Quaternion[nb];
                 for (int f = 0; f <= nf; f++)
                 {
                     float to = Mathf.Min(f / 30f, Lout);
@@ -133,7 +151,18 @@ public static class JangsanbeomHeavyWalk
                         sp1.rotation = Quaternion.AngleAxis(rl, fwd) * sp1.rotation;
                         nk.rotation = Quaternion.AngleAxis(-rl * 0.8f, fwd) * nk.rotation;   // the head stays level
                     }
-                    for (int j = 0; j < 3; j++)
+                    if (doNarrow)
+                        for (int side = 0; side < 2; side++)
+                        {
+                            var th0 = thighs[side]; var toe = hindToes[side];
+                            var lat = Vector3.Cross(Vector3.up, (headT.position - hipsT.position).normalized);
+                            float lc = Vector3.Dot(toe.position - hipsT.position, lat);
+                            float want = Mathf.Sign(lc) * Mathf.Lerp(Mathf.Abs(lc), Mathf.Abs(lc) * frontW / hindW, narrow);
+                            var v = toe.position - th0.position;
+                            var v2 = v - lat * (lc - want);
+                            th0.rotation = Quaternion.FromToRotation(v, v2) * th0.rotation;
+                        }
+                    for (int j = 0; j < nb; j++)
                     {
                         var q = bones[j].localRotation;
                         if (f > 0 && Quaternion.Dot(q, prevQ[j]) < 0) q = new Quaternion(-q.x, -q.y, -q.z, -q.w);
@@ -142,7 +171,7 @@ public static class JangsanbeomHeavyWalk
                     }
                 }
                 string[] comp = { "x", "y", "z", "w" };
-                for (int j = 0; j < 3; j++) for (int c = 0; c < 4; c++) dst.SetCurve(flexPaths[j], typeof(Transform), "m_LocalRotation." + comp[c], new AnimationCurve(qk[j, c]));
+                for (int j = 0; j < nb; j++) for (int c = 0; c < 4; c++) dst.SetCurve(flexPaths[j], typeof(Transform), "m_LocalRotation." + comp[c], new AnimationCurve(qk[j, c]));
                 sb.AppendLine($"spine flex {flexDeg} deg, roll {rollDeg} deg on Spine1/Spine3/Neck1 (hind gather {gMin:F2}..{gMax:F2})");
             }
 

@@ -17,8 +17,8 @@
   <Project Path="LookStudy.Stages.csproj" />
   <Project Path="SnowPlague.Runtime.csproj" />
   <Project Path="InkFilters.csproj" />
-  <Project Path="DarkCrypt.Runtime.csproj" />
   <Project Path="ReedField.Editor.csproj" />
+  <Project Path="DarkCrypt.Runtime.csproj" />
   <Project Path="McpUnity.Editor.Tests.csproj" />
   <Project Path="D4Field.Editor.csproj" />
   <Project Path="RoomRun.Tests.csproj" />

@@ -106,7 +106,7 @@ Material:
     - _ClearCoatSmoothness: 0
     - _Cull: 2
     - _Cutoff: 0.5
-    - _Desat: 0.6
+    - _Desat: 0.15
     - _DetailAlbedoMapScale: 1
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
@@ -117,7 +117,7 @@ Material:
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _HatAmount: 0
-    - _Lift: 0.1
+    - _Lift: 0.2
     - _LightHue: 0.35
     - _Metal: 0.4
     - _Metallic: 0.8
@@ -138,7 +138,7 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
-    - _Steel: 0.28
+    - _Steel: 0.08
     - _Surface: 0
     - _TopKey: 1
     - _TopKeyPower: 1.6
