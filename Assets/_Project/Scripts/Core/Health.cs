@@ -3,6 +3,18 @@ using UnityEngine;
 
 namespace BlueReaper.Core
 {
+    public readonly struct DamageAppliedInfo
+    {
+        public readonly Unit Source;
+        public readonly float HealthLost;
+
+        public DamageAppliedInfo(Unit source, float healthLost)
+        {
+            Source = source;
+            HealthLost = healthLost;
+        }
+    }
+
     /// <summary>체력 컴포넌트. 플레이어·몬스터·보스 공용. 최대 체력은 UnitData에서 읽는다.</summary>
     [RequireComponent(typeof(Unit))]
     public class Health : MonoBehaviour, IDamageable
@@ -21,6 +33,7 @@ namespace BlueReaper.Core
 
         /// <summary>받은 데미지량을 전달.</summary>
         public event Action<float> Damaged;
+        public event Action<DamageAppliedInfo> DamageApplied;
         public event Action Died;
         /// <summary>HP 0에서 다시 일어났을 때 (플레이어 구조).</summary>
         public event Action Revived;
@@ -30,15 +43,21 @@ namespace BlueReaper.Core
         // 오브젝트 풀에서 다시 꺼낼 때(재활성화) 체력이 초기화되도록 OnEnable에서 리셋
         void OnEnable() => Current = MaxHealth;
 
-        public void TakeDamage(float amount)
+        public DamageResult TakeDamage(float amount, Unit source = null)
         {
-            if (NetworkDriven || IsDead || Invincible || amount <= 0f) return;
+            if (NetworkDriven || IsDead || Invincible || !(amount > 0f) || !float.IsFinite(amount))
+                return DamageResult.Ignored;
 
-            Current = Mathf.Max(0f, Current - amount);
-            bool died = IsDead;
+            float next = Mathf.Max(0f, Current - amount);
+            if (!(next < Current)) return DamageResult.Ignored;
+            float healthLost = Current - next;
+            Current = next;
+            var result = IsDead ? DamageResult.Killed : DamageResult.Applied;
+            DamageApplied?.Invoke(new DamageAppliedInfo(source, healthLost));
             Damaged?.Invoke(amount);
             // Capture this damage result before callbacks can apply further damage.
-            if (died) Died?.Invoke();
+            if (result == DamageResult.Killed) Died?.Invoke();
+            return result;
         }
 
         public void Kill()

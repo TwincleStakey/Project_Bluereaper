@@ -23,11 +23,18 @@ namespace BlueReaper.Core
         public RewardTableData RewardTable => rewardTable;
         public float SightRange => sightRange;
         public float OutSightTrackingPercent => outSightTrackingPercent;
+        public EnemyAggro Aggro { get; private set; }
 
         public uint Phase { get; private set; } = 1;
 
         /// <summary>살아있는 플레이어 목록. 스테이지가 관리하므로 사망 시 자동으로 빠진다.</summary>
         public IReadOnlyList<Transform> Players { get; private set; } = Array.Empty<Transform>();
+
+        private void Awake()
+        {
+            Aggro = GetComponent<EnemyAggro>();
+            if (!Aggro) Aggro = gameObject.AddComponent<EnemyAggro>();
+        }
 
         /// <summary>스테이지가 스폰 직후 호출. OnEnable보다 늦으므로 Players는 Update부터 읽을 것.</summary>
         public void Init(IReadOnlyList<Transform> players)

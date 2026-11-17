@@ -1,3 +1,4 @@
+using BlueReaper.Vfx;
 using UnityEngine;
 
 namespace BlueReaper.Data
@@ -21,5 +22,8 @@ namespace BlueReaper.Data
 
         // 공격자의 공격력에 곱하는 데미지 배율
         public float DamageMultiplier = 1f;
+        public VfxAutoDespawn AttackVfxPrefab;
+        public VfxAutoDespawn HitVfxPrefab;
+        [Min(0f)] public float HitVfxDelaySeconds;
     }
 }

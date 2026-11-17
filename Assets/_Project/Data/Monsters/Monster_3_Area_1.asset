@@ -13,13 +13,26 @@ MonoBehaviour:
   m_Name: Monster_3_Area_1
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.AreaAttackPatternData
   Shape: 0
+  PlacementOrigin: 0
   LocalCenter: {x: 0, y: 1, z: 0}
+  LocalYaw: 0
   Height: 4
   Radius: 2
+  InnerRadius: 1
   RectangleSize: {x: 2, y: 4}
   SectorAngle: 120
+  PlacementDelaySeconds: 0
+  ContinueAfterPlacement: 0
   HitStartSeconds: 0.4
+  ExpansionMode: 0
+  ExpansionDurationSeconds: 1
+  ExpansionStartScale: 0
+  RingStartRadius: 0
   RepeatHits: 0
   HitDurationSeconds: 1
   HitRepeatIntervalSeconds: 0.2
   DamageMultiplier: 1
+  AttackVfxPrefab: {fileID: 1582207202655717940, guid: 96f96da74e42f48448b2575eb8496949, type: 3}
+  HitVfxPrefab: {fileID: 1582207202655717940, guid: 96f96da74e42f48448b2575eb8496949, type: 3}
+  HitVfxDelaySeconds: 0.12
+  AdditionalShapes: []

@@ -1,6 +1,7 @@
 using System;
 using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
+using BlueReaper.Vfx;
 using UnityEngine;
 
 namespace BlueReaper.HitBox
@@ -18,6 +19,7 @@ namespace BlueReaper.HitBox
         private Vector3 origin;
         private Quaternion facing;
         private Action<ProjectileHitBox> onReturned;
+        private Func<bool> vfxGuard;
 
         private void Awake()
         {
@@ -33,6 +35,7 @@ namespace BlueReaper.HitBox
             armed = false;
             returned = false;
             pattern = null;
+            vfxGuard = null;
         }
 
         private void OnDisable()
@@ -54,25 +57,25 @@ namespace BlueReaper.HitBox
         }
 
         public void Init(Unit unit, BulletPatternData pattern, int pathIndex, int emissionIndex,
-            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned)
+            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned, Func<bool> vfxGuard = null)
         {
             Init(unit, pattern.DamageMultiplier);
-            InitFlight(pattern, pathIndex, emissionIndex, origin, facing, onReturned);
+            InitFlight(pattern, pathIndex, emissionIndex, origin, facing, onReturned, vfxGuard);
         }
 
         internal void InitDeathProjectile(float damage, BulletPatternData pattern, int pathIndex, int emissionIndex,
-            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned)
+            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned, Func<bool> vfxGuard = null)
         {
             owner = null;
             detachedEnemyProjectile = true;
             this.damage = damage;
             returned = false;
             armed = true;
-            InitFlight(pattern, pathIndex, emissionIndex, origin, facing, onReturned);
+            InitFlight(pattern, pathIndex, emissionIndex, origin, facing, onReturned, vfxGuard);
         }
 
         private void InitFlight(BulletPatternData pattern, int pathIndex, int emissionIndex,
-            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned)
+            Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned, Func<bool> vfxGuard)
         {
             this.pattern = pattern;
             this.pathIndex = pathIndex;
@@ -81,6 +84,7 @@ namespace BlueReaper.HitBox
             this.origin = origin;
             this.facing = facing;
             this.onReturned = onReturned;
+            this.vfxGuard = vfxGuard;
         }
 
         internal static ProjectileHitBox Spawn(BulletPatternData pattern, int pathIndex, int emissionIndex,
@@ -124,7 +128,14 @@ namespace BlueReaper.HitBox
             if (target != null)
             {
                 armed = false;
-                target.TakeDamage(damage);
+                var hitVfx = pattern ? pattern.HitVfxPrefab : null;
+                float vfxDelay = pattern ? pattern.HitVfxDelaySeconds : 0f;
+                var guard = vfxGuard;
+                Vector3 point = hitVfx ? other.ClosestPoint(transform.position) : default;
+                Quaternion rotation = transform.rotation;
+                var result = target.TakeDamage(damage, owner);
+                if (result is DamageResult.Applied or DamageResult.Killed)
+                    VfxAutoDespawn.Play(hitVfx, point, rotation, vfxDelay, guard);
                 ReturnToPool();
             }
             else if (other.gameObject.layer == LayerMask.NameToLayer("Environment")) ReturnToPool();

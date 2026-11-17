@@ -6,6 +6,8 @@ namespace BlueReaper.Data
     public abstract class EnemyActionData : ScriptableObject
     {
         public uint[] RequirePhase = null;
+        public ActionTargetMode TargetMode;
+        public TargetRule TargetRule = new();
         public bool CanForwardTracking = false; //처음 동작을 수행 할 때 플레이어를 향해 회전과 이동을 수행 할지 여부
 
         [Min(0f)]
