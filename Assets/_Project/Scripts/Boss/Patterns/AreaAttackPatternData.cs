@@ -36,17 +36,16 @@ namespace BlueReaper.Data
         [Min(0f)] public float HitVfxDelaySeconds;
         public AreaAttackShapeData[] AdditionalShapes = Array.Empty<AreaAttackShapeData>();
 
-        public float ActiveDuration => Mathf.Max(
-            RepeatHits ? HitDurationSeconds : 0f,
-            ExpansionMode == AreaExpansionMode.None ? 0f : ExpansionDurationSeconds);
-
         public string GetValidationError()
         {
             if (PlacementOrigin is not (AreaPlacementOrigin.Caster or AreaPlacementOrigin.Field)
                 || !float.IsFinite(HitStartSeconds) || !(PlacementDelaySeconds >= 0f
-                    && PlacementDelaySeconds <= Mathf.Max(0f, HitStartSeconds))
-                || (RepeatHits && (!float.IsFinite(HitDurationSeconds) || !float.IsFinite(HitRepeatIntervalSeconds))))
+                    && PlacementDelaySeconds <= HitStartSeconds))
                 return "배치 기준과 판정 시간을 확인하세요. 배치는 첫 판정보다 늦을 수 없습니다.";
+            if (!(HitDurationSeconds > 0f) || !float.IsFinite(HitStartSeconds + HitDurationSeconds))
+                return "판정 유지 시간은 0보다 큰 유한한 값이어야 합니다.";
+            if (RepeatHits && (!(HitRepeatIntervalSeconds > 0f) || !float.IsFinite(HitRepeatIntervalSeconds)))
+                return "반복 판정 간격은 0보다 큰 유한한 값이어야 합니다.";
             if (ExpansionMode == AreaExpansionMode.None) return null;
             if (ExpansionMode is not (AreaExpansionMode.Filled or AreaExpansionMode.MovingRing)
                 || !float.IsFinite(ExpansionDurationSeconds) || ExpansionDurationSeconds <= 0f)

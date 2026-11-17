@@ -80,6 +80,7 @@ namespace BlueReaper.Data.Editor
             DrawField(nameof(effect.PlacementDelaySeconds), "배치 지연 (초)");
             DrawField(nameof(effect.ContinueAfterPlacement), "배치까지만 대기");
             DrawField(nameof(effect.HitStartSeconds), "첫 판정 (초)");
+            DrawField(nameof(effect.HitDurationSeconds), "판정 유지 (초)");
             DrawField(nameof(effect.ExpansionMode), "범위 변화");
             var expansion = (AreaExpansionMode)serializedObject.FindProperty(nameof(effect.ExpansionMode)).enumValueIndex;
             if (expansion != AreaExpansionMode.None)
@@ -92,10 +93,7 @@ namespace BlueReaper.Data.Editor
             }
             DrawField(nameof(effect.RepeatHits), "반복 판정");
             if (serializedObject.FindProperty(nameof(effect.RepeatHits)).boolValue)
-            {
-                DrawField(nameof(effect.HitDurationSeconds), "판정 유지 (초)");
                 DrawField(nameof(effect.HitRepeatIntervalSeconds), "판정 간격 (초)");
-            }
             DrawField(nameof(effect.DamageMultiplier), "피해 배율");
             DrawField(nameof(effect.AttackVfxPrefab), "폭발 VFX");
             DrawField(nameof(effect.HitVfxPrefab), "피격 VFX");
@@ -112,7 +110,8 @@ namespace BlueReaper.Data.Editor
             {
                 editHeight = EditorGUILayout.Toggle("높이 편집", editHeight);
                 if (effect.ExpansionMode != AreaExpansionMode.None && error == null)
-                    previewElapsed = EditorGUILayout.Slider("확대 미리보기 (초)", previewElapsed, 0f, effect.ExpansionDurationSeconds);
+                    previewElapsed = EditorGUILayout.Slider("판정 중 확대 미리보기 (초)", previewElapsed,
+                        0f, Mathf.Min(effect.ExpansionDurationSeconds, effect.HitDurationSeconds));
                 if (effect.PlacementOrigin == AreaPlacementOrigin.Field)
                     field = (StageField)EditorGUILayout.ObjectField("미리보기 필드", field, typeof(StageField), true);
                 else caster = (Transform)EditorGUILayout.ObjectField("미리보기 시전자", caster, typeof(Transform), true);

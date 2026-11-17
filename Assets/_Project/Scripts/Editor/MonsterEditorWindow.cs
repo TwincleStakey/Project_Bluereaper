@@ -289,6 +289,16 @@ namespace BlueReaper.Data.Editor
                         DrawProperties(collider.transform, "m_LocalPosition", "m_LocalRotation", "m_LocalScale");
                         DrawProperties(collider, "m_Center", "m_Size", "m_Radius", "m_Height", "m_Direction", "m_IsTrigger");
                     }
+                    if (hurt)
+                    {
+                        var part = collider.GetComponentInParent<Hurtbox>();
+                        if (part) DrawProperties(part, "damageReduction");
+                        else if (GUILayout.Button("독립 피격 부위로 지정"))
+                        {
+                            Undo.AddComponent<Hurtbox>(collider.gameObject);
+                            hasUnsavedChanges = true;
+                        }
+                    }
                 }
             }
         }
@@ -562,6 +572,7 @@ namespace BlueReaper.Data.Editor
             };
             collider.isTrigger = true;
             if (melee) Undo.AddComponent<MeleeHitBox>(child);
+            else Undo.AddComponent<Hurtbox>(child);
             return collider;
         }
 
