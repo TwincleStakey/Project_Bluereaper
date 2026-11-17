@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d417fdc3dbf5482fb0262f072d5739f5, type: 3}
+  m_Name: TargetArea
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.AreaAttackPatternData
+  Shape: 0
+  PlacementOrigin: 0
+  LocalCenter: {x: 0, y: 0.05, z: 0}
+  LocalYaw: 0
+  Height: 2.5
+  Radius: 1.5
+  InnerRadius: 1
+  RectangleSize: {x: 2, y: 4}
+  SectorAngle: 120
+  PlacementDelaySeconds: 0
+  ContinueAfterPlacement: 0
+  HitStartSeconds: 0
+  ExpansionMode: 0
+  ExpansionDurationSeconds: 1
+  ExpansionStartScale: 0
+  RingStartRadius: 0
+  RepeatHits: 0
+  HitDurationSeconds: 1
+  HitRepeatIntervalSeconds: 0.2
+  DamageMultiplier: 0.5
+  AttackVfxPrefab: {fileID: 0}
+  HitVfxPrefab: {fileID: 0}
+  HitVfxDelaySeconds: 0
+  AdditionalShapes: []
