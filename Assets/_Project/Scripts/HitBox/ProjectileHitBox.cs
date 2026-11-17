@@ -120,7 +120,7 @@ namespace BlueReaper.HitBox
             if (!armed || returned) return;
             if (!detachedEnemyProjectile && (!owner || other.transform.IsChildOf(owner.transform))) return;
             if ((detachedEnemyProjectile || owner.GetComponent<Enemy>()) && other.GetComponentInParent<Enemy>()) return;
-            var target = other.GetComponentInParent<IDamageable>();
+            var target = HurtboxTarget.Find(other);
             if (target != null)
             {
                 armed = false;

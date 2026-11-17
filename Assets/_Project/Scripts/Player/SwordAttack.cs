@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using BlueReaper.Core;
+using BlueReaper.HitBox;
 using UnityEngine;
 
 namespace BlueReaper.Player
@@ -14,7 +14,8 @@ namespace BlueReaper.Player
         [SerializeField] float range = 2.2f;
         [SerializeField, Range(0f, 360f)] float arcAngle = 120f;
         [SerializeField] float cooldown = 0.35f;
-        [SerializeField] LayerMask targetLayers; // Monster, Boss
+        [Tooltip("피격 대상 Unit의 레이어")]
+        [SerializeField] LayerMask targetLayers;
 
         /// <summary>휘두를 때마다: (플레이어 위치, 휘두른 방향)</summary>
         public event Action<Vector3, Vector3> Swung;
@@ -24,9 +25,7 @@ namespace BlueReaper.Player
         public float Range => range;
         public float ArcAngle => arcAngle;
 
-        readonly Collider[] hits = new Collider[32];
-        // 콜라이더가 여러 개인 적을 한 번 휘두르기에 두 번 때리지 않도록
-        readonly HashSet<IDamageable> hitThisSwing = new();
+        readonly AreaHitQuery areaQuery = new();
         float cooldownLeft;
         Unit unit;
 
@@ -41,20 +40,20 @@ namespace BlueReaper.Player
 
             Vector3 origin = transform.position;
             Swung?.Invoke(origin, direction);
-            int count = Physics.OverlapSphereNonAlloc(origin, range, hits, targetLayers);
-            hitThisSwing.Clear();
+            Vector3 forward = Vector3.ProjectOnPlane(direction, Vector3.up);
+            Quaternion facing = forward.sqrMagnitude >= 0.0001f
+                ? Quaternion.LookRotation(forward, Vector3.up)
+                : Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+            if (!(range > 0f)) return true;
+            var hits = areaQuery.Find(AreaHitShape.Sector, origin, facing,
+                new Vector3(range, range * 2f, 0f), arcAngle, unit, targetLayers);
             float damage = DamageFormula.Calculate(unit.Data.Attack, damageMultiplier);
 
-            for (int i = 0; i < count; i++)
+            foreach (var (target, collider) in hits)
             {
-                Vector3 toTarget = hits[i].transform.position - origin;
-                toTarget.y = 0f;
-                if (Vector3.Angle(direction, toTarget) > arcAngle * 0.5f) continue;
-
-                var target = hits[i].GetComponentInParent<IDamageable>();
-                if (target == null || !hitThisSwing.Add(target)) continue;
+                Vector3 point = collider.ClosestPoint(origin);
                 target.TakeDamage(damage);
-                HitLanded?.Invoke(hits[i].ClosestPoint(origin));
+                HitLanded?.Invoke(point);
             }
             return true;
         }

@@ -34,6 +34,7 @@ namespace BlueReaper.Boss
         private Coroutine coMeleeHitWindow = null;
         private MeleeHitBox[] meleeHitBoxes;
         private readonly Dictionary<IDamageable, float> nextMeleeHits = new();
+        private readonly AreaHitQuery areaQuery = new();
         private readonly HashSet<ProjectileHitBox> projectiles = new();
         private MeleeAttackPatternData activeMelee;
         private bool meleeAfterDeath;
@@ -369,6 +370,8 @@ namespace BlueReaper.Boss
 
             int pendingBulletEffects = 0;
             Action onBulletFinished = () => pendingBulletEffects--;
+            int pendingAreaEffects = 0;
+            Action onAreaFinished = () => pendingAreaEffects--;
             bool meleeRegistered = false;
             foreach (PatternImplData effect in pattern.Implementations ?? Array.Empty<PatternImplData>())
             {
@@ -384,6 +387,11 @@ namespace BlueReaper.Boss
 
                         meleeRegistered = true;
                         StartMeleeHitWindow(meleeAttack);
+                        break;
+
+                    case AreaAttackPatternData areaAttack when areaAttack:
+                        pendingAreaEffects++;
+                        StartCoroutine(ExecuteAreaEffect(areaAttack, onAreaFinished));
                         break;
 
                     case BulletPatternData bulletAttack when bulletAttack:
@@ -404,7 +412,7 @@ namespace BlueReaper.Boss
                 }
             }
 
-            while (pendingBulletEffects > 0 || coMeleeHitWindow != null || Time.time < motionUntil)
+            while (pendingBulletEffects > 0 || pendingAreaEffects > 0 || coMeleeHitWindow != null || Time.time < motionUntil)
                 yield return null;
             StopForwardTracking();
 
@@ -418,6 +426,40 @@ namespace BlueReaper.Boss
             }
 
             currentPatternState = PatternState.Done;
+        }
+
+        private IEnumerator ExecuteAreaEffect(AreaAttackPatternData pattern, Action onFinished)
+        {
+            Vector3 center = transform.TransformPoint(pattern.LocalCenter);
+            Quaternion facing = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+            float damage = DamageFormula.Calculate(unit.Data.Attack, pattern.DamageMultiplier);
+            float delay = Mathf.Max(0f, pattern.HitStartSeconds);
+            try
+            {
+                if (delay > 0f) yield return new WaitForSeconds(delay);
+                float end = Time.time + Mathf.Max(0f, pattern.HitDurationSeconds);
+                float interval = Mathf.Max(Time.fixedDeltaTime, pattern.HitRepeatIntervalSeconds);
+                LayerMask targets = LayerMask.GetMask("Player");
+                while (!health.IsDead && isActiveAndEnabled)
+                {
+                    var hits = areaQuery.Find(pattern.Shape, center, facing, pattern.HitSize,
+                        pattern.SectorAngle, unit, targets);
+                    foreach (var (target, _) in hits)
+                    {
+                        if (health.IsDead || !isActiveAndEnabled) yield break;
+                        target.TakeDamage(damage);
+                    }
+
+                    float remaining = end - Time.time;
+                    if (!pattern.RepeatHits || remaining <= 0f) yield break;
+                    yield return new WaitForSeconds(Mathf.Min(interval, remaining));
+                    if (Time.time >= end) yield break;
+                }
+            }
+            finally
+            {
+                onFinished();
+            }
         }
 
         private IEnumerator ExecuteBulletEffect(BulletPatternData bulletAttack, Transform target, Action onFinished)

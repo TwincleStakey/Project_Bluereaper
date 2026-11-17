@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 9210259287303635999}
   - component: {fileID: 106772980180569961}
   - component: {fileID: 5165631371547508616}
-  m_Layer: 7
+  m_Layer: 12
   m_Name: BodyPart_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -220,6 +220,7 @@ MonoBehaviour:
   rewardTable: {fileID: 11400000, guid: de4e49925961349439d4fd0d5c3b9581, type: 2}
   phaseInfo: {fileID: 11400000, guid: f36e4e31bf9af26488dfc51c04095c90, type: 2}
   sightRange: 7
+  outSightTrackingPercent: 0.5
 --- !u!114 &5246980696664095001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -234,6 +235,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Boss.EnemyAI
   patterns:
   - {fileID: 11400000, guid: 2b172d4e432be0144a9f861b9f2956ea, type: 2}
+  spawnPattern: {fileID: 0}
+  deathPattern: {fileID: 0}
   aiTick: 0.1
   stopChasingDistance: 5
 --- !u!95 &2647093197652973279
@@ -292,7 +295,7 @@ GameObject:
   - component: {fileID: 232276845650076624}
   - component: {fileID: 3451906366337405546}
   - component: {fileID: 5851463192831520976}
-  m_Layer: 7
+  m_Layer: 12
   m_Name: BodyPart_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}

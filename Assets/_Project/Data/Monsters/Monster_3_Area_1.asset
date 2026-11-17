@@ -9,11 +9,17 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e0e93392d321478a873430a07f0ec53e, type: 3}
-  m_Name: Monster_3_Melee_1
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.MeleeAttackPatternData
+  m_Script: {fileID: 11500000, guid: d417fdc3dbf5482fb0262f072d5739f5, type: 3}
+  m_Name: Monster_3_Area_1
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.AreaAttackPatternData
+  Shape: 0
+  LocalCenter: {x: 0, y: 1, z: 0}
+  Height: 4
+  Radius: 2
+  RectangleSize: {x: 2, y: 4}
+  SectorAngle: 120
   HitStartSeconds: 0.4
-  HitDurationSeconds: 0.1
   RepeatHits: 0
+  HitDurationSeconds: 1
   HitRepeatIntervalSeconds: 0.2
   DamageMultiplier: 1
