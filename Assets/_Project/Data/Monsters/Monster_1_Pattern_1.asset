@@ -13,14 +13,25 @@ MonoBehaviour:
   m_Name: Monster_1_Pattern_1
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.EnemyPatternData
   RequirePhase: 01000000
+  TargetMode: 0
+  TargetRule:
+    Filters: []
+    SortBy: []
+    SelectionMode: 0
+    Count: 1
   CanForwardTracking: 0
   TrackingRotationRatio: 1
   TrackingMoveRatio: 1
   TrackingDuration: 0.15
   SelfDestructAfterPattern: 0
   MotionClip: {fileID: 7400000, guid: 64922c2d6d3e1924598a6867feec0261, type: 2}
-  TelegraphType: 0
+  PlacementMode: 0
+  TelegraphPrefab: {fileID: 0}
+  TelegraphDurationSeconds: 0
+  CastVfxPrefab: {fileID: 0}
+  CastVfxDelaySeconds: 0
   RestTime: 1
   ChasingDistance: 1
   Implementations:
   - {fileID: 11400000, guid: b632dfd7836388e4ea14ede05f4f8c56, type: 2}
+  - {fileID: 11400000, guid: 324e57c3cd4d0d34c8c9e230ef1520cc, type: 2}
