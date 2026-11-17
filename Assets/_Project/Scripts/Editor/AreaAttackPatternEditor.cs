@@ -9,6 +9,7 @@ namespace BlueReaper.Data.Editor
     [CustomEditor(typeof(AreaAttackPatternData))]
     public sealed class AreaAttackPatternEditor : UnityEditor.Editor
     {
+        internal bool Embedded { get; set; }
         private const string Shapes = nameof(AreaAttackPatternData.AdditionalShapes);
         private int selectedShape;
         private bool showPreview = true;
@@ -102,7 +103,7 @@ namespace BlueReaper.Data.Editor
             if (serializedObject.ApplyModifiedProperties()) Refresh();
             string error = effect.GetValidationError();
             if (error != null) EditorGUILayout.HelpBox(error, MessageType.Warning);
-            if (GUILayout.Button("범위 효과 애셋 저장")) AssetDatabase.SaveAssetIfDirty(effect);
+            if (!Embedded && GUILayout.Button("범위 효과 애셋 저장")) AssetDatabase.SaveAssetIfDirty(effect);
 
             EditorGUILayout.Space();
             EditorGUI.BeginChangeCheck();
@@ -159,7 +160,9 @@ namespace BlueReaper.Data.Editor
 
         private void DrawScene(SceneView view)
         {
-            if (!showPreview || !target || Selection.activeObject != target || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            var active = MonsterEditorWindow.ActivePatternPreview;
+            if (!showPreview || !target || (active ? active != this : Selection.activeObject != target)
+                || EditorApplication.isPlayingOrWillChangePlaymode) return;
             var effect = (AreaAttackPatternData)target;
             var origin = Origin(effect);
             int count = effect.AdditionalShapes?.Length ?? 0;

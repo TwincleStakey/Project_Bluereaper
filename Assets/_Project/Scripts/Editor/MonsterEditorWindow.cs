@@ -14,7 +14,7 @@ using Object = UnityEngine.Object;
 
 namespace BlueReaper.Data.Editor
 {
-    public sealed class MonsterEditorWindow : EditorWindow
+    public sealed partial class MonsterEditorWindow : EditorWindow
     {
         internal const string TemplatePath = "Assets/_Project/Prefabs/Monsters/Monster_1.prefab";
         private static readonly string[] Tabs = { "기본 정보", "페이즈", "타겟 규칙", "패턴", "공격·피격 판정", "모델·애니메이션" };
@@ -111,6 +111,7 @@ namespace BlueReaper.Data.Editor
             }
 
             tab = GUILayout.Toolbar(tab, Tabs);
+            if (tab != 3) ReleasePatternEditor();
             using (new EditorGUILayout.HorizontalScope())
             {
                 using (var area = new EditorGUILayout.ScrollViewScope(scroll, GUILayout.MinWidth(400)))
@@ -160,9 +161,7 @@ namespace BlueReaper.Data.Editor
                     DrawAction(ai, "TargetMode", "TargetRule");
                     break;
                 case 3:
-                    DrawPatternSlots(ai);
-                    DrawAction(ai, "RequirePhase", "CanForwardTracking", "TrackingDuration",
-                        "TrackingMoveRatio", "TrackingRotationRatio", "MotionClip", "TelegraphPrefab", "TelegraphDurationSeconds");
+                    DrawPatternAuthoring(ai);
                     break;
                 case 4:
                     DrawColliders();
@@ -170,23 +169,6 @@ namespace BlueReaper.Data.Editor
                 case 5:
                     DrawModel(ai);
                     break;
-            }
-        }
-
-        private void DrawPatternSlots(EnemyAI ai)
-        {
-            DrawProperties(ai, "patterns", "spawnPattern", "deathPattern");
-            using var serialized = new SerializedObject(ai);
-            var patterns = serialized.FindProperty("patterns");
-            var slots = Enumerable.Range(0, patterns.arraySize).Select(patterns.GetArrayElementAtIndex)
-                .Append(serialized.FindProperty("spawnPattern"))
-                .Append(serialized.FindProperty("deathPattern"))
-                .Where(slot => slot.objectReferenceValue is EnemyActionData action && action);
-            foreach (var slot in slots)
-            {
-                if (!GUILayout.Button($"복제 후 {slot.displayName}에 연결 · {slot.objectReferenceValue.name}")) continue;
-                Run(() => DuplicateReference(serialized, slot));
-                break;
             }
         }
 
@@ -458,6 +440,7 @@ namespace BlueReaper.Data.Editor
 
         private void Unload()
         {
+            ClearPatternAuthoring();
             if (root) PrefabUtility.UnloadPrefabContents(root);
             root = null;
             foreach (var draft in drafts.Values) DestroyImmediate(draft.Asset);
@@ -584,8 +567,8 @@ namespace BlueReaper.Data.Editor
 
         private void ReviewAndSave()
         {
-            string assets = drafts.Count == 0 ? "" : "\n데이터 에셋\n" +
-                string.Join("\n", drafts.Keys.Select(AssetDatabase.GetAssetPath));
+            var paths = drafts.Keys.Select(AssetDatabase.GetAssetPath).Concat(PendingPatternPaths().Select(item => item.Path)).ToArray();
+            string assets = paths.Length == 0 ? "" : "\n데이터 에셋\n" + string.Join("\n", paths);
             var warnings = GetIssues().ToArray();
             string caution = warnings.Length == 0 ? "" : "\n\n확인 항목\n" + string.Join("\n", warnings);
             if (EditorUtility.DisplayDialog("몬스터 변경 저장", prefabPath + assets + caution, "저장", "계속 편집"))
@@ -605,8 +588,7 @@ namespace BlueReaper.Data.Editor
             if (drafts.Any(pair => EditorJsonUtility.ToJson(pair.Key) != pair.Value.OriginalJson))
                 throw new IOException("별도 Inspector에서 데이터가 변경됐습니다. 이 창의 변경을 검토하고 에셋을 다시 여세요.");
 
-            PrefabUtility.SaveAsPrefabAsset(root, prefabPath, out bool saved);
-            if (!saved) throw new IOException("프리팹 저장에 실패했습니다.");
+            SavePrefabWithPatterns();
             sourcePrefab = File.ReadAllBytes(prefabPath);
             foreach (var (asset, draft) in drafts)
             {
@@ -617,6 +599,7 @@ namespace BlueReaper.Data.Editor
                 EditorUtility.SetDirty(asset);
                 AssetDatabase.SaveAssetIfDirty(asset);
             }
+            ClearPatternAuthoring();
             foreach (var draft in drafts.Values) DestroyImmediate(draft.Asset);
             drafts.Clear();
             base.SaveChanges();

@@ -8,6 +8,7 @@ namespace BlueReaper.BulletPatterns.Editor
     [CustomEditor(typeof(BulletPatternData))]
     public sealed class BulletPatternEditor : UnityEditor.Editor
     {
+        internal bool Embedded { get; set; }
         // shortcut: preview at most 256 paths/instances, use instancing if larger previews are needed.
         private const int PreviewLimit = 256;
         private const float PathPickDistance = 8f;
@@ -131,7 +132,7 @@ namespace BlueReaper.BulletPatterns.Editor
             }
 
             DrawPreviewInspector();
-            if (GUILayout.Button("이 패턴 저장")) AssetDatabase.SaveAssetIfDirty(pattern);
+            if (!Embedded && GUILayout.Button("이 패턴 저장")) AssetDatabase.SaveAssetIfDirty(pattern);
         }
 
         private void Field(string name, string label)
@@ -258,7 +259,9 @@ namespace BlueReaper.BulletPatterns.Editor
 
         private void DrawScene(SceneView view)
         {
-            if (pattern == null || pattern.GetValidationError() != null || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            var active = BlueReaper.Data.Editor.MonsterEditorWindow.ActivePatternPreview;
+            if (pattern == null || pattern.GetValidationError() != null || (active && active != this)
+                || EditorApplication.isPlayingOrWillChangePlaymode) return;
             if (cachedPrefab != pattern.BulletPrefab) CachePrefab();
             selected = Mathf.Clamp(selected, 0, pattern.MaximumCount - 1);
             using (new Handles.DrawingScope(PreviewMatrix))
