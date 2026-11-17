@@ -44,10 +44,10 @@ namespace BlueReaper.GameFlow
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
         }
 
-        public void Show(string title, string message = null)
+        public void Show(string title, string message = null, bool inWorld = false)
         {
             Hide();
-            backgroundCamera.enabled = true;
+            backgroundCamera.enabled = !inWorld;
             canvas.gameObject.SetActive(true);
             events.gameObject.SetActive(true);
 
@@ -57,21 +57,31 @@ namespace BlueReaper.GameFlow
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
             rect.sizeDelta = Vector2.zero;
-            panel.GetComponent<Image>().color = Background;
+            var panelImage = panel.GetComponent<Image>();
+            panelImage.color = inWorld ? Color.clear : Background;
+            panelImage.raycastTarget = !inWorld;
 
             var group = new GameObject("Menu Content", typeof(RectTransform), typeof(VerticalLayoutGroup),
                 typeof(ContentSizeFitter));
             column = (RectTransform)group.transform;
             column.SetParent(rect, false);
-            column.sizeDelta = new Vector2(400, 0);
+            column.sizeDelta = new Vector2(inWorld ? 300 : 400, 0);
+            if (inWorld)
+            {
+                column.anchorMin = column.anchorMax = Vector2.right;
+                column.pivot = Vector2.right;
+                column.anchoredPosition = new Vector2(-30, 32);
+                group.AddComponent<Image>().color = new Color(Background.r, Background.g, Background.b, 0.92f);
+            }
             var layout = group.GetComponent<VerticalLayoutGroup>();
-            layout.spacing = 12;
+            layout.spacing = inWorld ? 8 : 12;
+            if (inWorld) layout.padding = new RectOffset(16, 16, 8, 12);
             layout.childControlWidth = true;
             layout.childControlHeight = true;
             layout.childForceExpandHeight = false;
             group.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            AddText(title, 44, Accent, 66).fontStyle = FontStyle.Bold;
+            AddText(title, inWorld ? 30 : 44, Accent, inWorld ? 48 : 66).fontStyle = FontStyle.Bold;
             if (!string.IsNullOrWhiteSpace(message)) Label(message);
         }
 

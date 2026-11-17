@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/_Project/Scenes/SoloMenu.unity
     guid: 5b548255145f4243b317ad6881d6ef7c
   - enabled: 1
+    path: Assets/_Project/Scenes/SoloHub.unity
+    guid: eb3d46f3dee9cda41a22cd09187a3b11
+  - enabled: 1
     path: Assets/_Project/Scenes/SoloStage.unity
     guid: fac317a01c044e96b88be0e4dfae635c
   - enabled: 1

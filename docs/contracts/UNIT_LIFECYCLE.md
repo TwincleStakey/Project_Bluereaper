@@ -18,7 +18,8 @@
 
 ### 솔로 스테이지
 
-- 솔로 씬은 플레이어와 StageData가 비어 있는 StageController로 시작한다. `TryStartSoloRun`은 살아 있는 활성 플레이어와 StageData를 받아 단일 실행을 시작한다. 재출발할 때는 씬과 플레이어를 새로 만든다.
+- `SoloHub`는 세션 시작과 전투 복귀마다 거점 씬의 스폰 지점에 플레이어를 생성한다. 출발하거나 세션을 나가면 거점 씬과 그 플레이어가 함께 해제된다.
+- 솔로 전투 씬은 플레이어와 StageData가 비어 있는 StageController로 시작한다. `TryStartSoloRun`은 살아 있는 활성 플레이어와 StageData를 받아 단일 실행을 시작한다. 재출발할 때는 씬과 플레이어를 새로 만든다.
 - `SoloRunFinished`는 실행마다 한 번 발행한다. `Cleared`는 마지막 필드가 끝나고 남은 사망 연출이 정리된 시점, `PlayerDefeated`는 등록된 플레이어가 HP 0이 된 시점, `Aborted`는 스테이지 구성 또는 웨이브 검증 실패로 기존 정리가 끝난 시점이다. 클리어가 확정되면 기존 `GameEvents.StageCleared`도 발행한다.
 - 게임 흐름은 결과를 받아 전투 씬의 StageController를 비활성화한다. StageController가 필드·적·사망 탄과 구독을 해제한 뒤, 게임 흐름이 플레이어를 비활성화하고 전투 씬을 내린다. 솔로 세션과 캐릭터 선택은 메뉴 씬에서 유지된다.
 

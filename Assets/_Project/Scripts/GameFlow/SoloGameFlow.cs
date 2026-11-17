@@ -10,6 +10,7 @@ namespace BlueReaper.GameFlow
     [RequireComponent(typeof(SoloMenu))]
     public sealed class SoloGameFlow : MonoBehaviour
     {
+        const string HubPath = "Assets/_Project/Scenes/SoloHub.unity";
         const string StagePath = "Assets/_Project/Scenes/SoloStage.unity";
 
         [SerializeField] SessionService session;
@@ -21,7 +22,8 @@ namespace BlueReaper.GameFlow
         int character;
         StageData selectedStage;
         bool leaving;
-        bool inStage;
+        bool inSessionFlow;
+        bool departRequested;
         SoloStageResult? result;
 
         string CharacterName => $"Warrior {character}";
@@ -30,7 +32,7 @@ namespace BlueReaper.GameFlow
         {
             menu = GetComponent<SoloMenu>();
             networkManager.ConnectionApprovalCallback = ApproveLocalHost;
-            session.SessionStarted += ShowHub;
+            session.SessionStarted += OnSessionStarted;
             session.SessionFailed += ShowLobby;
             session.SessionEnded += OnSessionEnded;
         }
@@ -39,7 +41,7 @@ namespace BlueReaper.GameFlow
 
         void OnDestroy()
         {
-            session.SessionStarted -= ShowHub;
+            session.SessionStarted -= OnSessionStarted;
             session.SessionFailed -= ShowLobby;
             session.SessionEnded -= OnSessionEnded;
             if (networkManager) networkManager.ConnectionApprovalCallback -= ApproveLocalHost;
@@ -103,11 +105,16 @@ namespace BlueReaper.GameFlow
             ShowLobby();
         }
 
-        void ShowHub() => ShowHub(null);
+        void OnSessionStarted()
+        {
+            if (inSessionFlow) return;
+            inSessionFlow = true;
+            StartCoroutine(RunSession());
+        }
 
         void ShowHub(string message)
         {
-            menu.Show("Base", message);
+            menu.Show("Base", message, inWorld: true);
             menu.Label(CharacterName);
             foreach (StageData stage in stages)
             {
@@ -133,26 +140,81 @@ namespace BlueReaper.GameFlow
 
         void OnSessionEnded()
         {
-            bool expected = leaving;
-            leaving = false;
-            selectedStage = null;
-            if (!inStage) ShowLobby(expected ? null : "Solo session ended.");
+            if (!inSessionFlow) ShowLobby("Solo session ended.");
         }
 
         void Depart()
         {
-            if (inStage || !session.InSession) return;
+            if (!session.InSession || leaving || departRequested) return;
             if (!Application.CanStreamedLevelBeLoaded(StagePath))
             {
                 ShowHub("Stage scene is unavailable.");
                 return;
             }
-            StartCoroutine(RunStage());
+            departRequested = true;
+        }
+
+        IEnumerator RunSession()
+        {
+            string message = null;
+            Scene menuScene = gameObject.scene;
+            while (session.InSession && !leaving)
+            {
+                if (!Application.CanStreamedLevelBeLoaded(HubPath))
+                {
+                    message = "Base scene is unavailable.";
+                    break;
+                }
+                menu.Show("Loading Base");
+                yield return SceneManager.LoadSceneAsync(HubPath, LoadSceneMode.Additive);
+                Scene hubScene = SceneManager.GetSceneByPath(HubPath);
+                bool entered = false;
+                if (hubScene.isLoaded && session.InSession && !leaving)
+                {
+                    SceneManager.SetActiveScene(hubScene);
+                    var hub = FindFirstObjectByType<SoloHub>();
+                    entered = hub && hub.gameObject.scene == hubScene && hub.TryEnter(CharacterName);
+                    if (entered)
+                    {
+                        departRequested = false;
+                        ShowHub(message);
+                        yield return new WaitUntil(() => departRequested || leaving || !session.InSession);
+                    }
+                }
+
+                SceneManager.SetActiveScene(menuScene);
+                if (hubScene.isLoaded) yield return SceneManager.UnloadSceneAsync(hubScene);
+                if (leaving || !session.InSession) break;
+                if (!entered)
+                {
+                    message = "Base could not be started.";
+                    break;
+                }
+
+                yield return RunStage();
+                message = result switch
+                {
+                    SoloStageResult.Cleared => "Stage cleared.",
+                    SoloStageResult.PlayerDefeated => "Defeated. Ready to redeploy.",
+                    _ => "Stage could not be started."
+                };
+            }
+
+            bool requestedExit = leaving;
+            if (session.InSession)
+            {
+                if (!requestedExit) session.Leave();
+                yield return new WaitUntil(() => !session.InSession);
+            }
+            inSessionFlow = false;
+            leaving = false;
+            departRequested = false;
+            selectedStage = null;
+            ShowLobby(requestedExit ? null : message ?? "Solo session ended.");
         }
 
         IEnumerator RunStage()
         {
-            inStage = true;
             result = null;
             Scene menuScene = gameObject.scene;
             menu.Show("Loading Stage");
@@ -186,18 +248,6 @@ namespace BlueReaper.GameFlow
             SceneManager.SetActiveScene(menuScene);
             if (scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
 
-            inStage = false;
-            if (!session.InSession)
-            {
-                ShowLobby("Solo session ended.");
-                yield break;
-            }
-            ShowHub(result switch
-            {
-                SoloStageResult.Cleared => "Stage cleared.",
-                SoloStageResult.PlayerDefeated => "Defeated. Ready to redeploy.",
-                _ => "Stage could not be started."
-            });
         }
 
         void RecordResult(SoloStageResult outcome) => result = outcome;
