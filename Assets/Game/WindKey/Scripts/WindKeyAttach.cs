@@ -41,6 +41,27 @@ public class WindKeyAttach : MonoBehaviour
     static readonly Dictionary<(int, string), float> surfaceCache = new Dictionary<(int, string), float>();
 
     void Awake() { if (attachOnAwake) Attach(); }
+    // the after-post glow pass (WindKeyGlowPass) only runs while some key is out
+    bool counted;
+    void OnEnable() { if (!counted) { counted = true; WindKeyGlowPass.ActiveKeys++; } }
+    void OnDisable() { if (counted) { counted = false; WindKeyGlowPass.ActiveKeys--; } }
+
+    // 11-17 (Kido: 발광 더 잘 보이게): stage grades change post exposure by ~2.5 stops (폐촌 +1.9, 풀밭 -0.7), which clipped the
+    // red glow to peach in bright grades and dimmed it in dark ones. The shader divides the glow by the current post exposure
+    // so it lands at the same brightness (and stays red) in every stage. One callback for all keys, no per-key cost.
+    static readonly int PostExposureId = Shader.PropertyToID("_WK_PostExposure");
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void HookExposure()
+    {
+        UnityEngine.Rendering.RenderPipelineManager.beginContextRendering -= OnBeginRendering;
+        UnityEngine.Rendering.RenderPipelineManager.beginContextRendering += OnBeginRendering;
+    }
+    static void OnBeginRendering(UnityEngine.Rendering.ScriptableRenderContext ctx, List<Camera> cams)
+    {
+        var stack = UnityEngine.Rendering.VolumeManager.instance.stack;
+        var ca = stack?.GetComponent<UnityEngine.Rendering.Universal.ColorAdjustments>();
+        Shader.SetGlobalFloat(PostExposureId, ca != null && ca.active ? ca.postExposure.value : 0f);
+    }
 
     public Transform Attach()
     {

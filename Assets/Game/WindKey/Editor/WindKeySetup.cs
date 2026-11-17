@@ -88,9 +88,9 @@ public static class WindKeySetup
             m.enableInstancing = true;
             // look (kept here so every variant matches): rusty bronze stays readable, red only in the deep crevices,
             // the wound collar and on each tick
-            m.SetFloat("_Brighten", 2.2f); m.SetFloat("_Metallic", 0.5f); m.SetFloat("_Smoothness", 0.45f);
-            m.SetFloat("_GlowBase", 0.5f); m.SetFloat("_GlowPeak", 4f); m.SetFloat("_CrevGlow", 2.5f); m.SetFloat("_CrevLo", 0.25f); m.SetFloat("_CrevHi", 0.6f);
-            m.SetFloat("_CollarGlow", 2f); m.SetFloat("_CollarHeight", 0.1f); m.SetFloat("_RimGlow", 0.25f);
+            m.SetFloat("_Brighten", 1.5f); m.SetFloat("_Metallic", 0.5f); m.SetFloat("_Smoothness", 0.45f);
+            m.SetFloat("_GlowBase", 0.6f); m.SetFloat("_GlowPeak", 3f); m.SetFloat("_CrevGlow", 2.5f); m.SetFloat("_OverRest", 0.35f); m.SetFloat("_OverPeak", 0.9f); m.SetFloat("_CrevLo", 0.3f); m.SetFloat("_CrevHi", 0.7f);   // 11-17 Kido: 발광 더
+            m.SetFloat("_CollarGlow", 2.5f); m.SetFloat("_CollarHeight", 0.14f); m.SetFloat("_RimGlow", 0f);
             ApplyOverrides(m);
             EditorUtility.SetDirty(m); mats.Add(m);
         }

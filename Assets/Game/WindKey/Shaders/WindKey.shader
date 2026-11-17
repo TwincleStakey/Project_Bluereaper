@@ -35,6 +35,10 @@ Shader "BulletHeaven/WindKey"
         _CollarHeight ("Collar glow height (mesh units)", Range(0.01, 0.5)) = 0.12
         _RimGlow ("Red rim (readability)", Range(0, 4)) = 0.6
         _Warn ("Warn (overdrive)", Range(0, 1)) = 0
+
+        [Header(After post overlay (WindKeyGlowPass))]
+        _OverRest ("Overlay at rest", Range(0, 2)) = 0.35
+        _OverPeak ("Overlay on tick", Range(0, 3)) = 0.9
     }
     SubShader
     {
@@ -46,9 +50,11 @@ Shader "BulletHeaven/WindKey"
             float4 _BaseMap_ST; half4 _BaseColor; half _Brighten; half _Metallic; half _Smoothness; half _NrmStr;
             float _TickRate; float _TickAngle; float _TickSnap; float _Continuous; float _Dir; float _Phase; float _Wobble;
             half4 _GlowColor; half _GlowBase; half _GlowPeak; half _CrevGlow; half _CrevLo; half _CrevHi; half _CollarGlow; half _CollarHeight; half _RimGlow; half _Warn;
+            half _OverRest; half _OverPeak;
         CBUFFER_END
         // capture tools can freeze time (same convention as the 장산범 shaders)
         float _WK_UseFixedTime; float _WK_FixedTime;
+        float _WK_PostExposure;   // set by WindKeyAttach from the active volume stack (0 when unset)
         float WKTime() { return _WK_UseFixedTime > 0.5 ? _WK_FixedTime : _Time.y; }
         // x = turn angle (radians), y = tick pulse 0..1
         float2 WKTurn()
@@ -122,11 +128,55 @@ Shader "BulletHeaven/WindKey"
                 half rim = pow(1 - saturate(dot(n, d.viewDirectionWS)), 3);
                 half amp = _GlowBase + _GlowPeak * i.pulse * (1 + _Warn);
                 half g = (crev * _CrevGlow + collar * _CollarGlow) * amp + rim * _RimGlow * (0.6 + 0.4 * i.pulse);
-                half r = _GlowColor.r * g;
+                half r = _GlowColor.r * g * exp2(-clamp(_WK_PostExposure, -3, 3));   // same glow in every stage grade
                 half3 gc = half3(r, r * 0.035, r * 0.02);   // stay deep red at the peak (ACES pushes bright red toward orange)
                 col.rgb = col.rgb * (1 - 0.5 * crev * saturate(amp * 0.15)) + gc;
                 col.rgb = MixFog(col.rgb, i.fog);
                 return half4(col.rgb, 1);
+            }
+            ENDHLSL
+        }
+        // drawn after post-processing by WindKeyGlowPass: pure red added on the final image so the stage grade can't wash it out
+        Pass
+        {
+            Name "WindKeyGlow"
+            Tags { "LightMode"="WindKeyGlow" }
+            Blend One One
+            ZWrite Off ZTest Always Cull Back
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex vertG
+            #pragma fragment fragG
+            #pragma multi_compile_instancing
+            TEXTURE2D_X_FLOAT(_CameraDepthTexture); SAMPLER(sampler_CameraDepthTexture); SAMPLER(sampler_AOMap);
+            float _WK_DepthFlip;
+            struct A { float4 positionOS:POSITION; float3 normalOS:NORMAL; float2 uv:TEXCOORD0; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct V { float4 positionCS:SV_POSITION; float2 uv:TEXCOORD0; float hOS:TEXCOORD1; float pulse:TEXCOORD2; float eye:TEXCOORD3; float4 sp:TEXCOORD4; float3 n:TEXCOORD5; float3 ws:TEXCOORD6; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            V vertG(A i)
+            {
+                V o; UNITY_SETUP_INSTANCE_ID(i); UNITY_TRANSFER_INSTANCE_ID(i, o);
+                float2 tp = WKTurn();
+                float3 ws = TransformObjectToWorld(WKRotY(i.positionOS.xyz, tp.x));
+                o.positionCS = TransformWorldToHClip(ws); o.ws = ws;
+                o.eye = -TransformWorldToView(ws).z;
+                o.sp = ComputeScreenPos(o.positionCS);
+                o.n = TransformObjectToWorldNormal(WKRotY(i.normalOS, tp.x));
+                o.uv = TRANSFORM_TEX(i.uv, _BaseMap); o.hOS = i.positionOS.y; o.pulse = tp.y;
+                return o;
+            }
+            half4 fragG(V i) : SV_Target
+            {
+                float2 suv = i.sp.xy / i.sp.w;
+                if (_WK_DepthFlip > 0.5) suv.y = 1 - suv.y;
+                float raw = SAMPLE_TEXTURE2D_X(_CameraDepthTexture, sampler_CameraDepthTexture, suv).r;
+                float scene = LinearEyeDepth(raw, _ZBufferParams);
+                if (i.eye > scene + 0.08 + 0.02 * i.eye) discard;   // hidden behind something (the key itself is in the depth)
+                half ao = SAMPLE_TEXTURE2D(_AOMap, sampler_AOMap, i.uv).r;
+                half crev = 1 - smoothstep(_CrevLo, _CrevHi, ao);
+                half collar = 1 - smoothstep(0, _CollarHeight, i.hOS);
+                half face = 0.5 + 0.5 * saturate(dot(normalize(i.n), normalize(GetWorldSpaceViewDir(i.ws))));
+                half amt = saturate(crev + collar) * face * (_OverRest + _OverPeak * i.pulse * (1 + _Warn));
+                return half4(amt, amt * 0.03, amt * 0.02, 0);
             }
             ENDHLSL
         }
