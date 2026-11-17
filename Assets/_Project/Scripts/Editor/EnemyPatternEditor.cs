@@ -8,6 +8,8 @@ namespace BlueReaper.Data.Editor
     [CustomEditor(typeof(EnemyPatternData))]
     public sealed class EnemyPatternEditor : UnityEditor.Editor
     {
+        internal System.Action<PatternImplData> EmbeddedOpenEffect { get; set; }
+        internal System.Func<AreaAttackPatternData, AreaAttackPatternData> EmbeddedEffectView { get; set; }
         private bool showPreview = true;
         private Transform caster;
         private StageField field;
@@ -45,13 +47,13 @@ namespace BlueReaper.Data.Editor
         {
             if (DrawDefaultInspector()) Refresh();
             var pattern = (EnemyPatternData)target;
-            var effects = OrderedEffects(pattern);
+            var effects = OrderedEffects(pattern, EmbeddedEffectView);
             bool fixedPlacement = pattern.PlacementMode != PatternPlacementMode.Default;
             float warning = TelegraphDuration(pattern);
             EditorGUILayout.HelpBox(PlacementHelp(pattern.PlacementMode), MessageType.Info);
             if (fixedPlacement)
                 EditorGUILayout.HelpBox("고정 좌표 탄막에는 AimAtTargetEachEmission이 적용되지 않습니다. 사망 패턴은 기존 사망 배치를 사용합니다.", MessageType.Info);
-            if (GUILayout.Button("패턴 애셋 저장")) AssetDatabase.SaveAssetIfDirty(pattern);
+            if (EmbeddedOpenEffect == null && GUILayout.Button("패턴 애셋 저장")) AssetDatabase.SaveAssetIfDirty(pattern);
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("범위 효과 타이밍", EditorStyles.boldLabel);
@@ -85,7 +87,10 @@ namespace BlueReaper.Data.Editor
                 }
 
                 if (GUILayout.Button("에셋 열기", GUILayout.Width(75f)))
-                    Selection.activeObject = effect;
+                {
+                    if (EmbeddedOpenEffect != null) EmbeddedOpenEffect(effect);
+                    else Selection.activeObject = effect;
+                }
             }
 
             EditorGUI.BeginChangeCheck();
@@ -127,9 +132,11 @@ namespace BlueReaper.Data.Editor
             if (EditorGUI.EndChangeCheck()) SceneView.RepaintAll();
         }
 
-        internal static AreaAttackPatternData[] OrderedEffects(EnemyPatternData pattern) =>
+        internal static AreaAttackPatternData[] OrderedEffects(EnemyPatternData pattern,
+            System.Func<AreaAttackPatternData, AreaAttackPatternData> view = null) =>
             (pattern.Implementations ?? System.Array.Empty<PatternImplData>()).OfType<AreaAttackPatternData>()
-                .Where(effect => effect).OrderBy(effect => HasValidTiming(effect) ? HitTime(effect) : float.PositiveInfinity).ToArray();
+                .Where(effect => effect).Select(effect => view?.Invoke(effect) ?? effect)
+                .OrderBy(effect => HasValidTiming(effect) ? HitTime(effect) : float.PositiveInfinity).ToArray();
 
         private static float HitTime(AreaAttackPatternData effect) => Mathf.Max(0f, effect.HitStartSeconds);
 
@@ -157,10 +164,11 @@ namespace BlueReaper.Data.Editor
 
         private void DrawScene(SceneView view)
         {
-            if (!showPreview || !target || Selection.activeObject != target || EditorApplication.isPlayingOrWillChangePlaymode
+            var active = MonsterEditorWindow.ActivePatternPreview;
+            if (!showPreview || !target || (active ? active != this : Selection.activeObject != target) || EditorApplication.isPlayingOrWillChangePlaymode
                 || Event.current.type != EventType.Repaint) return;
             var pattern = (EnemyPatternData)target;
-            var effects = OrderedEffects(pattern).Where(HasValidTiming).ToArray();
+            var effects = OrderedEffects(pattern, EmbeddedEffectView).Where(HasValidTiming).ToArray();
             float warning = TelegraphDuration(pattern);
             var placement = PreviewPlacement(pattern);
             float time = previewTime - warning;
@@ -169,6 +177,7 @@ namespace BlueReaper.Data.Editor
                 var first = pattern.Implementations?.OfType<AreaAttackPatternData>().FirstOrDefault(effect => effect);
                 if (first)
                 {
+                    first = EmbeddedEffectView?.Invoke(first) ?? first;
                     var shape = AreaPatternPreview.GetShape(first, 0);
                     var origin = Origin(first);
                     AreaPatternPreview.DrawShape(shape, origin, Color.yellow, false, placement: placement);
