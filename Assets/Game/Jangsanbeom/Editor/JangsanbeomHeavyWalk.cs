@@ -28,13 +28,14 @@ public static class JangsanbeomHeavyWalk
                 a.Length > 2 ? float.Parse(a[2], ci) : 0.45f,
                 a.Length > 3 ? float.Parse(a[3], ci) : 0.5f,
                 a.Length > 4 ? float.Parse(a[4], ci) : 1.25f,
-                a.Length > 5 ? float.Parse(a[5], ci) : 0f);
+                a.Length > 5 ? float.Parse(a[5], ci) : 0f,
+                a.Length > 6 ? float.Parse(a[6], ci) : 0f);
         }
         catch (System.Exception e) { log = "ERROR " + e; }
         File.WriteAllText("Temp/jsb_heavy.done", log);
     }
 
-    static string Bake(string srcFbx, string outAnim, float holdFrac, float drop, float slow, float flexDeg)
+    static string Bake(string srcFbx, string outAnim, float holdFrac, float drop, float slow, float flexDeg, float rollDeg)
     {
         var src = AssetDatabase.LoadAllAssetsAtPath(srcFbx).OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview"));
         var model = AssetDatabase.LoadAssetAtPath<GameObject>(srcFbx);
@@ -93,7 +94,11 @@ public static class JangsanbeomHeavyWalk
             System.Func<float> gather = () => Vector3.Dot(hind.Aggregate(Vector3.zero, (acc, t) => acc + t.position) / hind.Length - hipsT.position, fwd);
             float gMin = float.MaxValue, gMax = float.MinValue;
             for (int k = 0; k <= N; k += 4) { src.SampleAnimation(go, k * L / N); float g = gather(); gMin = Mathf.Min(gMin, g); gMax = Mathf.Max(gMax, g); }
-            bool flex = flexDeg > 0 && sp1 && sp3 && nk && hind.Length > 0 && gMax - gMin > 1e-4f;
+            // 11-17 lion-walk reference: the body leans a little toward the planted front paw, then rolls over to the other side
+            var fl = all.FirstOrDefault(t => t.name == "FrontToes.L"); var fr = all.FirstOrDefault(t => t.name == "FrontToes.R");
+            float sideRange = 0.01f;
+            if (fl && fr) for (int k = 0; k <= N; k += 4) { src.SampleAnimation(go, k * L / N); sideRange = Mathf.Max(sideRange, Mathf.Abs(fl.position.y - fr.position.y)); }
+            bool flex = (flexDeg > 0 || rollDeg > 0) && sp1 && sp3 && nk && hind.Length > 0 && gMax - gMin > 1e-4f;
 
             var dst = new AnimationClip { name = Path.GetFileNameWithoutExtension(outAnim), frameRate = 30 };
             int nf = Mathf.CeilToInt(Lout * 30);
@@ -121,6 +126,13 @@ public static class JangsanbeomHeavyWalk
                     sp1.rotation = Quaternion.AngleAxis(-th, right) * sp1.rotation;          // hips end of the back rises (hump)
                     sp3.rotation = Quaternion.AngleAxis(th * 1.2f, right) * sp3.rotation;    // chest comes back down past level
                     nk.rotation = Quaternion.AngleAxis(-th * 0.35f, right) * nk.rotation;    // head stays steadier, like a stalking cat
+                    if (rollDeg > 0 && fl && fr)
+                    {   // +1 when the right paw is up (left planted): lean left
+                        float side = Mathf.Clamp((fr.position.y - fl.position.y) / sideRange, -1f, 1f);
+                        float rl = rollDeg * side;
+                        sp1.rotation = Quaternion.AngleAxis(rl, fwd) * sp1.rotation;
+                        nk.rotation = Quaternion.AngleAxis(-rl * 0.8f, fwd) * nk.rotation;   // the head stays level
+                    }
                     for (int j = 0; j < 3; j++)
                     {
                         var q = bones[j].localRotation;
@@ -131,7 +143,7 @@ public static class JangsanbeomHeavyWalk
                 }
                 string[] comp = { "x", "y", "z", "w" };
                 for (int j = 0; j < 3; j++) for (int c = 0; c < 4; c++) dst.SetCurve(flexPaths[j], typeof(Transform), "m_LocalRotation." + comp[c], new AnimationCurve(qk[j, c]));
-                sb.AppendLine($"spine flex {flexDeg} deg on Spine1/Spine3/Neck1 (hind gather {gMin:F2}..{gMax:F2})");
+                sb.AppendLine($"spine flex {flexDeg} deg, roll {rollDeg} deg on Spine1/Spine3/Neck1 (hind gather {gMin:F2}..{gMax:F2})");
             }
 
             // 4) the thump: the armature (child of the boss root, so its local Y is up) dips on each footfall
