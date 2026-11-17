@@ -154,7 +154,8 @@ namespace RoomRun
             // 11-17 grip slide (Kido: "칼을 안쥐고있어"): the fist sat on the pommel end; slide the sword through the fist so
             // the hand wraps the handle ~1/3 below the guard (pommel out under the fist). Shots token slide=<m>.
             if (!swordPosSet) { swordPos0 = sword.localPosition; swordPosSet = true; }
-            sword.localPosition = swordPos0 - (sword.localRotation * Vector3.forward) * GripSlide;
+            float handScale = sword.parent ? Mathf.Max(1e-4f, sword.parent.lossyScale.x) : 1f;   // GripSlide is metres; the hand bone is scaled ~100
+            sword.localPosition = swordPos0 - (sword.localRotation * Vector3.forward) * (GripSlide / handScale);
             if (FlatHold) LiftTip();
         }
 
