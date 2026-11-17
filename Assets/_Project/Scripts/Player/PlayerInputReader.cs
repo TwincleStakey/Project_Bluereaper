@@ -17,7 +17,7 @@ namespace BlueReaper.Player
         [SerializeField] Camera aimCamera;
 
         InputActionMap map;
-        InputAction move, aimPoint, aimStick, attack, dash;
+        InputAction move, aimPoint, aimStick, attack, dash, interact;
         bool usingStickAim;
         Vector2 lastMousePosition;
 
@@ -26,16 +26,21 @@ namespace BlueReaper.Player
         /// <summary>월드 XZ 평면 방향, 길이 1.</summary>
         public Vector3 AimDirection { get; private set; } = Vector3.forward;
         public bool AttackHeld => attack.IsPressed();
+        /// <summary>상호작용(F / 패드 ↓)을 누르고 있는지. 구조처럼 꾹 누르는 동작용.</summary>
+        public bool InteractHeld => enabled && interact.IsPressed();
         public event Action DashPressed;
 
         void Awake()
         {
+            // 플레이어마다 복사본을 쓴다. 원본을 같이 쓰면 남의 캐릭터에서 입력을 끌 때 내 입력까지 꺼진다
+            actions = Instantiate(actions);
             map = actions.FindActionMap("Player", throwIfNotFound: true);
             move = map.FindAction("Move", true);
             aimPoint = map.FindAction("AimPoint", true);
             aimStick = map.FindAction("AimStick", true);
             attack = map.FindAction("Attack", true);
             dash = map.FindAction("Dash", true);
+            interact = map.FindAction("Interact", true);
             if (aimCamera == null) aimCamera = Camera.main;
         }
 
@@ -51,6 +56,9 @@ namespace BlueReaper.Player
             map.Disable();
             MoveDirection = Vector3.zero;
         }
+
+        // Awake에서 만든 복사본은 이 플레이어 것이라 같이 지운다
+        void OnDestroy() => Destroy(actions);
 
         void OnDash(InputAction.CallbackContext _) => DashPressed?.Invoke();
 
