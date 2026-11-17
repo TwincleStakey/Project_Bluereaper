@@ -1,10 +1,13 @@
 # BlueReaper 시스템 지도
 
-기준 커밋 `29dce39`의 코드와 저장된 씬·프리팹·ScriptableObject를 대조했다. 작업별 문서는 [색인](INDEX.md)에서 찾는다.
+작업별 문서는 [색인](INDEX.md)에서 찾는다.
 
 ```mermaid
 flowchart LR
-    Scene["Seonggyu 씬"] --> Stage["StageController"]
+    Menu["SoloMenu 씬"] --> Solo["SoloStage 씬"]
+    Solo --> Stage["StageController"]
+    Solo --> Player["Player 프리팹"]
+    Scene["Seonggyu 씬"] --> Stage
     Scene --> Player["Player 프리팹"]
     Stage --> Field["StageData → StageField"]
     Field --> Enemy["배치·웨이브·소환 적"]
@@ -24,10 +27,18 @@ flowchart LR
 
 | 씬 | 저장된 연결 |
 | --- | --- |
+| [SoloMenu](../Assets/_Project/Scenes/SoloMenu.unity) | 빌드 첫 씬이다. 타이틀·로비·거점 uGUI와 솔로 세션을 유지한다. 출발 시 선택한 StageData를 전투 씬에 전달한다. |
+| [SoloStage](../Assets/_Project/Scenes/SoloStage.unity) | 출발마다 로드하는 전투 씬이다. Player 프리팹, StageController, TopDownCamera, 플레이어 HP와 BossHUD가 연결돼 있다. |
 | [Seonggyu](../Assets/_Project/Scenes/_Sandbox/Seonggyu.unity) | Player 인스턴스의 Health, BossHUD, TopDownCamera, Stage_1이 StageController에 연결돼 있다. 전투와 필드 진행의 진입점이다. |
 | [Kibaek](../Assets/_Project/Scenes/_Sandbox/Kibaek.unity) | 플레이어와 타격용 더미가 배치돼 있다. StageController에 StageData가 연결돼 있지 않아 현재 필드 진행은 시작되지 않는다. |
 | [Prototype](../Assets/_Project/Scenes/Prototype.unity) | 카메라와 조명이 배치돼 있다. |
-| [SampleScene](../Assets/Scenes/SampleScene.unity) | [저장된 기본 빌드 목록](../ProjectSettings/EditorBuildSettings.asset)의 유일한 활성 씬이다. 전투와 Stage_1 연결은 Seonggyu 씬에서 확인한다. |
+| [SampleScene](../Assets/Scenes/SampleScene.unity) | [빌드 목록](../ProjectSettings/EditorBuildSettings.asset)에 남아 있다. |
+
+## 솔로 게임 흐름
+
+- 타이틀의 새로하기에서 로비에 진입한다. 로비에서 Warrior 캐릭터를 생성하고 선택한다. 생성된 캐릭터는 현재 실행에서 사용하며 이름은 생성 순서대로 부여한다. 설정은 마스터 볼륨과 전체 화면을 제어한다.
+- [SoloGameFlow](../Assets/_Project/Scripts/GameFlow/SoloGameFlow.cs)는 `SessionService.StartSolo`를 호출하고, 로컬 세션이 시작되면 거점을 연다. 거점에서 스테이지 선택과 출발을 입력하면 SoloStage 씬이 추가로 로드된다. 클리어·HP 0·스테이지 시작 오류는 전투 씬을 정리한 후 거점에 표시된다. 선택한 스테이지는 재출발에 사용한다.
+- [SoloStage](../Assets/_Project/Scripts/GameFlow/SoloStage.cs)는 출발할 때마다 선택한 캐릭터의 플레이어를 새로 만들고 HP HUD를 연결한다. StageController는 플레이어를 등록하고 카메라 타겟과 필드 진행을 지정한다.
 
 ## 공통 개체와 플레이어
 
@@ -48,12 +59,10 @@ flowchart LR
 
 ## 스테이지와 회수
 
-[StageController.RunStage](../Assets/_Project/Scripts/Stage/StageController.cs)가 [Stage_1](../Assets/_Project/Data/Stages/Stage_1.asset)에 지정된 필드를 순서대로 생성한다. 입구 이동·사전 배치 등록 후 첫 웨이브를 만들고, 반복 웨이브를 5초 간격으로 생성한다. 필드 전환과 본체·사망 탄막 회수는 [개체 수명 계약](contracts/UNIT_LIFECYCLE.md)을 참조한다.
+[StageController.RunStage](../Assets/_Project/Scripts/Stage/StageController.cs)가 [Stage_1](../Assets/_Project/Data/Stages/Stage_1.asset)의 필드 3 → 4를 순서대로 생성한다. 입구 이동·사전 배치 등록 후 첫 웨이브를 만들고, 반복 웨이브가 설정된 필드는 데이터의 간격을 따른다. 필드 전환과 본체·사망 탄막 회수는 [개체 수명 계약](contracts/UNIT_LIFECYCLE.md)을 참조한다.
 
-| 필드 | 웨이브당 구성 | 반복 | 저장된 설정의 클리어 조건 |
+| Stage_1 필드 | 웨이브당 구성 | 반복 | 저장된 설정의 클리어 조건 |
 | --- | --- | ---: | --- |
-| [1](../Assets/_Project/Prefabs/Stage/StageField_1.prefab) | Monster_1 × 16 | 3 | 48마리 중 41마리 |
-| [2](../Assets/_Project/Prefabs/Stage/StageField_2.prefab) | Monster_1 × 16, Monster_2 × 16 | 2 | 64마리 중 55마리 |
 | [3](../Assets/_Project/Prefabs/Stage/StageField_3.prefab) | Monster_1 × 16, Monster_3 × 16 | 1 | 32마리 중 28마리 |
 | [4](../Assets/_Project/Prefabs/Stage/StageField_4.prefab) | Boss_1 × 1 | 1 | 보스 1마리 |
 
@@ -71,6 +80,7 @@ flowchart LR
 
 | 확인할 동작 | 따라갈 호출 |
 | --- | --- |
+| 솔로 출발과 복귀 | `SoloGameFlow` → `SoloStage.TryBegin` → `StageController.TryStartSoloRun` → `SoloRunFinished` → 씬 해제 및 거점 표시 |
 | 이동과 평타 | `PlayerController.Update` → `PlayerMotor` / `AutoAim.Resolve` → `SwordAttack.TryAttack` → `Health.TakeDamage` |
 | 적 패턴 선택·실행 | `EnemyAI.AIUpdate` → `SelectNextPattern` → `ExecuteAction` → `ExecutePattern` |
 | 웨이브와 소환 | `RunStage` → `SpawnWave` 또는 패턴 효과 → `SummonEnemies` → `SpawnEnemy` → `RegisterUnit` |

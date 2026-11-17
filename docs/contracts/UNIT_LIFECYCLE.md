@@ -16,6 +16,12 @@
 2. 웨이브·소환은 `SpawnEnemy`를 통해 풀에서 적을 꺼낸다. 사전 배치 적은 필드 생성 후 활성화한다. 활성화 시 `Health.OnEnable`은 현재 체력을 최대치로 초기화한다.
 3. `InitEnemy`는 `Enemy.Init`에 공유 생존 플레이어 목록을 넘긴다. `RegisterUnit`이 필드·집계 여부를 기록하고 `Health.Died`를 구독한다. AI에 스테이지와 스폰 통지를 전달하고 사망 연출 완료를 구독한다. AI는 활성화 후 첫 행동 전에 한 프레임을 기다린다.
 
+### 솔로 스테이지
+
+- 솔로 씬은 플레이어와 StageData가 비어 있는 StageController로 시작한다. `TryStartSoloRun`은 살아 있는 활성 플레이어와 StageData를 받아 단일 실행을 시작한다. 재출발할 때는 씬과 플레이어를 새로 만든다.
+- `SoloRunFinished`는 실행마다 한 번 발행한다. `Cleared`는 마지막 필드가 끝나고 남은 사망 연출이 정리된 시점, `PlayerDefeated`는 등록된 플레이어가 HP 0이 된 시점, `Aborted`는 스테이지 구성 또는 웨이브 검증 실패로 기존 정리가 끝난 시점이다. 클리어가 확정되면 기존 `GameEvents.StageCleared`도 발행한다.
+- 게임 흐름은 결과를 받아 전투 씬의 StageController를 비활성화한다. StageController가 필드·적·사망 탄과 구독을 해제한 뒤, 게임 흐름이 플레이어를 비활성화하고 전투 씬을 내린다. 솔로 세션과 캐릭터 선택은 메뉴 씬에서 유지된다.
+
 ## 피해와 사망
 
 - 공격 판정은 `Hurtbox` 레이어의 피격용 Collider에서 부모의 `IDamageable`을 찾는다. 같은 부위가 공격에도 쓰이면 공격용 Collider와 피격용 Collider를 별도 GameObject에 배치한다. 근거리 패턴은 공격용 Collider만 켜고 끈다. 이동용 Collider는 기존 레이어를 사용한다.

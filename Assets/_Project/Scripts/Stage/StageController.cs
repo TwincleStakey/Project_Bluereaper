@@ -15,6 +15,8 @@ using Random = UnityEngine.Random;
 
 namespace BlueReaper.Stage
 {
+    public enum SoloStageResult { Cleared, PlayerDefeated, Aborted }
+
     public class StageController : MonoBehaviour
     {
         [Tooltip("이 스테이지에 참가한 플레이어 (1~3명)")]
@@ -40,6 +42,7 @@ namespace BlueReaper.Stage
         readonly Dictionary<Unit, StageUnitRecord> units = new();
         readonly HashSet<ProjectileHitBox> deathProjectiles = new();
         public IReadOnlyList<Transform> AlivePlayers => alivePlayers;
+        public event Action<SoloStageResult> SoloRunFinished;
 
         private Coroutine stageRoutine;
         private StageField currentField;
@@ -48,6 +51,8 @@ namespace BlueReaper.Stage
         private int fieldKills;
         private bool bossesOnly;
         private bool fieldComplete;
+        private bool soloRun;
+        private bool soloRunFinished;
 
         private void OnEnable()
         {
@@ -67,16 +72,37 @@ namespace BlueReaper.Stage
 
         private void Start()
         {
+            if (soloRun) return;
+
             foreach (Health player in players)
             {
                 if (!player || !player.isActiveAndEnabled || player.IsDead || alivePlayers.Contains(player.transform))
                     continue;
-                alivePlayers.Add(player.transform);
-                RegisterUnit(player.GetComponent<Unit>(), null);
+                RegisterPlayer(player);
             }
 
             if (playerCamera && alivePlayers.Count > 0) playerCamera.SetTarget(alivePlayers[0]);
             if (stageData) stageRoutine = StartCoroutine(RunStage());
+        }
+
+        // Solo uses a fresh stage scene for each departure.
+        public bool TryStartSoloRun(StageData data, Health player)
+        {
+            if (!isActiveAndEnabled || soloRun || stageData || players.Count != 0 || !data
+                || !player || !player.isActiveAndEnabled || player.IsDead) return false;
+
+            soloRun = true;
+            stageData = data;
+            RegisterPlayer(player);
+            if (playerCamera) playerCamera.SetTarget(player.transform);
+            stageRoutine = StartCoroutine(RunStage());
+            return true;
+        }
+
+        private void RegisterPlayer(Health player)
+        {
+            alivePlayers.Add(player.transform);
+            RegisterUnit(player.GetComponent<Unit>(), null);
         }
 
         private IEnumerator RunStage()
@@ -133,15 +159,19 @@ namespace BlueReaper.Stage
                     if (round + 1 >= currentField.RepeatSpawnCount || fieldComplete) break;
                     float nextWaveAt = Time.time + currentField.RepeatSpawnDelay;
                     do { yield return null; }
-                    while (!fieldComplete && Time.time < nextWaveAt);
+                    while (!fieldComplete && !soloRunFinished && Time.time < nextWaveAt);
+                    if (soloRunFinished) yield break;
                 }
 
-                while (!fieldComplete) yield return null;
+                while (!fieldComplete && !soloRunFinished) yield return null;
+                if (soloRunFinished) yield break;
                 FinishField(index + 1 < stageData.Fields.Length);
             }
 
             while (HasDyingUnits()) yield return null;
             stageRoutine = null;
+            if (soloRunFinished) yield break;
+            FinishSoloRun(SoloStageResult.Cleared);
             GameEvents.RaiseStageCleared();
         }
 
@@ -295,6 +325,7 @@ namespace BlueReaper.Stage
             if (record.Field is null && !record.Enemy)
             {
                 alivePlayers.Remove(record.Unit.transform);
+                FinishSoloRun(SoloStageResult.PlayerDefeated);
                 return;
             }
 
@@ -428,6 +459,14 @@ namespace BlueReaper.Stage
             Debug.LogError(reason, this);
             stageRoutine = null;
             ReleaseStage();
+            FinishSoloRun(SoloStageResult.Aborted);
+        }
+
+        private void FinishSoloRun(SoloStageResult result)
+        {
+            if (!soloRun || soloRunFinished) return;
+            soloRunFinished = true;
+            SoloRunFinished?.Invoke(result);
         }
 
         private void ReleaseStage()

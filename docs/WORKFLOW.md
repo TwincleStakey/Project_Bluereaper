@@ -36,6 +36,7 @@
 - 정적 검토, Unity 참조를 사용한 외부 컴파일, Unity Editor 컴파일, Console, EditMode·PlayMode, 사용자 수락을 각각 기록한다. 실행한 자동 검사에는 실행 수와 성공·실패·건너뜀을 적는다.
 - 실행 검증을 할 때는 대상 프로젝트와 씬을 확인한다. 필드 진행이 목적이면 [시스템 지도의 씬 연결](SYSTEM_MAP.md#씬과-데이터)을 참조한다. 작업자의 미저장 씬과 Inspector 변경을 보존한다.
 - 공유 Unity Editor에서 여러 작업을 진행하는 경우 임포트·컴파일·테스트를 조작할 담당자를 한 번에 한 명으로 맞춘다.
+- 솔로 흐름의 씬 연결과 런타임 회귀는 별도 프로젝트에서 Unity에 `-batchmode -nographics -executeMethod BlueReaper.GameFlow.Editor.SoloGameFlowChecks.Run`을 전달해 확인한다. 검사가 종료 코드를 설정하므로 `-quit` 인수는 생략한다.
 
 ## 인계가 필요할 때
 
