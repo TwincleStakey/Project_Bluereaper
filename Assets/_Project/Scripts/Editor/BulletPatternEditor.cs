@@ -74,6 +74,15 @@ namespace BlueReaper.BulletPatterns.Editor
             }
             Field("RepeatCount", "총 발사 횟수 (최초 포함)");
             Field("RepeatInterval", "발사 시작 간격 (초)");
+            Field("UseHitWindow", "탄별 지속 판정");
+            if (serializedObject.FindProperty("UseHitWindow").boolValue)
+            {
+                Field("HitStartSeconds", "탄 생성 후 첫 판정 (초)");
+                Field("HitDurationSeconds", "판정 유지 (초)");
+                Field("RepeatHits", "반복 판정");
+                if (serializedObject.FindProperty("RepeatHits").boolValue)
+                    Field("HitRepeatIntervalSeconds", "판정 간격 (초)");
+            }
             Field("AlignToPath", "진행 방향으로 회전");
             Field("DirectionOffset", "방향 보정 (로컬 Y도)");
             Field("DamageMultiplier", "데미지 배율");

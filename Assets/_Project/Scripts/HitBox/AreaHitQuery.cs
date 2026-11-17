@@ -10,7 +10,7 @@ namespace BlueReaper.HitBox
     internal sealed class AreaHitQuery
     {
         private Collider[] candidates = new Collider[32];
-        private readonly HashSet<IDamageable> seen = new();
+        private readonly HashSet<object> seen = new();
         private readonly List<(IDamageable Target, Collider Collider)> hits = new();
 
         internal List<(IDamageable Target, Collider Collider)> Find(AreaHitShape shape, Vector3 center,
@@ -44,12 +44,14 @@ namespace BlueReaper.HitBox
             {
                 Collider candidate = candidates[i];
                 var target = HurtboxTarget.Find(candidate, ownerLayers, out var unit);
-                if (target == null || unit == source || seen.Contains(target)) continue;
+                if (target == null || unit == source) continue;
+                var key = HurtboxTarget.Key(target, candidate);
+                if (seen.Contains(key)) continue;
                 bool overlaps = isRectangle || (isDonut ? curvedArea.IntersectsDonut(candidate, innerRadius)
                     : curvedArea.Intersects(candidate));
                 if (!overlaps) continue;
 
-                seen.Add(target);
+                seen.Add(key);
                 hits.Add((target, candidate));
             }
             Array.Clear(candidates, 0, count);

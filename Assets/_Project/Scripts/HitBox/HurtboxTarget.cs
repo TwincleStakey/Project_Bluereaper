@@ -11,6 +11,15 @@ namespace BlueReaper.HitBox
         internal static IDamageable Find(Collider collider) =>
             collider && collider.gameObject.layer == Layer ? collider.GetComponentInParent<IDamageable>() : null;
 
+        internal static object Key(IDamageable target, Collider collider) =>
+            (object)collider.GetComponentInParent<Hurtbox>() ?? target;
+
+        internal static float Damage(Collider collider, float damage)
+        {
+            var part = collider.GetComponentInParent<Hurtbox>();
+            return part ? damage * (1f - part.DamageReduction) : damage;
+        }
+
         internal static IDamageable Find(Collider collider, LayerMask ownerLayers, out Unit unit)
         {
             unit = null;

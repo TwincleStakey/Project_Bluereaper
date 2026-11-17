@@ -78,7 +78,7 @@ namespace BlueReaper.Data.Editor
                         previewTime = warning + HitTime(effect);
                         Refresh();
                     }
-                    EditorGUILayout.LabelField(effect.name, $"배치 {warning + effect.PlacementDelaySeconds:0.###}초"
+                    EditorGUILayout.LabelField(effect.name, $"배치 {warning + effect.PlacementDelaySeconds:0.###}초 · 종료 {warning + EndTime(effect):0.###}초"
                         + (effect.ContinueAfterPlacement ? " · 배치까지만 대기" : ""));
                 }
                 else
@@ -140,7 +140,7 @@ namespace BlueReaper.Data.Editor
 
         private static float HitTime(AreaAttackPatternData effect) => Mathf.Max(0f, effect.HitStartSeconds);
 
-        private static float EndTime(AreaAttackPatternData effect) => HitTime(effect) + effect.ActiveDuration;
+        private static float EndTime(AreaAttackPatternData effect) => HitTime(effect) + effect.HitDurationSeconds;
 
         private static bool HasValidTiming(AreaAttackPatternData effect) =>
             effect.GetValidationError() == null;
@@ -156,11 +156,8 @@ namespace BlueReaper.Data.Editor
             pattern.PlacementMode == PatternPlacementMode.Default
                 ? null : (previewFeet, Quaternion.Euler(0f, previewCasterYaw, 0f));
 
-        internal static bool IsHighlighted(AreaAttackPatternData effect, float time, float lastHit)
-        {
-            float hit = HitTime(effect);
-            return hit <= time && (hit == lastHit || time < EndTime(effect));
-        }
+        internal static bool IsHighlighted(AreaAttackPatternData effect, float time) =>
+            HitTime(effect) <= time && time < EndTime(effect);
 
         private void DrawScene(SceneView view)
         {
@@ -190,13 +187,11 @@ namespace BlueReaper.Data.Editor
                 return;
             }
 
-            float lastHit = effects.Where(effect => HitTime(effect) <= time + 0.0001f)
-                .Select(HitTime).DefaultIfEmpty(float.NegativeInfinity).Max();
             foreach (var effect in effects)
             {
                 var origin = Origin(effect);
                 var shape = AreaPatternPreview.GetShape(effect, 0);
-                bool highlighted = IsHighlighted(effect, time + 0.0001f, lastHit);
+                bool highlighted = IsHighlighted(effect, time);
                 Color color = highlighted ? AreaPatternPreview.SelectedColor : AreaPatternPreview.OutlineColor;
                 if (time < effect.PlacementDelaySeconds) color.a *= 0.45f;
                 float elapsed = time - HitTime(effect);

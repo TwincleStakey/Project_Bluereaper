@@ -20,6 +20,7 @@ namespace BlueReaper.HitBox
         private Quaternion facing;
         private Action<ProjectileHitBox> onReturned;
         private Func<bool> vfxGuard;
+        private HitWindow hits;
 
         private void Awake()
         {
@@ -42,6 +43,7 @@ namespace BlueReaper.HitBox
         {
             armed = false;
             returned = true;
+            hits?.Reset();
             var callback = onReturned;
             onReturned = null;
             callback?.Invoke(this);
@@ -78,6 +80,8 @@ namespace BlueReaper.HitBox
             Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned, Func<bool> vfxGuard)
         {
             this.pattern = pattern;
+            hits?.Reset();
+            if (pattern.UseHitWindow) hits ??= new HitWindow();
             this.pathIndex = pathIndex;
             this.emissionIndex = emissionIndex;
             spawnedAt = Time.time;
@@ -121,22 +125,30 @@ namespace BlueReaper.HitBox
 
         private void TryHit(Collider other)
         {
-            if (!armed || returned) return;
+            if (!isActiveAndEnabled || !armed || returned) return;
             if (!detachedEnemyProjectile && (!owner || other.transform.IsChildOf(owner.transform))) return;
             if ((detachedEnemyProjectile || owner.GetComponent<Enemy>()) && other.GetComponentInParent<Enemy>()) return;
             var target = HurtboxTarget.Find(other);
             if (target != null)
             {
-                armed = false;
+                bool continuous = pattern && pattern.UseHitWindow;
+                if (continuous)
+                {
+                    float elapsed = Time.time - spawnedAt - pattern.HitStartSeconds;
+                    int slice = HitWindow.Slice(elapsed, pattern.HitDurationSeconds,
+                        pattern.RepeatHits, pattern.HitRepeatIntervalSeconds);
+                    if (hits == null || !hits.Claim(HurtboxTarget.Key(target, other), slice)) return;
+                }
+                else armed = false;
                 var hitVfx = pattern ? pattern.HitVfxPrefab : null;
                 float vfxDelay = pattern ? pattern.HitVfxDelaySeconds : 0f;
                 var guard = vfxGuard;
                 Vector3 point = hitVfx ? other.ClosestPoint(transform.position) : default;
                 Quaternion rotation = transform.rotation;
-                var result = target.TakeDamage(damage, owner);
+                var result = target.TakeDamage(HurtboxTarget.Damage(other, damage), owner);
                 if (result is DamageResult.Applied or DamageResult.Killed)
                     VfxAutoDespawn.Play(hitVfx, point, rotation, vfxDelay, guard);
-                ReturnToPool();
+                if (!continuous) ReturnToPool();
             }
             else if (other.gameObject.layer == LayerMask.NameToLayer("Environment")) ReturnToPool();
         }

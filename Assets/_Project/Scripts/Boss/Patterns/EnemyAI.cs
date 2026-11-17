@@ -51,8 +51,8 @@ namespace BlueReaper.Boss
         private struct AreaCast
         {
             internal AreaAttackPatternData Pattern;
-            internal float NextAt, HitAt, StartedAt, EndsAt, LastSample, LastHitCheckAt, Damage;
-            internal HashSet<IDamageable> DamagedTargets;
+            internal float NextAt, HitAt, LastSample, Damage;
+            internal HitWindow Window;
             internal bool Placed, HasHit;
             internal AreaPlacement Placement;
             internal AreaPlacement[] CapturedPlacements;
@@ -69,7 +69,7 @@ namespace BlueReaper.Boss
         private Coroutine coAIUpdate = null;
         private Coroutine coMeleeHitWindow = null;
         private MeleeHitBox[] meleeHitBoxes;
-        private readonly Dictionary<IDamageable, float> nextMeleeHits = new();
+        private readonly HitWindow meleeHits = new();
         private readonly AreaHitQuery areaQuery = new();
         private readonly HashSet<ProjectileHitBox> projectiles = new();
         private MeleeAttackPatternData activeMelee;
@@ -578,7 +578,7 @@ namespace BlueReaper.Boss
 
                     case AreaAttackPatternData areaAttack when areaAttack:
                         float placementDelay = areaAttack.PlacementDelaySeconds;
-                        float hitDelay = Mathf.Max(0f, areaAttack.HitStartSeconds);
+                        float hitDelay = areaAttack.HitStartSeconds;
                         string error = areaAttack.GetValidationError();
                         if (error != null)
                         {
@@ -705,7 +705,6 @@ namespace BlueReaper.Boss
             try
             {
                 LayerMask targets = LayerMask.GetMask("Player");
-                HashSet<IDamageable> tickTargets = null;
                 while (casts.Count > 0 && CanRun())
                 {
                     // Scan the scheduled times so a late frame still fires distinct hits in order.
@@ -741,64 +740,39 @@ namespace BlueReaper.Boss
                     }
 
                     var pattern = cast.Pattern;
-                    bool expanding = pattern.ExpansionMode != AreaExpansionMode.None;
                     float now = Time.time;
-                    if (cast.HasHit && now >= cast.EndsAt
-                        && (!expanding || cast.LastSample >= pattern.ExpansionDurationSeconds))
+                    float endsAt = cast.HitAt + pattern.HitDurationSeconds;
+                    float elapsed = now - cast.HitAt;
+                    int slice = HitWindow.Slice(elapsed, pattern.HitDurationSeconds,
+                        pattern.RepeatHits, pattern.HitRepeatIntervalSeconds);
+                    if (now >= endsAt || slice < 0)
                     {
                         casts.RemoveAt(next);
                         continue;
                     }
-                    if (!cast.HasHit)
-                    {
-                        cast.StartedAt = now;
-                        cast.EndsAt = now + pattern.ActiveDuration;
-                        if (expanding) cast.DamagedTargets = new HashSet<IDamageable>();
-                    }
-
-                    float interval = pattern.RepeatHits
-                        ? Mathf.Max(Time.fixedDeltaTime, pattern.HitRepeatIntervalSeconds)
-                        : Time.fixedDeltaTime;
-                    // The final sweep can run early, but targets hit on the last tick keep their interval.
-                    if (pattern.RepeatHits && now - cast.LastHitCheckAt >= interval - 0.0001f)
-                        cast.DamagedTargets?.Clear();
-
-                    float sample = 0f;
-                    if (expanding)
-                        sample = now >= cast.EndsAt ? pattern.ExpansionDurationSeconds
-                            : Mathf.Min(now - cast.StartedAt, pattern.ExpansionDurationSeconds);
-                    var (size, innerRadius) = pattern.EvaluateHitShape(sample);
+                    cast.Window ??= new HitWindow();
+                    var (size, innerRadius) = pattern.EvaluateHitShape(elapsed);
                     // Cover the band crossed since the previous tick, even when it moved farther than its width.
                     if (cast.HasHit && pattern.ExpansionMode == AreaExpansionMode.MovingRing)
                         innerRadius = pattern.EvaluateHitShape(cast.LastSample).InnerRadius;
 
                     if (cast.CapturedPlacements == null)
                     {
-                        ApplyAreaTick(cast, cast.Placement, sample, size, innerRadius, targets,
-                            CanRun, vfxGuard, null);
+                        ApplyAreaTick(cast, cast.Placement, elapsed, size, innerRadius, targets, CanRun, vfxGuard, slice);
                     }
                     else
                     {
-                        tickTargets ??= new HashSet<IDamageable>();
-                        tickTargets.Clear();
                         foreach (var placement in cast.CapturedPlacements)
                         {
                             if (!CanRun()) yield break;
-                            ApplyAreaTick(cast, placement, sample, size, innerRadius, targets,
-                                CanRun, vfxGuard, tickTargets);
+                            ApplyAreaTick(cast, placement, elapsed, size, innerRadius, targets, CanRun, vfxGuard, slice);
                         }
                     }
                     if (!CanRun()) yield break;
 
-                    if (now >= cast.EndsAt)
-                    {
-                        casts.RemoveAt(next);
-                        continue;
-                    }
                     cast.HasHit = true;
-                    cast.LastSample = sample;
-                    cast.LastHitCheckAt = now;
-                    cast.NextAt = Mathf.Min(now + interval, cast.EndsAt);
+                    cast.LastSample = elapsed;
+                    cast.NextAt = Mathf.Min(now + Time.fixedDeltaTime, endsAt);
                     casts[next] = cast;
                 }
             }
@@ -809,7 +783,7 @@ namespace BlueReaper.Boss
         }
 
         private void ApplyAreaTick(AreaCast cast, AreaPlacement placement, float sample, Vector3 size,
-            float innerRadius, LayerMask targets, Func<bool> canRun, Func<bool> vfxGuard, HashSet<IDamageable> tickTargets)
+            float innerRadius, LayerMask targets, Func<bool> canRun, Func<bool> vfxGuard, int slice)
         {
             var pattern = cast.Pattern;
             Vector3 center = placement.Layout.MultiplyPoint3x4(pattern.LocalCenter);
@@ -830,10 +804,9 @@ namespace BlueReaper.Boss
             foreach (var (target, collider) in hits)
             {
                 if (!canRun()) return;
-                if (cast.DamagedTargets?.Contains(target) == true || tickTargets?.Add(target) == false) continue;
-                var result = DamageWithVfx(target, collider, center, facing, cast.Damage,
+                if (!cast.Window.Claim(HurtboxTarget.Key(target, collider), slice)) continue;
+                DamageWithVfx(target, collider, center, facing, cast.Damage,
                     pattern.HitVfxPrefab, pattern.HitVfxDelaySeconds, vfxGuard);
-                if (result is DamageResult.Applied or DamageResult.Killed) cast.DamagedTargets?.Add(target);
             }
         }
 
@@ -885,8 +858,11 @@ namespace BlueReaper.Boss
         {
             StopMeleeHitWindow();
             float startedAt = diedAt ?? Time.time;
-            if (!pattern || !unit.Data || !(pattern.HitDurationSeconds > 0f)
-                || !(pattern.HitStartSeconds + pattern.HitDurationSeconds > Time.time - startedAt)) return;
+            if (!pattern || !unit.Data || !(pattern.HitStartSeconds >= 0f) || !(pattern.HitDurationSeconds > 0f)
+                || !float.IsFinite(pattern.HitStartSeconds + pattern.HitDurationSeconds)
+                || !(pattern.HitStartSeconds + pattern.HitDurationSeconds > Time.time - startedAt)
+                || (pattern.RepeatHits && (!(pattern.HitRepeatIntervalSeconds > 0f)
+                    || !float.IsFinite(pattern.HitRepeatIntervalSeconds)))) return;
             activeMelee = pattern;
             meleeAfterDeath = diedAt.HasValue;
             meleeStartedAt = startedAt;
@@ -927,7 +903,7 @@ namespace BlueReaper.Boss
             SetMeleeArmed(false);
             activeMelee = null;
             meleeAfterDeath = false;
-            nextMeleeHits.Clear();
+            meleeHits.Reset();
         }
 
         private void SetMeleeArmed(bool armed)
@@ -940,26 +916,22 @@ namespace BlueReaper.Boss
         {
             if (!activeMelee || health.IsDead != meleeAfterDeath) return;
             if (meleeAfterDeath && (!Stage || !Stage.CanRunDeathPattern(unit))) return;
-            float elapsed = Time.time - meleeStartedAt;
-            if (elapsed < activeMelee.HitStartSeconds
-                || elapsed >= activeMelee.HitStartSeconds + activeMelee.HitDurationSeconds) return;
-            if (nextMeleeHits.TryGetValue(target, out float next) && Time.time < next) return;
-            nextMeleeHits[target] = activeMelee.RepeatHits
-                ? Time.time + Mathf.Max(Time.fixedDeltaTime, activeMelee.HitRepeatIntervalSeconds)
-                : float.PositiveInfinity;
+            float elapsed = Time.time - meleeStartedAt - activeMelee.HitStartSeconds;
+            int slice = HitWindow.Slice(elapsed, activeMelee.HitDurationSeconds,
+                activeMelee.RepeatHits, activeMelee.HitRepeatIntervalSeconds);
+            if (!meleeHits.Claim(HurtboxTarget.Key(target, collider), slice)) return;
             DamageWithVfx(target, collider, transform.position, transform.rotation, meleeDamage,
                 activeMelee.HitVfxPrefab, activeMelee.HitVfxDelaySeconds,
                 activeMelee.HitVfxPrefab ? GetVfxGuard(meleeAfterDeath) : null);
         }
 
-        private DamageResult DamageWithVfx(IDamageable target, Collider collider, Vector3 origin, Quaternion facing,
+        private void DamageWithVfx(IDamageable target, Collider collider, Vector3 origin, Quaternion facing,
             float damage, VfxAutoDespawn prefab, float delay, Func<bool> canPlay)
         {
             Vector3 point = prefab && collider ? collider.ClosestPoint(origin) : origin;
-            var result = target.TakeDamage(damage, unit);
+            var result = target.TakeDamage(HurtboxTarget.Damage(collider, damage), unit);
             if (result is DamageResult.Applied or DamageResult.Killed)
                 VfxAutoDespawn.Play(prefab, point, facing, delay, canPlay);
-            return result;
         }
 
         private void OnProjectileReturned(ProjectileHitBox projectile) => projectiles.Remove(projectile);

@@ -12,7 +12,7 @@ namespace BlueReaper.HitBox
         private bool armed;
         private Collider[] hitColliders;
         private Action<IDamageable, Collider> onContact;
-        private readonly HashSet<IDamageable> hitTargets = new();
+        private readonly HashSet<object> hitTargets = new();
 
         private void Awake()
         {
@@ -47,7 +47,8 @@ namespace BlueReaper.HitBox
             var target = HurtboxTarget.Find(other);
             if (target == null) return;
             if (onContact != null) onContact(target, other);
-            else if (hitTargets.Add(target)) target.TakeDamage(damage, owner);
+            else if (hitTargets.Add(HurtboxTarget.Key(target, other)))
+                target.TakeDamage(HurtboxTarget.Damage(other, damage), owner);
         }
     }
 }
