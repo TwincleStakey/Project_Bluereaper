@@ -176,24 +176,24 @@ namespace RoomRun
             {
                 // west wall feet (leaves blown in, wet mud in the corners)
                 ("Leaves", -47f, -40f, 9f, 1.4f), ("Mud", -49f, -31f, 7f, 0.7f), ("Leaves", -47f, -20f, 8f, 1.2f), ("Mud", -48f, -9f, 6f, 0.8f),
-                ("Leaves", -47f, 18f, 8f, 0.8f), ("Mud", -48f, 27f, 7f, 1.2f), ("Leaves", -46f, 37f, 9f, 1.3f), ("Mud", -50f, 42f, 6f),
+                ("Leaves", -47f, 18f, 8f, 0.8f), ("Mud", -48f, 27f, 7f, 1.2f), ("Leaves", -46f, 37f, 9f, 1.3f), ("Mud", -50f, 42f, 6f, 1f),
                 // east wall feet
                 ("Mud", 48f, -41f, 8f, 1.3f), ("Leaves", 47f, -32f, 7f, 0.8f), ("Leaves", 47f, 19f, 8f, 1.2f), ("Mud", 48f, 28f, 7f, 0.8f),
                 ("Leaves", 46f, 38f, 9f, 1.2f), ("Mud", 49f, 6f, 5f, 1.4f),
                 // north wall, both sides of the hall approach
-                ("Leaves", -38f, 41f, 9f, 1.5f), ("Mud", -29f, 42f, 6f, 1.3f), ("Leaves", 33f, 41f, 9f, 1.5f), ("Mud", 41f, 43f, 6f),
+                ("Leaves", -38f, 41f, 9f, 1.5f), ("Mud", -29f, 42f, 6f, 1.3f), ("Leaves", 33f, 41f, 9f, 1.5f), ("Mud", 41f, 43f, 6f, 1f),
                 ("Dust", -8f, 33f, 9f, 0.6f), ("Dust", 8f, 33f, 9f, 0.6f),
                 // south (camera) edge
                 ("Mud", -36f, -46f, 8f, 1.6f), ("Leaves", -18f, -46f, 7f, 1.4f), ("Mud", 20f, -46f, 8f, 1.5f), ("Leaves", 38f, -45f, 7f, 1.3f),
                 // ash spreading out of the burnt gallery and the yokai scorch
-                ("Ash", 38f, -22f, 9f, 1.4f), ("Ash", 33f, -18f, 6f), ("Ash", 30f, 20f, 7f), ("Ash", 19f, 28f, 6f, 1.2f),
+                ("Ash", 38f, -22f, 9f, 1.4f), ("Ash", 33f, -18f, 6f, 1f), ("Ash", 30f, 20f, 7f, 1f), ("Ash", 19f, 28f, 6f, 1.2f),
                 // mud trampled where the guards fell and along the south lane
-                ("Mud", -26f, -19f, 7f, 1.2f), ("Mud", -15f, -10f, 5f), ("Mud", 0f, -36f, 6f, 1.3f), ("Mud", 11f, -29f, 5f),
+                ("Mud", -26f, -19f, 7f, 1.2f), ("Mud", -15f, -10f, 5f, 1f), ("Mud", 0f, -36f, 6f, 1.3f), ("Mud", 11f, -29f, 5f, 1f),
                 // supply train: spilled straw / leaves
-                ("Leaves", -38f, 26f, 6f), ("Leaves", -28f, 33f, 6f, 1.2f),
+                ("Leaves", -38f, 26f, 6f, 1f), ("Leaves", -28f, 33f, 6f, 1.2f),
                 // long dust drifts across the open lanes (a lighter step), rest lanes left plain between them
                 ("Dust", -30f, 2f, 13f, 1.8f), ("Dust", 28f, -4f, 12f, 1.6f), ("Dust", -6f, 18f, 12f, 1.7f), ("Dust", 4f, -18f, 11f, 1.5f),
-                ("Mud", -36f, 10f, 5f), ("Leaves", 36f, 8f, 5f, 1.3f),
+                ("Mud", -36f, 10f, 5f, 1f), ("Leaves", 36f, 8f, 5f, 1.3f),
             };
             foreach (var p in list) Patch(p.k, p.x, p.z, p.s, p.a);
             // the rank-stone rows: dirt gathered at the stones' feet, every other stone
