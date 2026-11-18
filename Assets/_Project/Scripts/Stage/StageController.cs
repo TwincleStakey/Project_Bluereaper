@@ -19,7 +19,7 @@ namespace BlueReaper.Stage
 {
     public enum StageRunResult { Cleared, PartyDefeated, Aborted }
 
-    public class StageController : MonoBehaviour
+    public partial class StageController : MonoBehaviour
     {
         [Tooltip("이 스테이지에 참가한 플레이어 (1~3명)")]
         [SerializeField] List<Health> players = new();
@@ -35,6 +35,7 @@ namespace BlueReaper.Stage
             public EnemyAI AI;
             public StageField Field;
             public bool CountsForClear;
+            public Transform SpawnOwner;
             public bool Dead;
             public Action OnDied;
             public Action OnRevived;
@@ -110,7 +111,7 @@ namespace BlueReaper.Stage
             if (playerCamera && player) playerCamera.SetTarget(player.transform);
         }
 
-        public void AbortRun() => FinishRun(StageRunResult.Aborted);
+        public void AbortRun() => FinishRun(clearConfirmed ? StageRunResult.Cleared : StageRunResult.Aborted);
 
         private void RegisterPlayer(Health player)
         {
@@ -120,7 +121,7 @@ namespace BlueReaper.Stage
             StageUnitRecord record = units[unit];
             record.OnRevived = () =>
             {
-                if (runFinished || !IsRegistered(record) || !record.Dead) return;
+                if (runFinished || clearConfirmed || !IsRegistered(record) || !record.Dead) return;
                 record.Dead = false;
                 alivePlayers.Add(player.transform);
             };
@@ -136,6 +137,14 @@ namespace BlueReaper.Stage
                 yield break;
             }
 
+            foreach (var field in stageData.Fields)
+                if (field && field.DynamicSpawner) usesDynamicFields = true;
+            if (usesDynamicFields && (!playerCamera || !exitPortalPrefab))
+            {
+                AbortStage("Dynamic fields require the stage camera and the exit portal prefab.");
+                yield break;
+            }
+
             for (int index = 0; index < stageData.Fields.Length; index++)
             {
                 StageField prefab = stageData.Fields[index];
@@ -146,16 +155,37 @@ namespace BlueReaper.Stage
                 }
 
                 currentField = Instantiate(prefab, transform.position, transform.rotation, transform);
-                if (!currentField.isActiveAndEnabled || !currentField.TryGetClearTarget(out requiredKills, out bossesOnly))
+                lastField = index + 1 == stageData.Fields.Length;
+                var spawner = currentField.DynamicSpawner;
+                if (!currentField.isActiveAndEnabled || !currentField.Entrance
+                    || (spawner ? !spawner.IsConfigured() || currentField.PurificationGoal <= 0
+                        || currentField.ReadyPads.Length < alivePlayers.Count
+                        : !currentField.TryGetClearTarget(out requiredKills, out bossesOnly)))
                 {
                     AbortStage($"Field {prefab.name} has an invalid entrance or spawn plan.");
                     yield break;
                 }
 
-                FieldChanged?.Invoke(index);
+                if (spawner)
+                {
+                    requiredKills = currentField.PurificationGoal;
+                    bossesOnly = false;
+                    foreach (var enemy in currentField.PlacedUnits)
+                        if (enemy) enemy.gameObject.SetActive(false);
+                }
                 fieldKills = 0;
-                fieldComplete = requiredKills == 0;
+                fieldComplete = false;
+                readyForNextField = false;
+                FieldChanged?.Invoke(index);
                 MovePlayers(currentField.Entrance);
+                if (spawner)
+                {
+                    yield return WaitForReadyPads(currentField);
+                    if (runFinished) yield break;
+                    currentField.SetReadyPadsVisible(false);
+                }
+                else SetFieldProgress(StageFieldPhase.None);
+                if (requiredKills == 0) CompleteField();
                 foreach (Unit unit in currentField.PlacedUnits)
                 {
                     unit.gameObject.SetActive(true);
@@ -174,7 +204,8 @@ namespace BlueReaper.Stage
                     if (!isActiveAndEnabled) yield break;
                 }
 
-                for (uint round = 0; round < currentField.RepeatSpawnCount && !fieldComplete; round++)
+                if (spawner) yield return spawner.Run(this, currentField, playerCamera);
+                for (uint round = 0; !spawner && round < currentField.RepeatSpawnCount && !fieldComplete; round++)
                 {
                     if (!SpawnWave(currentField))
                     {
@@ -192,14 +223,22 @@ namespace BlueReaper.Stage
 
                 while (!fieldComplete && !runFinished) yield return null;
                 if (runFinished) yield break;
-                FinishField(index + 1 < stageData.Fields.Length);
+                if (lastField && clearConfirmed)
+                    yield return WaitForExitPortal();
+                else if (spawner)
+                {
+                    while (!readyForNextField && !runFinished) yield return null;
+                    SetCombatLocked(false);
+                }
+                if (runFinished) yield break;
+                FinishField(!lastField);
             }
 
             while (HasDyingUnits()) yield return null;
             stageRoutine = null;
             if (runFinished) yield break;
             FinishRun(StageRunResult.Cleared);
-            GameEvents.RaiseStageCleared();
+            if (!clearConfirmed || !managedRun) GameEvents.RaiseStageCleared();
         }
 
         private void MovePlayers(PlayerSpawnEntry entrance)
@@ -350,7 +389,7 @@ namespace BlueReaper.Stage
 
         private void OnUnitDied(StageUnitRecord record)
         {
-            if (!IsRegistered(record) || record.Dead) return;
+            if (!IsRegistered(record) || record.Dead || clearConfirmed) return;
             record.Dead = true;
             if (record.Field is null && !record.Enemy)
             {
@@ -359,15 +398,12 @@ namespace BlueReaper.Stage
                 return;
             }
 
-            if (record.CountsForClear && record.Enemy && currentField && ReferenceEquals(record.Field, currentField)
+            if (!fieldComplete && record.CountsForClear && record.Enemy && currentField && ReferenceEquals(record.Field, currentField)
                 && (!bossesOnly || record.Enemy.Rank == EnemyRank.Boss))
             {
                 fieldKills++;
-                if (fieldKills >= requiredKills)
-                {
-                    fieldComplete = true;
-                    ReleaseDeathProjectiles();
-                }
+                if (fieldKills >= requiredKills) CompleteField();
+                else if (currentField.DynamicSpawner) SetFieldProgress(StageFieldPhase.Combat, fieldKills, requiredKills);
             }
 
             if (!record.AI || !record.AI.isActiveAndEnabled) ReleaseUnit(record);
@@ -429,8 +465,8 @@ namespace BlueReaper.Stage
             }
         }
 
-        private bool IsFieldActive(StageField field) =>
-            isActiveAndEnabled && !fieldComplete && field && ReferenceEquals(field, currentField);
+        internal bool IsFieldActive(StageField field) =>
+            isActiveAndEnabled && !runFinished && !fieldComplete && field && ReferenceEquals(field, currentField);
 
         private void OnDeathProjectileReturned(ProjectileHitBox projectile) => deathProjectiles.Remove(projectile);
 
@@ -504,6 +540,8 @@ namespace BlueReaper.Stage
 
         private void ReleaseStage()
         {
+            ReleaseExitPortal();
+            SetCombatLocked(false);
             ReleaseDeathProjectiles();
             foreach (StageUnitRecord record in new List<StageUnitRecord>(units.Values))
                 ReleaseUnit(record);

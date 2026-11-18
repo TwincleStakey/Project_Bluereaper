@@ -32,7 +32,7 @@ flowchart LR
 | [GameMenu](../Assets/_Project/Scenes/GameMenu.unity) | 빌드 첫 씬이다. 타이틀·로비 uGUI와 공용 세션을 유지한다. |
 | [Hub](../Assets/_Project/Scenes/Hub.unity) | 세션 시작 및 전투 복귀 시 로드한다. 스폰 지점, 이동 가능한 바닥과 경계, TopDownCamera가 있다. 화면 오른쪽 uGUI에서 스테이지 선택·준비·출발을 처리한다. |
 | [Stage](../Assets/_Project/Scenes/Stage.unity) | 출발마다 로드하는 공용 전투 씬이다. Player 프리팹, StageController, TopDownCamera, 플레이어 HP와 BossHUD가 연결돼 있다. |
-| [Seonggyu](../Assets/_Project/Scenes/_Sandbox/Seonggyu.unity) | Player 인스턴스의 Health, BossHUD, TopDownCamera, Stage_1이 StageController에 연결돼 있다. 전투와 필드 진행의 진입점이다. |
+| [Seonggyu](../Assets/_Project/Scenes/_Sandbox/Seonggyu.unity) | Player 인스턴스의 Health, BossHUD, TopDownCamera, Stage_Dynamic과 복귀 포털이 StageController에 연결돼 있다. 중앙 입구와 준비 발판부터 동적 전투를 시작한다. |
 | [Kibaek](../Assets/_Project/Scenes/_Sandbox/Kibaek.unity) | 플레이어와 타격용 더미가 배치돼 있다. StageController에 StageData가 연결돼 있지 않아 현재 필드 진행은 시작되지 않는다. |
 | [Prototype](../Assets/_Project/Scenes/Prototype.unity) | 카메라와 조명이 배치돼 있다. |
 | [SampleScene](../Assets/Scenes/SampleScene.unity) | [빌드 목록](../ProjectSettings/EditorBuildSettings.asset)에 남아 있다. |
@@ -62,14 +62,17 @@ flowchart LR
 
 ## 스테이지와 회수
 
-[StageController.RunStage](../Assets/_Project/Scripts/Stage/StageController.cs)가 [Stage_1](../Assets/_Project/Data/Stages/Stage_1.asset)의 필드 1 → 2 3 → 4를 순서대로 생성한다. 입구 이동·사전 배치 등록 후 첫 웨이브를 만들고, 반복 웨이브가 설정된 필드는 데이터의 간격을 따른다. 필드 전환과 본체·사망 탄막 회수는 [개체 수명 계약](contracts/UNIT_LIFECYCLE.md)을 참조한다.
+[StageController.RunStage](../Assets/_Project/Scripts/Stage/StageController.cs)는 선택한 StageData의 필드 프리팹을 배열 순서대로 생성한다. 현재 게임 메뉴와 Seonggyu 샌드박스는 Stage_Dynamic을 사용한다. 필드 전환과 본체·사망 탄막 회수는 [개체 수명 계약](contracts/UNIT_LIFECYCLE.md)을 참조한다.
 
-| Stage_1 필드 | 웨이브당 구성 | 반복 | 저장된 설정의 클리어 조건 |
-| --- | --- | ---: | --- |
-| [1](../Assets/_Project/Prefabs/Stage/StageField_1.prefab) | Monster_1 × 16 | 3 | 48마리 중 41마리 |
-| [2](../Assets/_Project/Prefabs/Stage/StageField_2.prefab) | Monster_1 × 16, Monster_2 × 16 | 2 | 64마리 중 55마리 |
-| [3](../Assets/_Project/Prefabs/Stage/StageField_3.prefab) | Monster_1 × 16, Monster_3 × 16 | 1 | 32마리 중 28마리 |
-| [4](../Assets/_Project/Prefabs/Stage/StageField_4.prefab) | Boss_1 × 1 | 1 | 보스 1마리 |
+거점의 **Select Stage Dynamic**에서 [동적 스폰 예제](../Assets/_Project/Data/Stages/Stage_Dynamic.asset)를 선택할 수 있다. 중앙 입장 후 준비 발판에서 출발하고, 처치로 공용 정화 게이지를 채운다. 최종 클리어 뒤 생존자 중앙의 포털을 통과하면 같은 방의 거점으로 돌아온다. [동적 스포너](../Assets/_Project/Scripts/Stage/EnemySpawner.cs) · [동적 필드 계약](contracts/UNIT_LIFECYCLE.md#동적-스폰-필드)
+
+### 스테이지 편집
+
+1. Unity 메뉴에서 **Tools > BlueReaper > Stage Editor**를 열고 기존 StageData를 고르거나 새로 만든다.
+2. **필드 진행 순서**에 StageField 프리팹을 추가하고 배열의 순서를 맞춘 뒤 **StageData 저장**을 누른다. 새 필드가 필요하면 Project 창에서 StageField_Dynamic을 복제한 뒤 목록에 넣는다.
+3. **Prefab Mode에서 편집**을 열고 정화 목표, 스포너의 반경·정원·반복 주기·웨이브 구성을 편집한다. 웨이브 목록은 시작 시간 오름차순으로 정리한다. 각 웨이브에서 적 프리팹과 1회 수량을 지정하고, 순차 급습은 단계 간격도 지정한다.
+4. 도구에서 중앙 입구와 준비 발판을 추가한 다음 Unity SceneView에서 배치와 크기를 조정한다. 최대 3인 필드는 활성 준비 발판 3개를 사용한다. 지형을 바꿨으면 해당 프리팹에 사용할 NavMesh를 Bake하고 저장한다. 복제한 프리팹에서 지형을 바꿀 때는 원본과 별도 NavMesh 에셋을 사용한다.
+5. 새 StageData를 거점에서 선택할 수 있게 하려면 GameMenu 씬의 GameFlow **Stages** 목록에 추가한다.
 
 ## UI·카메라·보상·제작 도구
 

@@ -128,7 +128,10 @@ namespace BlueReaper.Boss
             if (coAIUpdate == null) coAIUpdate = StartCoroutine(AIUpdate());
         }
 
+        private Transform initialChaseTarget;
+
         internal void NotifySpawned() => spawnPatternPending = true;
+        internal void SetInitialChaseTarget(Transform target) => initialChaseTarget = target;
 
         private void OnHealthDied()
         {
@@ -190,6 +193,7 @@ namespace BlueReaper.Boss
             hasChaseDestination = false;
             if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
             currentPatternState = PatternState.None;
+            initialChaseTarget = null;
         }
 
         private IEnumerator AIUpdate()
@@ -210,7 +214,14 @@ namespace BlueReaper.Boss
                     continue;
                 }
 
-                EnemyTargetSelector.Select(Owner, Owner.Players, chaseTargetRule, chaseTargets);
+                if (initialChaseTarget && (!IsCurrentPlayer(initialChaseTarget) || InitialAggroWasOvertaken()))
+                    initialChaseTarget = null;
+                if (initialChaseTarget)
+                {
+                    chaseTargets.Clear();
+                    chaseTargets.Add(initialChaseTarget);
+                }
+                else EnemyTargetSelector.Select(Owner, Owner.Players, chaseTargetRule, chaseTargets);
                 if (chaseTargets.Count > 1) chaseTargets.RemoveRange(1, chaseTargets.Count - 1);
 
                 if (spawnPatternPending && spawnPattern)
@@ -281,6 +292,7 @@ namespace BlueReaper.Boss
 
                 if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
                 FaceTarget(target);
+                initialChaseTarget = null;
 
                 yield return ExecuteAction(selectedAction, actionTargets);
                 trackingDirection = Vector3.zero;
@@ -290,6 +302,16 @@ namespace BlueReaper.Boss
                 yield return wait;
             }
             coAIUpdate = null;
+        }
+
+        private bool InitialAggroWasOvertaken()
+        {
+            if (!Owner.Aggro) return false;
+            float initial = Owner.Aggro.GetAggro(initialChaseTarget.GetComponent<Unit>());
+            foreach (var player in Owner.Players)
+                if (player != initialChaseTarget && IsCurrentPlayer(player)
+                    && Owner.Aggro.GetAggro(player.GetComponent<Unit>()) > initial) return true;
+            return false;
         }
 
         private static Transform FirstTarget(IReadOnlyList<Transform> targets) => targets.Count > 0 ? targets[0] : null;

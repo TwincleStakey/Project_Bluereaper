@@ -27,6 +27,7 @@ namespace BlueReaper.Player
         readonly NetworkVariable<float> syncedShield = new();
         readonly NetworkVariable<LifeState> syncedState = new();
         readonly NetworkVariable<float> syncedRescue = new();
+        readonly NetworkVariable<bool> syncedCombatLocked = new();
         /// <summary>빈사가 사망으로 바뀌는 서버 시각. 늦게 들어온 팀원도 남은 시간을 맞게 본다.</summary>
         readonly NetworkVariable<double> syncedBleedOutEnd = new();
 
@@ -40,6 +41,7 @@ namespace BlueReaper.Player
         public float BleedOutTime => bleedOutTime;
         /// <summary>구조 게이지 0~1.</summary>
         public float RescueProgress { get; private set; }
+        internal bool CombatLocked => IsAuthority ? health.CombatLocked : syncedCombatLocked.Value;
 
         public event Action<LifeState> StateChanged;
 
@@ -64,6 +66,7 @@ namespace BlueReaper.Player
                 syncedHealth.Value = health.Current;
                 syncedShield.Value = shield ? shield.CurrentShield : 0f;
                 syncedState.Value = State;
+                syncedCombatLocked.Value = health.CombatLocked;
                 return;
             }
 
@@ -93,10 +96,11 @@ namespace BlueReaper.Player
                 syncedHealth.Value = health.Current;
                 syncedShield.Value = shield ? shield.CurrentShield : 0f;
                 syncedRescue.Value = RescueProgress;
+                syncedCombatLocked.Value = health.CombatLocked;
             }
             else if (!IsAuthority) RescueProgress = syncedRescue.Value;
 
-            if (State != LifeState.Downed) return;
+            if (CombatLocked || State != LifeState.Downed) return;
 
             BleedOutLeft = IsAuthority
                 ? Mathf.Max(0f, BleedOutLeft - Time.deltaTime)
@@ -108,7 +112,7 @@ namespace BlueReaper.Player
         /// <summary>구조하는 플레이어가 버튼을 누르고 있는 동안 매 프레임 부른다. 다 차면 일어난다. 호스트에서만 효과가 있다.</summary>
         public void AddRescueProgress(float deltaTime)
         {
-            if (!IsAuthority || State != LifeState.Downed) return;
+            if (!IsAuthority || CombatLocked || State != LifeState.Downed) return;
 
             RescueProgress = Mathf.Min(1f, RescueProgress + deltaTime / rescueTime);
             if (RescueProgress < 1f) return;
@@ -121,7 +125,7 @@ namespace BlueReaper.Player
         void OnHealthDepleted()
         {
             // 팀원 PC는 HP 0을 봐도 상태는 호스트가 보낸 값(OnSyncedState)으로 바꾼다
-            if (!IsAuthority || State != LifeState.Alive) return;
+            if (!IsAuthority || CombatLocked || State != LifeState.Alive) return;
 
             EnterDowned();
             SetState(LifeState.Downed);

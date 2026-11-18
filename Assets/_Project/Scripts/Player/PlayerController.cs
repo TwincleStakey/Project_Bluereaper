@@ -91,7 +91,7 @@ namespace BlueReaper.Player
 
             motor.SetMoveInput(input.MoveDirection);
 
-            if (input.AttackHeld && !motor.IsDashing)
+            if (input.AttackHeld && !life.CombatLocked && !motor.IsDashing)
             {
                 Vector3 direction = autoAim.Resolve(input.AimDirection);
                 bool swung = IsSpawned && !IsServer ? attack.TrySwing(direction) : attack.TryAttack(direction);
@@ -106,7 +106,7 @@ namespace BlueReaper.Player
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void AttackRpc(Vector3 direction)
         {
-            if (life.State != LifeState.Alive || health.Invincible
+            if (life.State != LifeState.Alive || life.CombatLocked || health.Invincible
                 || !float.IsFinite(direction.x) || !float.IsFinite(direction.z)) return;
             direction.y = 0f;
             attack.TryAttack(direction.normalized);

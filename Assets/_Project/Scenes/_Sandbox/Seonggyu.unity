@@ -1100,7 +1100,8 @@ MonoBehaviour:
   - {fileID: 1013279825}
   bossHUD: {fileID: 1727004334}
   playerCamera: {fileID: 2026528202}
-  stageData: {fileID: 11400000, guid: 1934e1fbe73e2224fae548841cbce372, type: 2}
+  stageData: {fileID: 11400000, guid: 76569dd19c1e1c8428bd23749f4619d1, type: 2}
+  exitPortalPrefab: {fileID: 6588555851278402358, guid: e67f1d0431a8d3b4881cacc9549d9b6e, type: 3}
 --- !u!4 &1979962090
 Transform:
   m_ObjectHideFlags: 0

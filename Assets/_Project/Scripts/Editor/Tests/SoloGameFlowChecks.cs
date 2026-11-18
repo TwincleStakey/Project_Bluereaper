@@ -27,6 +27,7 @@ namespace BlueReaper.GameFlow.Editor
         const string Hub = "Assets/_Project/Scenes/Hub.unity";
         const string Stage = "Assets/_Project/Scenes/Stage.unity";
         const string Sandbox = "Assets/_Project/Scenes/_Sandbox/Seonggyu.unity";
+        const string DynamicField = "StageField_Dynamic";
         static Stack<IEnumerator> checks;
         static double deadline;
         static int frame = -1;
@@ -128,9 +129,9 @@ namespace BlueReaper.GameFlow.Editor
                 "Character did not spawn at the base entrance.");
             yield return MovePlayer(firstHubPlayer, keyboard);
             Require(!FindButton("Depart").interactable, "Depart was available before field selection.");
-            Submit("Select Stage 1");
+            Submit("Select Stage Dynamic");
             Submit("Depart");
-            while (!FindField("StageField_1")) yield return null;
+            while (!FindField(DynamicField)) yield return null;
             var player = SoloPlayer();
             Require(firstHubPlayer == null && !SceneManager.GetSceneByPath(Hub).isLoaded,
                 "Hub remained active after entering the stage.");
@@ -138,35 +139,24 @@ namespace BlueReaper.GameFlow.Editor
             var camera = Camera.main ? Camera.main.GetComponent<TopDownCamera>() : null;
             Require(camera && new SerializedObject(camera).FindProperty("target").objectReferenceValue == player.transform,
                 "Stage camera is not following the selected player.");
-            var entrance = FindField("StageField_1").GetComponentInChildren<PlayerSpawnEntry>();
+            var entrance = FindField(DynamicField).GetComponentInChildren<PlayerSpawnEntry>();
             Vector3 offset = player.transform.position - entrance.transform.position;
             Require(new Vector2(offset.x, offset.z).sqrMagnitude < 0.1f, "Player did not enter at the field marker.");
             var hpText = GameObject.Find("Player HP")?.GetComponentInChildren<TMPro.TextMeshProUGUI>();
             Require(hpText && hpText.text == $"{player.Current:0}/{player.MaxHealth:0}", "Player HUD is not bound.");
             Debug.Log("SOLO CHECK PASS 1/5: Title, controls, character selection, session and stage entry.");
 
-            player.Invincible = true;
-            yield return ClearFieldWaves("StageField_1", "StageField_2", 16, 41);
-            yield return ClearFieldWaves("StageField_2", "StageField_3", 32, 55);
-            var wave = LiveEnemies();
-            Require(wave.Length == 32, "StageField_3 first wave should contain 32 enemies.");
-            for (int i = 0; i < 27; i++) Hit(wave[i].GetComponent<Health>());
-            yield return null;
-            Require(FindField("StageField_3"), "Field advanced below its 28-kill target.");
-            Hit(wave[27].GetComponent<Health>());
-            while (!FindField("StageField_4")) yield return null;
-            var boss = LiveEnemies().Single(enemy => enemy.Rank == EnemyRank.Boss);
-            Require(GameObject.Find("HPBG"), "Boss HUD did not appear.");
-            Hit(boss.GetComponent<Health>());
-            while (!HasText("Stage cleared.")) yield return null;
+            yield return PrepareDynamicCombat(FindField(DynamicField), player);
+            yield return CheckDynamicClear(player);
             var afterClear = CheckReturnedToHub(player);
             yield return MovePlayer(afterClear, keyboard);
-            Debug.Log("SOLO CHECK PASS 2/5: Cleared fields 1 through 4 in order and returned to a playable hub.");
+            Debug.Log("SOLO CHECK PASS 2/5: Cleared the dynamic field and returned through the portal to a playable hub.");
 
             Submit("Depart");
-            while (!FindField("StageField_1")) yield return null;
+            while (!FindField(DynamicField)) yield return null;
             var retry = SoloPlayer();
             Require(afterClear == null && retry && retry.Current == retry.MaxHealth, "Clear retry did not create a fresh player.");
+            yield return PrepareDynamicCombat(FindField(DynamicField), retry);
             Hit(retry);
             while (!HasText("Defeated. Ready to redeploy.")) yield return null;
             var afterDefeat = CheckReturnedToHub(retry);
@@ -174,11 +164,13 @@ namespace BlueReaper.GameFlow.Editor
             Debug.Log("SOLO CHECK PASS 3/5: Clear redeploy and HP-zero return to a playable hub.");
 
             Submit("Depart");
-            while (!FindField("StageField_1")) yield return null;
+            while (!FindField(DynamicField)) yield return null;
             player = SoloPlayer();
             Require(afterDefeat == null && player && player.Current == player.MaxHealth, "Defeat retry did not create a fresh player.");
+            yield return PrepareDynamicCombat(FindField(DynamicField), player);
             Hit(player);
             while (!HasText("Defeated. Ready to redeploy.")) yield return null;
+            CheckReturnedToHub(player);
             Submit("Back to Lobby");
             while (!FindButton("Start Solo") || !FindButton("Start Solo").interactable) yield return null;
             InputSystem.RemoveDevice(keyboard);
@@ -191,29 +183,58 @@ namespace BlueReaper.GameFlow.Editor
             Object.Destroy(SessionService.Instance.gameObject);
             yield return null;
             var load = EditorSceneManager.LoadSceneAsyncInPlayMode(Sandbox, new LoadSceneParameters(LoadSceneMode.Single));
-            while (!load.isDone || !FindField("StageField_1")) yield return null;
-            Require(SoloPlayer() && LiveEnemies().Length == 16, "Sandbox no longer starts its original stage.");
-            Debug.Log("SOLO CHECK PASS 5/5: Sandbox auto-start and first wave.");
+            while (!load.isDone || !FindField(DynamicField)) yield return null;
+            Require(SoloPlayer(), "Sandbox player was not initialized.");
+            yield return PrepareDynamicCombat(FindField(DynamicField), SoloPlayer());
+            Debug.Log("SOLO CHECK PASS 5/5: Sandbox auto-start, readiness and first dynamic wave.");
         }
 
-        static IEnumerator ClearFieldWaves(string field, string nextField, int waveSize, int clearKills)
+        static IEnumerator PrepareDynamicCombat(StageField field, Health player)
         {
-            int kills = 0;
-            while (kills < clearKills)
+            var spawner = field.GetComponent<EnemySpawner>();
+            spawner.SpawnInterval = 0.15f;
+            var pads = field.GetComponentsInChildren<StageReadyPad>();
+            Require(pads.Length == 3 && LiveEnemies().Length == 0,
+                "Ready pads were missing or the field spawned enemies before readiness.");
+            player.GetComponent<PlayerMotor>().Teleport(pads[0].transform.position, Quaternion.identity);
+            while (pads[0].gameObject.activeSelf) yield return null;
+            while (LiveEnemies().Length == 0) yield return null;
+            Require(LiveEnemies().Length == 4, "The first dynamic wave should spawn 4 configured enemies.");
+        }
+
+        static IEnumerator CheckDynamicClear(Health player)
+        {
+            var field = FindField(DynamicField);
+            var motor = player.GetComponent<PlayerMotor>();
+            motor.Teleport(Vector3.zero, Quaternion.identity);
+            player.Invincible = true;
+
+            int remaining = new SerializedObject(field).FindProperty("purificationGoal").intValue;
+            StageExitPortal portal;
+            while (!(portal = Object.FindFirstObjectByType<StageExitPortal>()))
             {
-                while (LiveEnemies().Length == 0 && FindField(field)) yield return null;
-                Require(FindField(field) && !FindField(nextField), $"{field} advanced before its {clearKills}-kill target.");
-                var wave = LiveEnemies();
-                Require(wave.Length == waveSize, $"{field} should spawn {waveSize} enemies per wave.");
-                foreach (var enemy in wave)
+                foreach (var enemy in LiveEnemies())
                 {
+                    if (remaining <= 0) break;
                     Hit(enemy.GetComponent<Health>());
-                    if (++kills == clearKills) break;
+                    remaining--;
                 }
                 yield return null;
             }
-            while (FindField(field) && !FindField(nextField)) yield return null;
-            Require(FindField(nextField), $"{nextField} did not follow {field}.");
+            player.Invincible = false;
+            var before = player.Current;
+            Require(player.TakeDamage(float.MaxValue) == DamageResult.Ignored, "Cleared stage still accepts damage.");
+            player.Kill();
+            Require(player.Current == before && Vector3.Distance(portal.transform.position, player.transform.position) < 0.3f,
+                "Cleared stage still accepts death or the solo portal is off center.");
+            yield return null;
+            Require(FindField("StageField_Dynamic"), "Initial portal overlap should wait for a new entry.");
+            motor.Teleport(portal.transform.position + Vector3.right * 5f, Quaternion.identity);
+            float leftAt = Time.time;
+            while (Time.time - leftAt < 0.1f) yield return null;
+            motor.Teleport(portal.transform.position, Quaternion.identity);
+            while (!HasText("Stage cleared.")) yield return null;
+            Debug.Log("DYNAMIC SOLO PASS: pad, batch size, combat lock and portal return.");
         }
 
         static Button FindButton(string name) => GameObject.Find(name)?.GetComponent<Button>();

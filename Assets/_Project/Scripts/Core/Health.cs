@@ -31,6 +31,7 @@ namespace BlueReaper.Core
 
         /// <summary>켜져 있으면 체력을 네트워크(호스트)만 바꾼다. 이 PC의 데미지·Kill은 무시하고 ApplyNetworkHealth로만 바뀐다.</summary>
         public bool NetworkDriven { get; set; }
+        internal bool CombatLocked { get; set; }
 
         /// <summary>받은 데미지량을 전달.</summary>
         public event Action<float> Damaged;
@@ -46,11 +47,15 @@ namespace BlueReaper.Core
         }
 
         // 오브젝트 풀에서 다시 꺼낼 때(재활성화) 체력이 초기화되도록 OnEnable에서 리셋
-        void OnEnable() => Current = MaxHealth;
+        void OnEnable()
+        {
+            Current = MaxHealth;
+            CombatLocked = false;
+        }
 
         public DamageResult TakeDamage(float amount, Unit source = null)
         {
-            if (NetworkDriven || IsDead || Invincible || !(amount > 0f) || !float.IsFinite(amount))
+            if (NetworkDriven || CombatLocked || IsDead || Invincible || !(amount > 0f) || !float.IsFinite(amount))
                 return DamageResult.Ignored;
 
             bool broken = false;
@@ -76,7 +81,7 @@ namespace BlueReaper.Core
 
         public void Kill()
         {
-            if (NetworkDriven || IsDead) return;
+            if (NetworkDriven || CombatLocked || IsDead) return;
 
             Current = 0f;
             if (shield) shield.Clear();
@@ -86,7 +91,7 @@ namespace BlueReaper.Core
         /// <summary>HP 0인 대상을 최대 체력의 ratio만큼 채워 다시 일으킨다.</summary>
         public void Revive(float ratio)
         {
-            if (!IsDead) return;
+            if (CombatLocked || !IsDead) return;
 
             Current = MaxHealth * Mathf.Clamp(ratio, 0.01f, 1f);
             Revived?.Invoke();

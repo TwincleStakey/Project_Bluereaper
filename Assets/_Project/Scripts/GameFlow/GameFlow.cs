@@ -37,6 +37,7 @@ namespace BlueReaper.GameFlow
         private StageRunResult? result;
         private Health localPlayer;
         private StageEntry stageEntry;
+        private (StageFieldPhase Phase, int Current, int Goal) remoteProgress;
         private NetworkSceneManager sceneManager;
         private CustomMessagingManager messages;
         private Coroutine run;
@@ -261,6 +262,7 @@ namespace BlueReaper.GameFlow
                 var party = SpawnParty(stageEntry.PlayerPrefab, stageEntry.transform);
                 stageEntry.Controller.RunFinished += RecordResult;
                 stageEntry.Controller.FieldChanged += RecordField;
+                stageEntry.Controller.FieldProgressChanged += PublishState;
                 if (stageEntry.Controller.TryStartRun(stages[selectedStage], party))
                 {
                     phase = Phase.Stage;
@@ -271,6 +273,7 @@ namespace BlueReaper.GameFlow
                 {
                     stageEntry.Controller.RunFinished -= RecordResult;
                     stageEntry.Controller.FieldChanged -= RecordField;
+                    stageEntry.Controller.FieldProgressChanged -= PublishState;
                     stageEntry.Controller.enabled = false;
                 }
             }
@@ -393,7 +396,13 @@ namespace BlueReaper.GameFlow
         private void ShowCurrentState()
         {
             if (phase == Phase.Lobby) return;
-            if (phase == Phase.Stage) { menu.Hide(); return; }
+            if (phase == Phase.Stage)
+            {
+                menu.Hide();
+                if (stageEntry) stageEntry.ShowProgress(networkManager.IsServer ? stageEntry.Controller.FieldProgress : remoteProgress,
+                    networkManager.IsServer);
+                return;
+            }
             if (phase != Phase.Hub)
             {
                 menu.Show(phase == Phase.LoadingHub ? "Loading Base"
@@ -476,7 +485,7 @@ namespace BlueReaper.GameFlow
 
         private void SendState(ulong clientId)
         {
-            using var writer = new FastBufferWriter(40, Allocator.Temp);
+            using var writer = new FastBufferWriter(48, Allocator.Temp);
             writer.WriteValueSafe((int)phase);
             writer.WriteValueSafe(selectedStage);
             writer.WriteValueSafe(fieldIndex);
@@ -486,12 +495,16 @@ namespace BlueReaper.GameFlow
             writer.WriteValueSafe(readyRevision);
             writer.WriteValueSafe(ready.Contains(clientId));
             writer.WriteValueSafe(result.HasValue ? (int)result.Value : -1);
+            var progress = stageEntry ? stageEntry.Controller.FieldProgress : default;
+            writer.WriteValueSafe((int)progress.Phase);
+            writer.WriteValueSafe(progress.Current);
+            writer.WriteValueSafe(progress.Goal);
             messages.SendNamedMessage(StateMessage, clientId, writer);
         }
 
         private void OnState(ulong sender, FastBufferReader reader)
         {
-            if (networkManager.IsServer || sender != NetworkManager.ServerClientId || !reader.TryBeginRead(33)) return;
+            if (networkManager.IsServer || sender != NetworkManager.ServerClientId || !reader.TryBeginRead(45)) return;
             reader.ReadValueSafe(out int phaseValue);
             reader.ReadValueSafe(out selectedStage);
             reader.ReadValueSafe(out fieldIndex);
@@ -501,6 +514,10 @@ namespace BlueReaper.GameFlow
             reader.ReadValueSafe(out readyRevision);
             reader.ReadValueSafe(out remoteLocalReady);
             reader.ReadValueSafe(out int resultValue);
+            reader.ReadValueSafe(out int fieldPhase);
+            reader.ReadValueSafe(out int points);
+            reader.ReadValueSafe(out int goal);
+            remoteProgress = ((StageFieldPhase)fieldPhase, points, goal);
             phase = (Phase)phaseValue;
             result = resultValue < 0 ? null : (StageRunResult)resultValue;
             RefreshRemoteField();
