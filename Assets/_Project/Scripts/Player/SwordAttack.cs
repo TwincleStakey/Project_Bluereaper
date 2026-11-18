@@ -33,13 +33,18 @@ namespace BlueReaper.Player
 
         void Update() => cooldownLeft -= Time.deltaTime;
 
-        public bool TryAttack(Vector3 direction)
+        internal bool TrySwing(Vector3 direction)
         {
             if (cooldownLeft > 0f) return false;
             cooldownLeft = cooldown;
+            Swung?.Invoke(transform.position, direction);
+            return true;
+        }
 
+        public bool TryAttack(Vector3 direction)
+        {
+            if (!TrySwing(direction)) return false;
             Vector3 origin = transform.position;
-            Swung?.Invoke(origin, direction);
             Vector3 forward = Vector3.ProjectOnPlane(direction, Vector3.up);
             Quaternion facing = forward.sqrMagnitude >= 0.0001f
                 ? Quaternion.LookRotation(forward, Vector3.up)

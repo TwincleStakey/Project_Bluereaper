@@ -83,6 +83,16 @@ namespace BlueReaper.Core
             if (broken) ShieldBroken?.Invoke();
         }
 
+        internal void ApplyNetworkShield(float value)
+        {
+            if (!health.NetworkDriven) return;
+            expiresAt = null;
+            float next = Mathf.Clamp(value, 0f, MaxShield);
+            if (next == current) return;
+            current = next;
+            ShieldChanged?.Invoke(current);
+        }
+
         internal void Clear()
         {
             expiresAt = null;

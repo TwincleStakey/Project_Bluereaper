@@ -7,6 +7,8 @@ using BlueReaper.Core;
 using BlueReaper.Data;
 using BlueReaper.HitBox;
 using BlueReaper.Player;
+using BlueReaper.Network;
+using Unity.Netcode;
 using BlueReaper.UI;
 using BlueReaper.Vfx;
 using UnityEngine;
@@ -15,7 +17,7 @@ using Random = UnityEngine.Random;
 
 namespace BlueReaper.Stage
 {
-    public enum SoloStageResult { Cleared, PlayerDefeated, Aborted }
+    public enum StageRunResult { Cleared, PartyDefeated, Aborted }
 
     public class StageController : MonoBehaviour
     {
@@ -35,6 +37,7 @@ namespace BlueReaper.Stage
             public bool CountsForClear;
             public bool Dead;
             public Action OnDied;
+            public Action OnRevived;
             public Action OnPresentationFinished;
         }
 
@@ -42,7 +45,8 @@ namespace BlueReaper.Stage
         readonly Dictionary<Unit, StageUnitRecord> units = new();
         readonly HashSet<ProjectileHitBox> deathProjectiles = new();
         public IReadOnlyList<Transform> AlivePlayers => alivePlayers;
-        public event Action<SoloStageResult> SoloRunFinished;
+        public event Action<StageRunResult> RunFinished;
+        public event Action<int> FieldChanged;
 
         private Coroutine stageRoutine;
         private StageField currentField;
@@ -51,8 +55,8 @@ namespace BlueReaper.Stage
         private int fieldKills;
         private bool bossesOnly;
         private bool fieldComplete;
-        private bool soloRun;
-        private bool soloRunFinished;
+        private bool managedRun;
+        private bool runFinished;
 
         private void OnEnable()
         {
@@ -72,7 +76,7 @@ namespace BlueReaper.Stage
 
         private void Start()
         {
-            if (soloRun) return;
+            if (managedRun) return;
 
             foreach (Health player in players)
             {
@@ -85,24 +89,42 @@ namespace BlueReaper.Stage
             if (stageData) stageRoutine = StartCoroutine(RunStage());
         }
 
-        // Solo uses a fresh stage scene for each departure.
-        public bool TryStartSoloRun(StageData data, Health player)
+        public bool TryStartRun(StageData data, IReadOnlyList<Health> party)
         {
-            if (!isActiveAndEnabled || soloRun || stageData || players.Count != 0 || !data
-                || !player || !player.isActiveAndEnabled || player.IsDead) return false;
+            if (!isActiveAndEnabled || managedRun || stageData || players.Count != 0 || !data
+                || party == null || party.Count == 0) return false;
 
-            soloRun = true;
+            var distinct = new HashSet<Health>();
+            foreach (Health player in party)
+                if (!player || !player.isActiveAndEnabled || player.IsDead || !distinct.Add(player)) return false;
+
+            managedRun = true;
             stageData = data;
-            RegisterPlayer(player);
-            if (playerCamera) playerCamera.SetTarget(player.transform);
+            foreach (Health player in party) RegisterPlayer(player);
             stageRoutine = StartCoroutine(RunStage());
             return true;
         }
 
+        public void BindLocalCamera(Health player)
+        {
+            if (playerCamera && player) playerCamera.SetTarget(player.transform);
+        }
+
+        public void AbortRun() => FinishRun(StageRunResult.Aborted);
+
         private void RegisterPlayer(Health player)
         {
             alivePlayers.Add(player.transform);
-            RegisterUnit(player.GetComponent<Unit>(), null);
+            var unit = player.GetComponent<Unit>();
+            RegisterUnit(unit, null);
+            StageUnitRecord record = units[unit];
+            record.OnRevived = () =>
+            {
+                if (runFinished || !IsRegistered(record) || !record.Dead) return;
+                record.Dead = false;
+                alivePlayers.Add(player.transform);
+            };
+            player.Revived += record.OnRevived;
         }
 
         private IEnumerator RunStage()
@@ -130,6 +152,7 @@ namespace BlueReaper.Stage
                     yield break;
                 }
 
+                FieldChanged?.Invoke(index);
                 fieldKills = 0;
                 fieldComplete = requiredKills == 0;
                 MovePlayers(currentField.Entrance);
@@ -142,7 +165,11 @@ namespace BlueReaper.Stage
                         yield break;
                     }
                     var enemy = unit.GetComponent<Enemy>();
-                    if (enemy) InitEnemy(enemy);
+                    if (enemy)
+                    {
+                        NetworkWorld.SpawnPlaced(unit.gameObject);
+                        InitEnemy(enemy);
+                    }
                     else RegisterUnit(unit, currentField);
                     if (!isActiveAndEnabled) yield break;
                 }
@@ -159,19 +186,19 @@ namespace BlueReaper.Stage
                     if (round + 1 >= currentField.RepeatSpawnCount || fieldComplete) break;
                     float nextWaveAt = Time.time + currentField.RepeatSpawnDelay;
                     do { yield return null; }
-                    while (!fieldComplete && !soloRunFinished && Time.time < nextWaveAt);
-                    if (soloRunFinished) yield break;
+                    while (!fieldComplete && !runFinished && Time.time < nextWaveAt);
+                    if (runFinished) yield break;
                 }
 
-                while (!fieldComplete && !soloRunFinished) yield return null;
-                if (soloRunFinished) yield break;
+                while (!fieldComplete && !runFinished) yield return null;
+                if (runFinished) yield break;
                 FinishField(index + 1 < stageData.Fields.Length);
             }
 
             while (HasDyingUnits()) yield return null;
             stageRoutine = null;
-            if (soloRunFinished) yield break;
-            FinishSoloRun(SoloStageResult.Cleared);
+            if (runFinished) yield break;
+            FinishRun(StageRunResult.Cleared);
             GameEvents.RaiseStageCleared();
         }
 
@@ -188,8 +215,11 @@ namespace BlueReaper.Stage
                     position += entrance.transform.right * offset;
                 }
 
+                var controller = player.GetComponent<PlayerController>();
                 var motor = player.GetComponent<PlayerMotor>();
-                if (motor) motor.Teleport(position, entrance.transform.rotation);
+                if (controller && controller.IsSpawned && controller.IsServer)
+                    controller.PlaceFromHost(position, entrance.transform.rotation);
+                else if (motor) motor.Teleport(position, entrance.transform.rotation);
                 else player.SetPositionAndRotation(position, entrance.transform.rotation);
             }
         }
@@ -274,7 +304,7 @@ namespace BlueReaper.Stage
 
         public Enemy SpawnEnemy(Enemy prefab, Vector3 position, Quaternion rotation, bool countsForClear = true)
         {
-            var enemy = ObjectPool.Spawn(prefab.gameObject, position, rotation).GetComponent<Enemy>();
+            var enemy = NetworkWorld.Spawn(prefab.gameObject, position, rotation).GetComponent<Enemy>();
             InitEnemy(enemy, countsForClear);
             return enemy;
         }
@@ -325,7 +355,7 @@ namespace BlueReaper.Stage
             if (record.Field is null && !record.Enemy)
             {
                 alivePlayers.Remove(record.Unit.transform);
-                FinishSoloRun(SoloStageResult.PlayerDefeated);
+                if (alivePlayers.Count == 0) FinishRun(StageRunResult.PartyDefeated);
                 return;
             }
 
@@ -415,7 +445,11 @@ namespace BlueReaper.Stage
         {
             if (!IsRegistered(record)) return;
             units.Remove(record.Unit);
-            if (record.Health) record.Health.Died -= record.OnDied;
+            if (record.Health)
+            {
+                record.Health.Died -= record.OnDied;
+                record.Health.Revived -= record.OnRevived;
+            }
             if (record.AI)
             {
                 record.AI.DeathPresentationFinished -= record.OnPresentationFinished;
@@ -424,8 +458,7 @@ namespace BlueReaper.Stage
             if (record.Field is null && !record.Enemy) return;
             if (hudBoss == record.Health) HideBossHUD();
             if (!record.Unit) return;
-            record.Unit.gameObject.SetActive(false);
-            ObjectPool.Despawn(record.Unit.gameObject);
+            NetworkWorld.Despawn(record.Unit.gameObject);
         }
 
         private void FinishField(bool unloadField)
@@ -459,14 +492,14 @@ namespace BlueReaper.Stage
             Debug.LogError(reason, this);
             stageRoutine = null;
             ReleaseStage();
-            FinishSoloRun(SoloStageResult.Aborted);
+            FinishRun(StageRunResult.Aborted);
         }
 
-        private void FinishSoloRun(SoloStageResult result)
+        private void FinishRun(StageRunResult result)
         {
-            if (!soloRun || soloRunFinished) return;
-            soloRunFinished = true;
-            SoloRunFinished?.Invoke(result);
+            if (!managedRun || runFinished) return;
+            runFinished = true;
+            RunFinished?.Invoke(result);
         }
 
         private void ReleaseStage()
@@ -501,6 +534,19 @@ namespace BlueReaper.Stage
         private void OnBossDefeated(Health boss)
         {
             if (hudBoss == boss) HideBossHUD();
+        }
+
+        internal void ShowRemoteBoss(Enemy enemy)
+        {
+            if (!bossHUD || !enemy || enemy.Rank != EnemyRank.Boss) return;
+            hudBoss = enemy.GetComponent<Health>();
+            bossHUD.Init(enemy);
+            bossHUD.Show();
+        }
+
+        internal void HideRemoteBoss(Health health)
+        {
+            if (hudBoss == health) HideBossHUD();
         }
 
         private void HideBossHUD()

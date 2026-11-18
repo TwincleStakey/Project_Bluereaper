@@ -1,5 +1,6 @@
 using BlueReaper.Core;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 namespace BlueReaper.Player
@@ -93,8 +94,37 @@ namespace BlueReaper.Player
             if (input.AttackHeld && !motor.IsDashing)
             {
                 Vector3 direction = autoAim.Resolve(input.AimDirection);
-                if (attack.TryAttack(direction)) motor.FaceInstant(direction, attackFacingHold);
+                bool swung = IsSpawned && !IsServer ? attack.TrySwing(direction) : attack.TryAttack(direction);
+                if (swung)
+                {
+                    motor.FaceInstant(direction, attackFacingHold);
+                    if (IsSpawned && !IsServer) AttackRpc(direction);
+                }
             }
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void AttackRpc(Vector3 direction)
+        {
+            if (life.State != LifeState.Alive || health.Invincible
+                || !float.IsFinite(direction.x) || !float.IsFinite(direction.z)) return;
+            direction.y = 0f;
+            attack.TryAttack(direction.normalized);
+        }
+
+        internal void PlaceFromHost(Vector3 position, Quaternion rotation)
+        {
+            if (!IsServer) return;
+            if (!IsOwner) motor.Teleport(position, rotation);
+            PlaceOwnerRpc(position, rotation);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        private void PlaceOwnerRpc(Vector3 position, Quaternion rotation)
+        {
+            motor.Teleport(position, rotation);
+            if (TryGetComponent(out NetworkTransform transformSync))
+                transformSync.Teleport(position, rotation, transform.localScale);
         }
 
         void OnDashPressed()

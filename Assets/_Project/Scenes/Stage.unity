@@ -537,7 +537,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f2496cf909a243a0b6d3da71804c9430, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.SoloStage
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.StageEntry
   controller: {fileID: 1979962089}
   playerPrefab: {fileID: 140846048566676297, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
   playerHp: {fileID: 500000014}

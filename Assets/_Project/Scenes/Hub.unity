@@ -1224,7 +1224,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b073c0f2248366f4fb1d3b406f3a6471, type: 3}
   m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.SoloHub
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.HubEntry
   playerPrefab: {fileID: 140846048566676297, guid: ea6379f8ef7eedc4ba52b5be833b10f4, type: 3}
   spawnPoint: {fileID: 422735233}
   playerCamera: {fileID: 709952143}

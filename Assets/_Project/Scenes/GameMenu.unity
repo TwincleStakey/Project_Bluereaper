@@ -132,7 +132,7 @@ GameObject:
   - component: {fileID: 726377179}
   - component: {fileID: 726377178}
   m_Layer: 0
-  m_Name: Solo Session
+  m_Name: Game Session
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -199,7 +199,8 @@ MonoBehaviour:
     NetworkTransport: {fileID: 726377179}
     PlayerPrefab: {fileID: 0}
     Prefabs:
-      NetworkPrefabsLists: []
+      NetworkPrefabsLists:
+      - {fileID: 11400000, guid: 4e51a0666cad3ad40b6306496e86df39, type: 2}
     TickRate: 30
     ClientConnectionBufferTimeout: 10
     ConnectionApproval: 1
@@ -207,7 +208,7 @@ MonoBehaviour:
     EnableTimeResync: 0
     TimeResyncInterval: 30
     EnsureNetworkVariableLengthSafety: 0
-    EnableSceneManagement: 0
+    EnableSceneManagement: 1
     ForceSamePrefabs: 1
     RecycleNetworkIds: 1
     NetworkIdRecycleDelay: 120
@@ -249,7 +250,7 @@ GameObject:
   - component: {fileID: 726377183}
   - component: {fileID: 726377184}
   m_Layer: 0
-  m_Name: Solo Game Flow
+  m_Name: Game Flow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -281,7 +282,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd6568b00b9642c2afc0b0cd016e8ee8, type: 3}
   m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.SoloMenu
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.GameMenu
 --- !u!114 &726377184
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -293,7 +294,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 93f5d1185d9a4e7791e297daf7edaa34, type: 3}
   m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.SoloGameFlow
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.GameFlow
   session: {fileID: 726377178}
   networkManager: {fileID: 726377180}
   stages:

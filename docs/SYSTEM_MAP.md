@@ -4,8 +4,8 @@
 
 ```mermaid
 flowchart LR
-    Menu["SoloMenu 씬"] --> Hub["SoloHub 씬"]
-    Hub --> Solo["SoloStage 씬"]
+    Menu["GameMenu 씬"] --> Hub["Hub 씬"]
+    Hub --> Solo["Stage 씬"]
     Solo --> Hub
     Solo --> Stage["StageController"]
     Solo --> Player["Player 프리팹"]
@@ -29,19 +29,19 @@ flowchart LR
 
 | 씬 | 저장된 연결 |
 | --- | --- |
-| [SoloMenu](../Assets/_Project/Scenes/SoloMenu.unity) | 빌드 첫 씬이다. 타이틀·로비 uGUI와 솔로 세션을 유지한다. |
-| [SoloHub](../Assets/_Project/Scenes/SoloHub.unity) | 로컬 세션 시작 및 전투 복귀 시 로드한다. 스폰 지점, 이동 가능한 바닥과 경계, TopDownCamera가 있다. 화면 오른쪽 uGUI에서 스테이지를 선택하고 출발한다. |
-| [SoloStage](../Assets/_Project/Scenes/SoloStage.unity) | 출발마다 로드하는 전투 씬이다. Player 프리팹, StageController, TopDownCamera, 플레이어 HP와 BossHUD가 연결돼 있다. |
+| [GameMenu](../Assets/_Project/Scenes/GameMenu.unity) | 빌드 첫 씬이다. 타이틀·로비 uGUI와 공용 세션을 유지한다. |
+| [Hub](../Assets/_Project/Scenes/Hub.unity) | 세션 시작 및 전투 복귀 시 로드한다. 스폰 지점, 이동 가능한 바닥과 경계, TopDownCamera가 있다. 화면 오른쪽 uGUI에서 스테이지 선택·준비·출발을 처리한다. |
+| [Stage](../Assets/_Project/Scenes/Stage.unity) | 출발마다 로드하는 공용 전투 씬이다. Player 프리팹, StageController, TopDownCamera, 플레이어 HP와 BossHUD가 연결돼 있다. |
 | [Seonggyu](../Assets/_Project/Scenes/_Sandbox/Seonggyu.unity) | Player 인스턴스의 Health, BossHUD, TopDownCamera, Stage_1이 StageController에 연결돼 있다. 전투와 필드 진행의 진입점이다. |
 | [Kibaek](../Assets/_Project/Scenes/_Sandbox/Kibaek.unity) | 플레이어와 타격용 더미가 배치돼 있다. StageController에 StageData가 연결돼 있지 않아 현재 필드 진행은 시작되지 않는다. |
 | [Prototype](../Assets/_Project/Scenes/Prototype.unity) | 카메라와 조명이 배치돼 있다. |
 | [SampleScene](../Assets/Scenes/SampleScene.unity) | [빌드 목록](../ProjectSettings/EditorBuildSettings.asset)에 남아 있다. |
 
-## 솔로 게임 흐름
+## 게임 흐름
 
-- 타이틀의 새로하기에서 로비에 진입한다. 로비에서 Warrior 캐릭터를 생성하고 선택한다. 생성된 캐릭터는 현재 실행에서 사용하며 이름은 생성 순서대로 부여한다. 설정은 마스터 볼륨과 전체 화면을 제어한다.
-- [SoloGameFlow](../Assets/_Project/Scripts/GameFlow/SoloGameFlow.cs)는 `SessionService.StartSolo`를 호출하고, 로컬 세션이 시작되면 `SoloHub` 씬을 로드한다. `SoloHub.TryEnter`가 선택 캐릭터를 스폰 지점에 배치하고 카메라를 연결한다. 거점 uGUI에서 출발하면 거점을 해제한 뒤 `SoloStage`를 로드한다. 클리어·HP 0·스테이지 시작 오류가 발생하면 전투 씬을 해제하고 같은 솔로 세션에서 거점을 다시 로드한다. 캐릭터와 선택한 스테이지는 재출발에 사용한다.
-- [SoloStage](../Assets/_Project/Scripts/GameFlow/SoloStage.cs)는 출발할 때마다 선택한 캐릭터의 플레이어를 새로 만들고 HP HUD를 연결한다. StageController는 플레이어를 등록하고 카메라 타겟과 필드 진행을 지정한다.
+- 타이틀의 새로하기에서 로비에 진입해 Warrior 캐릭터를 생성·선택한다. 솔로는 로컬 호스트를 열고, 멀티는 2인·3인 Relay 방을 생성하거나 코드로 합류한다. 멀티는 정원을 채운 상태에서 호스트가 스테이지를 선택하고 전원이 Ready를 누르면 출발할 수 있다. 선택한 스테이지나 참가자가 바뀌면 Ready를 초기화한다.
+- 호스트는 `Hub`와 `Stage`를 NGO 씬 전환으로 로드·해제한다. 씬 로드 후 참가자별 플레이어를 생성한다. 각 PC는 자기 플레이어에 카메라와 개인 HUD를 연결한다. 클리어·전멸·스테이지 중단 뒤 같은 세션의 거점으로 복귀한다. 스테이지 중 합류는 차단하고, 진행 중 참가자가 이탈하면 남은 인원은 거점으로 돌아간다. 호스트가 종료하면 참가자는 로비로 돌아간다. [GameFlow.cs](../Assets/_Project/Scripts/GameFlow/GameFlow.cs) · [StageEntry.cs](../Assets/_Project/Scripts/GameFlow/StageEntry.cs)
+- 스테이지의 필드·스폰·AI·피해·처치 집계는 호스트가 진행한다. 참가자의 평타는 소유자 입력으로 요청하고 호스트에서 위치·쿨다운·생존 상태를 기준으로 처리한다. 클라이언트는 필드와 등록된 적·투사체·전조 프리팹을 표시하고 HP·실드·빈사 상태를 반영한다. 멀티 스테이지에서 사용하는 새 프리팹은 루트에 `NetworkObject`를 붙이고 네트워크 프리팹 목록에 등록한다.
 
 ## 공통 개체와 플레이어
 
@@ -85,7 +85,7 @@ flowchart LR
 
 | 확인할 동작 | 따라갈 호출 |
 | --- | --- |
-| 솔로 출발과 복귀 | `SoloGameFlow` → `SoloHub.TryEnter` → 출발 → `SoloStage.TryBegin` → `StageController.TryStartSoloRun` → `SoloRunFinished` → 전투 씬 해제 및 거점 재입장 |
+| 출발과 복귀 | `GameFlow` → 거점 참가자 배치 → 호스트 출발 → `StageController.TryStartRun` → `RunFinished` → 전투 씬 해제 및 거점 재입장 |
 | 이동과 평타 | `PlayerController.Update` → `PlayerMotor` / `AutoAim.Resolve` → `SwordAttack.TryAttack` → `Health.TakeDamage` |
 | 적 패턴 선택·실행 | `EnemyAI.AIUpdate` → `SelectNextPattern` → `ExecuteAction` → `ExecutePattern` |
 | 웨이브와 소환 | `RunStage` → `SpawnWave` 또는 패턴 효과 → `SummonEnemies` → `SpawnEnemy` → `RegisterUnit` |

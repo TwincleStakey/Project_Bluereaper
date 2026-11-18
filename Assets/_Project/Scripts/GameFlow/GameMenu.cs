@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace BlueReaper.GameFlow
 {
-    public sealed class SoloMenu : MonoBehaviour
+    public sealed class GameMenu : MonoBehaviour
     {
         static readonly Color Background = new(0.035f, 0.055f, 0.095f);
         static readonly Color Accent = new(0.29f, 0.76f, 0.92f);
@@ -33,7 +33,7 @@ namespace BlueReaper.GameFlow
             input.transform.SetParent(transform);
             events = input.GetComponent<EventSystem>();
 
-            var overlay = new GameObject("Solo Menu", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            var overlay = new GameObject("Game Menu", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             overlay.transform.SetParent(transform);
             canvas = overlay.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -124,6 +124,22 @@ namespace BlueReaper.GameFlow
             label.rectTransform.sizeDelta = Vector2.zero;
             if (button.interactable && !events.currentSelectedGameObject)
                 events.SetSelectedGameObject(row);
+        }
+
+        public void Input(string placeholder, string value, Action<string> changed, int length)
+        {
+            var row = DefaultControls.CreateInputField(new DefaultControls.Resources());
+            row.name = placeholder;
+            row.transform.SetParent(column, false);
+            row.AddComponent<LayoutElement>().preferredHeight = 42f;
+            var field = row.GetComponent<InputField>();
+            field.textComponent.font = font;
+            field.textComponent.color = Ink;
+            ((Text)field.placeholder).font = font;
+            ((Text)field.placeholder).text = placeholder;
+            field.characterLimit = length;
+            field.SetTextWithoutNotify(value);
+            field.onValueChanged.AddListener(text => changed(text));
         }
 
         public void Volume()

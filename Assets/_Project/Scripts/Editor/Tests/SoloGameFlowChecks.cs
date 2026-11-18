@@ -23,9 +23,9 @@ namespace BlueReaper.GameFlow.Editor
     public static class SoloGameFlowChecks
     {
         const string Running = "BlueReaper.SoloGameFlowChecks.Running";
-        const string Menu = "Assets/_Project/Scenes/SoloMenu.unity";
-        const string Hub = "Assets/_Project/Scenes/SoloHub.unity";
-        const string Stage = "Assets/_Project/Scenes/SoloStage.unity";
+        const string Menu = "Assets/_Project/Scenes/GameMenu.unity";
+        const string Hub = "Assets/_Project/Scenes/Hub.unity";
+        const string Stage = "Assets/_Project/Scenes/Stage.unity";
         const string Sandbox = "Assets/_Project/Scenes/_Sandbox/Seonggyu.unity";
         static Stack<IEnumerator> checks;
         static double deadline;
@@ -227,7 +227,8 @@ namespace BlueReaper.GameFlow.Editor
         static void Hit(Health health)
         {
             health.Invincible = false;
-            Require(health.TakeDamage(health.MaxHealth) == DamageResult.Killed, "Test damage did not reach HP zero.");
+            float shield = health.TryGetComponent<Shield>(out var component) ? component.CurrentShield : 0f;
+            Require(health.TakeDamage(health.MaxHealth + shield) == DamageResult.Killed, "Test damage did not reach HP zero.");
         }
 
         static void Submit(string name)

@@ -1,6 +1,7 @@
 using System;
 using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
+using BlueReaper.Network;
 using BlueReaper.Vfx;
 using UnityEngine;
 
@@ -97,7 +98,7 @@ namespace BlueReaper.HitBox
             if (!pattern.TryEvaluate(pathIndex, emissionIndex, emissionIndex * pattern.RepeatInterval,
                 out var position, out var rotation)) return null;
 
-            var instance = ObjectPool.Spawn(pattern.BulletPrefab, origin + facing * position, facing * rotation);
+            var instance = NetworkWorld.Spawn(pattern.BulletPrefab, origin + facing * position, facing * rotation);
             var projectile = instance.GetComponent<ProjectileHitBox>();
             if (projectile) return projectile;
 
@@ -161,7 +162,7 @@ namespace BlueReaper.HitBox
             var callback = onReturned;
             onReturned = null;
             callback?.Invoke(this);
-            ObjectPool.Despawn(gameObject);
+            NetworkWorld.Despawn(gameObject);
         }
     }
 }

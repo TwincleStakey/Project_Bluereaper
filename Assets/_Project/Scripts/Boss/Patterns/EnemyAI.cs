@@ -2,6 +2,7 @@ using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
 using BlueReaper.Data;
 using BlueReaper.HitBox;
+using BlueReaper.Network;
 using BlueReaper.Stage;
 using BlueReaper.Vfx;
 using System;
@@ -668,7 +669,7 @@ namespace BlueReaper.Boss
         {
             Vector3 position = placement.Layout.MultiplyPoint3x4(area ? area.LocalCenter : Vector3.zero);
             Quaternion facing = placement.Facing * Quaternion.Euler(0f, area ? area.LocalYaw : 0f, 0f);
-            ObjectPool.Spawn(prefab, position, facing, beforeEnable: activeTelegraphs.Add);
+            activeTelegraphs.Add(NetworkWorld.Spawn(prefab, position, facing));
         }
 
         private void ReturnTelegraph()
@@ -678,7 +679,7 @@ namespace BlueReaper.Boss
                 int index = activeTelegraphs.Count - 1;
                 var instance = activeTelegraphs[index];
                 activeTelegraphs.RemoveAt(index);
-                if (instance) ObjectPool.Despawn(instance);
+                if (instance) NetworkWorld.Despawn(instance);
             }
         }
 
