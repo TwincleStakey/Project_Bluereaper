@@ -170,6 +170,7 @@ GameObject:
   - component: {fileID: 9210259287303635999}
   - component: {fileID: 106772980180569961}
   - component: {fileID: 5165631371547508616}
+  - component: {fileID: 5207485019566516487}
   m_Layer: 12
   m_Name: BodyPart_1
   m_TagString: Untagged
@@ -272,6 +273,19 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &5207485019566516487
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3014508126223727249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 907bbbc5019c44a6af9af34a1b11e95d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.Hurtbox
+  damageReduction: 0
 --- !u!1 &4179467722401266599
 GameObject:
   m_ObjectHideFlags: 0
@@ -475,6 +489,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4779419769516372998}
   - component: {fileID: 3897135191626284910}
+  - component: {fileID: 5263141583304051264}
   m_Layer: 12
   m_Name: HurtBox
   m_TagString: Untagged
@@ -518,3 +533,16 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &5263141583304051264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8128564471890522944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 907bbbc5019c44a6af9af34a1b11e95d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.Hurtbox
+  damageReduction: 0

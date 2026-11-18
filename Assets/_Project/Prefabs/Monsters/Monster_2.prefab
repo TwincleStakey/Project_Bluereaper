@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 9210259287303635999}
   - component: {fileID: 106772980180569961}
   - component: {fileID: 5165631371547508616}
+  - component: {fileID: 6968297256954373804}
   m_Layer: 12
   m_Name: BodyPart_1
   m_TagString: Untagged
@@ -114,6 +115,19 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6968297256954373804
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3014508126223727249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 907bbbc5019c44a6af9af34a1b11e95d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.Hurtbox
+  damageReduction: 0
 --- !u!1 &4179467722401266599
 GameObject:
   m_ObjectHideFlags: 0
@@ -304,7 +318,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b42a30dbc4bf1b84d9864d70bed4618b, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.EnemyAggro
   aggroPerDamage: 1
 --- !u!1 &7349903980169842856
@@ -319,6 +333,7 @@ GameObject:
   - component: {fileID: 232276845650076624}
   - component: {fileID: 3451906366337405546}
   - component: {fileID: 5851463192831520976}
+  - component: {fileID: 3149007019446283416}
   m_Layer: 12
   m_Name: BodyPart_2
   m_TagString: Untagged
@@ -421,3 +436,16 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &3149007019446283416
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7349903980169842856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 907bbbc5019c44a6af9af34a1b11e95d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.Hurtbox
+  damageReduction: 0
