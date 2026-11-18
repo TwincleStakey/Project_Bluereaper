@@ -236,6 +236,7 @@ GameObject:
   - component: {fileID: 1979026647588797828}
   - component: {fileID: 5018838254179247499}
   - component: {fileID: 1089090144097445118}
+  - component: {fileID: -8990968599192226675}
   m_Layer: 8
   m_Name: Boss_1
   m_TagString: Untagged
@@ -440,6 +441,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.EnemyAggro
   aggroPerDamage: 1
+--- !u!114 &-8990968599192226675
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4179467722401266599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9802e01a38e74dba8b638c9d44893bcc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Shield
+  maxShield: 50
+  initialShield: 50
 --- !u!1 &4210311558196961191
 GameObject:
   m_ObjectHideFlags: 0
