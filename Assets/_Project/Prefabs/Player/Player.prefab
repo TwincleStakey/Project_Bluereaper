@@ -452,7 +452,8 @@ GameObject:
   - component: {fileID: 2934459115195419130}
   - component: {fileID: 3579385870726072711}
   - component: {fileID: 5236990089406998731}
-  m_Layer: 6
+  - component: {fileID: 3379635664360905932}
+  m_Layer: 12
   m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -552,3 +553,26 @@ MonoBehaviour:
   strokeTime: 0.07
   strokeLife: 0.45
   lightIntensity: 3
+--- !u!136 &3379635664360905932
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8960930555137822400}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.5
+  m_Height: 2
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}

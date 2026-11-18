@@ -16,10 +16,13 @@ MonoBehaviour:
   CanForwardTracking: 0
   TrackingRotationRatio: 1
   TrackingMoveRatio: 1
-  TrackingDuration: 0.15
+  TrackingDuration: 0
   SelfDestructAfterPattern: 1
-  MotionClip: {fileID: 7400000, guid: 3a4f4d03aaac1ac41a728e85f8ccda16, type: 2}
-  TelegraphType: 0
+  MotionClip: {fileID: 0}
+  TelegraphPrefab: {fileID: 240605553566229326, guid: 50e02719fbf502247a1cfa8e211f54e4, type: 3}
+  TelegraphDurationSeconds: 1
+  CastVfxPrefab: {fileID: 1582207202655717940, guid: 96f96da74e42f48448b2575eb8496949, type: 3}
+  CastVfxDelaySeconds: 0.1
   RestTime: 0.1
   ChasingDistance: 0
   Implementations:

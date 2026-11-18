@@ -14,11 +14,12 @@ namespace BlueReaper.Stage
         internal EnemySpawnEntry[] SpawnEntries { get; private set; }
         internal PlayerSpawnEntry Entrance { get; private set; }
         internal Unit[] PlacedUnits { get; private set; }
-        internal Vector3 Center => fieldObject ? fieldObject.transform.position : transform.position;
+        internal Transform LayoutOrigin => fieldObject ? fieldObject.transform : transform;
+        internal Vector3 Center => LayoutOrigin.position;
 
         private void Awake()
         {
-            Transform markers = fieldObject ? fieldObject.transform : transform;
+            Transform markers = LayoutOrigin;
             SpawnEntries = markers.GetComponentsInChildren<EnemySpawnEntry>();
             Entrance = markers.GetComponentInChildren<PlayerSpawnEntry>();
             PlacedUnits = GetComponentsInChildren<Unit>(true);

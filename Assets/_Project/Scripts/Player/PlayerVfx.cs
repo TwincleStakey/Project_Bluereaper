@@ -53,11 +53,12 @@ namespace BlueReaper.Player
         }
 
         // 먹 획은 판정과 같은 사거리·각도로 그린다 (보이는 범위 = 맞는 범위)
-        void OnSwung(Vector3 origin, Vector3 direction, int combo) =>
-            ink.PlaySwing(origin, direction, attack.Range, attack.ArcAngle, combo);
+        void OnSwung(Vector3 origin, Vector3 direction) =>
+            ink.PlaySwing(origin, direction, attack.Range, attack.ArcAngle, attack.LastCombo);
 
-        void OnHitLanded(Vector3 point, int combo)
+        void OnHitLanded(Vector3 point)
         {
+            int combo = attack.LastCombo;
             Vector3 outward = point - transform.position;
             outward.y = 0f;
             if (outward.sqrMagnitude < 0.0001f) outward = transform.forward;

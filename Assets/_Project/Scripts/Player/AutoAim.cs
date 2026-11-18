@@ -1,4 +1,5 @@
 using BlueReaper.Core;
+using BlueReaper.HitBox;
 using UnityEngine;
 
 namespace BlueReaper.Player
@@ -11,17 +12,15 @@ namespace BlueReaper.Player
     {
         [SerializeField] float range = 6f;
         [SerializeField, Range(0f, 180f)] float coneAngle = 70f; // 부채꼴 전체 각도
-        [SerializeField] LayerMask targetLayers; // Monster, Boss
+        [Tooltip("피격 대상 Unit의 레이어")]
+        [SerializeField] LayerMask targetLayers;
 
         readonly Collider[] hits = new Collider[32];
-        int bossLayer;
-
-        void Awake() => bossLayer = LayerMask.NameToLayer("Boss");
 
         public Vector3 Resolve(Vector3 aimDirection)
         {
             Vector3 origin = transform.position;
-            int count = Physics.OverlapSphereNonAlloc(origin, range, hits, targetLayers);
+            int count = Physics.OverlapSphereNonAlloc(origin, range, hits, HurtboxTarget.Mask, QueryTriggerInteraction.Collide);
 
             Vector3 best = aimDirection;
             bool bestIsBoss = false;
@@ -30,14 +29,14 @@ namespace BlueReaper.Player
             for (int i = 0; i < count; i++)
             {
                 Collider hit = hits[i];
-                var health = hit.GetComponentInParent<Health>();
-                if (health != null && health.IsDead) continue;
+                var target = HurtboxTarget.Find(hit, targetLayers, out var targetUnit);
+                if (target == null || target is Health { IsDead: true } || targetUnit.transform == transform) continue;
 
                 Vector3 toTarget = hit.transform.position - origin;
                 toTarget.y = 0f;
                 if (Vector3.Angle(aimDirection, toTarget) > coneAngle * 0.5f) continue;
 
-                bool isBoss = hit.gameObject.layer == bossLayer;
+                bool isBoss = targetUnit.TryGetComponent<Enemy>(out var enemy) && enemy.Rank == EnemyRank.Boss;
                 float distance = toTarget.magnitude;
                 // 보스가 아닌 후보는 보스 후보를 이길 수 없다. 같은 등급끼리는 가까운 쪽.
                 if (bestIsBoss && !isBoss) continue;

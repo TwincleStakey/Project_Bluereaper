@@ -11,9 +11,7 @@ GameObject:
   - component: {fileID: 3864438127795541456}
   - component: {fileID: 8958735143232010885}
   - component: {fileID: 417571011864331235}
-  - component: {fileID: 1480758390282028847}
-  - component: {fileID: 4984890822882390372}
-  m_Layer: 7
+  m_Layer: 12
   m_Name: ArmPart _R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -32,7 +30,9 @@ Transform:
   m_LocalPosition: {x: 1.029, y: 2.335, z: 0.211}
   m_LocalScale: {x: 0.5, y: 0.5, z: 2}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 7942952850592419562}
+  - {fileID: 4779419769516372998}
   m_Father: {fileID: 5272602197459446429}
   m_LocalEulerAnglesHint: {x: -55.761, y: 0, z: 0}
 --- !u!33 &8958735143232010885
@@ -92,39 +92,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1480758390282028847
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1223142242840838077}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &4984890822882390372
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1223142242840838077}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
 --- !u!1 &3014508126223727249
 GameObject:
   m_ObjectHideFlags: 0
@@ -137,7 +104,7 @@ GameObject:
   - component: {fileID: 9210259287303635999}
   - component: {fileID: 106772980180569961}
   - component: {fileID: 5165631371547508616}
-  m_Layer: 7
+  m_Layer: 12
   m_Name: BodyPart_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -259,6 +226,7 @@ GameObject:
   - component: {fileID: 6143271408762104054}
   - component: {fileID: 8380648718490699011}
   - component: {fileID: 2551353644167399155}
+  - component: {fileID: 3320942007723350861}
   m_Layer: 7
   m_Name: Monster_1
   m_TagString: Untagged
@@ -349,6 +317,7 @@ MonoBehaviour:
   rewardTable: {fileID: 11400000, guid: de4e49925961349439d4fd0d5c3b9581, type: 2}
   phaseInfo: {fileID: 11400000, guid: f36e4e31bf9af26488dfc51c04095c90, type: 2}
   sightRange: 5
+  outSightTrackingPercent: 0.5
 --- !u!114 &5246980696664095001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -363,8 +332,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Boss.EnemyAI
   patterns:
   - {fileID: 11400000, guid: f096a4db3df3a7a41ac5355a90eb218b, type: 2}
+  spawnPattern: {fileID: 0}
+  deathPattern: {fileID: 0}
   aiTick: 0.1
   stopChasingDistance: 3
+  chaseTargetRule:
+    Filters:
+    - Metric: 3
+      Minimum: 0
+      Maximum: 999
+    SortBy:
+    - Metric: 3
+      Descending: 0
+    SelectionMode: 0
+    Count: 1
 --- !u!95 &2647093197652973279
 Animator:
   serializedVersion: 7
@@ -512,3 +493,135 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecc7c05c6cca420e925588e5466ddc77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Network.EnemyNetwork
+--- !u!1 &1913357102854154444
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7942952850592419562}
+  - component: {fileID: 3708873689094473303}
+  - component: {fileID: 2051281983079576650}
+  m_Layer: 7
+  m_Name: HitBox
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7942952850592419562
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1913357102854154444}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3864438127795541456}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &3708873689094473303
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1913357102854154444}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &2051281983079576650
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1913357102854154444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acfd436d267bb494880197690e39059a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.HitBox.MeleeHitBox
+--- !u!114 &3320942007723350861
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4179467722401266599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b42a30dbc4bf1b84d9864d70bed4618b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.EnemyAggro
+  aggroPerDamage: 1
+--- !u!1 &8128564471890522944
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4779419769516372998}
+  - component: {fileID: 3897135191626284910}
+  m_Layer: 12
+  m_Name: HurtBox
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4779419769516372998
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8128564471890522944}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3864438127795541456}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &3897135191626284910
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8128564471890522944}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}

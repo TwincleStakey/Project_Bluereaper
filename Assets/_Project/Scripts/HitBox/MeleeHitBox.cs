@@ -11,7 +11,7 @@ namespace BlueReaper.HitBox
         private float damage;
         private bool armed;
         private Collider[] hitColliders;
-        private Action<IDamageable> onContact;
+        private Action<IDamageable, Collider> onContact;
         private readonly HashSet<IDamageable> hitTargets = new();
 
         private void Awake()
@@ -21,7 +21,7 @@ namespace BlueReaper.HitBox
             SetArmed(false);
         }
 
-        public void Init(Unit unit, float damageMultiplier, Action<IDamageable> onContact = null)
+        public void Init(Unit unit, float damageMultiplier, Action<IDamageable, Collider> onContact = null)
         {
             owner = unit;
             damage = unit && unit.Data ? DamageFormula.Calculate(unit.Data.Attack, damageMultiplier) : 0f;
@@ -44,10 +44,10 @@ namespace BlueReaper.HitBox
         {
             if (!armed || !owner || other.transform.IsChildOf(owner.transform)) return;
             if (owner.GetComponent<Enemy>() && other.GetComponentInParent<Enemy>()) return;
-            var target = other.GetComponentInParent<IDamageable>();
+            var target = HurtboxTarget.Find(other);
             if (target == null) return;
-            if (onContact != null) onContact(target);
-            else if (hitTargets.Add(target)) target.TakeDamage(damage);
+            if (onContact != null) onContact(target, other);
+            else if (hitTargets.Add(target)) target.TakeDamage(damage, owner);
         }
     }
 }

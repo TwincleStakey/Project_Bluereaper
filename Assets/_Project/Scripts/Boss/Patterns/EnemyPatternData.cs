@@ -1,4 +1,5 @@
 using BlueReaper.BulletPatterns;
+using BlueReaper.Vfx;
 using UnityEngine;
 
 namespace BlueReaper.Data
@@ -8,7 +9,10 @@ namespace BlueReaper.Data
     {
         public bool SelfDestructAfterPattern = false;
         public AnimationClip MotionClip = null;
-        public int TelegraphType = 0; //todo
+        public GameObject TelegraphPrefab;
+        [Min(0f)] public float TelegraphDurationSeconds;
+        public VfxAutoDespawn CastVfxPrefab;
+        [Min(0f)] public float CastVfxDelaySeconds;
         public float RestTime = 0f;
         public float ChasingDistance = 10f;
         public PatternImplData[] Implementations = null;

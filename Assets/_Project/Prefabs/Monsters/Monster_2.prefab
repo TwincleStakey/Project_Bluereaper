@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 9210259287303635999}
   - component: {fileID: 106772980180569961}
   - component: {fileID: 5165631371547508616}
-  m_Layer: 7
+  m_Layer: 12
   m_Name: BodyPart_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 4975746905724597724}
   - component: {fileID: 4107382895788009747}
   - component: {fileID: 2859839255917330075}
+  - component: {fileID: -7724022075475456160}
   m_Layer: 7
   m_Name: Monster_2
   m_TagString: Untagged
@@ -224,6 +225,7 @@ MonoBehaviour:
   rewardTable: {fileID: 11400000, guid: de4e49925961349439d4fd0d5c3b9581, type: 2}
   phaseInfo: {fileID: 11400000, guid: f36e4e31bf9af26488dfc51c04095c90, type: 2}
   sightRange: 7
+  outSightTrackingPercent: 0.5
 --- !u!114 &5246980696664095001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -238,8 +240,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Boss.EnemyAI
   patterns:
   - {fileID: 11400000, guid: 2b172d4e432be0144a9f861b9f2956ea, type: 2}
+  spawnPattern: {fileID: 0}
+  deathPattern: {fileID: 0}
   aiTick: 0.1
   stopChasingDistance: 5
+  chaseTargetRule:
+    Filters:
+    - Metric: 3
+      Minimum: 0
+      Maximum: 999
+    SortBy:
+    - Metric: 3
+      Descending: 0
+    SelectionMode: 0
+    Count: 1
 --- !u!95 &2647093197652973279
 Animator:
   serializedVersion: 7
@@ -296,7 +310,7 @@ GameObject:
   - component: {fileID: 232276845650076624}
   - component: {fileID: 3451906366337405546}
   - component: {fileID: 5851463192831520976}
-  m_Layer: 7
+  m_Layer: 12
   m_Name: BodyPart_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -501,3 +515,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecc7c05c6cca420e925588e5466ddc77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Network.EnemyNetwork
+--- !u!114 &-7724022075475456160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4179467722401266599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b42a30dbc4bf1b84d9864d70bed4618b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.EnemyAggro
+  aggroPerDamage: 1

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BlueReaper.Data;
+using BlueReaper.Vfx;
 using UnityEngine;
 
 namespace BlueReaper.BulletPatterns
@@ -57,6 +58,9 @@ namespace BlueReaper.BulletPatterns
     public sealed class BulletPatternData : PatternImplData
     {
         public GameObject BulletPrefab;
+        public VfxAutoDespawn LaunchVfxPrefab;
+        public VfxAutoDespawn HitVfxPrefab;
+        [Min(0f)] public float HitVfxDelaySeconds;
         public BulletMovementType MovementType = BulletMovementType.Path;
         public bool AimAtTargetEachEmission;
         [Min(1)] public int LinearCount = 1;

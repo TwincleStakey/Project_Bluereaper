@@ -10,7 +10,8 @@ namespace BlueReaper.Core
         static readonly Dictionary<GameObject, UnityPool> poolsByPrefab = new();
         static readonly Dictionary<GameObject, UnityPool> poolsByInstance = new();
 
-        public static GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation)
+        public static GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation,
+            System.Action<GameObject> beforeEnable = null)
         {
             if (!poolsByPrefab.TryGetValue(prefab, out var pool))
             {
@@ -33,6 +34,7 @@ namespace BlueReaper.Core
             poolsByInstance[instance] = pool;
             // 위치를 먼저 잡은 뒤 활성화해야 OnEnable에서 올바른 위치를 본다
             instance.transform.SetPositionAndRotation(position, rotation);
+            beforeEnable?.Invoke(instance);
             instance.SetActive(true);
             return instance;
         }
