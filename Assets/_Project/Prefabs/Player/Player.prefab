@@ -113,6 +113,9 @@ GameObject:
   - component: {fileID: 1159832944218927828}
   - component: {fileID: 678949697759302486}
   - component: {fileID: 1864281870307903895}
+  - component: {fileID: 2411903147922599001}
+  - component: {fileID: 8665110819014921270}
+  - component: {fileID: 5124078351129046723}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -310,6 +313,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae60f252b9c32a2448c43e7eaa9b5976, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerLife
+  ShowTopMostFoldoutHeaderGroup: 1
   bleedOutTime: 15
   rescueTime: 3
   reviveHealthRatio: 0.3
@@ -325,6 +329,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe4df9b8f8aaba747ac35069b40aa689, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerRescuer
+  ShowTopMostFoldoutHeaderGroup: 1
   rescueRadius: 1.8
   playerLayers:
     serializedVersion: 2
@@ -402,6 +407,40 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &2411903147922599001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 689fbd7b5d77e4143a0e8410c729cf64, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerDownedView
+  fallTime: 0.45
+  lyingHeight: 0.5
+  downedTint: {r: 0.42, g: 0.43, b: 0.45, a: 1}
+  ringHeight: 1.75
+  ringRadius: 0.5
+  timerColor: {r: 0.45, g: 1.9, b: 1.75, a: 1}
+  rescueColor: {r: 0.45, g: 2.6, b: 0.7, a: 1}
+  promptHeight: 2.8
+--- !u!114 &8665110819014921270
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb951daf3b851894d88733d8f874aa60, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerResources
+  maxMana: 100
+  manaRegen: 1.5
 --- !u!1 &8960930555137822400
 GameObject:
   m_ObjectHideFlags: 0
@@ -492,3 +531,24 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &5124078351129046723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6407ce707a0275f4c9d7a704d41c108f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Vfx.InkSlashVfx
+  alphaSource: {fileID: 2100000, guid: 3cf8c0bdc2472854b97c7739930e95eb, type: 2}
+  glowSource: {fileID: 2100000, guid: 51f0c58ba0d85fa4dad8aed273a38929, type: 2}
+  splatTexture: {fileID: 2800000, guid: 61a3aa9ccd07dac49a5f7d6325c4949f, type: 3}
+  inkColor: {r: 0.02, g: 0.02, b: 0.03, a: 1}
+  glowColor: {r: 0.35, g: 2.2, b: 2, a: 1}
+  innerRatio: 0.45
+  strokeTime: 0.07
+  strokeLife: 0.45
+  lightIntensity: 3

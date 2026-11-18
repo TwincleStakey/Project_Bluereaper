@@ -16,9 +16,10 @@ namespace BlueReaper.Vfx
 
         float timeLeft;
 
-        public void Play()
+        /// <summary>lengthScale: 기본 멈춤 시간의 배수 (3타 마무리처럼 더 묵직하게 할 때 2 등).</summary>
+        public void Play(float lengthScale = 1f)
         {
-            timeLeft = duration;
+            timeLeft = duration * lengthScale;
             Time.timeScale = slowScale;
         }
 
