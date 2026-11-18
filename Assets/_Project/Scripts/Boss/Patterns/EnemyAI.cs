@@ -51,7 +51,8 @@ namespace BlueReaper.Boss
         private struct AreaCast
         {
             internal AreaAttackPatternData Pattern;
-            internal float NextAt, HitAt, LastSample, Damage;
+            internal float NextAt, HitAt, LastSample;
+            internal AttackDamage Damage;
             internal HitWindow Window;
             internal bool Placed, HasHit;
             internal AreaPlacement Placement;
@@ -74,7 +75,8 @@ namespace BlueReaper.Boss
         private readonly HashSet<ProjectileHitBox> projectiles = new();
         private MeleeAttackPatternData activeMelee;
         private bool meleeAfterDeath;
-        private float meleeStartedAt, meleeDamage, motionUntil;
+        private float meleeStartedAt, motionUntil;
+        private AttackDamage meleeDamage;
         private Vector3 chaseDestination;
         private bool hasChaseDestination;
         private bool rewardHandled;
@@ -591,7 +593,7 @@ namespace BlueReaper.Boss
                             Pattern = areaAttack,
                             NextAt = startedAt + placementDelay,
                             HitAt = startedAt + hitDelay,
-                            Damage = DamageFormula.Calculate(unit.Data.Attack, areaAttack.DamageMultiplier),
+                            Damage = new AttackDamage(unit.Data.Attack, areaAttack.DamageMultiplier),
                             CapturedPlacements = capturedPlacements,
                         });
                         break;
@@ -866,7 +868,7 @@ namespace BlueReaper.Boss
             activeMelee = pattern;
             meleeAfterDeath = diedAt.HasValue;
             meleeStartedAt = startedAt;
-            meleeDamage = DamageFormula.Calculate(unit.Data.Attack, pattern.DamageMultiplier);
+            meleeDamage = new AttackDamage(unit.Data.Attack, pattern.DamageMultiplier);
             coMeleeHitWindow = StartCoroutine(IEMeleeHitWindow(pattern));
         }
 
@@ -926,10 +928,10 @@ namespace BlueReaper.Boss
         }
 
         private void DamageWithVfx(IDamageable target, Collider collider, Vector3 origin, Quaternion facing,
-            float damage, VfxAutoDespawn prefab, float delay, Func<bool> canPlay)
+            AttackDamage damage, VfxAutoDespawn prefab, float delay, Func<bool> canPlay)
         {
             Vector3 point = prefab && collider ? collider.ClosestPoint(origin) : origin;
-            var result = target.TakeDamage(HurtboxTarget.Damage(collider, damage), unit);
+            var result = HurtboxTarget.TakeDamage(target, collider, damage, unit);
             if (result is DamageResult.Applied or DamageResult.Killed)
                 VfxAutoDespawn.Play(prefab, point, facing, delay, canPlay);
         }

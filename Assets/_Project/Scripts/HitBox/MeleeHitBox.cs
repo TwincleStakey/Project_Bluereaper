@@ -8,7 +8,7 @@ namespace BlueReaper.HitBox
     public class MeleeHitBox : MonoBehaviour
     {
         private Unit owner;
-        private float damage;
+        private AttackDamage damage;
         private bool armed;
         private Collider[] hitColliders;
         private Action<IDamageable, Collider> onContact;
@@ -24,7 +24,7 @@ namespace BlueReaper.HitBox
         public void Init(Unit unit, float damageMultiplier, Action<IDamageable, Collider> onContact = null)
         {
             owner = unit;
-            damage = unit && unit.Data ? DamageFormula.Calculate(unit.Data.Attack, damageMultiplier) : 0f;
+            damage = new AttackDamage(unit && unit.Data ? unit.Data.Attack : 0f, damageMultiplier);
             this.onContact = onContact;
             hitTargets.Clear();
         }
@@ -48,7 +48,7 @@ namespace BlueReaper.HitBox
             if (target == null) return;
             if (onContact != null) onContact(target, other);
             else if (hitTargets.Add(HurtboxTarget.Key(target, other)))
-                target.TakeDamage(HurtboxTarget.Damage(other, damage), owner);
+                HurtboxTarget.TakeDamage(target, other, damage, owner);
         }
     }
 }

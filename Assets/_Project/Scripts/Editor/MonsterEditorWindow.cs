@@ -139,7 +139,8 @@ namespace BlueReaper.Data.Editor
             {
                 case 0:
                     DrawProperties(enemy, "rank", "rewardTable");
-                    DrawAsset(DrawReference(unit, "data"), "MaxHealth", "Attack", "MoveSpeed");
+                    DrawAsset(DrawReference(unit, "data"), "MaxHealth", "Attack", "Defense", "MoveSpeed");
+                    DrawStatComponents();
                     break;
                 case 1:
                     DrawAsset(DrawReference(enemy, "phaseInfo"), "PhaseTrigger_HPRatio_Permil");
@@ -179,6 +180,41 @@ namespace BlueReaper.Data.Editor
             actionIndex = EditorGUILayout.Popup("연결된 행동", Mathf.Clamp(actionIndex, 0, actions.Length - 1),
                 actions.Select(a => a.name).ToArray());
             DrawAsset(actions[actionIndex], fields);
+        }
+
+        private void DrawStatComponents()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("기본 스탯 컴포넌트", EditorStyles.boldLabel);
+            if ((!root.GetComponent<EnemyAggro>() || !root.GetComponent<Shield>()) &&
+                GUILayout.Button("기본 스탯 컴포넌트 추가"))
+            {
+                EnsureDefaultStatComponents(root);
+                hasUnsavedChanges = true;
+            }
+            EditorGUILayout.LabelField(nameof(EnemyAggro));
+            DrawProperties(root.GetComponent<EnemyAggro>(), "aggroPerDamage");
+            EditorGUILayout.LabelField(nameof(Shield));
+            DrawProperties(root.GetComponent<Shield>(), "maxShield", "initialShield");
+
+            EditorGUILayout.LabelField("선택 스탯 컴포넌트", EditorStyles.boldLabel);
+            var posture = root.GetComponent<Posture>();
+            if (posture)
+            {
+                EditorGUILayout.LabelField(nameof(Posture));
+                DrawProperties(posture, "maxPosture", "refillGraceSec", "refillDuration", "groggyTime", "postureDamageRatio");
+            }
+            else if (GUILayout.Button("Posture 추가"))
+            {
+                Undo.AddComponent<Posture>(root);
+                hasUnsavedChanges = true;
+            }
+        }
+
+        private static void EnsureDefaultStatComponents(GameObject monster)
+        {
+            if (!monster.GetComponent<EnemyAggro>()) Undo.AddComponent<EnemyAggro>(monster);
+            if (!monster.GetComponent<Shield>()) Undo.AddComponent<Shield>(monster);
         }
 
         private void DrawProperties(Object obj, params string[] fields)
@@ -509,6 +545,7 @@ namespace BlueReaper.Data.Editor
                     using var unit = new SerializedObject(contents.GetComponent<Unit>());
                     unit.FindProperty("data").objectReferenceValue = AssetDatabase.LoadAssetAtPath<UnitData>(statsPath);
                     unit.ApplyModifiedPropertiesWithoutUndo();
+                    EnsureDefaultStatComponents(contents);
                     PrefabUtility.SaveAsPrefabAsset(contents, path, out bool saved);
                     if (!saved) throw new IOException("새 스탯 참조를 저장하지 못했습니다.");
                 }
@@ -599,6 +636,7 @@ namespace BlueReaper.Data.Editor
             if (drafts.Any(pair => EditorJsonUtility.ToJson(pair.Key) != pair.Value.OriginalJson))
                 throw new IOException("별도 Inspector에서 데이터가 변경됐습니다. 이 창의 변경을 검토하고 에셋을 다시 여세요.");
 
+            EnsureDefaultStatComponents(root);
             SavePrefabWithPatterns();
             sourcePrefab = File.ReadAllBytes(prefabPath);
             foreach (var (asset, draft) in drafts)

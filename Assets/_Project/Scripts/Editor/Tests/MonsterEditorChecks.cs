@@ -38,8 +38,11 @@ namespace BlueReaper.Data.Editor
                 Must(guid != AssetDatabase.AssetPathToGUID(MonsterEditorWindow.TemplatePath), "Prefab must have an independent GUID");
                 var stats = AssetDatabase.LoadAssetAtPath<UnitData>(statsPath);
                 float originalAttack = template.GetComponent<Unit>().Data.Attack;
+                var duplicate = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 Must(stats && stats != template.GetComponent<Unit>().Data && stats.Attack == originalAttack,
                     "New monster needs independent stats");
+                Must(duplicate.GetComponent<EnemyAggro>() && duplicate.GetComponent<Shield>() &&
+                    !duplicate.GetComponent<Posture>(), "Expected Aggro and Shield by default with Posture optional");
                 Debug.Log("MONSTER EDITOR PASS 1/5: template and independent stats");
 
                 var phases = ScriptableObject.CreateInstance<EnemyPhaseData>();
@@ -59,9 +62,16 @@ namespace BlueReaper.Data.Editor
                 Call(window, "Load", path);
                 var root = Root(window);
                 var unit = root.GetComponent<Unit>();
+                Undo.AddComponent<Posture>(root);
+                Edit(root.GetComponent<Shield>(), data =>
+                {
+                    data.FindProperty("maxShield").floatValue = 100f;
+                    data.FindProperty("initialShield").floatValue = 40f;
+                });
                 var ai = root.GetComponent<EnemyAI>();
                 var enemy = root.GetComponent<Enemy>();
                 var draft = (UnitData)Call(window, "BeginAssetEdit", stats);
+                draft.Defense = 12f;
                 draft.Attack = originalAttack + 19;
                 Must(stats.Attack == originalAttack, "Draft already affected the saved asset");
                 Edit(enemy, data => data.FindProperty("phaseInfo").objectReferenceValue = phases);
@@ -148,6 +158,9 @@ namespace BlueReaper.Data.Editor
                     && root.transform.Find(attackPath).GetComponent<MeleeHitBox>()
                     && root.transform.Find(hurtPath).GetComponent<CapsuleCollider>().gameObject.layer == LayerMask.NameToLayer("Hurtbox"),
                     "Attack or Hurtbox linkage changed");
+                Must(stats.Defense == 12f && root.GetComponent<EnemyAggro>() && root.GetComponent<Posture>()
+                    && root.GetComponent<Shield>() is { MaxShield: 100f, InitialShield: 40f },
+                    "Defense and stat components did not survive reimport");
                 var modelInstance = root.transform.Find(visualChildPath);
                 Must(root.GetComponent<Animator>().runtimeAnimatorController == controller
                     && modelInstance && modelInstance.GetComponent<MeshRenderer>().enabled

@@ -9,7 +9,7 @@ namespace BlueReaper.HitBox
     public class ProjectileHitBox : MonoBehaviour
     {
         private Unit owner;
-        private float damage;
+        private AttackDamage damage;
         private bool detachedEnemyProjectile;
         private bool armed, returned;
         private Rigidbody body;
@@ -53,7 +53,7 @@ namespace BlueReaper.HitBox
         {
             owner = unit;
             detachedEnemyProjectile = false;
-            damage = unit && unit.Data ? DamageFormula.Calculate(unit.Data.Attack, damageMultiplier) : 0f;
+            damage = new AttackDamage(unit && unit.Data ? unit.Data.Attack : 0f, damageMultiplier);
             returned = false;
             armed = true;
         }
@@ -65,7 +65,7 @@ namespace BlueReaper.HitBox
             InitFlight(pattern, pathIndex, emissionIndex, origin, facing, onReturned, vfxGuard);
         }
 
-        internal void InitDeathProjectile(float damage, BulletPatternData pattern, int pathIndex, int emissionIndex,
+        internal void InitDeathProjectile(AttackDamage damage, BulletPatternData pattern, int pathIndex, int emissionIndex,
             Vector3 origin, Quaternion facing, Action<ProjectileHitBox> onReturned, Func<bool> vfxGuard = null)
         {
             owner = null;
@@ -145,7 +145,7 @@ namespace BlueReaper.HitBox
                 var guard = vfxGuard;
                 Vector3 point = hitVfx ? other.ClosestPoint(transform.position) : default;
                 Quaternion rotation = transform.rotation;
-                var result = target.TakeDamage(HurtboxTarget.Damage(other, damage), owner);
+                var result = HurtboxTarget.TakeDamage(target, other, damage, owner);
                 if (result is DamageResult.Applied or DamageResult.Killed)
                     VfxAutoDespawn.Play(hitVfx, point, rotation, vfxDelay, guard);
                 if (!continuous) ReturnToPool();

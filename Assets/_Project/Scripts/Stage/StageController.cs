@@ -335,12 +335,12 @@ namespace BlueReaper.Stage
                 return;
             }
 
-            float damage = DamageFormula.Calculate(attack, pattern.DamageMultiplier);
+            var damage = new AttackDamage(attack, pattern.DamageMultiplier);
             StartCoroutine(EmitDeathBullets(currentField, pattern, diedAt + pattern.StartTime, origin, facing, damage));
         }
 
         private IEnumerator EmitDeathBullets(StageField field, BulletPatternData pattern, float firstEmissionAt, Vector3 origin,
-            Quaternion facing, float damage)
+            Quaternion facing, AttackDamage damage)
         {
             var vfxGuard = GetVfxGuard(field);
             for (int emission = 0; emission < pattern.RepeatCount; emission++)
