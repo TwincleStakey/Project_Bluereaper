@@ -13,4 +13,7 @@ MonoBehaviour:
   m_Name: Stage_1
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Stage.StageData
   Fields:
+  - {fileID: 3708069805306871976, guid: 21f3a9865db916545aedf8a8610b9980, type: 3}
+  - {fileID: 3708069805306871976, guid: c9e9d9b730838c0488e779a5d198c7ed, type: 3}
+  - {fileID: 3708069805306871976, guid: 0f5316ac9351aa64a8e23cc0247a15d1, type: 3}
   - {fileID: 3708069805306871976, guid: 3fb132adeea2da04fab70eee85a44a55, type: 3}
