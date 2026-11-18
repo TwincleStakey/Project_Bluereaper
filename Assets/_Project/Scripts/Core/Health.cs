@@ -20,6 +20,7 @@ namespace BlueReaper.Core
     public class Health : MonoBehaviour, IDamageable
     {
         Unit unit;
+        Shield shield;
 
         public float MaxHealth => unit.Data.MaxHealth;
         public float Current { get; private set; }
@@ -38,7 +39,11 @@ namespace BlueReaper.Core
         /// <summary>HP 0에서 다시 일어났을 때 (플레이어 구조).</summary>
         public event Action Revived;
 
-        void Awake() => unit = GetComponent<Unit>();
+        void Awake()
+        {
+            unit = GetComponent<Unit>();
+            shield = GetComponent<Shield>();
+        }
 
         // 오브젝트 풀에서 다시 꺼낼 때(재활성화) 체력이 초기화되도록 OnEnable에서 리셋
         void OnEnable() => Current = MaxHealth;
@@ -48,15 +53,24 @@ namespace BlueReaper.Core
             if (NetworkDriven || IsDead || Invincible || !(amount > 0f) || !float.IsFinite(amount))
                 return DamageResult.Ignored;
 
-            float next = Mathf.Max(0f, Current - amount);
-            if (!(next < Current)) return DamageResult.Ignored;
+            bool broken = false;
+            float absorbed = shield && shield.isActiveAndEnabled ? shield.Absorb(amount, out broken) : 0f;
+            float remaining = amount - absorbed;
+            float next = Mathf.Max(0f, Current - remaining);
             float healthLost = Current - next;
             Current = next;
-            var result = IsDead ? DamageResult.Killed : DamageResult.Applied;
+            var result = healthLost > 0f ? (IsDead ? DamageResult.Killed : DamageResult.Applied)
+                : absorbed > 0f ? DamageResult.Absorbed : DamageResult.Ignored;
+            if (absorbed > 0f) shield.PublishAbsorption(broken);
+            if (!(healthLost > 0f)) return result;
             DamageApplied?.Invoke(new DamageAppliedInfo(source, healthLost));
-            Damaged?.Invoke(amount);
+            Damaged?.Invoke(remaining);
             // Capture this damage result before callbacks can apply further damage.
-            if (result == DamageResult.Killed) Died?.Invoke();
+            if (result == DamageResult.Killed)
+            {
+                if (shield) shield.Clear();
+                Died?.Invoke();
+            }
             return result;
         }
 
@@ -65,6 +79,7 @@ namespace BlueReaper.Core
             if (NetworkDriven || IsDead) return;
 
             Current = 0f;
+            if (shield) shield.Clear();
             Died?.Invoke();
         }
 
@@ -85,7 +100,11 @@ namespace BlueReaper.Core
             if (Current < before)
             {
                 Damaged?.Invoke(before - Current);
-                if (IsDead) Died?.Invoke();
+                if (IsDead)
+                {
+                    if (shield) shield.Clear();
+                    Died?.Invoke();
+                }
             }
             else if (before <= 0f && Current > 0f) Revived?.Invoke();
         }

@@ -4,8 +4,9 @@
 
 | 주체 | 소유하는 상태와 동작 |
 | --- | --- |
-| [Unit과 UnitData](../../Assets/_Project/Scripts/Core/Unit.cs) | 개체별 스탯 에셋 참조. 공격력·최대 체력·이동 속도는 UnitData에서 읽는다. |
+| [Unit과 UnitData](../../Assets/_Project/Scripts/Core/Unit.cs) | 개체별 스탯 에셋 참조. 공격력·방어력·최대 체력·이동 속도는 UnitData에서 읽는다. |
 | [Health](../../Assets/_Project/Scripts/Core/Health.cs) · [Posture](../../Assets/_Project/Scripts/Core/Posture.cs) | 현재 체력·피해·사망 알림. Posture가 붙은 개체는 자세 감소·회복·그로기를 별도로 관리한다. |
+| [Shield](../../Assets/_Project/Scripts/Core/Shield.cs) | 초기·최대 실드량, 현재 잔량, 만료 시간과 파괴 알림을 관리한다. |
 | [PlayerController](../../Assets/_Project/Scripts/Player/PlayerController.cs) · [EnemyAI](../../Assets/_Project/Scripts/Boss/Patterns/EnemyAI.cs) | 개체의 행동과 사망 후 처리. EnemyAI는 사망 연출 완료를 스테이지에 알린다. |
 | [StageController](../../Assets/_Project/Scripts/Stage/StageController.cs) | 개체 등록, 생존 플레이어 목록, 필드 소속, 처치 집계와 본체 회수. 사망 탄막의 발사 예약과 생성된 탄도 관리한다. |
 | [ObjectPool](../../Assets/_Project/Scripts/Core/ObjectPool.cs) | 프리팹별 대여와 반환. 풀 소속 인스턴스는 비활성화하고, 풀 소속이 아닌 인스턴스는 파괴한다. |
@@ -26,10 +27,12 @@
 ## 피해와 사망
 
 - 공격 판정은 `Hurtbox` 레이어의 피격용 Collider에서 부모의 `IDamageable`을 찾는다. 같은 부위가 공격에도 쓰이면 공격용 Collider와 피격용 Collider를 별도 GameObject에 배치한다. 근거리 패턴은 공격용 Collider만 켜고 끈다. 이동용 Collider는 기존 레이어를 사용한다.
-- 평타와 자동 조준의 `targetLayers`는 피해를 받는 `Unit`의 레이어를 지정한다. 물리 조회에는 `Hurtbox` 트리거를 포함하고, 자동 조준은 대상 `Enemy.Rank`로 보스 우선순위를 판단한다. 평타는 장판과 같은 영역 조회로 부채꼴에 걸친 Collider를 찾고, 한 번 휘두를 때 같은 `IDamageable`에 한 번 피해를 전달한다.
+- 평타와 자동 조준의 `targetLayers`는 피해를 받는 `Unit`의 레이어를 지정한다. 물리 조회에는 `Hurtbox` 트리거를 포함하고, 자동 조준은 대상 `Enemy.Rank`로 보스 우선순위를 판단한다. 평타는 장판과 같은 영역 조회로 부채꼴에 걸친 Collider를 찾고, 한 번 휘두를 때 부위당 한 번 피해를 전달한다. `Hurtbox` 컴포넌트가 없으면 `IDamageable`을 단위로 집계한다.
 - 원형·부채꼴·도넛은 높이와 실제 곡선 경계를 가진 영역에서 `BoxCollider`, `SphereCollider`, `CapsuleCollider`의 겹침을 계산한다. 도넛 중앙이 안전 구역이며, 판정 높이 안에서 피격 영역이 링의 안쪽이나 바깥쪽 경계에 닿으면 적중한다. 직사각형은 Unity의 `OverlapBoxNonAlloc`으로 조회한다.
-- `Health.TakeDamage`는 이미 사망한 개체, 무적 상태, 0 이하 피해를 무시한다. 유효한 피해는 체력을 줄이고 `DamageApplied`로 선택적 공격자와 실제 HP 감소량을 전달한 뒤, 기존 `Damaged`에 요청 피해량을 전달한다. 그 타격으로 체력이 0이 되면 이어서 `Died`를 발행한다. `Kill`은 살아 있는 개체를 즉시 사망시키고 `Died`를 발행한다.
-- `IDamageable.TakeDamage`는 이번 호출의 `DamageResult`를 반환한다. 체력이 줄지 않으면 `Ignored`, 줄면 `Applied`, 이번 피해로 체력이 0이 되면 `Killed`다. 결과는 이벤트 구독자 호출 전에 확정한다. 적 패턴의 피격 VFX는 `Applied`와 `Killed`에 예약한다.
+- 공격 판정은 적중 시점에 `max(0, 공격력 − 방어력) × 패턴 배율 × (1 − 부위 감소율)`을 계산해 `Health.TakeDamage`에 전달한다. 방어력 기본값은 0이다. 사망 탄막은 사망 시 확보한 공격력으로, 적중한 시점의 대상 방어력을 사용해 계산한다.
+- `Health.TakeDamage`는 네트워크에서 HP를 수신하는 개체, 이미 사망한 개체, 무적 상태, 0 이하 피해를 무시한다. 유효한 피해는 활성 실드에 먼저 적용하고 초과분을 HP에서 차감한다. `DamageApplied`는 공격자와 실제 HP 감소량을, `Damaged`는 실드 차감 후 HP에 들어가는 피해량을 전달한다. 실드만 소모된 타격에는 두 이벤트를 발행하지 않는다. `Kill`은 실드를 거치지 않고 사망을 처리한다.
+- `IDamageable.TakeDamage`는 `Ignored`, `Absorbed`(HP 차감 없이 실드만 소모), `Applied`, `Killed`를 반환한다. 결과는 이벤트 구독자 호출 전에 확정한다. 적 패턴의 기존 HP 피격 VFX는 `Applied`와 `Killed`에 예약한다.
+- `Shield.Charge`는 설정된 최대치까지만 충전하고 기존 만료 시각을 유지한다. `Shield.SetDuration`은 현재 실드 전체의 만료 시간을 설정하며, `null`은 무기한이다. 스폰·풀 재사용 시 초기값으로 채우고 타이머를 초기화한다. 피해로 잔량이 처음 0이 될 때만 `ShieldBroken`을 발행한다. 만료·사망·회수로 잔량이 사라질 때는 `ShieldChanged`를 사용한다. 멀티의 피해·충전·만료 계산은 권한이 있는 쪽에서 수행한다.
 - `Posture`는 비치명 피해량에 자세 피해 배율을 적용한다. 자세가 0이 되면 `GroggyStarted`를 발행하고 그로기 종료 시 최대치로 복구한다. 일반 감소는 유예 시간 이후 설정된 회복 시간에 따라 복구한다.
 - [EnemyAggro](../../Assets/_Project/Scripts/Core/EnemyAggro.cs)는 적 개체별로 공격자마다 실제 HP 감소량 × 배율을 누적한다. 공격자 없는 피해나 `Kill`은 어그로를 올리지 않는다. `AddAggro`는 피해 없이 지정한 양을 추가한다. 비활성화·풀 재사용 시 누적 수치를 초기화한다. 배율을 지정할 프리팹은 `EnemyAggro` 컴포넌트를 추가해 설정한다. 별도 설정이 없는 적은 활성화 전에 기본 배율 1을 사용한다.
 - 플레이어 사망은 입력·이동·컨트롤러를 끄고 생존 타겟 목록에서 제외한다. 스테이지는 플레이어 본체를 풀로 반환하지 않는다.
@@ -45,7 +48,7 @@
 
 ## 회귀 확인
 
-- 공격용 Collider만 겹치면 피해나 조준 대상이 되지 않는다. 피격용 Collider가 여러 개 겹쳐도 한 번의 평타는 같은 대상에 한 번만 적용된다.
+- 공격용 Collider만 겹치면 피해나 조준 대상이 되지 않는다. 피격용 Collider 여러 개가 같은 부위에 속하면 한 번의 평타가 한 번만 적용된다.
 - 풀에서 같은 적을 다시 꺼냈을 때 체력과 스폰 패턴이 새 생애로 시작한다.
 - 일반 처치에서는 본체 반환 뒤 사망 탄막이 이어지고, 마지막 필요 처치에서는 남은 발사가 취소되고 기존 사망 탄이 회수된다.
 - 웨이브·사전 배치 적과 소환 적을 함께 놓고 집계 차이와 필드 전환 시 회수를 확인한다.

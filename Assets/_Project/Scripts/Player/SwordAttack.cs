@@ -47,12 +47,12 @@ namespace BlueReaper.Player
             if (!(range > 0f)) return true;
             var hits = areaQuery.Find(AreaHitShape.Sector, origin, facing,
                 new Vector3(range, range * 2f, 0f), arcAngle, unit, targetLayers);
-            float damage = DamageFormula.Calculate(unit.Data.Attack, damageMultiplier);
+            var damage = new AttackDamage(unit.Data.Attack, damageMultiplier);
 
             foreach (var (target, collider) in hits)
             {
                 Vector3 point = collider.ClosestPoint(origin);
-                target.TakeDamage(HurtboxTarget.Damage(collider, damage), unit);
+                HurtboxTarget.TakeDamage(target, collider, damage, unit);
                 HitLanded?.Invoke(point);
             }
             return true;
