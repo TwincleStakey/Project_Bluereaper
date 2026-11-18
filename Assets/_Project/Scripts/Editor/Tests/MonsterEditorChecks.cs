@@ -4,8 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using BlueReaper.Boss;
+using BlueReaper.BulletPatterns.Editor;
 using BlueReaper.Core;
 using BlueReaper.HitBox;
+using BlueReaper.Network;
+using BlueReaper.Network.Editor;
+using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -27,6 +32,7 @@ namespace BlueReaper.Data.Editor
             var created = new List<string>();
             try
             {
+                CheckNetworkAuthoring(directory, name, created);
                 CheckRankPaths(window, name, created);
                 var template = AssetDatabase.LoadAssetAtPath<GameObject>(MonsterEditorWindow.TemplatePath);
                 string path = MonsterEditorWindow.DuplicateMonster(MonsterEditorWindow.TemplatePath, name, EnemyRank.Normal);
@@ -183,6 +189,71 @@ namespace BlueReaper.Data.Editor
                 foreach (string path in created) AssetDatabase.DeleteAsset(path);
                 AssetDatabase.DeleteAsset(directory);
             }
+        }
+
+        private static void CheckNetworkAuthoring(string directory, string name, List<string> created)
+        {
+            string templatePath = directory + "/LocalTemplate.prefab";
+            var root = PrefabUtility.LoadPrefabContents(MonsterEditorWindow.TemplatePath);
+            try
+            {
+                foreach (var component in new Component[]
+                {
+                    root.GetComponent<NetworkAnimator>(), root.GetComponent<EnemyNetworkState>(),
+                    root.GetComponent<NetworkTransform>(), root.GetComponent<NetworkObject>()
+                })
+                    if (component) Object.DestroyImmediate(component);
+                PrefabUtility.SaveAsPrefabAsset(root, templatePath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+
+            string monsterName = name + "_Network";
+            string monsterPath = MonsterEditorWindow.DuplicateMonster(templatePath, monsterName, EnemyRank.Normal);
+            created.Add(monsterPath);
+            created.Add($"Assets/_Project/Data/Monsters/{monsterName}_Stats.asset");
+            const ImportAssetOptions reimport = ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate;
+            AssetDatabase.ImportAsset(monsterPath, reimport);
+            var monster = AssetDatabase.LoadAssetAtPath<GameObject>(monsterPath);
+            var list = NetworkPrefabAuthoring.LoadList();
+            Must(!AssetDatabase.LoadAssetAtPath<GameObject>(templatePath).GetComponent<NetworkObject>(),
+                "Monster duplication edited the source template");
+            Must(monster.GetComponents<NetworkObject>().Length == 1
+                && monster.GetComponent<NetworkObject>().PrefabIdHash != 0
+                && monster.GetComponents<NetworkTransform>().Length == 1
+                && monster.GetComponents<EnemyNetworkState>().Length == 1
+                && monster.GetComponents<NetworkAnimator>().Single().Animator == monster.GetComponent<Animator>()
+                && list.PrefabList.Count(entry => entry.Prefab == monster) == 1,
+                "Monster network components or registration did not survive reimport");
+            Debug.Log("MONSTER NETWORK PASS 1/2: local template duplicated with network components and unique registration");
+
+            string bulletPath = directory + "/Bullet.prefab";
+            var bulletRoot = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            try
+            {
+                bulletRoot.AddComponent<ProjectileHitBox>();
+                PrefabUtility.SaveAsPrefabAsset(bulletRoot, bulletPath);
+            }
+            finally { Object.DestroyImmediate(bulletRoot); }
+
+            var bullet = AssetDatabase.LoadAssetAtPath<GameObject>(bulletPath);
+            string bulletGuid = AssetDatabase.AssetPathToGUID(bulletPath);
+            Must(!list.Contains(bullet), "Local projectile was registered before setting it up");
+            BulletPatternEditor.SetupNetworkPrefab(bullet);
+            bullet = AssetDatabase.LoadAssetAtPath<GameObject>(bulletPath);
+            list.Remove(list.PrefabList.Single(entry => entry.Prefab == bullet));
+            BulletPatternEditor.SetupNetworkPrefab(bullet);
+            BulletPatternEditor.SetupNetworkPrefab(bullet);
+            AssetDatabase.ImportAsset(bulletPath, reimport);
+            AssetDatabase.ImportAsset(NetworkPrefabAuthoring.ListPath, reimport);
+            bullet = AssetDatabase.LoadAssetAtPath<GameObject>(bulletPath);
+            list = NetworkPrefabAuthoring.LoadList();
+            Must(AssetDatabase.AssetPathToGUID(bulletPath) == bulletGuid
+                && bullet.GetComponents<NetworkObject>().Length == 1
+                && bullet.GetComponent<NetworkObject>().PrefabIdHash != 0
+                && bullet.GetComponents<NetworkTransform>().Length == 1 && bullet.GetComponent<ProjectileHitBox>()
+                && bullet.GetComponent<SphereCollider>() && list.PrefabList.Count(entry => entry.Prefab == bullet) == 1,
+                "Projectile setup changed the asset or duplicated components or registration");
+            Debug.Log("MONSTER NETWORK PASS 2/2: projectile setup and repeated registration preserve one entry");
         }
 
         private static void CheckRankPaths(MonsterEditorWindow window, string name, List<string> created)

@@ -5,7 +5,7 @@ Unity의 `Tools > BlueReaper > Monster Editor`에서 몬스터 프리팹과 연�
 ## 1. 몬스터 열기 또는 만들기
 
 - **기존 몬스터**는 Project 창의 프리팹을 **기존 몬스터 프리팹**에 지정하고 **기존 프리팹 열기**를 누른다. 프리팹 루트에 `Unit`, `Enemy`, `EnemyAI`가 있어야 한다.
-- **새 몬스터**는 **더미 프리팹**을 지정한다. 기본 템플릿은 `Monster_1`이다. 확장자 없이 이름을 입력하고 등급을 고른 뒤, 화면에 표시된 두 경로를 확인하고 **더미로 새 몬스터 만들기**를 누른다. 이 버튼은 프리팹과 독립 스탯 에셋 `<이름>_Stats.asset`을 즉시 생성한다. 모델, 패턴, 페이즈 같은 나머지 에셋 참조는 템플릿에서 승계한다.
+- **새 몬스터**는 **더미 프리팹**을 지정한다. 기본 템플릿은 `Monster_1`이다. 확장자 없이 이름을 입력하고 등급을 고른 뒤, 화면에 표시된 두 경로를 확인하고 **더미로 새 몬스터 만들기**를 누른다. 이 버튼은 프리팹과 독립 스탯 에셋 `<이름>_Stats.asset`을 즉시 생성한다. 모델, 패턴, 페이즈 같은 나머지 에셋 참조는 템플릿에서 승계한다. 복제본에 빠진 `NetworkObject`, `NetworkTransform`, `EnemyNetworkState`를 추가하고, 루트 Animator에 Controller가 있으면 `NetworkAnimator`도 연결한다. 복제본은 기본 네트워크 프리팹 목록에 등록된다.
 
 | 등급 | 프리팹 폴더 | 스탯·페이즈·패턴 데이터 폴더 |
 | --- | --- | --- |
@@ -40,6 +40,8 @@ Unity의 `Tools > BlueReaper > Monster Editor`에서 몬스터 프리팹과 연�
 | `Area` | 시전자·필드 배치 기준과 도형을 선택한다. **배치 지연**은 **첫 판정** 이하여야 하며 **판정 유지 (초)**는 양수다. **배치까지만 대기**를 켜면 좌표 확정 뒤 해당 효과의 대기가 끝나고, 장판은 유지 시간 동안 계속 판정한다. 자폭 스텝은 범위 효과 종료까지 대기한다. |
 | `Summon` | 시전자·타겟·필드 중심 중 소환 기준, 적 프리팹과 수량, 반경을 설정한다. 프리팹 배열과 수량 배열의 길이를 맞춘다. |
 
+탄 프리팹을 연결하면 누락된 네트워크 컴포넌트나 목록 등록을 확인할 수 있다. **멀티 설정 추가**를 누르면 `NetworkObject`와 `NetworkTransform`을 보완하고 기본 네트워크 프리팹 목록에 등록한다. 이 버튼은 공유 탄 프리팹과 목록에 즉시 저장한다. 몬스터 창의 저장·취소는 탄막 패턴에 연결한 참조에 적용된다.
+
 근접·범위는 첫 판정부터 유지 시간이 끝나기 전까지 겹침을 검사한다. **반복 판정**을 끄면 부위당 한 번, 켜면 반복 간격으로 나눈 구간마다 부위당 한 번이다. 전조, 발밑 좌표 고정, 사망 효과의 실행 조건은 [적 패턴 계약](contracts/ENEMY_PATTERNS.md)에서 확인한다.
 
 ### SceneView에서 확인하기
@@ -68,6 +70,6 @@ Unity의 `Tools > BlueReaper > Monster Editor`에서 몬스터 프리팹과 연�
 
 | Unity 메뉴 | 검증 범위 | 배치 실행 메서드 |
 | --- | --- | --- |
-| `Check Monster Editor` | 프리팹 복제, 등급별 경로, 리소스 교체와 재임포트 | `BlueReaper.Data.Editor.MonsterEditorChecks.Run` |
+| `Check Monster Editor` | 프리팹 복제, 등급별 경로, 네트워크 컴포넌트와 중복 등록, 리소스 교체와 재임포트 | `BlueReaper.Data.Editor.MonsterEditorChecks.Run` |
 | `Check Monster Pattern Authoring` | 등급별 행동·스텝·효과 저장, 재임포트와 저장 전 취소 | `BlueReaper.Data.Editor.MonsterPatternAuthoringChecks.Run` |
 | `Check Hit Window` | 판정 구간의 경계, 부위별 중복 처리, 범위 미리보기 종료 시각 | `BlueReaper.Data.Editor.HitWindowChecks.Run` |

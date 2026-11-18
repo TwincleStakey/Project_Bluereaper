@@ -5,6 +5,9 @@ using System.Linq;
 using BlueReaper.Boss;
 using BlueReaper.Core;
 using BlueReaper.HitBox;
+using BlueReaper.Network;
+using BlueReaper.Network.Editor;
+using Unity.Netcode.Components;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
@@ -528,6 +531,7 @@ namespace BlueReaper.Data.Editor
             string statsPath = StatsPath(rank, name);
             CheckNewPath(path);
             CheckNewPath(statsPath);
+            var networkPrefabs = NetworkPrefabAuthoring.RequireEditableList();
             var templateStats = original.GetComponent<Unit>().Data;
             if (!AssetDatabase.CopyAsset(templatePath, path)) throw new IOException("프리팹을 복제하지 못했습니다.");
             bool copiedStats = false;
@@ -546,10 +550,19 @@ namespace BlueReaper.Data.Editor
                     unit.FindProperty("data").objectReferenceValue = AssetDatabase.LoadAssetAtPath<UnitData>(statsPath);
                     unit.ApplyModifiedPropertiesWithoutUndo();
                     EnsureDefaultStatComponents(contents);
+                    NetworkPrefabAuthoring.EnsureMotionComponents(contents);
+                    if (!contents.GetComponent<EnemyNetworkState>()) contents.AddComponent<EnemyNetworkState>();
+                    if (contents.TryGetComponent(out Animator animator) && animator.runtimeAnimatorController)
+                    {
+                        var sync = contents.GetComponent<NetworkAnimator>();
+                        if (!sync) sync = contents.AddComponent<NetworkAnimator>();
+                        if (!sync.Animator) sync.Animator = animator;
+                    }
                     PrefabUtility.SaveAsPrefabAsset(contents, path, out bool saved);
                     if (!saved) throw new IOException("새 스탯 참조를 저장하지 못했습니다.");
                 }
                 finally { PrefabUtility.UnloadPrefabContents(contents); }
+                NetworkPrefabAuthoring.Register(networkPrefabs, AssetDatabase.LoadAssetAtPath<GameObject>(path));
             }
             catch
             {
