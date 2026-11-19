@@ -16,7 +16,7 @@ namespace BlueReaper.Stage
 
         private readonly HashSet<Health> readyPlayers = new();
         private StageExitPortal exitPortal;
-        private bool usesDynamicFields, lastField, readyForNextField, enteredExitPortal, clearConfirmed;
+        private bool usesManagedFields, lastField, readyForNextField, enteredExitPortal, clearConfirmed;
 
         internal (StageFieldPhase Phase, int Current, int Goal) FieldProgress { get; private set; }
         internal event System.Action FieldProgressChanged;
@@ -113,8 +113,9 @@ namespace BlueReaper.Stage
         private void CompleteField()
         {
             fieldComplete = true;
+            HideBossHUD();
             ReleaseDeathProjectiles();
-            if (!currentField.DynamicSpawner && !(usesDynamicFields && lastField)) return;
+            if (!currentField.UsesManagedFieldFlow && !(usesManagedFields && lastField)) return;
 
             SetCombatLocked(true);
             foreach (var record in units.Values)

@@ -35,7 +35,8 @@ namespace BlueReaper.Stage
                     || wave.Enemies == null || wave.Enemies.Length == 0 || (wave.Type == WaveSpawnType.Clockwise
                         && (wave.StepInterval <= 0f || !float.IsFinite(wave.StepInterval)))) return false;
                 foreach (var entry in wave.Enemies)
-                    if (!entry.Prefab || !entry.Prefab.GetComponent<NavMeshAgent>() || !entry.Prefab.GetComponent<Health>()
+                    if (!entry.Prefab || entry.Prefab.Rank == EnemyRank.Boss
+                        || !entry.Prefab.GetComponent<NavMeshAgent>() || !entry.Prefab.GetComponent<Health>()
                         || entry.Count <= 0) return false;
                 previousStart = wave.StartTime;
             }

@@ -7,11 +7,15 @@ namespace BlueReaper.Core
     {
         public readonly Unit Source;
         public readonly float HealthLost;
+        public readonly float Before;
+        public readonly float After;
 
-        public DamageAppliedInfo(Unit source, float healthLost)
+        public DamageAppliedInfo(Unit source, float before, float after)
         {
             Source = source;
-            HealthLost = healthLost;
+            Before = before;
+            After = after;
+            HealthLost = before - after;
         }
     }
 
@@ -35,6 +39,7 @@ namespace BlueReaper.Core
 
         /// <summary>받은 데미지량을 전달.</summary>
         public event Action<float> Damaged;
+        public event Action Changed;
         public event Action<DamageAppliedInfo> DamageApplied;
         public event Action Died;
         /// <summary>HP 0에서 다시 일어났을 때 (플레이어 구조).</summary>
@@ -51,6 +56,7 @@ namespace BlueReaper.Core
         {
             Current = MaxHealth;
             CombatLocked = false;
+            Changed?.Invoke();
         }
 
         public DamageResult TakeDamage(float amount, Unit source = null)
@@ -61,14 +67,16 @@ namespace BlueReaper.Core
             bool broken = false;
             float absorbed = shield && shield.isActiveAndEnabled ? shield.Absorb(amount, out broken) : 0f;
             float remaining = amount - absorbed;
-            float next = Mathf.Max(0f, Current - remaining);
-            float healthLost = Current - next;
+            float before = Current;
+            float next = Mathf.Max(0f, before - remaining);
+            float healthLost = before - next;
             Current = next;
             var result = healthLost > 0f ? (IsDead ? DamageResult.Killed : DamageResult.Applied)
                 : absorbed > 0f ? DamageResult.Absorbed : DamageResult.Ignored;
             if (absorbed > 0f) shield.PublishAbsorption(broken);
             if (!(healthLost > 0f)) return result;
-            DamageApplied?.Invoke(new DamageAppliedInfo(source, healthLost));
+            DamageApplied?.Invoke(new DamageAppliedInfo(source, before, next));
+            Changed?.Invoke();
             Damaged?.Invoke(remaining);
             // Capture this damage result before callbacks can apply further damage.
             if (result == DamageResult.Killed)
@@ -84,6 +92,7 @@ namespace BlueReaper.Core
             if (NetworkDriven || CombatLocked || IsDead) return;
 
             Current = 0f;
+            Changed?.Invoke();
             if (shield) shield.Clear();
             Died?.Invoke();
         }
@@ -94,6 +103,7 @@ namespace BlueReaper.Core
             if (CombatLocked || !IsDead) return;
 
             Current = MaxHealth * Mathf.Clamp(ratio, 0.01f, 1f);
+            Changed?.Invoke();
             Revived?.Invoke();
         }
 
@@ -102,6 +112,7 @@ namespace BlueReaper.Core
         {
             float before = Current;
             Current = Mathf.Clamp(value, 0f, MaxHealth);
+            if (Current != before) Changed?.Invoke();
             if (Current < before)
             {
                 Damaged?.Invoke(before - Current);

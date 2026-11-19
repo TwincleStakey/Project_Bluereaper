@@ -1,0 +1,123 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1041855690054401565
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2813995030760399245}
+  m_Layer: 0
+  m_Name: Boss Spawn Point
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2813995030760399245
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1041855690054401565}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalPosition: {x: 0, y: 0, z: 12}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4750375511012303491}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &7291810532893078566
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 681469035783206982, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 731490325059135642, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2556321733866485821, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_Name
+      value: StageField_BossTest
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8004598571478355324, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: bossPrefab
+      value:
+      objectReference: {fileID: 7612043392014892968, guid: a9f65f99291e29e4fa6a062803e73e46, type: 3}
+    - target: {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: bossSpawnPoint
+      value:
+      objectReference: {fileID: 2813995030760399245}
+    - target: {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: dynamicSpawner
+      value:
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 6701094242921791729, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2813995030760399245}
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+--- !u!4 &4750375511012303491 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2656295092332091045, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+  m_PrefabInstance: {fileID: 7291810532893078566}
+  m_PrefabAsset: {fileID: 0}

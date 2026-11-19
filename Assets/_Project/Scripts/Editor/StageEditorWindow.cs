@@ -122,7 +122,14 @@ namespace BlueReaper.Stage.Editor
         {
             using var fieldData = new SerializedObject(field);
             EditorGUILayout.PropertyField(fieldData.FindProperty("fieldObject"), new GUIContent("배치 기준 오브젝트"));
-            EditorGUILayout.PropertyField(fieldData.FindProperty("purificationGoal"), new GUIContent("정화 목표 처치 수"));
+            var bossPrefab = fieldData.FindProperty("bossPrefab");
+            var bossPoint = fieldData.FindProperty("bossSpawnPoint");
+            EditorGUILayout.PropertyField(bossPrefab, new GUIContent("보스 프리팹"));
+            EditorGUILayout.PropertyField(bossPoint, new GUIContent("보스 스폰 지점"));
+            bool bossField = bossPrefab.objectReferenceValue || bossPoint.objectReferenceValue;
+            if (!bossField)
+                EditorGUILayout.PropertyField(fieldData.FindProperty("purificationGoal"), new GUIContent("정화 목표 처치 수"));
+            EditorGUILayout.PropertyField(fieldData.FindProperty("openingDialogue"), new GUIContent("입장 대사"), true);
             var spawnerProperty = fieldData.FindProperty("dynamicSpawner");
             EditorGUILayout.PropertyField(spawnerProperty, new GUIContent("동적 스포너"));
             var spawner = spawnerProperty.objectReferenceValue as EnemySpawner;
@@ -142,15 +149,37 @@ namespace BlueReaper.Stage.Editor
             {
                 using (new EditorGUI.DisabledScope(entrances.Length > 0))
                     if (GUILayout.Button("중앙 입구 추가")) AddMarker(origin, "CenterEntrance");
-                if (GUILayout.Button("준비 발판 추가")) AddMarker(origin, "StageReadyPad");
+                if (!bossField && GUILayout.Button("준비 발판 추가")) AddMarker(origin, "StageReadyPad");
+                if (!bossPoint.objectReferenceValue && GUILayout.Button("보스 스폰 지점 추가"))
+                {
+                    var point = new GameObject("Boss Spawn Point");
+                    point.transform.SetParent(origin, false);
+                    Undo.RegisterCreatedObjectUndo(point, "보스 스폰 지점 추가");
+                    bossPoint.objectReferenceValue = point.transform;
+                    fieldData.ApplyModifiedProperties();
+                    Selection.activeGameObject = point;
+                    return;
+                }
             }
 
             if (entrances.Length != 1 || !entrances[0].gameObject.activeInHierarchy)
                 EditorGUILayout.HelpBox("활성 중앙 입구를 하나 배치하세요.", MessageType.Warning);
-            if (pads.Count(IsReadyPadUsable) < 3)
+            if (!bossField && spawner && pads.Count(IsReadyPadUsable) < 3)
                 EditorGUILayout.HelpBox("파티 3명까지 지원하려면 활성 Trigger 발판을 3개 배치하세요.", MessageType.Warning);
             if (!field.GetComponentsInChildren<NavMeshSurface>().Any(surface => surface.navMeshData))
                 EditorGUILayout.HelpBox("스폰과 이동에 사용할 NavMesh를 Bake하세요.", MessageType.Warning);
+
+            if (bossField)
+            {
+                var boss = bossPrefab.objectReferenceValue as BlueReaper.Core.Enemy;
+                var point = bossPoint.objectReferenceValue as Transform;
+                if (!boss || boss.Rank != BlueReaper.Core.EnemyRank.Boss || !PrefabUtility.IsPartOfPrefabAsset(boss)
+                    || !point || !point.IsChildOf(field.transform))
+                    EditorGUILayout.HelpBox("Boss 등급 프리팹과 필드 안의 스폰 지점을 연결하세요.", MessageType.Warning);
+                if (spawner)
+                    EditorGUILayout.HelpBox("보스 필드에서는 동적 스포너 연결을 비우세요.", MessageType.Warning);
+                return;
+            }
 
             if (!spawner || (spawner.transform != field.transform && !spawner.transform.IsChildOf(field.transform)))
             {
@@ -167,7 +196,7 @@ namespace BlueReaper.Stage.Editor
             EditorGUILayout.PropertyField(spawnData.FindProperty(nameof(EnemySpawner.Waves)), new GUIContent("웨이브"), true);
             spawnData.ApplyModifiedProperties();
             if (!spawner.IsConfigured())
-                EditorGUILayout.HelpBox("스폰 반경·정원·반복 주기는 양수여야 합니다. 웨이브의 시작 시간·적 프리팹·Count와 순차 급습 간격도 확인하세요.", MessageType.Warning);
+                EditorGUILayout.HelpBox("스폰 반경·정원·반복 주기는 양수여야 합니다. 웨이브의 시작 시간·일반/엘리트 프리팹·Count와 순차 급습 간격도 확인하세요.", MessageType.Warning);
         }
 
         private static bool IsReadyPadUsable(StageReadyPad pad) =>

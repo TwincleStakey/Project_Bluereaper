@@ -7,7 +7,18 @@ namespace BlueReaper.Core
     {
         public float CurrentPosture => posture;
         public float MaxPosture => maxPosture;
-        public bool IsGroggy => Time.time < groggyUntil;
+        public bool IsGroggy => networkDriven ? remoteGroggy : Time.time < groggyUntil;
+        private bool networkDriven, remoteGroggy;
+
+        internal void SetNetworkDriven(bool value) => networkDriven = value;
+
+        internal void ApplyNetworkPosture(float value, bool groggy)
+        {
+            remoteGroggy = groggy;
+            if (posture == value) return;
+            posture = value;
+            onChangedPosture?.Invoke(posture);
+        }
         public event Action GroggyStarted;
 
         [SerializeField, Min(0f)]
@@ -47,7 +58,7 @@ namespace BlueReaper.Core
 
         public void DamagedToPosture(float postureDamage)
         {
-            if (!isActiveAndEnabled || postureRefillFromGroggy || !(postureDamage > 0f) || posture <= 0f || IsGroggy) return;
+            if (networkDriven || !isActiveAndEnabled || postureRefillFromGroggy || !(postureDamage > 0f) || posture <= 0f || IsGroggy) return;
 
             float nextPosture = Mathf.Max(0f, posture - postureDamage);
             if (nextPosture >= posture) return;
@@ -95,6 +106,7 @@ namespace BlueReaper.Core
 
         private void Update()
         {
+            if (networkDriven) return;
             if (postureRefillFromGroggy)
             {
                 if (!IsGroggy) FillPosture();

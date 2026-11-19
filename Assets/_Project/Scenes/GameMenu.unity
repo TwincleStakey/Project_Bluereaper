@@ -299,6 +299,7 @@ MonoBehaviour:
   networkManager: {fileID: 726377180}
   stages:
   - {fileID: 11400000, guid: 76569dd19c1e1c8428bd23749f4619d1, type: 2}
+  - {fileID: 11400000, guid: b19fa8bd12780904e94074733cf00e90, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
