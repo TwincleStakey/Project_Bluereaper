@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: Boss_1
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.UnitData
   Attack: 30
-  MaxHealth: 100
+  Defense: 5
+  MaxHealth: 1000
   MoveSpeed: 7
