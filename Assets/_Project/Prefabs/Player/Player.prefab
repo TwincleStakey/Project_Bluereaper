@@ -114,6 +114,12 @@ GameObject:
   - component: {fileID: 1159832944218927828}
   - component: {fileID: 1864281870307903895}
   - component: {fileID: -1364247458991694004}
+  - component: {fileID: 2411903147922599001}
+  - component: {fileID: 5124078351129046723}
+  - component: {fileID: 2348163668433781114}
+  - component: {fileID: 8831876405977397844}
+  - component: {fileID: 696060143561327550}
+  - component: {fileID: 6375352014216662176}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -235,9 +241,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.SwordAttack
   damageMultiplier: 1
+  cooldown: 0.3
   range: 2.2
   arcAngle: 120
-  cooldown: 0.35
   targetLayers:
     serializedVersion: 2
     m_Bits: 384
@@ -321,8 +327,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d91abbce938cc4a40b59230b3e114db0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerVfx
-  hitPrefab: {fileID: 6603266878691035562, guid: 400606ce2dbae914b8c33b5c511062a7, type: 3}
-  trailPrefab: {fileID: 6615134794881793510, guid: 02642a54b2cbd944a83f3f8bb262e367, type: 3}
   hitHeight: 1
   shakeStrength: 0.15
   shakeDuration: 0.12
@@ -419,6 +423,108 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Core.Shield
   maxShield: 0
   initialShield: 0
+--- !u!114 &2411903147922599001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 689fbd7b5d77e4143a0e8410c729cf64, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerDownedView
+  fallTime: 0.45
+  lyingHeight: 0.5
+  downedTint: {r: 0.42, g: 0.43, b: 0.45, a: 1}
+  ringHeight: 1.75
+  ringRadius: 0.5
+  timerColor: {r: 0.45, g: 1.9, b: 1.75, a: 1}
+  rescueColor: {r: 0.45, g: 2.6, b: 0.7, a: 1}
+  promptHeight: 2.8
+--- !u!114 &5124078351129046723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6407ce707a0275f4c9d7a704d41c108f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Vfx.InkSlashVfx
+  alphaSource: {fileID: 2100000, guid: 3cf8c0bdc2472854b97c7739930e95eb, type: 2}
+  glowSource: {fileID: 2100000, guid: 51f0c58ba0d85fa4dad8aed273a38929, type: 2}
+  splatTexture: {fileID: 2800000, guid: 61a3aa9ccd07dac49a5f7d6325c4949f, type: 3}
+  inkColor: {r: 0.02, g: 0.02, b: 0.03, a: 1}
+  glowColor: {r: 0.35, g: 2.2, b: 2, a: 1}
+  innerRatio: 0.45
+  strokeTime: 0.07
+  strokeLife: 0.45
+  lightIntensity: 3
+--- !u!114 &2348163668433781114
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1debb97b1194e24e88bf08ce8f97edb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerSouls
+  ShowTopMostFoldoutHeaderGroup: 1
+  normalSouls: 1
+  eliteSouls: 10
+  bossSouls: 0
+--- !u!114 &8831876405977397844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a27e1dfe0cbad15419e9f945b06931a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerSkillTree
+  ShowTopMostFoldoutHeaderGroup: 1
+  nodes:
+  - {fileID: 11400000, guid: 6fc245f8f04ccdc4390fca012f565f5d, type: 2}
+  - {fileID: 11400000, guid: f8cbc09e0ded8c741a99d96753cf2400, type: 2}
+  - {fileID: 11400000, guid: cd21e585053118e4ca2048bb912a3c87, type: 2}
+  - {fileID: 11400000, guid: 8f2de71f0ee9b894f9238c2507364fe6, type: 2}
+--- !u!114 &696060143561327550
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 339edf5ca977d3c4f9000516f366fda4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerLifesteal
+  ShowTopMostFoldoutHeaderGroup: 1
+  ratio: 0.1
+--- !u!114 &6375352014216662176
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688844634782436642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8851ec32978545d418defc0339f7cc40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Player.PlayerProgress
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &8960930555137822400
 GameObject:
   m_ObjectHideFlags: 0
