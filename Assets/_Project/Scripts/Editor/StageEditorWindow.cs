@@ -145,13 +145,9 @@ namespace BlueReaper.Stage.Editor
         {
             using var fieldData = new SerializedObject(field);
             EditorGUILayout.PropertyField(fieldData.FindProperty("fieldObject"), new GUIContent("배치 기준 오브젝트"));
-            var bossPrefab = fieldData.FindProperty("bossPrefab");
-            var bossPoint = fieldData.FindProperty("bossSpawnPoint");
-            EditorGUILayout.PropertyField(bossPrefab, new GUIContent("보스 프리팹"));
-            EditorGUILayout.PropertyField(bossPoint, new GUIContent("보스 스폰 지점"));
-            var additionalBosses = fieldData.FindProperty("additionalBossSpawns");
-            EditorGUILayout.PropertyField(additionalBosses, new GUIContent("추가 보스 스폰"), true);
-            bool bossField = bossPrefab.objectReferenceValue || bossPoint.objectReferenceValue || additionalBosses.arraySize > 0;
+            var bossSpawns = fieldData.FindProperty("bossSpawns");
+            EditorGUILayout.PropertyField(bossSpawns, new GUIContent("보스 스폰"), true);
+            bool bossField = bossSpawns.arraySize > 0;
             if (!bossField)
             {
                 EditorGUILayout.PropertyField(fieldData.FindProperty("purificationGoal"), new GUIContent("정화 목표 처치 수"));
@@ -180,14 +176,9 @@ namespace BlueReaper.Stage.Editor
                 using (new EditorGUI.DisabledScope(entrances.Length > 0))
                     if (GUILayout.Button("중앙 입구 추가")) AddMarker(origin, "CenterEntrance");
                 if (!bossField && GUILayout.Button("준비 발판 추가")) AddMarker(origin, "StageReadyPad");
-                if (!bossPoint.objectReferenceValue && GUILayout.Button("보스 스폰 지점 추가"))
+                if (GUILayout.Button("보스 스폰 지점 추가"))
                 {
-                    var point = new GameObject("Boss Spawn Point");
-                    point.transform.SetParent(origin, false);
-                    Undo.RegisterCreatedObjectUndo(point, "보스 스폰 지점 추가");
-                    bossPoint.objectReferenceValue = point.transform;
-                    fieldData.ApplyModifiedProperties();
-                    Selection.activeGameObject = point;
+                    Selection.activeGameObject = AddBossSpawnPoint(bossSpawns, origin).gameObject;
                     return;
                 }
             }
@@ -203,10 +194,10 @@ namespace BlueReaper.Stage.Editor
 
             if (bossField)
             {
-                bool valid = IsBossSpawnConfigured(field, bossPrefab, bossPoint);
-                for (int i = 0; i < additionalBosses.arraySize; i++)
+                bool valid = true;
+                for (int i = 0; i < bossSpawns.arraySize; i++)
                 {
-                    var spawn = additionalBosses.GetArrayElementAtIndex(i);
+                    var spawn = bossSpawns.GetArrayElementAtIndex(i);
                     valid &= IsBossSpawnConfigured(field, spawn.FindPropertyRelative("Prefab"), spawn.FindPropertyRelative("Point"));
                 }
                 if (!valid)
@@ -235,6 +226,27 @@ namespace BlueReaper.Stage.Editor
             spawnData.ApplyModifiedProperties();
             if (!spawner.IsConfigured())
                 EditorGUILayout.HelpBox("스폰 반경·정원·반복 주기는 양수여야 합니다. 기본 웨이브의 일반 적과 필수 목록의 엘리트 등급·수량·시간대도 확인하세요.", MessageType.Warning);
+        }
+
+        internal static Transform AddBossSpawnPoint(SerializedProperty bossSpawns, Transform origin)
+        {
+            int index = 0;
+            while (index < bossSpawns.arraySize
+                   && bossSpawns.GetArrayElementAtIndex(index).FindPropertyRelative("Point").objectReferenceValue)
+                index++;
+
+            if (index == bossSpawns.arraySize)
+            {
+                bossSpawns.arraySize++;
+                bossSpawns.GetArrayElementAtIndex(index).FindPropertyRelative("Prefab").objectReferenceValue = null;
+            }
+
+            var point = new GameObject(index == 0 ? "Boss Spawn Point" : $"Boss Spawn Point {index + 1}");
+            point.transform.SetParent(origin, false);
+            Undo.RegisterCreatedObjectUndo(point, "보스 스폰 지점 추가");
+            bossSpawns.GetArrayElementAtIndex(index).FindPropertyRelative("Point").objectReferenceValue = point.transform;
+            bossSpawns.serializedObject.ApplyModifiedProperties();
+            return point.transform;
         }
 
         private static bool IsBossSpawnConfigured(StageField field, SerializedProperty prefab, SerializedProperty point)

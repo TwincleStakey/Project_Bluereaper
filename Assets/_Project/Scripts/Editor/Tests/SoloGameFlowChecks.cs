@@ -11,6 +11,7 @@ using BlueReaper.HitBox;
 using BlueReaper.Network;
 using BlueReaper.Player;
 using BlueReaper.Stage;
+using BlueReaper.Stage.Editor;
 using BlueReaper.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -205,6 +206,7 @@ namespace BlueReaper.GameFlow.Editor
             while (!HasText("Defeated. Ready to redeploy.")) yield return null;
             CheckReturnedToHub(player);
             yield return CheckBossStage();
+            yield return CheckMultipleBossStage(originalCatalog);
             yield return CheckRequiredElites(originalCatalog);
             Submit("Back to Lobby");
             while (!FindButton("Start Solo") || !FindButton("Start Solo").interactable) yield return null;
@@ -629,6 +631,120 @@ namespace BlueReaper.GameFlow.Editor
             while (!Object.FindFirstObjectByType<StageExitPortal>()) yield return null;
             var portal = Object.FindFirstObjectByType<StageExitPortal>();
             Require(!GameObject.Find("HPBG"), "Boss HUD remained active after the field cleared.");
+            yield return ReturnThroughBossPortal(player, portal);
+            Debug.Log("BOSS STAGE PASS: spawn, HP boundary, immunity, active step bullets, skipped future step, recovery, HUD and portal return.");
+        }
+
+        static IEnumerator CheckMultipleBossStage(StageCatalogData originalCatalog)
+        {
+            const string fixturePath = "Assets/BlueReaperMultiBossFieldCheck.prefab";
+            Require(!AssetDatabase.LoadMainAssetAtPath(fixturePath), "A prefab already exists at the test fixture path.");
+            var catalog = Object.Instantiate(originalCatalog);
+            using var catalogSettings = new SerializedObject(catalog);
+            var entries = catalogSettings.FindProperty("entries");
+            int index = catalog.Entries.ToList().FindIndex(entry => entry.Stage.Title == "Stage BossTest");
+            Require(index >= 0, "The boss test stage was missing from the catalog.");
+            var stage = Object.Instantiate(catalog.Entries[index].Stage);
+            using var flow = new SerializedObject(Object.FindFirstObjectByType<GameFlow>());
+            var catalogSlot = flow.FindProperty("stageCatalog");
+            int clears = 0;
+            void OnCleared() => clears++;
+            GameEvents.StageCleared += OnCleared;
+            try
+            {
+                var fixture = SaveMultiBossFieldFixture(stage.Fields.Single(), fixturePath);
+                stage.Fields = new[] { fixture };
+                entries.GetArrayElementAtIndex(index).FindPropertyRelative("Stage").objectReferenceValue = stage;
+                catalogSettings.ApplyModifiedPropertiesWithoutUndo();
+                catalogSlot.objectReferenceValue = catalog;
+                flow.ApplyModifiedPropertiesWithoutUndo();
+
+                Submit("Depart");
+                StageField field;
+                while (!(field = FindField(fixture.name))) yield return null;
+                var entriesInScene = new SerializedObject(field).FindProperty("bossSpawns");
+                Require(entriesInScene.arraySize == 2, "Saving the prefab did not retain both boss spawns.");
+                var bosses = LiveEnemies().Where(enemy => enemy.Rank == EnemyRank.Boss).ToList();
+                Require(bosses.Count == 2, "The field did not spawn both configured bosses.");
+                for (int i = 0; i < entriesInScene.arraySize; i++)
+                {
+                    var point = (Transform)entriesInScene.GetArrayElementAtIndex(i)
+                        .FindPropertyRelative("Point").objectReferenceValue;
+                    var matchingBoss = bosses.SingleOrDefault(boss =>
+                        Vector3.Distance(boss.transform.position, point.position) < .7f
+                        && Quaternion.Angle(boss.transform.rotation, point.rotation) < 1f);
+                    Require(matchingBoss, $"Boss {i + 1} did not spawn at its saved point and rotation.");
+                    matchingBoss.GetComponent<EnemyAI>().Release();
+                    bosses.Remove(matchingBoss);
+                }
+
+                var player = SoloPlayer();
+                player.Invincible = true;
+                var living = LiveEnemies().Where(enemy => enemy.Rank == EnemyRank.Boss).ToArray();
+                yield return DefeatBoss(living[0]);
+                Require(clears == 0 && !Object.FindFirstObjectByType<StageExitPortal>()
+                    && !living[1].GetComponent<Health>().IsDead, "Defeating one boss cleared the field.");
+                yield return DefeatBoss(living[1]);
+                var portal = Object.FindFirstObjectByType<StageExitPortal>();
+                Require(clears == 1 && portal, "Defeating the last boss did not open the portal once.");
+                yield return ReturnThroughBossPortal(player, portal);
+                Require(clears == 1, "Returning through the portal duplicated the clear event.");
+                Debug.Log("MULTI-BOSS STAGE PASS: saved editor list, two placements, clear only after both bosses, and portal return.");
+            }
+            finally
+            {
+                GameEvents.StageCleared -= OnCleared;
+                catalogSlot.objectReferenceValue = originalCatalog;
+                flow.ApplyModifiedPropertiesWithoutUndo();
+                Object.Destroy(catalog);
+                Object.Destroy(stage);
+                AssetDatabase.DeleteAsset(fixturePath);
+            }
+        }
+
+        static StageField SaveMultiBossFieldFixture(StageField source, string path)
+        {
+            var contents = PrefabUtility.LoadPrefabContents(AssetDatabase.GetAssetPath(source));
+            try
+            {
+                using var fieldData = new SerializedObject(contents.GetComponent<StageField>());
+                var spawns = fieldData.FindProperty("bossSpawns");
+                Require(spawns.arraySize == 1, "The existing boss spawn was not migrated as the first entry.");
+                var first = spawns.GetArrayElementAtIndex(0);
+                var prefab = first.FindPropertyRelative("Prefab").objectReferenceValue;
+                var firstPoint = (Transform)first.FindPropertyRelative("Point").objectReferenceValue;
+                Require(prefab == AssetDatabase.LoadAssetAtPath<Enemy>("Assets/_Project/Prefabs/Boss/Boss_1.prefab")
+                    && firstPoint && firstPoint == contents.transform.Find("Boss Spawn Point"),
+                    "The original boss prefab or local spawn point reference was lost during migration.");
+
+                var secondPoint = StageEditorWindow.AddBossSpawnPoint(spawns, firstPoint.parent);
+                secondPoint.SetPositionAndRotation(firstPoint.position + Vector3.right * 6f,
+                    Quaternion.Euler(0f, 90f, 0f) * firstPoint.rotation);
+                spawns.GetArrayElementAtIndex(1).FindPropertyRelative("Prefab").objectReferenceValue = prefab;
+                fieldData.ApplyModifiedPropertiesWithoutUndo();
+                var saved = PrefabUtility.SaveAsPrefabAsset(contents, path);
+                Require(saved, "Could not save the two-boss test field.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+            return AssetDatabase.LoadAssetAtPath<StageField>(path);
+        }
+
+        static IEnumerator DefeatBoss(Enemy boss)
+        {
+            var health = boss.GetComponent<Health>();
+            while (!health.IsDead)
+            {
+                var result = health.TakeDamage(float.MaxValue);
+                Require(result is DamageResult.Applied or DamageResult.Killed, "The test boss rejected damage.");
+                while (boss.IsPhaseTransitioning) yield return null;
+            }
+        }
+
+        static IEnumerator ReturnThroughBossPortal(Health player, StageExitPortal portal)
+        {
             var motor = player.GetComponent<PlayerMotor>();
             motor.Teleport(portal.transform.position + Vector3.right * 5f, Quaternion.identity);
             float outsideUntil = Time.time + .15f;
@@ -636,7 +752,6 @@ namespace BlueReaper.GameFlow.Editor
             motor.Teleport(portal.transform.position, Quaternion.identity);
             while (!HasText("Stage cleared.")) yield return null;
             CheckReturnedToHub(player);
-            Debug.Log("BOSS STAGE PASS: spawn, HP boundary, immunity, active step bullets, skipped future step, recovery, HUD and portal return.");
         }
 
         static IEnumerator CheckDynamicClear(Health player, bool wipeAfterClear = false)

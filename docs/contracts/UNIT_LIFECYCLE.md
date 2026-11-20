@@ -40,7 +40,7 @@
 
 ### 보스 필드
 
-- StageField에 연결한 보스 프리팹과 스폰 지점마다 호스트가 보스를 한 번 생성한다. 프리팹은 Boss 등급과 Unit, Health, NavMeshAgent가 필요하다. 위치는 지점에서 0.5m 이내의 해당 에이전트 NavMesh에 보정하고 지점의 회전을 사용한다. 멀티는 등록된 NetworkObject와 EnemyNetworkState가 필요하다.
+- StageField의 보스 스폰 목록에 연결한 프리팹과 스폰 지점마다 호스트가 배열 순서대로 보스를 한 번 생성한다. 프리팹은 Boss 등급과 Unit, Health, NavMeshAgent가 필요하다. 위치는 지점에서 0.5m 이내의 해당 에이전트 NavMesh에 보정하고 지점의 회전을 사용한다. 멀티는 등록된 NetworkObject와 EnemyNetworkState가 필요하다.
 - 보스 필드는 동적 스포너를 연결하지 않는다. 준비 발판과 웨이브는 일반·엘리트용 필드에 적용한다. 보스는 SpawnEnemy로 등록하고 기존 BossSpawned에 따라 HUD를 표시한다.
 - 연결한 보스와 필드에 미리 배치한 보스를 모두 처치하면 필드를 클리어한다. 중간 보스 필드는 호스트가 다음 필드로 이동하고, 최종 보스 필드는 포털로 거점에 복귀한다.
 

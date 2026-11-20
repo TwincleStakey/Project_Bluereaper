@@ -17,9 +17,7 @@ namespace BlueReaper.Stage
 
         [SerializeField] private GameObject fieldObject;
         [SerializeField] private EnemySpawner dynamicSpawner;
-        [SerializeField] private Enemy bossPrefab;
-        [SerializeField] private Transform bossSpawnPoint;
-        [SerializeField] private BossSpawn[] additionalBossSpawns;
+        [SerializeField] private BossSpawn[] bossSpawns;
         [SerializeField, Min(1)] private int purificationGoal = 30;
         [SerializeField, Min(1)] private int huntReferenceKills = 40;
         [SerializeField, Range(1, 99)] private int eveningPercent = 35;
@@ -29,7 +27,7 @@ namespace BlueReaper.Stage
         internal StageDialogueLine[] OpeningDialogue => openingDialogue;
 
         internal EnemySpawner DynamicSpawner => dynamicSpawner;
-        internal bool HasBossSpawn => bossPrefab || bossSpawnPoint || additionalBossSpawns is { Length: > 0 };
+        internal bool HasBossSpawn => bossSpawns is { Length: > 0 };
         internal StageReadyPad[] ReadyPads { get; private set; }
 
         internal PlayerSpawnEntry Entrance { get; private set; }
@@ -95,9 +93,8 @@ namespace BlueReaper.Stage
         internal bool TryResolveBossSpawns(List<(Enemy Prefab, Vector3 Position, Quaternion Rotation)> spawns)
         {
             spawns.Clear();
-            if (dynamicSpawner || !TryAddBossSpawn(bossPrefab, bossSpawnPoint, spawns)) return false;
-            if (additionalBossSpawns == null) return true;
-            foreach (var entry in additionalBossSpawns)
+            if (dynamicSpawner || !HasBossSpawn) return false;
+            foreach (var entry in bossSpawns)
                 if (!TryAddBossSpawn(entry.Prefab, entry.Point, spawns)) return false;
             return true;
         }
