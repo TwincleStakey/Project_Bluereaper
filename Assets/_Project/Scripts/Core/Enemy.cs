@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BlueReaper.Data;
 using BlueReaper.Reward;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace BlueReaper.Core
 {
@@ -16,8 +17,15 @@ namespace BlueReaper.Core
         [SerializeField] EnemyRank rank;
         [SerializeField] RewardTableData rewardTable;
         [SerializeField] EnemyPhaseData phaseInfo;
+        [SerializeField] Transform hudAnchor;
         [SerializeField] float sightRange = 5f;
         [SerializeField, Range(0.01f, 1f)] float outSightTrackingPercent = 0.5f; // 시야 밖에서 플레이어를 추적할 때, 시야 안에서보다 얼마나 느리게 추적할지 비율
+
+        internal static event Action<Enemy, bool> PresenceChanged;
+        internal IReadOnlyList<uint> PhaseThresholds => phaseInfo && phaseInfo.PhaseTrigger_HPRatio_Permil != null
+            ? phaseInfo.PhaseTrigger_HPRatio_Permil : Array.Empty<uint>();
+        internal Vector3 HudAnchorPosition => hudAnchor ? hudAnchor.position : transform.position + Vector3.up
+            * (TryGetComponent(out NavMeshAgent agent) ? agent.height * Mathf.Abs(transform.lossyScale.y) + .3f : 2f);
 
         public EnemyRank Rank => rank;
         public RewardTableData RewardTable => rewardTable;
@@ -29,6 +37,9 @@ namespace BlueReaper.Core
 
         /// <summary>살아있는 플레이어 목록. 스테이지가 관리하므로 사망 시 자동으로 빠진다.</summary>
         public IReadOnlyList<Transform> Players { get; private set; } = Array.Empty<Transform>();
+
+        private void OnEnable() => PresenceChanged?.Invoke(this, true);
+        private void OnDisable() => PresenceChanged?.Invoke(this, false);
 
         private void Awake()
         {

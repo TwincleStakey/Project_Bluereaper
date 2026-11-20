@@ -23,6 +23,9 @@ namespace BlueReaper.Player
         [SerializeField, Range(0.01f, 1f)] float reviveHealthRatio = 0.3f;
 
         // 호스트만 쓰고 모두가 읽는다 (NetworkVariable 기본 권한)
+        readonly NetworkVariable<int> partySlot = new();
+        readonly NetworkVariable<int> characterId = new();
+        private int initialPartySlot, initialCharacterId;
         readonly NetworkVariable<float> syncedHealth = new();
         readonly NetworkVariable<float> syncedShield = new();
         readonly NetworkVariable<LifeState> syncedState = new();
@@ -43,7 +46,33 @@ namespace BlueReaper.Player
         public float RescueProgress { get; private set; }
         internal bool CombatLocked => IsAuthority ? health.CombatLocked : syncedCombatLocked.Value;
 
+        internal int PartySlot => partySlot.Value;
+        internal int CharacterId => characterId.Value;
+        internal static event Action<PlayerLife, bool> PartyPresenceChanged;
+        internal event Action<Enemy> EnemyHit;
         public event Action<LifeState> StateChanged;
+
+        internal void SetPartyIdentity(int slot, int character)
+        {
+            initialPartySlot = slot;
+            initialCharacterId = character;
+        }
+
+        internal void NotifyEnemyHit(Enemy enemy)
+        {
+            if (!IsSpawned || IsServer && IsOwner)
+                EnemyHit?.Invoke(enemy);
+            else if (IsServer && enemy.TryGetComponent(out NetworkObject target) && target.IsSpawned)
+                NotifyEnemyHitRpc(target);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        private void NotifyEnemyHitRpc(NetworkObjectReference target, RpcParams rpcParams = default)
+        {
+            if (rpcParams.Receive.SenderClientId != NetworkManager.ServerClientId) return;
+            if (target.TryGet(out var networkObject) && networkObject.TryGetComponent(out Enemy enemy))
+                EnemyHit?.Invoke(enemy);
+        }
 
         /// <summary>이 PC가 체력·상태를 정하는지. 네트워크를 안 켰으면(샌드박스) 내가 정한다.</summary>
         bool IsAuthority => !IsSpawned || IsServer;
@@ -63,10 +92,13 @@ namespace BlueReaper.Player
             if (IsServer)
             {
                 // 처음 접속한 팀원도 바로 맞는 값을 받도록 스폰 때 채워 둔다
+                partySlot.Value = initialPartySlot;
+                characterId.Value = initialCharacterId;
                 syncedHealth.Value = health.Current;
                 syncedShield.Value = shield ? shield.CurrentShield : 0f;
                 syncedState.Value = State;
                 syncedCombatLocked.Value = health.CombatLocked;
+                PartyPresenceChanged?.Invoke(this, true);
                 return;
             }
 
@@ -77,10 +109,12 @@ namespace BlueReaper.Player
             syncedState.OnValueChanged += OnSyncedState;
             health.ApplyNetworkHealth(syncedHealth.Value);
             OnSyncedState(State, syncedState.Value);
+            PartyPresenceChanged?.Invoke(this, true);
         }
 
         public override void OnNetworkDespawn()
         {
+            PartyPresenceChanged?.Invoke(this, false);
             if (IsServer) return;
             syncedHealth.OnValueChanged -= OnSyncedHealth;
             syncedShield.OnValueChanged -= OnSyncedShield;

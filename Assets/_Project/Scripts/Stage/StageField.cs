@@ -1,5 +1,6 @@
 using BlueReaper.Core;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace BlueReaper.Stage
 {
@@ -11,9 +12,16 @@ namespace BlueReaper.Stage
 
         [SerializeField] private GameObject fieldObject;
         [SerializeField] private EnemySpawner dynamicSpawner;
+        [SerializeField] private Enemy bossPrefab;
+        [SerializeField] private Transform bossSpawnPoint;
         [SerializeField, Min(1)] private int purificationGoal = 30;
+        [SerializeField] private StageDialogueLine[] openingDialogue;
+
+        internal StageDialogueLine[] OpeningDialogue => openingDialogue;
 
         internal EnemySpawner DynamicSpawner => dynamicSpawner;
+        internal bool HasBossSpawn => bossPrefab || bossSpawnPoint;
+        internal bool UsesManagedFieldFlow => dynamicSpawner || HasBossSpawn;
         internal int PurificationGoal => purificationGoal;
         internal StageReadyPad[] ReadyPads { get; private set; }
 
@@ -35,6 +43,27 @@ namespace BlueReaper.Stage
         internal void SetReadyPadsVisible(bool visible)
         {
             foreach (var pad in ReadyPads) pad.gameObject.SetActive(visible);
+        }
+
+        internal bool TryResolveBossSpawn(out Enemy prefab, out Vector3 position, out Quaternion rotation)
+        {
+            prefab = bossPrefab;
+            position = default;
+            rotation = default;
+            if (dynamicSpawner || !prefab || prefab.Rank != EnemyRank.Boss || prefab.gameObject.scene.IsValid()
+                || !bossSpawnPoint || !bossSpawnPoint.IsChildOf(transform)
+                || !prefab.TryGetComponent(out NavMeshAgent agent) || !prefab.GetComponent<Health>()
+                || !prefab.GetComponent<Unit>())
+                return false;
+
+            foreach (var unit in PlacedUnits)
+                if (unit.TryGetComponent(out Enemy placed) && placed.Rank == EnemyRank.Boss) return false;
+
+            var filter = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+            if (!NavMesh.SamplePosition(bossSpawnPoint.position, out var hit, .5f, filter)) return false;
+            position = hit.position;
+            rotation = bossSpawnPoint.rotation;
+            return true;
         }
 
         internal bool TryGetClearTarget(out int requiredKills, out bool bossesOnly)

@@ -48,6 +48,13 @@ namespace BlueReaper.Stage
         public IReadOnlyList<Transform> AlivePlayers => alivePlayers;
         public event Action<StageRunResult> RunFinished;
         public event Action<int> FieldChanged;
+        internal event Action<StageDialogueLine> DialogueRequested;
+
+        public void ShowDialogue(StageDialogueLine line)
+        {
+            if (currentField && IsFieldActive(currentField) && line != null && line.IsValid)
+                DialogueRequested?.Invoke(line);
+        }
 
         private Coroutine stageRoutine;
         private StageField currentField;
@@ -138,10 +145,10 @@ namespace BlueReaper.Stage
             }
 
             foreach (var field in stageData.Fields)
-                if (field && field.DynamicSpawner) usesDynamicFields = true;
-            if (usesDynamicFields && (!playerCamera || !exitPortalPrefab))
+                if (field && field.UsesManagedFieldFlow) usesManagedFields = true;
+            if (usesManagedFields && (!playerCamera || !exitPortalPrefab))
             {
-                AbortStage("Dynamic fields require the stage camera and the exit portal prefab.");
+                AbortStage("Managed fields require the stage camera and the exit portal prefab.");
                 yield break;
             }
 
@@ -157,16 +164,33 @@ namespace BlueReaper.Stage
                 currentField = Instantiate(prefab, transform.position, transform.rotation, transform);
                 lastField = index + 1 == stageData.Fields.Length;
                 var spawner = currentField.DynamicSpawner;
+                bool bossField = currentField.HasBossSpawn;
                 if (!currentField.isActiveAndEnabled || !currentField.Entrance
-                    || (spawner ? !spawner.IsConfigured() || currentField.PurificationGoal <= 0
+                    || (!bossField && (spawner ? !spawner.IsConfigured() || currentField.PurificationGoal <= 0
                         || currentField.ReadyPads.Length < alivePlayers.Count
-                        : !currentField.TryGetClearTarget(out requiredKills, out bossesOnly)))
+                        : !currentField.TryGetClearTarget(out requiredKills, out bossesOnly))))
                 {
                     AbortStage($"Field {prefab.name} has an invalid entrance or spawn plan.");
                     yield break;
                 }
 
-                if (spawner)
+                Enemy bossPrefab = null;
+                Vector3 bossPosition = default;
+                Quaternion bossRotation = default;
+                if (bossField)
+                {
+                    if (!currentField.TryResolveBossSpawn(out bossPrefab, out bossPosition, out bossRotation)
+                        || (NetworkWorld.Enabled && (!bossPrefab.GetComponent<NetworkObject>() || !bossPrefab.GetComponent<EnemyNetworkState>())))
+                    {
+                        AbortStage($"Field {prefab.name} requires one Boss prefab and an in-field spawn point on its NavMesh.");
+                        yield break;
+                    }
+
+                    requiredKills = 1;
+                    bossesOnly = true;
+                    currentField.SetReadyPadsVisible(false);
+                }
+                else if (spawner)
                 {
                     requiredKills = currentField.PurificationGoal;
                     bossesOnly = false;
@@ -176,8 +200,12 @@ namespace BlueReaper.Stage
                 fieldKills = 0;
                 fieldComplete = false;
                 readyForNextField = false;
+                FieldProgress = default;
                 FieldChanged?.Invoke(index);
                 MovePlayers(currentField.Entrance);
+                if (currentField.OpeningDialogue != null)
+                    foreach (var line in currentField.OpeningDialogue) ShowDialogue(line);
+
                 if (spawner)
                 {
                     yield return WaitForReadyPads(currentField);
@@ -204,8 +232,9 @@ namespace BlueReaper.Stage
                     if (!isActiveAndEnabled) yield break;
                 }
 
-                if (spawner) yield return spawner.Run(this, currentField, playerCamera);
-                for (uint round = 0; !spawner && round < currentField.RepeatSpawnCount && !fieldComplete; round++)
+                if (bossField) SpawnEnemy(bossPrefab, bossPosition, bossRotation);
+                else if (spawner) yield return spawner.Run(this, currentField, playerCamera);
+                for (uint round = 0; !bossField && !spawner && round < currentField.RepeatSpawnCount && !fieldComplete; round++)
                 {
                     if (!SpawnWave(currentField))
                     {
@@ -225,7 +254,7 @@ namespace BlueReaper.Stage
                 if (runFinished) yield break;
                 if (lastField && clearConfirmed)
                     yield return WaitForExitPortal();
-                else if (spawner)
+                else if (currentField.UsesManagedFieldFlow)
                 {
                     while (!readyForNextField && !runFinished) yield return null;
                     SetCombatLocked(false);
@@ -587,7 +616,7 @@ namespace BlueReaper.Stage
             if (hudBoss == health) HideBossHUD();
         }
 
-        private void HideBossHUD()
+        internal void HideBossHUD()
         {
             hudBoss = null;
             if (bossHUD) bossHUD.Hide();

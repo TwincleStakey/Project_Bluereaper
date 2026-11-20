@@ -73,12 +73,14 @@ flowchart LR
 3. **Prefab Mode에서 편집**을 열고 정화 목표, 스포너의 반경·정원·반복 주기·웨이브 구성을 편집한다. 웨이브 목록은 시작 시간 오름차순으로 정리한다. 각 웨이브에서 적 프리팹과 1회 수량을 지정하고, 순차 급습은 단계 간격도 지정한다.
 4. 도구에서 중앙 입구와 준비 발판을 추가한 다음 Unity SceneView에서 배치와 크기를 조정한다. 최대 3인 필드는 활성 준비 발판 3개를 사용한다. 지형을 바꿨으면 해당 프리팹에 사용할 NavMesh를 Bake하고 저장한다. 복제한 프리팹에서 지형을 바꿀 때는 원본과 별도 NavMesh 에셋을 사용한다.
 5. 새 StageData를 거점에서 선택할 수 있게 하려면 GameMenu 씬의 GameFlow **Stages** 목록에 추가한다.
+6. 보스 필드는 Stage Editor에서 **보스 프리팹**과 **보스 스폰 지점**을 연결한다. 지점은 **보스 스폰 지점 추가**로 만든 다음 SceneView에서 NavMesh 위에 놓고 정면을 맞춘다. **동적 스포너** 연결은 비운다. 일반·엘리트 필드와 보스 필드는 같은 StageData에 순서대로 담을 수 있다.
+7. 거점에서 **Select Stage BossTest**를 선택하면 보스 하나가 고정 위치에서 등장하는 [테스트 스테이지](../Assets/_Project/Data/Stages/Stage_BossTest.asset)에 출발한다.
 
 ## UI·카메라·보상·제작 도구
 
 | 영역 | 진입점과 현재 연결 |
 | --- | --- |
-| HUD와 카메라 | [BossHUD](../Assets/_Project/Scripts/UI/Boss/BossHUD.cs)는 등록된 보스의 HP·자세를 표시한다. [TopDownCamera](../Assets/_Project/Scripts/Player/TopDownCamera.cs)는 지정된 플레이어를 따라간다. |
+| HUD와 카메라 | StageEntry는 로컬 플레이어와 전투 Canvas를 연결한다. 대사·파티·일반 및 엘리트 적 표시는 [인게임 HUD 제작 가이드](IN_GAME_HUD.md)를 참조한다. [BossHUD](../Assets/_Project/Scripts/UI/Boss/BossHUD.cs)는 등록된 보스의 HP·자세를 표시한다. [TopDownCamera](../Assets/_Project/Scripts/Player/TopDownCamera.cs)는 지정된 플레이어를 따라간다. |
 | 보상 | [RewardTableData.GetReward](../Assets/_Project/Scripts/Reward/RewardTableData.cs)는 합계 1000의 확률 구간에서 보상 하나를 고른다. 보스 사망 연출 완료 후 AI가 추첨하고 결과를 로그에 남긴다. 아이템 지급·인벤토리 연결은 확인되지 않았다. |
 | 플레이어 VFX | [PlayerVfx](../Assets/_Project/Scripts/Player/PlayerVfx.cs)는 검 이벤트를 풀링한 궤적·타격 효과, 히트스톱과 카메라 흔들림에 연결할 수 있다. 현재 Player 프리팹과 씬에서 해당 스크립트 연결은 확인되지 않았다. |
 | 탄막 제작 | [BulletPatternEditor](../Assets/_Project/Scripts/Editor/BulletPatternEditor.cs)에서 배치·경로·회차를 편집한다. 에디터와 런타임은 [BulletPatternData.TryEvaluate](../Assets/_Project/Scripts/Boss/Patterns/BulletPatternData.cs)를 공유한다. |

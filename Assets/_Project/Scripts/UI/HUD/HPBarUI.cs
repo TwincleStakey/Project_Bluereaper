@@ -1,5 +1,4 @@
 using BlueReaper.Core;
-using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,19 +16,38 @@ namespace BlueReaper.UI
         [SerializeField]
         private Image shieldFillImage = null;
 
+        internal Image FillGraphic => fillImage;
+        internal RectTransform ShieldLayout => fallbackShieldRoot ? fallbackShieldRoot
+            : shieldFillImage ? shieldFillImage.rectTransform : null;
+        internal TextMeshProUGUI NumberGraphic => hpText;
+
+        private RectTransform fallbackShieldRoot;
         private Health targetHealth = null;
         private Shield targetShield = null;
+
+        internal static HPBarUI CreateFallback(Transform parent)
+        {
+            var root = HudWidgets.Rect(parent, "Player HP", Vector2.zero, new Vector2(96, 96));
+            HudWidgets.Image(root, Color.black);
+            var hp = HudWidgets.Rect(root, "Gauge", new Vector2(.5f, .5f), Vector2.zero);
+            HudWidgets.Stretch(hp, Vector2.zero);
+            var shield = HudWidgets.Rect(root, "Shield", new Vector2(.5f, 0), new Vector2(64, 6));
+            var bar = root.gameObject.AddComponent<HPBarUI>();
+            bar.fillImage = HudWidgets.Image(hp, Color.red);
+            bar.fallbackShieldRoot = shield;
+            var shieldFill = HudWidgets.Rect(shield, "Shield Fill", new Vector2(.5f, .5f), Vector2.zero);
+            HudWidgets.Stretch(shieldFill, Vector2.zero);
+            bar.shieldFillImage = HudWidgets.Image(shieldFill, new Color(.45f, .8f, 1f));
+            return bar;
+        }
 
         public void Init(Health target)
         {
             if (targetHealth)
-            {
-                targetHealth.Damaged -= OnHealthChanged;
-                targetHealth.Revived -= OnRevived;
-            }
+                targetHealth.Changed -= OnHealthChanged;
             targetHealth = target;
             if (targetHealth && isActiveAndEnabled) SubscribeToHealth();
-            OnHealthChanged(0f);
+            OnHealthChanged();
 
             if (targetShield) targetShield.ShieldChanged -= OnShieldChanged;
             targetShield = target ? target.GetComponent<Shield>() : null;
@@ -43,7 +61,7 @@ namespace BlueReaper.UI
         private void OnEnable()
         {
             if (targetHealth) SubscribeToHealth();
-            OnHealthChanged(0f);
+            OnHealthChanged();
 
             if (targetShield) targetShield.ShieldChanged += OnShieldChanged;
             OnShieldChanged(0f);
@@ -52,22 +70,16 @@ namespace BlueReaper.UI
         private void OnDisable()
         {
             if (targetHealth)
-            {
-                targetHealth.Damaged -= OnHealthChanged;
-                targetHealth.Revived -= OnRevived;
-            }
+                targetHealth.Changed -= OnHealthChanged;
             if (targetShield) targetShield.ShieldChanged -= OnShieldChanged;
         }
 
         private void SubscribeToHealth()
         {
-            targetHealth.Damaged += OnHealthChanged;
-            targetHealth.Revived += OnRevived;
+            targetHealth.Changed += OnHealthChanged;
         }
 
-        private void OnRevived() => OnHealthChanged(0f);
-
-        private void OnHealthChanged(float damage)
+        private void OnHealthChanged()
         {
             if (!targetHealth) return;
             if (fillImage)
@@ -86,7 +98,9 @@ namespace BlueReaper.UI
             if (!targetShield) return;
             if(shieldFillImage)
             {
-                shieldFillImage.fillAmount = targetShield.MaxShield > 0f ? targetShield.CurrentShield / targetShield.MaxShield : 0f;
+                float fill = targetShield.MaxShield > 0f ? targetShield.CurrentShield / targetShield.MaxShield : 0f;
+                if (fallbackShieldRoot) shieldFillImage.rectTransform.anchorMax = new Vector2(fill, 1f);
+                else shieldFillImage.fillAmount = fill;
             }
         }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlueReaper.Core;
 using BlueReaper.Network;
+using BlueReaper.Player;
 using BlueReaper.Stage;
 using Unity.Collections;
 using Unity.Netcode;
@@ -27,6 +28,7 @@ namespace BlueReaper.GameFlow
         [SerializeField] private StageData[] stages;
 
         private readonly HashSet<ulong> ready = new();
+        private readonly Dictionary<ulong, int> remoteCharacters = new();
         private GameMenu menu;
         private Phase phase;
         private int characterCount, character;
@@ -153,6 +155,7 @@ namespace BlueReaper.GameFlow
             sceneManager = networkManager.SceneManager;
             messages.RegisterNamedMessageHandler(StateMessage, OnState);
             messages.RegisterNamedMessageHandler(RequestMessage, OnRequest);
+            messages.RegisterNamedMessageHandler(StageDialogueService.Message, OnDialogue);
             sceneManager.OnSceneEvent += OnSceneEvent;
             NetworkWorld.Enabled = !session.IsSolo;
             if (networkManager.IsServer) run = StartCoroutine(RunHost());
@@ -179,6 +182,7 @@ namespace BlueReaper.GameFlow
         private void OnDisconnected(ulong clientId)
         {
             if (!networkManager.IsServer || clientId == NetworkManager.ServerClientId || messages == null) return;
+            remoteCharacters.Remove(clientId);
             ResetReady();
             if (phase == Phase.Stage && stageEntry) stageEntry.Controller.AbortRun();
             if (phase == Phase.Hub) departRequested = false;
@@ -191,7 +195,9 @@ namespace BlueReaper.GameFlow
             run = null;
             if (sceneManager != null) sceneManager.OnSceneEvent -= OnSceneEvent;
             sceneManager = null;
+            messages?.UnregisterNamedMessageHandler(StageDialogueService.Message);
             messages = null;
+            remoteCharacters.Clear();
             NetworkWorld.Enabled = false;
             StartCoroutine(ReturnToLobby());
         }
@@ -262,6 +268,7 @@ namespace BlueReaper.GameFlow
                 var party = SpawnParty(stageEntry.PlayerPrefab, stageEntry.transform);
                 stageEntry.Controller.RunFinished += RecordResult;
                 stageEntry.Controller.FieldChanged += RecordField;
+                stageEntry.Controller.DialogueRequested += PublishDialogue;
                 stageEntry.Controller.FieldProgressChanged += PublishState;
                 if (stageEntry.Controller.TryStartRun(stages[selectedStage], party))
                 {
@@ -273,6 +280,7 @@ namespace BlueReaper.GameFlow
                 {
                     stageEntry.Controller.RunFinished -= RecordResult;
                     stageEntry.Controller.FieldChanged -= RecordField;
+                    stageEntry.Controller.DialogueRequested -= PublishDialogue;
                     stageEntry.Controller.FieldProgressChanged -= PublishState;
                     stageEntry.Controller.enabled = false;
                 }
@@ -287,8 +295,31 @@ namespace BlueReaper.GameFlow
             stageEntry = null;
         }
 
-        private void RecordResult(StageRunResult outcome) => result = outcome;
-        private void RecordField(int index) { fieldIndex = index; PublishState(); }
+        private void RecordResult(StageRunResult outcome)
+        {
+            result = outcome;
+            if (stageEntry) stageEntry.EndFieldHud();
+        }
+
+        private void RecordField(int index)
+        {
+            fieldIndex = index;
+            stageEntry.BeginFieldHud();
+            PublishState();
+        }
+
+        private void PublishDialogue(StageDialogueLine line)
+        {
+            if (phase != Phase.Stage || !stageEntry) return;
+            StageDialogueService.Publish(networkManager, line, fieldIndex, stageEntry.ShowDialogue);
+        }
+
+        private void OnDialogue(ulong sender, FastBufferReader reader)
+        {
+            if (networkManager.IsServer || sender != NetworkManager.ServerClientId || phase != Phase.Stage || !stageEntry) return;
+            if (StageDialogueService.TryRead(reader, fieldIndex, out int speaker, out int portraitVariant, out string dialogue))
+                stageEntry.ShowDialogue(speaker, portraitVariant, dialogue);
+        }
 
         private IEnumerator ChangeScene(string name, bool load)
         {
@@ -342,6 +373,8 @@ namespace BlueReaper.GameFlow
         {
             Health player = Instantiate(prefab, spawn.position + spawn.right * (slot * 2f), spawn.rotation);
             if (client == networkManager.LocalClientId) player.name = CharacterName;
+            if (player.TryGetComponent(out PlayerLife life))
+                life.SetPartyIdentity(slot + 1, client == networkManager.LocalClientId ? character : remoteCharacters.GetValueOrDefault(client));
             player.GetComponent<NetworkObject>().SpawnAsPlayerObject(client, destroyWithScene: true);
             return player;
         }
@@ -398,7 +431,7 @@ namespace BlueReaper.GameFlow
             if (phase == Phase.Lobby) return;
             if (phase == Phase.Stage)
             {
-                menu.Hide();
+                menu.Hide(keepInput: true);
                 if (stageEntry) stageEntry.ShowProgress(networkManager.IsServer ? stageEntry.Controller.FieldProgress : remoteProgress,
                     networkManager.IsServer);
                 return;
@@ -520,6 +553,7 @@ namespace BlueReaper.GameFlow
             remoteProgress = ((StageFieldPhase)fieldPhase, points, goal);
             phase = (Phase)phaseValue;
             result = resultValue < 0 ? null : (StageRunResult)resultValue;
+            if (phase != Phase.Stage && stageEntry) stageEntry.EndFieldHud();
             RefreshRemoteField();
             BindLocalPlayer();
             ShowCurrentState();
@@ -527,18 +561,24 @@ namespace BlueReaper.GameFlow
 
         private void SendRequest(Request request)
         {
-            using var writer = new FastBufferWriter(5, Allocator.Temp);
+            using var writer = new FastBufferWriter(9, Allocator.Temp);
             writer.WriteValueSafe((byte)request);
             writer.WriteValueSafe(readyRevision);
+            writer.WriteValueSafe(character);
             messages.SendNamedMessage(RequestMessage, NetworkManager.ServerClientId, writer);
         }
 
         private void OnRequest(ulong sender, FastBufferReader reader)
         {
             if (!networkManager.IsServer || !networkManager.ConnectedClients.ContainsKey(sender)
-                || !reader.TryBeginRead(5)) return;
+                || !reader.TryBeginRead(9)) return;
             reader.ReadValueSafe(out byte request);
             reader.ReadValueSafe(out int revision);
+            reader.ReadValueSafe(out int selectedCharacter);
+            if (phase == Phase.Hub && !departRequested && selectedCharacter > 0
+                && (Request)request is Request.Ready or Request.Sync)
+                remoteCharacters[sender] = selectedCharacter;
+
             if ((Request)request == Request.Ready && revision == readyRevision) ApplyReady(sender);
             else if ((Request)request == Request.Sync) SendState(sender);
         }
