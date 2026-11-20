@@ -55,6 +55,8 @@ namespace BlueReaper.Player
 
         internal int PartySlot => partySlot.Value;
         internal int CharacterId => characterId.Value;
+        // 저장 파일 번호. 호스트는 스폰 전에 받은 값을 바로 쓴다 (CharacterId는 OnNetworkSpawn 뒤에 채워짐)
+        internal int SaveSlot => IsSpawned && !IsServer ? characterId.Value : initialCharacterId;
         internal static event Action<PlayerLife, bool> PartyPresenceChanged;
         internal event Action<Enemy> EnemyHit;
         public event Action<LifeState> StateChanged;

@@ -18,6 +18,7 @@ namespace BlueReaper.Player
         CharacterController controller;
         Health health;
         Unit unit;
+        PlayerSkillTree skills;
 
         Vector3 moveInput;
         float verticalSpeed;
@@ -34,6 +35,7 @@ namespace BlueReaper.Player
             controller = GetComponent<CharacterController>();
             health = GetComponent<Health>();
             unit = GetComponent<Unit>();
+            skills = GetComponent<PlayerSkillTree>();
         }
 
         void OnDisable()
@@ -95,7 +97,8 @@ namespace BlueReaper.Player
             }
             else
             {
-                horizontal = moveInput * unit.Data.MoveSpeed;
+                float speedBonus = skills ? skills.GetMultiplier(SkillStat.MoveSpeed) : 1f;
+                horizontal = moveInput * (unit.Data.MoveSpeed * speedBonus);
                 if (facingHoldLeft <= 0f && moveInput.sqrMagnitude > 0.01f)
                 {
                     var target = Quaternion.LookRotation(moveInput);
