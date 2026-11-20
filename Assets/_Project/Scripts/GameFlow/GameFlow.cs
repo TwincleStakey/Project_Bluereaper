@@ -19,20 +19,23 @@ namespace BlueReaper.GameFlow
         private const string StageScene = "Stage";
         private const string StateMessage = "BlueReaper.GameFlow.State";
         private const string RequestMessage = "BlueReaper.GameFlow.Request";
+        private const int NoStage = 0;
+        private const int StateSize = 12 * sizeof(int) + sizeof(bool);
+        private const int RequestSize = sizeof(byte) + 3 * sizeof(int);
 
         private enum Phase { Lobby, LoadingHub, Hub, LoadingStage, Stage, Returning }
         private enum Request { Sync, Ready }
 
         [SerializeField] private SessionService session;
         [SerializeField] private NetworkManager networkManager;
-        [SerializeField] private StageData[] stages;
+        [SerializeField] private StageCatalogData stageCatalog;
 
         private readonly HashSet<ulong> ready = new();
         private readonly Dictionary<ulong, int> remoteCharacters = new();
         private GameMenu menu;
         private Phase phase;
         private int characterCount, character;
-        private int selectedStage = -1, fieldIndex = -1;
+        private int selectedStageId, fieldIndex = -1;
         private int remoteCount, remoteCapacity, remoteReady, readyRevision;
         private bool remoteLocalReady, leaving, departRequested, sceneComplete, sceneTimedOut;
         private string joinCode = "", expectedScene;
@@ -40,19 +43,18 @@ namespace BlueReaper.GameFlow
         private Health localPlayer;
         private StageEntry stageEntry;
         private (StageFieldPhase Phase, int Current, int Goal) remoteProgress;
+        private HuntPhase remoteHuntPhase;
         private NetworkSceneManager sceneManager;
         private CustomMessagingManager messages;
         private Coroutine run;
 
         private int Capacity => session.IsSolo ? 1 : session.TeamSize;
         private string CharacterName => $"Warrior {character}";
-        private bool CanDepart => phase == Phase.Hub && networkManager.IsServer && selectedStage >= 0
-            && networkManager.ConnectedClientsIds.Count == Capacity
-            && (session.IsSolo || ready.Count == Capacity);
-
         private void Awake()
         {
             menu = GetComponent<GameMenu>();
+            string catalogError = stageCatalog ? stageCatalog.GetValidationError() : "Stage catalog is missing.";
+            if (catalogError != null) Debug.LogError(catalogError, this);
             networkManager.ConnectionApprovalCallback = Approve;
             networkManager.OnServerStarted += OnServerStarted;
             networkManager.OnClientConnectedCallback += OnConnected;
@@ -214,7 +216,9 @@ namespace BlueReaper.GameFlow
             }
             localPlayer = null;
             stageEntry = null;
-            selectedStage = fieldIndex = -1;
+            selectedStageId = NoStage;
+            fieldIndex = -1;
+            remoteHuntPhase = HuntPhase.None;
             result = null;
             ResetReady();
             departRequested = false;
@@ -240,21 +244,21 @@ namespace BlueReaper.GameFlow
                 PublishState();
                 yield return new WaitUntil(() => departRequested || !session.InSession || leaving);
                 if (!session.InSession || leaving) break;
-                if (!CanDepart) continue;
+                if (!TryGetDepartureStage(out StageData departureStage)) continue;
 
                 phase = Phase.LoadingStage;
                 PublishState();
                 DespawnParty();
                 yield return ChangeScene(HubScene, false);
                 if (!session.InSession || !sceneComplete || sceneTimedOut) break;
-                yield return RunStage();
+                yield return RunStage(departureStage);
                 if (!sceneComplete || sceneTimedOut) break;
             }
 
             if (session.InSession && !leaving) session.Leave();
         }
 
-        private IEnumerator RunStage()
+        private IEnumerator RunStage(StageData departureStage)
         {
             result = null;
             fieldIndex = -1;
@@ -270,7 +274,7 @@ namespace BlueReaper.GameFlow
                 stageEntry.Controller.FieldChanged += RecordField;
                 stageEntry.Controller.DialogueRequested += PublishDialogue;
                 stageEntry.Controller.FieldProgressChanged += PublishState;
-                if (stageEntry.Controller.TryStartRun(stages[selectedStage], party))
+                if (stageEntry.Controller.TryStartRun(departureStage, party))
                 {
                     phase = Phase.Stage;
                     PublishState();
@@ -420,10 +424,12 @@ namespace BlueReaper.GameFlow
 
         private void RefreshRemoteField()
         {
-            if (networkManager.IsServer || phase != Phase.Stage || selectedStage < 0
-                || selectedStage >= stages.Length || fieldIndex < 0) return;
+            if (networkManager.IsServer || phase != Phase.Stage || fieldIndex < 0
+                || !stageCatalog || !stageCatalog.TryResolve(selectedStageId, out StageData stage)) return;
             if (!stageEntry) stageEntry = FindFirstObjectByType<StageEntry>();
-            if (stageEntry) stageEntry.ShowRemoteField(stages[selectedStage], fieldIndex);
+            if (!stageEntry) return;
+            stageEntry.ShowRemoteField(stage, fieldIndex);
+            if (stageEntry.Controller) stageEntry.Controller.ApplyRemoteHuntPhase(remoteHuntPhase);
         }
 
         private void ShowCurrentState()
@@ -459,29 +465,59 @@ namespace BlueReaper.GameFlow
                 menu.Label($"Team {count}/{capacity}   Ready {readyCount}/{capacity}");
                 if (!string.IsNullOrWhiteSpace(session.JoinCode)) menu.Label($"Code: {session.JoinCode}");
             }
-            for (int i = 0; i < stages.Length; i++)
+            bool selectionAvailable = false;
+            if (networkManager.IsServer)
             {
-                if (!stages[i] || (!networkManager.IsServer && i != selectedStage)) continue;
-                int index = i;
-                string name = stages[i].name.Replace('_', ' ');
-                menu.Button(i == selectedStage ? $"Selected: {name}" : $"Select {name}",
-                    networkManager.IsServer ? () => SelectStage(index) : null);
+                if (stageCatalog)
+                {
+                    foreach (StageCatalogData.Entry entry in stageCatalog.Entries)
+                    {
+                        if (!entry.Stage || !stageCatalog.IsOpen(entry.Stage.StageId)) continue;
+                        int id = entry.Stage.StageId;
+                        bool selected = id == selectedStageId;
+                        selectionAvailable |= selected;
+                        menu.Button(selected ? $"Selected: {entry.Stage.Title}" : $"Select {entry.Stage.Title}",
+                            () => SelectStage(id));
+                    }
+                }
             }
+            else if (selectedStageId != NoStage)
+            {
+                if (stageCatalog && stageCatalog.TryResolve(selectedStageId, out StageData stage))
+                {
+                    selectionAvailable = true;
+                    menu.Button($"Selected: {stage.Title}", null);
+                }
+                else menu.Label("The selected stage is missing from your game content.");
+            }
+
             if (!session.IsSolo)
             {
                 bool localReady = networkManager.IsServer ? ready.Contains(NetworkManager.ServerClientId) : remoteLocalReady;
-                menu.Button(localReady ? "Cancel Ready" : "Ready", selectedStage >= 0 ? ToggleReady : null);
+                menu.Button(localReady ? "Cancel Ready" : "Ready", selectionAvailable ? ToggleReady : null);
             }
             if (networkManager.IsServer)
-                menu.Button("Depart", CanDepart ? () => departRequested = true : null);
+                menu.Button("Depart", TryGetDepartureStage(out _) ? () => departRequested = true : null);
             menu.Button("Back to Lobby", () => { leaving = true; session.Leave(); });
         }
 
-        private void SelectStage(int index)
+        private bool TryGetDepartureStage(out StageData stage)
         {
-            if (selectedStage != index)
+            stage = null;
+            return phase == Phase.Hub && networkManager.IsServer
+                && networkManager.ConnectedClientsIds.Count == Capacity
+                && (session.IsSolo || ready.Count == Capacity)
+                && stageCatalog && stageCatalog.IsOpen(selectedStageId)
+                && stageCatalog.TryResolve(selectedStageId, out stage);
+        }
+
+        private void SelectStage(int id)
+        {
+            if (!networkManager.IsServer || phase != Phase.Hub || departRequested
+                || !stageCatalog || !stageCatalog.IsOpen(id)) return;
+            if (selectedStageId != id)
             {
-                selectedStage = index;
+                selectedStageId = id;
                 ResetReady();
             }
             PublishState();
@@ -496,12 +532,12 @@ namespace BlueReaper.GameFlow
         private void ToggleReady()
         {
             if (networkManager.IsServer) ApplyReady(NetworkManager.ServerClientId);
-            else SendRequest(Request.Ready);
+            else if (stageCatalog && stageCatalog.TryResolve(selectedStageId, out _)) SendRequest(Request.Ready);
         }
 
         private void ApplyReady(ulong clientId)
         {
-            if (session.IsSolo || phase != Phase.Hub || departRequested || selectedStage < 0
+            if (session.IsSolo || phase != Phase.Hub || departRequested || !stageCatalog || !stageCatalog.IsOpen(selectedStageId)
                 || !networkManager.ConnectedClients.TryGetValue(clientId, out var client) || !client.PlayerObject) return;
             if (!ready.Add(clientId)) ready.Remove(clientId);
             PublishState();
@@ -518,9 +554,9 @@ namespace BlueReaper.GameFlow
 
         private void SendState(ulong clientId)
         {
-            using var writer = new FastBufferWriter(48, Allocator.Temp);
+            using var writer = new FastBufferWriter(StateSize, Allocator.Temp);
             writer.WriteValueSafe((int)phase);
-            writer.WriteValueSafe(selectedStage);
+            writer.WriteValueSafe(selectedStageId);
             writer.WriteValueSafe(fieldIndex);
             writer.WriteValueSafe(networkManager.ConnectedClientsIds.Count);
             writer.WriteValueSafe(Capacity);
@@ -532,14 +568,15 @@ namespace BlueReaper.GameFlow
             writer.WriteValueSafe((int)progress.Phase);
             writer.WriteValueSafe(progress.Current);
             writer.WriteValueSafe(progress.Goal);
+            writer.WriteValueSafe((int)(stageEntry ? stageEntry.Controller.CurrentHuntPhase : HuntPhase.None));
             messages.SendNamedMessage(StateMessage, clientId, writer);
         }
 
         private void OnState(ulong sender, FastBufferReader reader)
         {
-            if (networkManager.IsServer || sender != NetworkManager.ServerClientId || !reader.TryBeginRead(45)) return;
+            if (networkManager.IsServer || sender != NetworkManager.ServerClientId || !reader.TryBeginRead(StateSize)) return;
             reader.ReadValueSafe(out int phaseValue);
-            reader.ReadValueSafe(out selectedStage);
+            reader.ReadValueSafe(out selectedStageId);
             reader.ReadValueSafe(out fieldIndex);
             reader.ReadValueSafe(out remoteCount);
             reader.ReadValueSafe(out remoteCapacity);
@@ -550,10 +587,16 @@ namespace BlueReaper.GameFlow
             reader.ReadValueSafe(out int fieldPhase);
             reader.ReadValueSafe(out int points);
             reader.ReadValueSafe(out int goal);
+            reader.ReadValueSafe(out int huntPhase);
             remoteProgress = ((StageFieldPhase)fieldPhase, points, goal);
+            remoteHuntPhase = (HuntPhase)huntPhase;
             phase = (Phase)phaseValue;
             result = resultValue < 0 ? null : (StageRunResult)resultValue;
-            if (phase != Phase.Stage && stageEntry) stageEntry.EndFieldHud();
+            if (phase != Phase.Stage && stageEntry)
+            {
+                stageEntry.EndFieldHud();
+                if (stageEntry.Controller) stageEntry.Controller.ApplyRemoteHuntPhase(HuntPhase.None);
+            }
             RefreshRemoteField();
             BindLocalPlayer();
             ShowCurrentState();
@@ -561,25 +604,28 @@ namespace BlueReaper.GameFlow
 
         private void SendRequest(Request request)
         {
-            using var writer = new FastBufferWriter(9, Allocator.Temp);
+            using var writer = new FastBufferWriter(RequestSize, Allocator.Temp);
             writer.WriteValueSafe((byte)request);
             writer.WriteValueSafe(readyRevision);
             writer.WriteValueSafe(character);
+            writer.WriteValueSafe(selectedStageId);
             messages.SendNamedMessage(RequestMessage, NetworkManager.ServerClientId, writer);
         }
 
         private void OnRequest(ulong sender, FastBufferReader reader)
         {
             if (!networkManager.IsServer || !networkManager.ConnectedClients.ContainsKey(sender)
-                || !reader.TryBeginRead(9)) return;
+                || !reader.TryBeginRead(RequestSize)) return;
             reader.ReadValueSafe(out byte request);
             reader.ReadValueSafe(out int revision);
             reader.ReadValueSafe(out int selectedCharacter);
+            reader.ReadValueSafe(out int acknowledgedStageId);
             if (phase == Phase.Hub && !departRequested && selectedCharacter > 0
                 && (Request)request is Request.Ready or Request.Sync)
                 remoteCharacters[sender] = selectedCharacter;
 
-            if ((Request)request == Request.Ready && revision == readyRevision) ApplyReady(sender);
+            if ((Request)request == Request.Ready && revision == readyRevision && acknowledgedStageId == selectedStageId)
+                ApplyReady(sender);
             else if ((Request)request == Request.Sync) SendState(sender);
         }
     }

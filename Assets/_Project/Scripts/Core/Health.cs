@@ -26,7 +26,11 @@ namespace BlueReaper.Core
         Unit unit;
         Shield shield;
 
-        public float MaxHealth => unit.Data.MaxHealth;
+        private float maxHealthOverride;
+        public float MaxHealth => maxHealthOverride > 0f ? maxHealthOverride : unit.Data.MaxHealth;
+        internal Func<float, Unit, float> ConsumeSharedHealth { get; set; }
+        internal Func<float, float> LimitHealthAfterDamage { get; set; }
+        internal bool PhaseDamageLocked { get; set; }
         public float Current { get; private set; }
         public bool IsDead => Current <= 0f;
 
@@ -59,16 +63,62 @@ namespace BlueReaper.Core
             Changed?.Invoke();
         }
 
+        void OnDisable()
+        {
+            maxHealthOverride = 0f;
+            ConsumeSharedHealth = null;
+            LimitHealthAfterDamage = null;
+            PhaseDamageLocked = false;
+        }
+
+        internal void SetHealthPool(float maximum)
+        {
+            maxHealthOverride = maximum;
+            if (isActiveAndEnabled) RestoreFullHealth();
+        }
+
+        internal void RestoreFullHealth()
+        {
+            if (NetworkDriven) return;
+
+            bool wasDead = IsDead;
+            Current = MaxHealth;
+            Changed?.Invoke();
+            if (wasDead && !IsDead) Revived?.Invoke();
+        }
+
+        /// <summary>Restores a living personal health pool, including Last Breath.</summary>
+        public float Heal(float amount)
+        {
+            if (NetworkDriven || CombatLocked || IsDead || ConsumeSharedHealth != null
+                || !(amount > 0f) || !float.IsFinite(amount)) return 0f;
+
+            float before = Current;
+            Current = Mathf.Min(MaxHealth, Current + amount);
+            if (Current > before) Changed?.Invoke();
+            return Current - before;
+        }
+
         public DamageResult TakeDamage(float amount, Unit source = null)
         {
-            if (NetworkDriven || CombatLocked || IsDead || Invincible || !(amount > 0f) || !float.IsFinite(amount))
+            if (NetworkDriven || CombatLocked || PhaseDamageLocked || IsDead || Invincible || !(amount > 0f) || !float.IsFinite(amount))
                 return DamageResult.Ignored;
 
             bool broken = false;
             float absorbed = shield && shield.isActiveAndEnabled ? shield.Absorb(amount, out broken) : 0f;
             float remaining = amount - absorbed;
+            if (remaining > 0f && ConsumeSharedHealth != null)
+            {
+                float sharedLoss = ConsumeSharedHealth(remaining, source);
+                if (absorbed > 0f) shield.PublishAbsorption(broken);
+                return sharedLoss > 0f ? DamageResult.Applied
+                    : absorbed > 0f ? DamageResult.Absorbed : DamageResult.Ignored;
+            }
+
             float before = Current;
             float next = Mathf.Max(0f, before - remaining);
+            if (remaining > 0f && LimitHealthAfterDamage != null)
+                next = LimitHealthAfterDamage(next);
             float healthLost = before - next;
             Current = next;
             var result = healthLost > 0f ? (IsDead ? DamageResult.Killed : DamageResult.Applied)
@@ -77,7 +127,7 @@ namespace BlueReaper.Core
             if (!(healthLost > 0f)) return result;
             DamageApplied?.Invoke(new DamageAppliedInfo(source, before, next));
             Changed?.Invoke();
-            Damaged?.Invoke(remaining);
+            Damaged?.Invoke(LimitHealthAfterDamage != null ? healthLost : remaining);
             // Capture this damage result before callbacks can apply further damage.
             if (result == DamageResult.Killed)
             {
@@ -89,9 +139,22 @@ namespace BlueReaper.Core
 
         public void Kill()
         {
-            if (NetworkDriven || CombatLocked || IsDead) return;
+            if (NetworkDriven || CombatLocked || PhaseDamageLocked || IsDead) return;
+            if (ConsumeSharedHealth != null)
+            {
+                ConsumeSharedHealth(float.MaxValue, null);
+                return;
+            }
 
-            Current = 0f;
+            float next = LimitHealthAfterDamage?.Invoke(0f) ?? 0f;
+            float before = Current;
+            Current = next;
+            if (next > 0f)
+            {
+                DamageApplied?.Invoke(new DamageAppliedInfo(null, before, next));
+                Changed?.Invoke();
+                return;
+            }
             Changed?.Invoke();
             if (shield) shield.Clear();
             Died?.Invoke();
@@ -100,7 +163,7 @@ namespace BlueReaper.Core
         /// <summary>HP 0인 대상을 최대 체력의 ratio만큼 채워 다시 일으킨다.</summary>
         public void Revive(float ratio)
         {
-            if (CombatLocked || !IsDead) return;
+            if (NetworkDriven || CombatLocked || !IsDead) return;
 
             Current = MaxHealth * Mathf.Clamp(ratio, 0.01f, 1f);
             Changed?.Invoke();
@@ -108,12 +171,16 @@ namespace BlueReaper.Core
         }
 
         /// <summary>호스트가 계산한 체력을 그대로 반영하고, 바뀐 만큼 같은 이벤트를 쏜다 (HP 바·빈사가 똑같이 반응하게).</summary>
-        public void ApplyNetworkHealth(float value)
+        public void ApplyNetworkHealth(float value) => ApplyNetworkHealth(value, MaxHealth);
+
+        internal void ApplyNetworkHealth(float value, float maximum)
         {
             float before = Current;
+            float previousMaximum = MaxHealth;
+            maxHealthOverride = maximum;
             Current = Mathf.Clamp(value, 0f, MaxHealth);
-            if (Current != before) Changed?.Invoke();
-            if (Current < before)
+            if (Current != before || MaxHealth != previousMaximum) Changed?.Invoke();
+            if (Current < before && (MaxHealth == previousMaximum || IsDead))
             {
                 Damaged?.Invoke(before - Current);
                 if (IsDead)

@@ -264,9 +264,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.GameFlow.GameFlow
   session: {fileID: 726377178}
   networkManager: {fileID: 726377180}
-  stages:
-  - {fileID: 11400000, guid: 76569dd19c1e1c8428bd23749f4619d1, type: 2}
-  - {fileID: 11400000, guid: b19fa8bd12780904e94074733cf00e90, type: 2}
+  stageCatalog: {fileID: 11400000, guid: 255eff10fcb4452a9836efae880e18e5, type: 2}
 --- !u!1 &726377185
 GameObject:
   m_ObjectHideFlags: 0

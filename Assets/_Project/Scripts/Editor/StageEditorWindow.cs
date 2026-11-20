@@ -12,6 +12,7 @@ namespace BlueReaper.Stage.Editor
         private const string StageFolder = "Assets/_Project/Data/Stages";
         private const string PrefabFolder = "Assets/_Project/Prefabs/Stage";
 
+        [SerializeField] private StageCatalogData catalog;
         [SerializeField] private StageData stage;
         [SerializeField] private int fieldIndex;
         private Vector2 scroll;
@@ -30,6 +31,7 @@ namespace BlueReaper.Stage.Editor
         private void OnEnable()
         {
             minSize = new Vector2(460, 360);
+            if (!catalog) catalog = AssetDatabase.LoadAssetAtPath<StageCatalogData>($"{StageFolder}/StageCatalog.asset");
             if (!stage) stage = AssetDatabase.LoadAssetAtPath<StageData>($"{StageFolder}/Stage_Dynamic.asset");
         }
 
@@ -39,6 +41,7 @@ namespace BlueReaper.Stage.Editor
             scroll = EditorGUILayout.BeginScrollView(scroll);
             try
             {
+                DrawCatalog();
                 DrawStage();
                 DrawSelectedField();
             }
@@ -46,6 +49,21 @@ namespace BlueReaper.Stage.Editor
             {
                 EditorGUILayout.EndScrollView();
             }
+        }
+
+        private void DrawCatalog()
+        {
+            EditorGUILayout.LabelField("스테이지 카탈로그", EditorStyles.boldLabel);
+            catalog = (StageCatalogData)EditorGUILayout.ObjectField("Stage Catalog", catalog, typeof(StageCatalogData), false);
+            if (!catalog) return;
+
+            using var catalogData = new SerializedObject(catalog);
+            EditorGUILayout.PropertyField(catalogData.FindProperty("entries"), new GUIContent("입장 목록과 기본 개방"), true);
+            catalogData.ApplyModifiedProperties();
+            if (catalog.GetValidationError() is { } error)
+                EditorGUILayout.HelpBox(error, MessageType.Warning);
+            if (GUILayout.Button("카탈로그 저장")) AssetDatabase.SaveAssetIfDirty(catalog);
+            EditorGUILayout.Space();
         }
 
         private void DrawStage()
@@ -76,6 +94,11 @@ namespace BlueReaper.Stage.Editor
             if (!stage) return;
 
             using var data = new SerializedObject(stage);
+            EditorGUILayout.PropertyField(data.FindProperty(nameof(StageData.StageId)), new GUIContent("고정 스테이지 ID"));
+            EditorGUILayout.PropertyField(data.FindProperty(nameof(StageData.DisplayName)), new GUIContent("표시 이름"));
+            EditorGUILayout.PropertyField(data.FindProperty(nameof(StageData.BossHealthMultipliersByPartySize)), new GUIContent("보스 HP 배율 (X 1인, Y 2인, Z 3인)"));
+            EditorGUILayout.PropertyField(data.FindProperty(nameof(StageData.SharedHealthMultiplier)), new GUIContent("공유 HP 계수"));
+            EditorGUILayout.PropertyField(data.FindProperty(nameof(StageData.LastBreathHealthMultiplier)), new GUIContent("마지막 숨 계수"));
             EditorGUILayout.PropertyField(data.FindProperty(nameof(StageData.Fields)), new GUIContent("필드 진행 순서"), true);
             data.ApplyModifiedProperties();
             if (GUILayout.Button("StageData 저장")) AssetDatabase.SaveAssetIfDirty(stage);
@@ -90,7 +113,7 @@ namespace BlueReaper.Stage.Editor
             }
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("동적 필드 프리팹", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("필드 프리팹", EditorStyles.boldLabel);
             fieldIndex = Mathf.Clamp(fieldIndex, 0, stage.Fields.Length - 1);
             var names = Array.ConvertAll(stage.Fields, field => field ? field.name : "(프리팹 미지정)");
             fieldIndex = EditorGUILayout.Popup("편집할 필드", fieldIndex, names);
@@ -126,9 +149,16 @@ namespace BlueReaper.Stage.Editor
             var bossPoint = fieldData.FindProperty("bossSpawnPoint");
             EditorGUILayout.PropertyField(bossPrefab, new GUIContent("보스 프리팹"));
             EditorGUILayout.PropertyField(bossPoint, new GUIContent("보스 스폰 지점"));
-            bool bossField = bossPrefab.objectReferenceValue || bossPoint.objectReferenceValue;
+            var additionalBosses = fieldData.FindProperty("additionalBossSpawns");
+            EditorGUILayout.PropertyField(additionalBosses, new GUIContent("추가 보스 스폰"), true);
+            bool bossField = bossPrefab.objectReferenceValue || bossPoint.objectReferenceValue || additionalBosses.arraySize > 0;
             if (!bossField)
+            {
                 EditorGUILayout.PropertyField(fieldData.FindProperty("purificationGoal"), new GUIContent("정화 목표 처치 수"));
+                EditorGUILayout.PropertyField(fieldData.FindProperty("huntReferenceKills"), new GUIContent("시간대 기준 처치 수"));
+                EditorGUILayout.PropertyField(fieldData.FindProperty("eveningPercent"), new GUIContent("저녁 전환 처치 비율 (%)"));
+                EditorGUILayout.PropertyField(fieldData.FindProperty("nightPercent"), new GUIContent("한밤 전환 처치 비율 (%)"));
+            }
             EditorGUILayout.PropertyField(fieldData.FindProperty("openingDialogue"), new GUIContent("입장 대사"), true);
             var spawnerProperty = fieldData.FindProperty("dynamicSpawner");
             EditorGUILayout.PropertyField(spawnerProperty, new GUIContent("동적 스포너"));
@@ -166,16 +196,21 @@ namespace BlueReaper.Stage.Editor
                 EditorGUILayout.HelpBox("활성 중앙 입구를 하나 배치하세요.", MessageType.Warning);
             if (!bossField && spawner && pads.Count(IsReadyPadUsable) < 3)
                 EditorGUILayout.HelpBox("파티 3명까지 지원하려면 활성 Trigger 발판을 3개 배치하세요.", MessageType.Warning);
+            if (!bossField && !field.IsHuntProgressConfigured())
+                EditorGUILayout.HelpBox("시간대 기준 처치 수와 정화 목표는 양수여야 하며, 저녁과 한밤은 서로 다른 처치 수에서 시작해야 합니다.", MessageType.Warning);
             if (!field.GetComponentsInChildren<NavMeshSurface>().Any(surface => surface.navMeshData))
                 EditorGUILayout.HelpBox("스폰과 이동에 사용할 NavMesh를 Bake하세요.", MessageType.Warning);
 
             if (bossField)
             {
-                var boss = bossPrefab.objectReferenceValue as BlueReaper.Core.Enemy;
-                var point = bossPoint.objectReferenceValue as Transform;
-                if (!boss || boss.Rank != BlueReaper.Core.EnemyRank.Boss || !PrefabUtility.IsPartOfPrefabAsset(boss)
-                    || !point || !point.IsChildOf(field.transform))
-                    EditorGUILayout.HelpBox("Boss 등급 프리팹과 필드 안의 스폰 지점을 연결하세요.", MessageType.Warning);
+                bool valid = IsBossSpawnConfigured(field, bossPrefab, bossPoint);
+                for (int i = 0; i < additionalBosses.arraySize; i++)
+                {
+                    var spawn = additionalBosses.GetArrayElementAtIndex(i);
+                    valid &= IsBossSpawnConfigured(field, spawn.FindPropertyRelative("Prefab"), spawn.FindPropertyRelative("Point"));
+                }
+                if (!valid)
+                    EditorGUILayout.HelpBox("각 보스 스폰에 Boss 등급 프리팹과 필드 안의 스폰 지점을 연결하세요.", MessageType.Warning);
                 if (spawner)
                     EditorGUILayout.HelpBox("보스 필드에서는 동적 스포너 연결을 비우세요.", MessageType.Warning);
                 return;
@@ -193,10 +228,21 @@ namespace BlueReaper.Stage.Editor
             EditorGUILayout.PropertyField(spawnData.FindProperty(nameof(EnemySpawner.SpawnRadius)), new GUIContent("스폰 반경"));
             EditorGUILayout.PropertyField(spawnData.FindProperty(nameof(EnemySpawner.MaxAliveEnemiesPerPlayer)), new GUIContent("플레이어당 생존 적 정원"));
             EditorGUILayout.PropertyField(spawnData.FindProperty(nameof(EnemySpawner.SpawnInterval)), new GUIContent("스폰 반복 주기 (초)"));
-            EditorGUILayout.PropertyField(spawnData.FindProperty(nameof(EnemySpawner.Waves)), new GUIContent("웨이브"), true);
+            EditorGUILayout.PropertyField(spawnData.FindProperty(nameof(EnemySpawner.Waves)), new GUIContent("오후 기본 웨이브"), true);
+            EditorGUILayout.PropertyField(spawnData.FindProperty("eveningWaves"), new GUIContent("저녁 웨이브"), true);
+            EditorGUILayout.PropertyField(spawnData.FindProperty("nightWaves"), new GUIContent("한밤 웨이브"), true);
+            EditorGUILayout.PropertyField(spawnData.FindProperty("requiredElites"), new GUIContent("필수 엘리트 스폰"), true);
             spawnData.ApplyModifiedProperties();
             if (!spawner.IsConfigured())
-                EditorGUILayout.HelpBox("스폰 반경·정원·반복 주기는 양수여야 합니다. 웨이브의 시작 시간·일반/엘리트 프리팹·Count와 순차 급습 간격도 확인하세요.", MessageType.Warning);
+                EditorGUILayout.HelpBox("스폰 반경·정원·반복 주기는 양수여야 합니다. 기본 웨이브의 일반 적과 필수 목록의 엘리트 등급·수량·시간대도 확인하세요.", MessageType.Warning);
+        }
+
+        private static bool IsBossSpawnConfigured(StageField field, SerializedProperty prefab, SerializedProperty point)
+        {
+            var boss = prefab.objectReferenceValue as BlueReaper.Core.Enemy;
+            var transform = point.objectReferenceValue as Transform;
+            return boss && boss.Rank == BlueReaper.Core.EnemyRank.Boss && PrefabUtility.IsPartOfPrefabAsset(boss)
+                && transform && transform.IsChildOf(field.transform);
         }
 
         private static bool IsReadyPadUsable(StageReadyPad pad) =>

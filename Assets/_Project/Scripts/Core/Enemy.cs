@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using BlueReaper.Boss;
 using BlueReaper.Data;
 using BlueReaper.Reward;
 using UnityEngine;
@@ -34,15 +36,43 @@ namespace BlueReaper.Core
         public EnemyAggro Aggro { get; private set; }
 
         public uint Phase { get; private set; } = 1;
+        public bool IsPhaseTransitioning => PendingPhase != 0;
+        public event Action<uint, uint> PhaseTransitionStarted;
+        public event Action<uint, uint> PhaseChanged;
+
+        internal uint PendingPhase { get; private set; }
+        private Health health;
+        private EnemyAI ai;
+        private Coroutine phaseRoutine;
+        private Action restoreParty;
 
         /// <summary>살아있는 플레이어 목록. 스테이지가 관리하므로 사망 시 자동으로 빠진다.</summary>
         public IReadOnlyList<Transform> Players { get; private set; } = Array.Empty<Transform>();
 
-        private void OnEnable() => PresenceChanged?.Invoke(this, true);
-        private void OnDisable() => PresenceChanged?.Invoke(this, false);
+        private void OnEnable()
+        {
+            Phase = 1;
+            PresenceChanged?.Invoke(this, true);
+        }
+        private void OnDisable()
+        {
+            if (phaseRoutine != null) StopCoroutine(phaseRoutine);
+            phaseRoutine = null;
+            restoreParty = null;
+            PendingPhase = 0;
+            if (health)
+            {
+                health.DamageApplied -= OnPhaseBoundaryHit;
+                health.LimitHealthAfterDamage = null;
+                health.PhaseDamageLocked = false;
+            }
+            PresenceChanged?.Invoke(this, false);
+        }
 
         private void Awake()
         {
+            health = GetComponent<Health>();
+            ai = GetComponent<EnemyAI>();
             Aggro = GetComponent<EnemyAggro>();
             if (!Aggro) Aggro = gameObject.AddComponent<EnemyAggro>();
         }
@@ -56,13 +86,81 @@ namespace BlueReaper.Core
             CalcPhase();
         }
 
+        internal void EnableBossPhases(Action restoreHealth)
+        {
+            if (Rank != EnemyRank.Boss || PhaseThresholds.Count < 2) return;
+            var thresholds = PhaseThresholds;
+            if (thresholds[0] != 1000)
+            {
+                Debug.LogError("Boss phase thresholds must start at 1000 permil.", this);
+                return;
+            }
+            for (int i = 1; i < thresholds.Count; i++)
+            {
+                if (thresholds[i] == 0 || thresholds[i] >= thresholds[i - 1])
+                {
+                    Debug.LogError("Boss phase thresholds must be positive and strictly descending.", this);
+                    return;
+                }
+            }
+            restoreParty = restoreHealth;
+            health.LimitHealthAfterDamage = ClampToPhaseBoundary;
+            health.DamageApplied += OnPhaseBoundaryHit;
+        }
+
+        private float ClampToPhaseBoundary(float nextHealth)
+        {
+            var thresholds = PhaseThresholds;
+            if (Phase >= (uint)thresholds.Count) return nextHealth;
+
+            float boundary = health.MaxHealth * (thresholds[(int)Phase] / 1000f);
+            if (nextHealth > boundary) return nextHealth;
+
+            PendingPhase = Phase + 1;
+            health.PhaseDamageLocked = true;
+            return boundary;
+        }
+
+        private void OnPhaseBoundaryHit(DamageAppliedInfo _)
+        {
+            if (IsPhaseTransitioning && phaseRoutine == null)
+                phaseRoutine = StartCoroutine(AdvancePhase());
+        }
+
+        private IEnumerator AdvancePhase()
+        {
+            uint previous = Phase;
+            uint next = PendingPhase;
+            PhaseTransitionStarted?.Invoke(previous, next);
+            yield return null;
+            while (ai && ai.IsExecutingStep) yield return null;
+
+            if (phaseInfo && float.IsFinite(phaseInfo.TransitionSeconds) && phaseInfo.TransitionSeconds > 0f)
+                yield return new WaitForSeconds(phaseInfo.TransitionSeconds);
+
+            restoreParty?.Invoke();
+            Phase = next;
+            PendingPhase = 0;
+            health.PhaseDamageLocked = false;
+            phaseRoutine = null;
+            PhaseChanged?.Invoke(previous, next);
+        }
+
+        internal void ApplyNetworkPhase(uint phase, uint pending)
+        {
+            uint previous = Phase;
+            uint previousPending = PendingPhase;
+            Phase = phase;
+            PendingPhase = pending;
+            if (pending != 0 && pending != previousPending) PhaseTransitionStarted?.Invoke(phase, pending);
+            if (phase != previous) PhaseChanged?.Invoke(previous, phase);
+        }
+
         public void SetPhase(uint phase) => Phase = phase;
         public void CalcPhase()
         {
-            if (phaseInfo == null || phaseInfo.PhaseTrigger_HPRatio_Permil.Length <= 1)
+            if (health.LimitHealthAfterDamage != null || PhaseThresholds.Count <= 1)
                 return;
-
-            var health = GetComponent<Health>();
             
             if (!health) 
                 return;

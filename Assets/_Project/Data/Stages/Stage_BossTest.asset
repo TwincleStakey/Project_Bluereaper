@@ -12,5 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68a505b659e4bab4ba6b848fed842bbc, type: 3}
   m_Name: Stage_BossTest
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Stage.StageData
+  StageId: 2
+  DisplayName: Stage BossTest
   Fields:
   - {fileID: 2071061470985524830, guid: 91e87863122cf3342be63ca599c36538, type: 3}
+  BossHealthMultipliersByPartySize: {x: 1, y: 1, z: 1}
+  SharedHealthMultiplier: 1
+  LastBreathHealthMultiplier: 0.25

@@ -3,6 +3,8 @@ using BlueReaper.Core;
 
 namespace BlueReaper.Stage
 {
+    public enum HuntPhase { None, Afternoon, Evening, Night }
+
     public enum WaveSpawnType { Scattered, Ring, Clockwise, Pincer, Arrowhead }
 
     [Serializable]

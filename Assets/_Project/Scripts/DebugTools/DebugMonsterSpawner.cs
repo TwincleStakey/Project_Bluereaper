@@ -53,7 +53,7 @@ namespace BlueReaper.DebugTools
             Vector3 position = player.transform.position + player.transform.forward * spawnDistance;
             Quaternion rotation = Quaternion.LookRotation(-player.transform.forward);
             // 스테이지를 거쳐야 풀 사용 + 플레이어 목록 주입이 된다
-            stage.SpawnEnemy(prefab, position, rotation);
+            stage.SpawnEnemy(prefab, position, rotation, countsForClear: false);
         }
 
         void KillAll()

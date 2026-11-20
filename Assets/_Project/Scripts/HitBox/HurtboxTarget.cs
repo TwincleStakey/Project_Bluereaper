@@ -21,9 +21,11 @@ namespace BlueReaper.HitBox
             var unit = (target as Component)?.GetComponentInParent<Unit>();
             float defense = unit && unit.Data ? unit.Data.Defense : 0f;
             float damage = DamageFormula.Calculate(attack.Power, attack.Multiplier, defense);
+            PlayerLife player = source ? source.GetComponent<PlayerLife>() : null;
+            if (player) damage *= player.OutgoingDamageMultiplier;
             if (unit && unit.TryGetComponent(out Enemy enemy) && enemy.Rank == EnemyRank.Normal
                 && target is Health health && !health.IsDead && !health.NetworkDriven && !health.CombatLocked
-                && source && source.TryGetComponent(out PlayerLife player))
+                && player)
                 player.NotifyEnemyHit(enemy);
 
             return target.TakeDamage(part ? damage * (1f - part.DamageReduction) : damage, source);

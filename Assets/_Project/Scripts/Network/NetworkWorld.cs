@@ -8,13 +8,15 @@ namespace BlueReaper.Network
     {
         internal static bool Enabled { get; set; }
 
-        internal static GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation)
+        internal static GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation,
+            System.Action<GameObject> initialize = null)
         {
             if (!Enabled || !NetworkManager.Singleton || !NetworkManager.Singleton.IsServer
                 || !prefab.GetComponent<NetworkObject>())
-                return ObjectPool.Spawn(prefab, position, rotation);
+                return ObjectPool.Spawn(prefab, position, rotation, initialize);
 
             var instance = Object.Instantiate(prefab, position, rotation);
+            initialize?.Invoke(instance);
             instance.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
             return instance;
         }

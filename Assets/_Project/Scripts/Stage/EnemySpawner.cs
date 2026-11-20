@@ -16,70 +16,171 @@ namespace BlueReaper.Stage
         [Min(0.1f)] public float SpawnInterval = 3f;
         public SpawnData[] Waves;
 
+        [Serializable]
+        private struct RequiredElite
+        {
+            public Enemy Prefab;
+            [Min(1)] public int Count;
+            public HuntPhase StartPhase;
+        }
+
+        [SerializeField] private SpawnData[] eveningWaves;
+        [SerializeField] private SpawnData[] nightWaves;
+        [SerializeField] private RequiredElite[] requiredElites;
+
         private const int PositionAttempts = 12;
         private const int ClockwiseSteps = 4;
         private const float SpawnViewPadding = 2f;
         private readonly List<Transform> players = new();
         private readonly Plane[] targetView = new Plane[6];
 
+        internal long RequiredEliteCount
+        {
+            get
+            {
+                long total = 0;
+                if (requiredElites != null)
+                    foreach (var elite in requiredElites) total += elite.Count;
+                return total;
+            }
+        }
+
         public bool IsConfigured()
         {
             if (SpawnRadius <= 0f || !float.IsFinite(SpawnRadius) || MaxAliveEnemiesPerPlayer <= 0
-                || SpawnInterval <= 0f || !float.IsFinite(SpawnInterval) || Waves == null || Waves.Length == 0) return false;
+                || SpawnInterval <= 0f || !float.IsFinite(SpawnInterval) || !IsWaveTableConfigured(Waves)
+                || HasWaves(eveningWaves) && !IsWaveTableConfigured(eveningWaves)
+                || HasWaves(nightWaves) && !IsWaveTableConfigured(nightWaves))
+                return false;
 
+            if (requiredElites == null) return true;
+            foreach (var elite in requiredElites)
+                if (elite.Count <= 0 || !IsSpawnPrefab(elite.Prefab, EnemyRank.Elite)
+                    || elite.StartPhase is < HuntPhase.Afternoon or > HuntPhase.Night) return false;
+            return RequiredEliteCount <= int.MaxValue;
+        }
+
+        private static bool IsWaveTableConfigured(SpawnData[] waves)
+        {
+            if (!HasWaves(waves)) return false;
             float previousStart = -1f;
-            foreach (var wave in Waves)
+            foreach (var wave in waves)
             {
                 if (wave == null || wave.StartTime <= previousStart || !float.IsFinite(wave.StartTime)
                     || wave.StartTime < 0f || !Enum.IsDefined(typeof(WaveSpawnType), wave.Type)
                     || wave.Enemies == null || wave.Enemies.Length == 0 || (wave.Type == WaveSpawnType.Clockwise
                         && (wave.StepInterval <= 0f || !float.IsFinite(wave.StepInterval)))) return false;
                 foreach (var entry in wave.Enemies)
-                    if (!entry.Prefab || entry.Prefab.Rank == EnemyRank.Boss
-                        || !entry.Prefab.GetComponent<NavMeshAgent>() || !entry.Prefab.GetComponent<Health>()
-                        || entry.Count <= 0) return false;
+                    if (!IsSpawnPrefab(entry.Prefab, EnemyRank.Normal) || entry.Count <= 0) return false;
                 previousStart = wave.StartTime;
             }
             return true;
         }
 
+        private static bool IsSpawnPrefab(Enemy prefab, EnemyRank rank) =>
+            prefab && prefab.Rank == rank && !prefab.gameObject.scene.IsValid()
+            && prefab.GetComponent<NavMeshAgent>() && prefab.GetComponent<Health>();
+
+        private static bool HasWaves(SpawnData[] waves) => waves is { Length: > 0 };
+
         internal IEnumerator Run(StageController stage, StageField field, TopDownCamera view)
         {
-            float combatStarted = Time.time;
-            float nextSpawnAt = combatStarted;
+            var remainingElites = new int[requiredElites?.Length ?? 0];
+            for (int i = 0; i < remainingElites.Length; i++) remainingElites[i] = requiredElites[i].Count;
+            float waveTableStarted = Time.time;
+            float nextSpawnAt = waveTableStarted;
+            float nextEliteAttemptAt = waveTableStarted;
+            SpawnData[] activeTable = null;
             int activeWave = -1;
             int step = 0;
-            while (stage.IsFieldActive(field))
+            while (stage.CanSpawnWave(field))
             {
                 float now = Time.time;
-                int waveIndex = WaveAt(now - combatStarted);
-                if (waveIndex < 0)
+                var huntPhase = stage.CurrentHuntPhase;
+                var waves = WavesFor(huntPhase);
+                if (waves != activeTable)
                 {
-                    yield return null;
-                    continue;
+                    activeTable = waves;
+                    waveTableStarted = now;
+                    activeWave = -1;
                 }
-                var wave = Waves[waveIndex];
-                if (waveIndex != activeWave)
+
+                if (now >= nextEliteAttemptAt)
                 {
-                    activeWave = waveIndex;
-                    nextSpawnAt = now;
-                    step = 0;
+                    SpawnRequiredElites(stage, field, view, huntPhase, remainingElites);
+                    nextEliteAttemptAt = now + SpawnInterval;
                 }
-                if (now >= nextSpawnAt)
+
+                int waveIndex = WaveAt(waves, now - waveTableStarted);
+                if (waveIndex >= 0)
                 {
-                    SpawnBatch(stage, field, view, wave, step);
-                    step = wave.Type == WaveSpawnType.Clockwise ? (step + 1) % ClockwiseSteps : 0;
-                    nextSpawnAt = now + (step > 0 ? wave.StepInterval : SpawnInterval);
+                    var wave = waves[waveIndex];
+                    if (waveIndex != activeWave)
+                    {
+                        activeWave = waveIndex;
+                        nextSpawnAt = now;
+                        step = 0;
+                    }
+                    if (now >= nextSpawnAt)
+                    {
+                        SpawnBatch(stage, field, view, wave, step);
+                        step = wave.Type == WaveSpawnType.Clockwise ? (step + 1) % ClockwiseSteps : 0;
+                        nextSpawnAt = now + (step > 0 ? wave.StepInterval : SpawnInterval);
+                    }
                 }
                 yield return null;
             }
         }
 
-        private int WaveAt(float elapsed)
+        private SpawnData[] WavesFor(HuntPhase phase)
         {
-            int index = Waves.Length - 1;
-            while (index >= 0 && Waves[index].StartTime > elapsed) index--;
+            if (phase == HuntPhase.Night && HasWaves(nightWaves)) return nightWaves;
+            if (phase >= HuntPhase.Evening && HasWaves(eveningWaves)) return eveningWaves;
+            return Waves;
+        }
+
+        private static int WaveAt(SpawnData[] waves, float elapsed)
+        {
+            int index = waves.Length - 1;
+            while (index >= 0 && waves[index].StartTime > elapsed) index--;
             return index;
+        }
+
+        private void SpawnRequiredElites(StageController stage, StageField field, TopDownCamera view,
+            HuntPhase phase, int[] remaining)
+        {
+            bool anyPending = false;
+            for (int i = 0; i < remaining.Length; i++)
+                if (remaining[i] > 0 && requiredElites[i].StartPhase <= phase)
+                {
+                    anyPending = true;
+                    break;
+                }
+            if (!anyPending) return;
+
+            players.Clear();
+            players.AddRange(stage.AlivePlayers);
+            Physics.SyncTransforms();
+            foreach (Transform player in players)
+            {
+                if (!stage.CanSpawnWave(field)) return;
+                if (!player) continue;
+                int available = MaxAliveEnemiesPerPlayer - stage.CountEnemiesFor(player);
+                if (available <= 0) continue;
+                view.GetSpawnViewPlanes(player, targetView);
+                for (int index = 0; index < remaining.Length && available > 0; index++)
+                {
+                    var elite = requiredElites[index];
+                    if (elite.StartPhase > phase) continue;
+                    while (remaining[index] > 0 && available > 0 && stage.CanSpawnWave(field))
+                    {
+                        if (!TrySpawn(stage, field, elite.Prefab, player, WaveSpawnType.Scattered, 0, 0, 1, 0f))
+                            break;
+                        remaining[index]--;
+                        available--;
+                    }
+                }
+            }
         }
 
         private void SpawnBatch(StageController stage, StageField field, TopDownCamera view, SpawnData wave, int step)
@@ -91,7 +192,7 @@ namespace BlueReaper.Stage
             foreach (var entry in wave.Enemies) requested += entry.Count;
             foreach (Transform player in players)
             {
-                if (!stage.IsFieldActive(field)) break;
+                if (!stage.CanSpawnWave(field)) return;
                 if (!player) continue;
                 int available = MaxAliveEnemiesPerPlayer - stage.CountEnemiesFor(player);
                 if (available <= 0) continue;
@@ -102,23 +203,30 @@ namespace BlueReaper.Stage
                 {
                     for (int i = 0; i < entry.Count && available > 0 && i < MaxAliveEnemiesPerPlayer; i++, slot++)
                     {
-                        if (!stage.IsFieldActive(field)) return;
-                        for (int attempt = 0; attempt < PositionAttempts; attempt++)
-                        {
-                            Vector3 candidate = Candidate(player.position, field.LayoutOrigin.rotation, wave.Type,
-                                step, slot, requested, phase, attempt);
-                            if (!TryResolveSpawnPosition(stage, targetView, entry.Prefab, candidate, out Vector3 position)) continue;
-                            Vector3 forward = player.position - position;
-                            forward.y = 0f;
-                            stage.SpawnWaveEnemy(entry.Prefab, position,
-                                forward.sqrMagnitude > 0.001f ? Quaternion.LookRotation(forward) : Quaternion.identity, player);
+                        if (!stage.CanSpawnWave(field)) return;
+                        if (TrySpawn(stage, field, entry.Prefab, player, wave.Type, step, slot, requested, phase))
                             available--;
-                            break;
-                        }
                     }
                     if (available <= 0) break;
                 }
             }
+        }
+
+        private bool TrySpawn(StageController stage, StageField field, Enemy prefab, Transform owner,
+            WaveSpawnType type, int step, long slot, long count, float phase)
+        {
+            for (int attempt = 0; attempt < PositionAttempts; attempt++)
+            {
+                Vector3 candidate = Candidate(owner.position, field.LayoutOrigin.rotation, type,
+                    step, slot, count, phase, attempt);
+                if (!TryResolveSpawnPosition(stage, targetView, prefab, candidate, out Vector3 position)) continue;
+                Vector3 forward = owner.position - position;
+                forward.y = 0f;
+                stage.SpawnWaveEnemy(prefab, position,
+                    forward.sqrMagnitude > 0.001f ? Quaternion.LookRotation(forward) : Quaternion.identity, owner);
+                return true;
+            }
+            return false;
         }
 
         private Vector3 Candidate(Vector3 center, Quaternion orientation, WaveSpawnType type, int step,

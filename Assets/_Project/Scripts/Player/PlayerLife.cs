@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace BlueReaper.Player
 {
-    public enum LifeState { Alive, Downed, Dead }
+    public enum LifeState { Alive, Downed, Dead, Ghost }
 
     /// <summary>
     /// 플레이어 생존 상태. 정상 → (HP 0) 빈사 → (동료 구조) 정상 / (시간 초과) 사망.
@@ -26,7 +26,10 @@ namespace BlueReaper.Player
         readonly NetworkVariable<int> partySlot = new();
         readonly NetworkVariable<int> characterId = new();
         private int initialPartySlot, initialCharacterId;
-        readonly NetworkVariable<float> syncedHealth = new();
+        readonly NetworkVariable<Vector2> syncedHealth = new();
+        readonly NetworkVariable<Vector2> syncedSharedBossHealth = new();
+        private Vector2 sharedBossHealth;
+        private bool usesLastBreath;
         readonly NetworkVariable<float> syncedShield = new();
         readonly NetworkVariable<LifeState> syncedState = new();
         readonly NetworkVariable<float> syncedRescue = new();
@@ -38,6 +41,10 @@ namespace BlueReaper.Player
         Shield shield;
 
         public LifeState State { get; private set; } = LifeState.Alive;
+        public bool CanAct => State is LifeState.Alive or LifeState.Ghost;
+        public float OutgoingDamageMultiplier => State == LifeState.Ghost ? 0.3f : 1f;
+        public (float Current, float Maximum) SharedBossHealth => (sharedBossHealth.x, sharedBossHealth.y);
+        public event Action<float, float> SharedBossHealthChanged;
         /// <summary>사망까지 남은 시간(초). UI 카운트다운용.</summary>
         public float BleedOutLeft { get; private set; }
         /// <summary>빈사 → 사망까지 전체 시간(초). 남은 시간 링 비율 계산용.</summary>
@@ -51,6 +58,26 @@ namespace BlueReaper.Player
         internal static event Action<PlayerLife, bool> PartyPresenceChanged;
         internal event Action<Enemy> EnemyHit;
         public event Action<LifeState> StateChanged;
+
+        internal void ConfigureLastBreath(bool active) => usesLastBreath = active;
+
+        internal void RestoreForBossPhase()
+        {
+            if (!IsAuthority) return;
+            BleedOutLeft = 0f;
+            RescueProgress = 0f;
+            if (IsSpawned && IsServer) syncedBleedOutEnd.Value = 0d;
+            if (State != LifeState.Alive) SetState(LifeState.Alive);
+        }
+
+        internal void SetSharedBossHealth(float current, float maximum)
+        {
+            var snapshot = new Vector2(current, maximum);
+            if (IsSpawned && IsServer) syncedSharedBossHealth.Value = snapshot;
+            if (sharedBossHealth.Equals(snapshot)) return;
+            sharedBossHealth = snapshot;
+            SharedBossHealthChanged?.Invoke(current, maximum);
+        }
 
         internal void SetPartyIdentity(int slot, int character)
         {
@@ -92,9 +119,10 @@ namespace BlueReaper.Player
             if (IsServer)
             {
                 // 처음 접속한 팀원도 바로 맞는 값을 받도록 스폰 때 채워 둔다
+                syncedSharedBossHealth.Value = sharedBossHealth;
                 partySlot.Value = initialPartySlot;
                 characterId.Value = initialCharacterId;
-                syncedHealth.Value = health.Current;
+                syncedHealth.Value = new Vector2(health.Current, health.MaxHealth);
                 syncedShield.Value = shield ? shield.CurrentShield : 0f;
                 syncedState.Value = State;
                 syncedCombatLocked.Value = health.CombatLocked;
@@ -104,10 +132,12 @@ namespace BlueReaper.Player
 
             health.NetworkDriven = true;
             syncedHealth.OnValueChanged += OnSyncedHealth;
+            syncedSharedBossHealth.OnValueChanged += OnSyncedSharedBossHealth;
+            OnSyncedSharedBossHealth(default, syncedSharedBossHealth.Value);
             syncedShield.OnValueChanged += OnSyncedShield;
             OnSyncedShield(0f, syncedShield.Value);
             syncedState.OnValueChanged += OnSyncedState;
-            health.ApplyNetworkHealth(syncedHealth.Value);
+            OnSyncedHealth(default, syncedHealth.Value);
             OnSyncedState(State, syncedState.Value);
             PartyPresenceChanged?.Invoke(this, true);
         }
@@ -117,6 +147,8 @@ namespace BlueReaper.Player
             PartyPresenceChanged?.Invoke(this, false);
             if (IsServer) return;
             syncedHealth.OnValueChanged -= OnSyncedHealth;
+            syncedSharedBossHealth.OnValueChanged -= OnSyncedSharedBossHealth;
+            sharedBossHealth = default;
             syncedShield.OnValueChanged -= OnSyncedShield;
             syncedState.OnValueChanged -= OnSyncedState;
             health.NetworkDriven = false;
@@ -127,7 +159,7 @@ namespace BlueReaper.Player
             if (IsSpawned && IsServer)
             {
                 // 값이 같으면 보내지 않으므로 매 프레임 넣어도 된다
-                syncedHealth.Value = health.Current;
+                syncedHealth.Value = new Vector2(health.Current, health.MaxHealth);
                 syncedShield.Value = shield ? shield.CurrentShield : 0f;
                 syncedRescue.Value = RescueProgress;
                 syncedCombatLocked.Value = health.CombatLocked;
@@ -161,11 +193,19 @@ namespace BlueReaper.Player
             // 팀원 PC는 HP 0을 봐도 상태는 호스트가 보낸 값(OnSyncedState)으로 바꾼다
             if (!IsAuthority || CombatLocked || State != LifeState.Alive) return;
 
+            if (usesLastBreath)
+            {
+                SetState(LifeState.Ghost);
+                return;
+            }
+
             EnterDowned();
             SetState(LifeState.Downed);
         }
 
-        void OnSyncedHealth(float _, float value) => health.ApplyNetworkHealth(value);
+        void OnSyncedHealth(Vector2 _, Vector2 value) => health.ApplyNetworkHealth(value.x, value.y);
+
+        void OnSyncedSharedBossHealth(Vector2 _, Vector2 value) => SetSharedBossHealth(value.x, value.y);
 
         void OnSyncedShield(float _, float value)
         {

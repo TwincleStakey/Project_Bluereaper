@@ -61,7 +61,8 @@ namespace BlueReaper.Stage
         private Health hudBoss;
         private int requiredKills;
         private int fieldKills;
-        private bool bossesOnly;
+        private EnemyRank clearRank;
+        private int huntKills;
         private bool fieldComplete;
         private bool managedRun;
         private bool runFinished;
@@ -128,7 +129,7 @@ namespace BlueReaper.Stage
             StageUnitRecord record = units[unit];
             record.OnRevived = () =>
             {
-                if (runFinished || clearConfirmed || !IsRegistered(record) || !record.Dead) return;
+                if (runFinished || !IsRegistered(record) || !record.Dead) return;
                 record.Dead = false;
                 alivePlayers.Add(player.transform);
             };
@@ -144,14 +145,13 @@ namespace BlueReaper.Stage
                 yield break;
             }
 
-            foreach (var field in stageData.Fields)
-                if (field && field.UsesManagedFieldFlow) usesManagedFields = true;
-            if (usesManagedFields && (!playerCamera || !exitPortalPrefab))
+            if (!playerCamera || !exitPortalPrefab)
             {
-                AbortStage("Managed fields require the stage camera and the exit portal prefab.");
+                AbortStage("Stage fields require the stage camera and the exit portal prefab.");
                 yield break;
             }
 
+            var bossSpawns = new List<(Enemy Prefab, Vector3 Position, Quaternion Rotation)>();
             for (int index = 0; index < stageData.Fields.Length; index++)
             {
                 StageField prefab = stageData.Fields[index];
@@ -166,41 +166,44 @@ namespace BlueReaper.Stage
                 var spawner = currentField.DynamicSpawner;
                 bool bossField = currentField.HasBossSpawn;
                 if (!currentField.isActiveAndEnabled || !currentField.Entrance
-                    || (!bossField && (spawner ? !spawner.IsConfigured() || currentField.PurificationGoal <= 0
-                        || currentField.ReadyPads.Length < alivePlayers.Count
-                        : !currentField.TryGetClearTarget(out requiredKills, out bossesOnly))))
+                    || (!bossField && (!spawner || !spawner.IsConfigured() || !currentField.IsHuntProgressConfigured()
+                        || currentField.ReadyPads.Length < alivePlayers.Count)))
                 {
-                    AbortStage($"Field {prefab.name} has an invalid entrance or spawn plan.");
+                    AbortStage($"Field {prefab.name} has an invalid entrance or hunt spawn plan.");
                     yield break;
                 }
 
-                Enemy bossPrefab = null;
-                Vector3 bossPosition = default;
-                Quaternion bossRotation = default;
                 if (bossField)
                 {
-                    if (!currentField.TryResolveBossSpawn(out bossPrefab, out bossPosition, out bossRotation)
-                        || (NetworkWorld.Enabled && (!bossPrefab.GetComponent<NetworkObject>() || !bossPrefab.GetComponent<EnemyNetworkState>())))
+                    if (!currentField.TryResolveBossSpawns(bossSpawns)
+                        || (NetworkWorld.Enabled && bossSpawns.Exists(spawn =>
+                            !spawn.Prefab.GetComponent<NetworkObject>() || !spawn.Prefab.GetComponent<EnemyNetworkState>())))
                     {
-                        AbortStage($"Field {prefab.name} requires one Boss prefab and an in-field spawn point on its NavMesh.");
+                        AbortStage($"Field {prefab.name} requires Boss prefabs with in-field spawn points on its NavMesh.");
                         yield break;
                     }
-
-                    requiredKills = 1;
-                    bossesOnly = true;
                     currentField.SetReadyPadsVisible(false);
                 }
-                else if (spawner)
+                else
                 {
-                    requiredKills = currentField.PurificationGoal;
-                    bossesOnly = false;
+                    bossSpawns.Clear();
                     foreach (var enemy in currentField.PlacedUnits)
                         if (enemy) enemy.gameObject.SetActive(false);
                 }
+
+                if (!currentField.TryGetClearTarget(bossSpawns.Count, out requiredKills, out clearRank))
+                {
+                    AbortStage($"Field {prefab.name} has invalid required enemy counts or a Boss in the hunt spawn plan.");
+                    yield break;
+                }
+
                 fieldKills = 0;
+                huntKills = 0;
                 fieldComplete = false;
                 readyForNextField = false;
                 FieldProgress = default;
+                SetHuntPhase(HuntPhase.None);
+                PrepareBossCombat(bossField);
                 FieldChanged?.Invoke(index);
                 MovePlayers(currentField.Entrance);
                 if (currentField.OpeningDialogue != null)
@@ -213,7 +216,6 @@ namespace BlueReaper.Stage
                     currentField.SetReadyPadsVisible(false);
                 }
                 else SetFieldProgress(StageFieldPhase.None);
-                if (requiredKills == 0) CompleteField();
                 foreach (Unit unit in currentField.PlacedUnits)
                 {
                     unit.gameObject.SetActive(true);
@@ -225,6 +227,7 @@ namespace BlueReaper.Stage
                     var enemy = unit.GetComponent<Enemy>();
                     if (enemy)
                     {
+                        InitializeEnemyCombat(unit.gameObject);
                         NetworkWorld.SpawnPlaced(unit.gameObject);
                         InitEnemy(enemy);
                     }
@@ -232,29 +235,16 @@ namespace BlueReaper.Stage
                     if (!isActiveAndEnabled) yield break;
                 }
 
-                if (bossField) SpawnEnemy(bossPrefab, bossPosition, bossRotation);
-                else if (spawner) yield return spawner.Run(this, currentField, playerCamera);
-                for (uint round = 0; !bossField && !spawner && round < currentField.RepeatSpawnCount && !fieldComplete; round++)
-                {
-                    if (!SpawnWave(currentField))
-                    {
-                        AbortStage($"Could not spawn a wave in field {prefab.name}. Check its enemy prefabs and NavMesh.");
-                        yield break;
-                    }
-
-                    if (!isActiveAndEnabled) yield break;
-                    if (round + 1 >= currentField.RepeatSpawnCount || fieldComplete) break;
-                    float nextWaveAt = Time.time + currentField.RepeatSpawnDelay;
-                    do { yield return null; }
-                    while (!fieldComplete && !runFinished && Time.time < nextWaveAt);
-                    if (runFinished) yield break;
-                }
+                if (bossField)
+                    foreach (var boss in bossSpawns)
+                        SpawnEnemy(boss.Prefab, boss.Position, boss.Rotation);
+                else yield return spawner.Run(this, currentField, playerCamera);
 
                 while (!fieldComplete && !runFinished) yield return null;
                 if (runFinished) yield break;
                 if (lastField && clearConfirmed)
                     yield return WaitForExitPortal();
-                else if (currentField.UsesManagedFieldFlow)
+                else
                 {
                     while (!readyForNextField && !runFinished) yield return null;
                     SetCombatLocked(false);
@@ -267,7 +257,6 @@ namespace BlueReaper.Stage
             stageRoutine = null;
             if (runFinished) yield break;
             FinishRun(StageRunResult.Cleared);
-            if (!clearConfirmed || !managedRun) GameEvents.RaiseStageCleared();
         }
 
         private void MovePlayers(PlayerSpawnEntry entrance)
@@ -290,28 +279,6 @@ namespace BlueReaper.Stage
                 else if (motor) motor.Teleport(position, entrance.transform.rotation);
                 else player.SetPositionAndRotation(position, entrance.transform.rotation);
             }
-        }
-
-        private bool SpawnWave(StageField field)
-        {
-            foreach (EnemySpawnEntry entry in field.SpawnEntries)
-            {
-                for (int i = 0; i < entry.EnemyPrefab.Length; i++)
-                {
-                    Enemy prefab = entry.EnemyPrefab[i];
-                    for (uint count = 0; count < entry.SpawnCount[i]; count++)
-                    {
-                        if (fieldComplete || !isActiveAndEnabled) return true;
-                        Vector2 offset = Random.insideUnitCircle * entry.SpawnRadius;
-                        Transform marker = entry.transform;
-                        Vector3 position = marker.position + new Vector3(offset.x, 0f, offset.y);
-                        if (!TryGetSpawnPosition(prefab, position, marker.position, out Vector3 spawnPosition))
-                            return false;
-                        SpawnEnemy(prefab, spawnPosition, marker.rotation);
-                    }
-                }
-            }
-            return true;
         }
 
         private static bool TryGetSpawnPosition(Enemy prefab, Vector3 position, Vector3 fallback, out Vector3 spawnPosition)
@@ -372,7 +339,7 @@ namespace BlueReaper.Stage
 
         public Enemy SpawnEnemy(Enemy prefab, Vector3 position, Quaternion rotation, bool countsForClear = true)
         {
-            var enemy = NetworkWorld.Spawn(prefab.gameObject, position, rotation).GetComponent<Enemy>();
+            var enemy = NetworkWorld.Spawn(prefab.gameObject, position, rotation, InitializeEnemyCombat).GetComponent<Enemy>();
             InitEnemy(enemy, countsForClear);
             return enemy;
         }
@@ -380,7 +347,10 @@ namespace BlueReaper.Stage
         private void InitEnemy(Enemy enemy, bool countsForClear = true)
         {
             enemy.Init(alivePlayers);
+            if (countsForClear && bossParty.Count > 0)
+                enemy.EnableBossPhases(RestoreBossParty);
             RegisterUnit(enemy.GetComponent<Unit>(), currentField, countsForClear);
+            if (CurrentHuntPhase != HuntPhase.None) HuntEnemySpawned?.Invoke(enemy, CurrentHuntPhase);
             if (countsForClear && enemy.Rank == EnemyRank.Boss)
                 GameEvents.RaiseBossSpawned(enemy.GetComponent<Health>());
         }
@@ -418,21 +388,29 @@ namespace BlueReaper.Stage
 
         private void OnUnitDied(StageUnitRecord record)
         {
-            if (!IsRegistered(record) || record.Dead || clearConfirmed) return;
+            if (!IsRegistered(record) || record.Dead || runFinished) return;
             record.Dead = true;
             if (record.Field is null && !record.Enemy)
             {
                 alivePlayers.Remove(record.Unit.transform);
-                if (alivePlayers.Count == 0) FinishRun(StageRunResult.PartyDefeated);
+                if (alivePlayers.Count == 0 && (clearConfirmed || !IsBossPhaseTransitioning()))
+                    FinishRun(clearConfirmed ? StageRunResult.Cleared : StageRunResult.PartyDefeated);
                 return;
             }
 
-            if (!fieldComplete && record.CountsForClear && record.Enemy && currentField && ReferenceEquals(record.Field, currentField)
-                && (!bossesOnly || record.Enemy.Rank == EnemyRank.Boss))
+            if (!fieldComplete && record.CountsForClear && record.Enemy && currentField && ReferenceEquals(record.Field, currentField))
             {
-                fieldKills++;
+                bool phaseChanged = false;
+                if (currentField.DynamicSpawner && huntKills < int.MaxValue)
+                {
+                    huntKills++;
+                    phaseChanged = SetHuntPhase(currentField.GetHuntPhase(huntKills));
+                }
+
+                if (record.Enemy.Rank == clearRank) fieldKills++;
                 if (fieldKills >= requiredKills) CompleteField();
-                else if (currentField.DynamicSpawner) SetFieldProgress(StageFieldPhase.Combat, fieldKills, requiredKills);
+                else if (currentField.DynamicSpawner)
+                    SetFieldProgress(StageFieldPhase.Combat, fieldKills, requiredKills, phaseChanged);
             }
 
             if (!record.AI || !record.AI.isActiveAndEnabled) ReleaseUnit(record);
@@ -495,7 +473,10 @@ namespace BlueReaper.Stage
         }
 
         internal bool IsFieldActive(StageField field) =>
-            isActiveAndEnabled && !runFinished && !fieldComplete && field && ReferenceEquals(field, currentField);
+            isActiveAndEnabled && !runFinished && !enteredExitPortal && (!fieldComplete || clearConfirmed)
+            && field && ReferenceEquals(field, currentField);
+
+        internal bool CanSpawnWave(StageField field) => !fieldComplete && IsFieldActive(field);
 
         private void OnDeathProjectileReturned(ProjectileHitBox projectile) => deathProjectiles.Remove(projectile);
 
@@ -562,14 +543,16 @@ namespace BlueReaper.Stage
 
         private void FinishRun(StageRunResult result)
         {
-            if (!managedRun || runFinished) return;
+            if (runFinished) return;
             runFinished = true;
             RunFinished?.Invoke(result);
+            if (!managedRun) ReleaseStage();
         }
 
         private void ReleaseStage()
         {
             ReleaseExitPortal();
+            EndBossCombat();
             SetCombatLocked(false);
             ReleaseDeathProjectiles();
             foreach (StageUnitRecord record in new List<StageUnitRecord>(units.Values))
@@ -577,6 +560,7 @@ namespace BlueReaper.Stage
             alivePlayers.Clear();
             HideBossHUD();
             UnloadCurrentField();
+            SetHuntPhase(HuntPhase.None);
         }
 
         private void UnloadCurrentField()
@@ -600,7 +584,17 @@ namespace BlueReaper.Stage
 
         private void OnBossDefeated(Health boss)
         {
-            if (hudBoss == boss) HideBossHUD();
+            if (hudBoss != boss) return;
+            foreach (var record in units.Values)
+            {
+                if (!record.Dead && record.CountsForClear && ReferenceEquals(record.Field, currentField)
+                    && record.Enemy && record.Enemy.Rank == EnemyRank.Boss && record.Health && !record.Health.IsDead)
+                {
+                    OnBossSpawned(record.Health);
+                    return;
+                }
+            }
+            HideBossHUD();
         }
 
         internal void ShowRemoteBoss(Enemy enemy)
@@ -613,7 +607,16 @@ namespace BlueReaper.Stage
 
         internal void HideRemoteBoss(Health health)
         {
-            if (hudBoss == health) HideBossHUD();
+            if (hudBoss != health) return;
+            foreach (var remote in FindObjectsByType<EnemyNetworkState>(FindObjectsSortMode.None))
+            {
+                if (remote.IsServer || !remote.IsSpawned || !remote.TryGetComponent(out Enemy enemy)
+                    || enemy.Rank != EnemyRank.Boss || !enemy.TryGetComponent(out Health candidate)
+                    || candidate == health || candidate.IsDead) continue;
+                ShowRemoteBoss(enemy);
+                return;
+            }
+            HideBossHUD();
         }
 
         internal void HideBossHUD()
