@@ -100,6 +100,7 @@ namespace BlueReaper.Core
 
         private void OnHealthDamaged(float amount)
         {
+            if (health.PhaseDamageLocked) return;
             if (!health.IsDead)
                 DamagedToPosture(amount * postureDamageRatio);
         }

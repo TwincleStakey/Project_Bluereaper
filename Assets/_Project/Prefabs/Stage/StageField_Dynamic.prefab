@@ -55,12 +55,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ff187e4c75b6b64ab11eec76914d5c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Stage.StageField
-  RepeatSpawnCount: 1
-  RepeatSpawnDelay: 0
-  ClearPercent: 85
   fieldObject: {fileID: 0}
   dynamicSpawner: {fileID: 6701094242921791729}
   purificationGoal: 30
+  huntReferenceKills: 40
+  eveningPercent: 35
+  nightPercent: 70
   openingDialogue: []
 --- !u!114 &6701094242921791729
 MonoBehaviour:

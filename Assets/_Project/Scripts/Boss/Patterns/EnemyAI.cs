@@ -61,6 +61,7 @@ namespace BlueReaper.Boss
         }
 
         private PatternState currentPatternState;
+        internal bool IsExecutingStep { get; private set; }
         private Unit unit;
         private Enemy Owner;
         private Health health;
@@ -193,6 +194,7 @@ namespace BlueReaper.Boss
             hasChaseDestination = false;
             if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
             currentPatternState = PatternState.None;
+            IsExecutingStep = false;
             initialChaseTarget = null;
         }
 
@@ -208,6 +210,18 @@ namespace BlueReaper.Boss
 
             while (!health.IsDead)
             {
+                if (Owner.IsPhaseTransitioning)
+                {
+                    selectedAction = null;
+                    if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
+                    PlayLocomotion(false);
+                    yield return null;
+                    continue;
+                }
+                if (selectedAction && Owner.Rank == EnemyRank.Boss
+                    && (selectedAction.RequirePhase == null || !selectedAction.RequirePhase.Contains(Owner.Phase)))
+                    selectedAction = null;
+
                 if (posture && posture.IsGroggy)
                 {
                     yield return null;
@@ -427,9 +441,10 @@ namespace BlueReaper.Boss
         private IEnumerator ExecuteAction(EnemyActionData action, IReadOnlyList<Transform> targets)
         {
             var execution = new PatternExecution();
+            uint startPhase = Owner.Phase;
             if (action is EnemyPatternData pattern)
             {
-                yield return ExecutePattern(pattern, targets, action.CanForwardTracking, execution);
+                yield return ExecuteStep(pattern, targets, action.CanForwardTracking, execution);
                 yield break;
             }
 
@@ -438,10 +453,10 @@ namespace BlueReaper.Boss
                 List<Transform> stepTargets = null;
                 foreach (EnemyPatternData step in steps)
                 {
-                    if (health.IsDead || !step) yield break;
+                    if (health.IsDead || !step || Owner.IsPhaseTransitioning || Owner.Phase != startPhase) yield break;
                     if (step.TargetMode == ActionTargetMode.Inherit)
                     {
-                        yield return ExecutePattern(step, targets, action.CanForwardTracking, execution);
+                        yield return ExecuteStep(step, targets, action.CanForwardTracking, execution);
                         continue;
                     }
 
@@ -450,7 +465,7 @@ namespace BlueReaper.Boss
                     Quaternion facing = transform.rotation;
                     Vector3 direction = trackingDirection;
                     FaceTarget(FirstTarget(stepTargets));
-                    yield return ExecutePattern(step, stepTargets, action.CanForwardTracking, execution);
+                    yield return ExecuteStep(step, stepTargets, action.CanForwardTracking, execution);
                     if (health.IsDead) yield break;
                     transform.rotation = facing;
                     trackingDirection = direction;
@@ -493,6 +508,14 @@ namespace BlueReaper.Boss
             if (!moving && Time.time < motionUntil) return;
             string state = moving ? "Move" : "Idle";
             if (!animator.GetCurrentAnimatorStateInfo(0).IsName(state)) animator.Play(state, 0, 0f);
+        }
+
+        private IEnumerator ExecuteStep(EnemyPatternData pattern, IReadOnlyList<Transform> targets,
+            bool canForwardTracking, PatternExecution execution)
+        {
+            IsExecutingStep = true;
+            yield return ExecutePattern(pattern, targets, canForwardTracking, execution);
+            IsExecutingStep = false;
         }
 
         private IEnumerator ExecutePattern(EnemyPatternData pattern, IReadOnlyList<Transform> targets,
@@ -854,11 +877,14 @@ namespace BlueReaper.Boss
                     if (health.IsDead || canFire?.Invoke() == false) yield break;
                     if (capturedPlacement == null && bulletAttack.AimAtTargetEachEmission)
                     {
-                        if (!IsCurrentPlayer(target)) break;
                         origin = transform.position;
-                        Vector3 aim = target.position - origin;
-                        aim.y = 0f;
-                        if (aim.sqrMagnitude > 0.0001f) facing = Quaternion.LookRotation(aim);
+                        if (IsCurrentPlayer(target))
+                        {
+                            Vector3 aim = target.position - origin;
+                            aim.y = 0f;
+                            if (aim.sqrMagnitude > 0.0001f) facing = Quaternion.LookRotation(aim);
+                        }
+                        else if (!Owner.IsPhaseTransitioning) break;
                     }
                     bool launched = false;
                     for (int path = 0; path < bulletAttack.MaximumCount; path++)

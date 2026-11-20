@@ -11,7 +11,9 @@ namespace BlueReaper.Network
     [RequireComponent(typeof(Health), typeof(Enemy))]
     public sealed class EnemyNetworkState : NetworkBehaviour
     {
-        private readonly NetworkVariable<float> hp = new();
+        private readonly NetworkVariable<Vector2> hp = new();
+        private readonly NetworkVariable<Vector2Int> bossPhase = new();
+        private Enemy enemy;
         private readonly NetworkVariable<float> shieldPoints = new();
         private readonly NetworkVariable<float> posturePoints = new();
         private readonly NetworkVariable<bool> groggy = new();
@@ -24,18 +26,25 @@ namespace BlueReaper.Network
         private void Awake()
         {
             health = GetComponent<Health>();
+            enemy = GetComponent<Enemy>();
             shield = GetComponent<Shield>();
-            if (GetComponent<Enemy>().Rank == EnemyRank.Boss) posture = GetComponent<Posture>();
+            if (enemy.Rank == EnemyRank.Boss) posture = GetComponent<Posture>();
         }
 
         public override void OnNetworkSpawn()
         {
             if (IsServer)
             {
-                hp.Value = health.Current;
+                hp.Value = new Vector2(health.Current, health.MaxHealth);
                 shieldPoints.Value = shield ? shield.CurrentShield : 0f;
                 UpdatePosture();
-                if (GetComponent<Enemy>().Rank == EnemyRank.Boss) health.DamageApplied += PublishBossHit;
+                if (enemy.Rank == EnemyRank.Boss)
+                {
+                    bossPhase.Value = new Vector2Int((int)enemy.Phase, (int)enemy.PendingPhase);
+                    health.DamageApplied += PublishBossHit;
+                    enemy.PhaseTransitionStarted += PublishBossPhase;
+                    enemy.PhaseChanged += PublishBossPhase;
+                }
                 return;
             }
 
@@ -44,7 +53,9 @@ namespace BlueReaper.Network
             if (TryGetComponent(out NavMeshAgent agent)) agent.enabled = false;
             hp.OnValueChanged += ApplyHp;
             shieldPoints.OnValueChanged += ApplyShield;
-            ApplyHp(0f, hp.Value);
+            ApplyHp(default, hp.Value);
+            if (enemy.Rank == EnemyRank.Boss)
+                enemy.ApplyNetworkPhase((uint)bossPhase.Value.x, (uint)bossPhase.Value.y);
             ApplyShield(0f, shieldPoints.Value);
             if (posture)
             {
@@ -60,6 +71,8 @@ namespace BlueReaper.Network
         public override void OnNetworkDespawn()
         {
             health.DamageApplied -= PublishBossHit;
+            enemy.PhaseTransitionStarted -= PublishBossPhase;
+            enemy.PhaseChanged -= PublishBossPhase;
             if (posture)
             {
                 posturePoints.OnValueChanged -= OnPostureChanged;
@@ -75,7 +88,7 @@ namespace BlueReaper.Network
         private void Update()
         {
             if (!IsSpawned || !IsServer) return;
-            hp.Value = health.Current;
+            hp.Value = new Vector2(health.Current, health.MaxHealth);
             shieldPoints.Value = shield ? shield.CurrentShield : 0f;
             UpdatePosture();
         }
@@ -100,7 +113,24 @@ namespace BlueReaper.Network
                 BossHit?.Invoke(before, after);
         }
 
-        private void ApplyHp(float _, float value) => health.ApplyNetworkHealth(value);
+        private void PublishBossPhase(uint previous, uint next)
+        {
+            var snapshot = new Vector2Int((int)enemy.Phase, (int)enemy.PendingPhase);
+            var currentHealth = new Vector2(health.Current, health.MaxHealth);
+            bossPhase.Value = snapshot;
+            hp.Value = currentHealth;
+            ShowBossPhaseRpc(snapshot, currentHealth);
+        }
+
+        [Rpc(SendTo.NotServer, InvokePermission = RpcInvokePermission.Server)]
+        private void ShowBossPhaseRpc(Vector2Int phase, Vector2 currentHealth, RpcParams rpcParams = default)
+        {
+            if (rpcParams.Receive.SenderClientId != NetworkManager.ServerClientId) return;
+            ApplyHp(default, currentHealth);
+            enemy.ApplyNetworkPhase((uint)phase.x, (uint)phase.y);
+        }
+
+        private void ApplyHp(Vector2 _, Vector2 value) => health.ApplyNetworkHealth(value.x, value.y);
 
         private void ApplyShield(float _, float value)
         {

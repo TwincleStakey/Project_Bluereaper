@@ -64,16 +64,16 @@ flowchart LR
 
 [StageController.RunStage](../Assets/_Project/Scripts/Stage/StageController.cs)는 선택한 StageData의 필드 프리팹을 배열 순서대로 생성한다. 현재 게임 메뉴와 Seonggyu 샌드박스는 Stage_Dynamic을 사용한다. 필드 전환과 본체·사망 탄막 회수는 [개체 수명 계약](contracts/UNIT_LIFECYCLE.md)을 참조한다.
 
-거점의 **Select Stage Dynamic**에서 [동적 스폰 예제](../Assets/_Project/Data/Stages/Stage_Dynamic.asset)를 선택할 수 있다. 중앙 입장 후 준비 발판에서 출발하고, 처치로 공용 정화 게이지를 채운다. 최종 클리어 뒤 생존자 중앙의 포털을 통과하면 같은 방의 거점으로 돌아온다. [동적 스포너](../Assets/_Project/Scripts/Stage/EnemySpawner.cs) · [동적 필드 계약](contracts/UNIT_LIFECYCLE.md#동적-스폰-필드)
+거점의 **Select Stage Dynamic**에서 [동적 스폰 예제](../Assets/_Project/Data/Stages/Stage_Dynamic.asset)를 선택할 수 있다. 중앙 입장 후 준비 발판에서 출발하고, 처치로 공용 정화 게이지를 채운다. 최종 클리어 뒤 생존자 중앙에 포털이 열린다. 남은 적을 사냥하거나 포털을 이용해 같은 방의 거점으로 돌아갈 수 있다. 포털 개방 후 전멸해도 클리어 결과로 복귀한다. [동적 스포너](../Assets/_Project/Scripts/Stage/EnemySpawner.cs) · [동적 필드 계약](contracts/UNIT_LIFECYCLE.md#동적-스폰-필드)
 
 ### 스테이지 편집
 
 1. Unity 메뉴에서 **Tools > BlueReaper > Stage Editor**를 열고 기존 StageData를 고르거나 새로 만든다.
 2. **필드 진행 순서**에 StageField 프리팹을 추가하고 배열의 순서를 맞춘 뒤 **StageData 저장**을 누른다. 새 필드가 필요하면 Project 창에서 StageField_Dynamic을 복제한 뒤 목록에 넣는다.
-3. **Prefab Mode에서 편집**을 열고 정화 목표, 스포너의 반경·정원·반복 주기·웨이브 구성을 편집한다. 웨이브 목록은 시작 시간 오름차순으로 정리한다. 각 웨이브에서 적 프리팹과 1회 수량을 지정하고, 순차 급습은 단계 간격도 지정한다.
+3. **Prefab Mode에서 편집**을 열고 일반 적 필드의 정화 목표, 시간대 기준 처치 수, 저녁·한밤 전환 비율을 편집한다. 스포너의 반경·정원·주기 및 시간대별 웨이브는 아래에서 설정한다. 웨이브마다 일반 적 프리팹과 1회 수량, 시작 시간, 필요 시 순차 급습 간격을 지정한다. 필수 엘리트는 별도 목록에 표시되는 시간대와 총수량을 지정한다.
 4. 도구에서 중앙 입구와 준비 발판을 추가한 다음 Unity SceneView에서 배치와 크기를 조정한다. 최대 3인 필드는 활성 준비 발판 3개를 사용한다. 지형을 바꿨으면 해당 프리팹에 사용할 NavMesh를 Bake하고 저장한다. 복제한 프리팹에서 지형을 바꿀 때는 원본과 별도 NavMesh 에셋을 사용한다.
-5. 새 StageData를 거점에서 선택할 수 있게 하려면 GameMenu 씬의 GameFlow **Stages** 목록에 추가한다.
-6. 보스 필드는 Stage Editor에서 **보스 프리팹**과 **보스 스폰 지점**을 연결한다. 지점은 **보스 스폰 지점 추가**로 만든 다음 SceneView에서 NavMesh 위에 놓고 정면을 맞춘다. **동적 스포너** 연결은 비운다. 일반·엘리트 필드와 보스 필드는 같은 StageData에 순서대로 담을 수 있다.
+5. 새 StageData에 고유한 스테이지 ID와 표시 이름을 지정한다. **스테이지 카탈로그**에 등록해 기본 개방을 켜면 거점에서 선택할 수 있다.
+6. 보스 필드는 Stage Editor의 **보스 스폰** 목록에서 각 항목에 보스 프리팹과 스폰 지점을 연결한다. **보스 스폰 지점 추가**로 지점을 만들고 SceneView에서 NavMesh 위에 놓아 정면을 맞춘다. 여러 보스를 사용하는 필드는 같은 목록에 항목을 추가한다. **동적 스포너** 연결은 비운다. 일반·엘리트 필드와 보스 필드는 같은 StageData에 순서대로 담을 수 있다.
 7. 거점에서 **Select Stage BossTest**를 선택하면 보스 하나가 고정 위치에서 등장하는 [테스트 스테이지](../Assets/_Project/Data/Stages/Stage_BossTest.asset)에 출발한다.
 
 ## UI·카메라·보상·제작 도구
@@ -95,4 +95,4 @@ flowchart LR
 | 적 패턴 선택·실행 | `EnemyAI.AIUpdate` → `SelectNextPattern` → `ExecuteAction` → `ExecutePattern` |
 | 웨이브와 소환 | `RunStage` → `SpawnWave` 또는 패턴 효과 → `SummonEnemies` → `SpawnEnemy` → `RegisterUnit` |
 | 적 사망과 본체 반환 | `Health.Died` → `EnemyAI.IEDied` / `StageController.OnUnitDied` → `DeathPresentationFinished` → `ReleaseUnit` |
-| 필드 종료와 사망 탄막 | `OnUnitDied` → `ReleaseDeathProjectiles` → `FinishField` → 다음 필드 또는 `StageCleared` |
+| 필드 종료와 사망 탄막 | 중간 필드의 전환 또는 최종 필드에서 포털 이용·패배로 전투가 종료될 때 남은 발사와 생성된 탄을 회수 |

@@ -89,7 +89,8 @@ namespace BlueReaper.GameFlow
 
         internal void ShowProgress((StageFieldPhase Phase, int Current, int Goal) progress, bool isHost)
         {
-            if (progress.Phase is StageFieldPhase.NextField or StageFieldPhase.ExitPortal) EndFieldHud();
+            if (progress.Phase == StageFieldPhase.NextField) EndFieldHud();
+            else if (progress.Phase == StageFieldPhase.ExitPortal && controller) controller.HideBossHUD();
             if (remoteField)
                 remoteField.SetReadyPadsVisible(remoteField.DynamicSpawner && (progress.Phase is StageFieldPhase.Preparing
                     or StageFieldPhase.Countdown or StageFieldPhase.None));

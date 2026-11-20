@@ -96,11 +96,15 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
-      propertyPath: bossPrefab
+      propertyPath: bossSpawns.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+      propertyPath: bossSpawns.Array.data[0].Prefab
       value:
       objectReference: {fileID: 7612043392014892968, guid: a9f65f99291e29e4fa6a062803e73e46, type: 3}
     - target: {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
-      propertyPath: bossSpawnPoint
+      propertyPath: bossSpawns.Array.data[0].Point
       value:
       objectReference: {fileID: 2813995030760399245}
     - target: {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}

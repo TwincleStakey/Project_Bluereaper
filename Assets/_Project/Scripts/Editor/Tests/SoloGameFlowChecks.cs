@@ -3,10 +3,15 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using BlueReaper.Boss;
+using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
+using BlueReaper.Data;
+using BlueReaper.HitBox;
 using BlueReaper.Network;
 using BlueReaper.Player;
 using BlueReaper.Stage;
+using BlueReaper.Stage.Editor;
 using BlueReaper.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -101,6 +106,9 @@ namespace BlueReaper.GameFlow.Editor
         static IEnumerator CheckFlow()
         {
             while (!FindButton("New Game")) yield return null;
+            CheckStageCatalog();
+            CheckBossPartyHealth();
+            yield return null;
             Require(!FindButton("Continue").interactable, "Continue must be disabled without a save.");
             Submit("Settings");
             var volume = GameObject.Find("Master Volume").GetComponent<Slider>();
@@ -158,12 +166,19 @@ namespace BlueReaper.GameFlow.Editor
             Debug.Log("SOLO CHECK PASS 2/5: Cleared the dynamic field and returned through the portal to a playable hub.");
 
             using var flow = new SerializedObject(Object.FindFirstObjectByType<GameFlow>());
-            var stageSlot = flow.FindProperty("stages").GetArrayElementAtIndex(0);
+            var catalogSlot = flow.FindProperty("stageCatalog");
+            var originalCatalog = (StageCatalogData)catalogSlot.objectReferenceValue;
+            var testCatalog = Object.Instantiate(originalCatalog);
+            using var testCatalogData = new SerializedObject(testCatalog);
+            var entries = testCatalogData.FindProperty("entries");
+            var stageSlot = entries.GetArrayElementAtIndex(0).FindPropertyRelative("Stage");
             var originalStage = (StageData)stageSlot.objectReferenceValue;
             var twoFields = Object.Instantiate(originalStage);
             twoFields.name = originalStage.name;
             twoFields.Fields = new[] { originalStage.Fields[0], originalStage.Fields[0] };
             stageSlot.objectReferenceValue = twoFields;
+            testCatalogData.ApplyModifiedPropertiesWithoutUndo();
+            catalogSlot.objectReferenceValue = testCatalog;
             flow.ApplyModifiedPropertiesWithoutUndo();
 
             Submit("Depart");
@@ -173,24 +188,26 @@ namespace BlueReaper.GameFlow.Editor
             var firstField = FindField(DynamicField);
             yield return PrepareDynamicCombat(firstField, retry);
             yield return CheckNextFieldHud(firstField, retry);
-            Hit(retry);
-            while (!HasText("Defeated. Ready to redeploy.")) yield return null;
-            var afterDefeat = CheckReturnedToHub(retry);
-            stageSlot.objectReferenceValue = originalStage;
+            yield return CheckDynamicClear(retry, wipeAfterClear: true);
+            var afterWipe = CheckReturnedToHub(retry);
+            catalogSlot.objectReferenceValue = originalCatalog;
             flow.ApplyModifiedPropertiesWithoutUndo();
+            Object.Destroy(testCatalog);
             Object.Destroy(twoFields);
-            yield return MovePlayer(afterDefeat, keyboard);
-            Debug.Log("SOLO CHECK PASS 3/5: Clear redeploy and HP-zero return to a playable hub.");
+            yield return MovePlayer(afterWipe, keyboard);
+            Debug.Log("SOLO CHECK PASS 3/5: Redeployed a two-field hunt and returned after a post-clear wipe.");
 
             Submit("Depart");
             while (!FindField(DynamicField)) yield return null;
             player = SoloPlayer();
-            Require(afterDefeat == null && player && player.Current == player.MaxHealth, "Defeat retry did not create a fresh player.");
+            Require(afterWipe == null && player && player.Current == player.MaxHealth, "Post-clear retry did not create a fresh player.");
             yield return PrepareDynamicCombat(FindField(DynamicField), player);
             Hit(player);
             while (!HasText("Defeated. Ready to redeploy.")) yield return null;
             CheckReturnedToHub(player);
             yield return CheckBossStage();
+            yield return CheckMultipleBossStage(originalCatalog);
+            yield return CheckRequiredElites(originalCatalog);
             Submit("Back to Lobby");
             while (!FindButton("Start Solo") || !FindButton("Start Solo").interactable) yield return null;
             InputSystem.RemoveDevice(keyboard);
@@ -207,6 +224,151 @@ namespace BlueReaper.GameFlow.Editor
             Require(SoloPlayer(), "Sandbox player was not initialized.");
             yield return PrepareDynamicCombat(FindField(DynamicField), SoloPlayer());
             Debug.Log("SOLO CHECK PASS 5/5: Sandbox auto-start, readiness and first dynamic wave.");
+        }
+
+        static IEnumerator CheckRequiredElites(StageCatalogData originalCatalog)
+        {
+            const string elitePath = "Assets/BlueReaperEliteCheck.prefab";
+            const string fieldPath = "Assets/BlueReaperEliteFieldCheck.prefab";
+            Require(!AssetDatabase.LoadMainAssetAtPath(elitePath) && !AssetDatabase.LoadMainAssetAtPath(fieldPath),
+                "An asset already exists at a temporary Elite fixture path.");
+            var catalog = Object.Instantiate(originalCatalog);
+            var stage = Object.Instantiate(originalCatalog.Entries[0].Stage);
+            using var flow = new SerializedObject(Object.FindFirstObjectByType<GameFlow>());
+            var slot = flow.FindProperty("stageCatalog");
+            try
+            {
+                var elite = CreateSoloElitePrefab(elitePath);
+                Require(elite, "Could not create the test Elite prefab.");
+                Require(AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(stage.Fields[0]), fieldPath),
+                    "Could not create the Elite hunt field prefab.");
+                var fieldPrefab = AssetDatabase.LoadAssetAtPath<StageField>(fieldPath);
+                string fieldName = fieldPrefab.name;
+                using var fieldSettings = new SerializedObject(fieldPrefab);
+                fieldSettings.FindProperty("huntReferenceKills").intValue = 4;
+                fieldSettings.FindProperty("eveningPercent").intValue = 25;
+                fieldSettings.FindProperty("nightPercent").intValue = 75;
+                fieldSettings.ApplyModifiedPropertiesWithoutUndo();
+                using var spawnSettings = new SerializedObject(fieldPrefab.GetComponent<EnemySpawner>());
+                var elites = spawnSettings.FindProperty("requiredElites");
+                elites.arraySize = 1;
+                var entry = elites.GetArrayElementAtIndex(0);
+                entry.FindPropertyRelative("Prefab").objectReferenceValue = elite;
+                entry.FindPropertyRelative("Count").intValue = 2;
+                entry.FindPropertyRelative("StartPhase").enumValueIndex = (int)HuntPhase.Evening;
+                spawnSettings.ApplyModifiedPropertiesWithoutUndo();
+                AssetDatabase.SaveAssetIfDirty(fieldPrefab);
+
+                stage.Fields = new[] { fieldPrefab };
+                using var serializedCatalog = new SerializedObject(catalog);
+                serializedCatalog.FindProperty("entries").GetArrayElementAtIndex(0)
+                    .FindPropertyRelative("Stage").objectReferenceValue = stage;
+                serializedCatalog.ApplyModifiedPropertiesWithoutUndo();
+                slot.objectReferenceValue = catalog;
+                flow.ApplyModifiedPropertiesWithoutUndo();
+
+                Submit("Select Stage Dynamic");
+                Submit("Depart");
+                StageField field;
+                while (!(field = FindField(fieldName))) yield return null;
+                var player = SoloPlayer();
+                player.Invincible = true;
+                yield return PrepareDynamicCombat(field, player);
+
+                var spawner = field.GetComponent<EnemySpawner>();
+                spawner.MaxAliveEnemiesPerPlayer = 1;
+                Hit(LiveEnemies().First(enemy => enemy.Rank == EnemyRank.Normal).GetComponent<Health>());
+                float retryAtCapacity = Time.time + spawner.SpawnInterval * 2f;
+                while (Time.time < retryAtCapacity) yield return null;
+                Require(!LiveEnemies().Any(enemy => enemy.Rank == EnemyRank.Elite)
+                    && !Object.FindFirstObjectByType<StageExitPortal>(), "Required Elites bypassed quota or cleared at capacity.");
+
+                spawner.MaxAliveEnemiesPerPlayer = 8;
+                Enemy[] planned;
+                while ((planned = LiveEnemies().Where(enemy => enemy.Rank == EnemyRank.Elite).ToArray()).Length < 2)
+                    yield return null;
+                Require(planned.Length == 2, "The field did not spawn the finite Elite quota.");
+                Hit(planned[0].GetComponent<Health>());
+                Require(!Object.FindFirstObjectByType<StageExitPortal>(), "The first Elite incorrectly cleared the field.");
+                Hit(planned[1].GetComponent<Health>());
+                Require(Object.FindFirstObjectByType<StageExitPortal>()
+                    && LiveEnemies().Any(enemy => enemy.Rank == EnemyRank.Normal), "The last Elite did not open the portal with normals remaining.");
+
+                player.Kill();
+                while (!HasText("Stage cleared.")) yield return null;
+                CheckReturnedToHub(player);
+                Debug.Log("ELITE HUNT PASS: planned quota, spawn retry after capacity, and highest-rank portal clear.");
+            }
+            finally
+            {
+                slot.objectReferenceValue = originalCatalog;
+                flow.ApplyModifiedPropertiesWithoutUndo();
+                Object.Destroy(catalog);
+                Object.Destroy(stage);
+                AssetDatabase.DeleteAsset(fieldPath);
+                AssetDatabase.DeleteAsset(elitePath);
+            }
+        }
+
+        static Enemy CreateSoloElitePrefab(string path)
+        {
+            var contents = PrefabUtility.LoadPrefabContents("Assets/_Project/Prefabs/Monsters/Monster_1.prefab");
+            try
+            {
+                foreach (var networkBehaviour in contents.GetComponentsInChildren<Unity.Netcode.NetworkBehaviour>(true))
+                    Object.DestroyImmediate(networkBehaviour);
+                foreach (var networkObject in contents.GetComponentsInChildren<Unity.Netcode.NetworkObject>(true))
+                    Object.DestroyImmediate(networkObject);
+
+                using var enemyData = new SerializedObject(contents.GetComponent<Enemy>());
+                enemyData.FindProperty("rank").enumValueIndex = (int)EnemyRank.Elite;
+                enemyData.ApplyModifiedPropertiesWithoutUndo();
+                var asset = PrefabUtility.SaveAsPrefabAsset(contents, path);
+                return asset ? asset.GetComponent<Enemy>() : null;
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+        }
+
+        static void CheckStageCatalog()
+        {
+            using var flow = new SerializedObject(Object.FindFirstObjectByType<GameFlow>());
+            var authored = (StageCatalogData)flow.FindProperty("stageCatalog").objectReferenceValue;
+            Require(authored && authored.GetValidationError() == null, "The menu catalog is missing or invalid.");
+            var catalog = Object.Instantiate(authored);
+            try
+            {
+                using var serialized = new SerializedObject(catalog);
+                var entries = serialized.FindProperty("entries");
+                Require(entries.arraySize > 1, "The catalog must include both battle fixtures.");
+                var first = catalog.Entries[0].Stage;
+                var second = catalog.Entries[1].Stage;
+                Require(catalog.IsOpen(first.StageId) && catalog.IsOpen(second.StageId), "Both fixtures must be open.");
+                entries.MoveArrayElement(0, 1);
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                Require(catalog.TryResolve(first.StageId, out var sameStage) && sameStage == first,
+                    "Reordering the catalog changed the meaning of a stage ID.");
+
+                var firstEntry = entries.GetArrayElementAtIndex(0);
+                firstEntry.FindPropertyRelative("OpenByDefault").boolValue = false;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                Require(!catalog.IsOpen(second.StageId) && catalog.TryResolve(second.StageId, out var closedStage)
+                    && closedStage == second, "Catalog visibility affects host selection and must preserve ID resolution.");
+
+                firstEntry.FindPropertyRelative("Stage").objectReferenceValue = first;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                Require(catalog.GetValidationError() != null && !catalog.TryResolve(first.StageId, out _),
+                    "An ambiguous stage ID was resolved.");
+                Require(!catalog.TryResolve(0, out _) && !catalog.TryResolve(int.MaxValue, out _),
+                    "A missing or reserved stage ID was resolved.");
+            }
+            finally
+            {
+                Object.Destroy(catalog);
+            }
+            Debug.Log("STAGE CATALOG PASS: stable IDs, host availability, missing and duplicate IDs.");
         }
 
         static IEnumerator PrepareDynamicCombat(StageField field, Health player)
@@ -330,6 +492,87 @@ namespace BlueReaper.GameFlow.Editor
             Debug.Log("IN-GAME HUD FIELD PASS: second field HUD reopened after the first field ended.");
         }
 
+        static void CheckBossPartyHealth()
+        {
+            var controller = new GameObject("Boss Party Check").AddComponent<StageController>();
+            var config = ScriptableObject.CreateInstance<StageData>();
+            config.SharedHealthMultiplier = 1.2f;
+            config.LastBreathHealthMultiplier = .25f;
+
+            var first = CreatePartyMember(100f, 20f);
+            var second = CreatePartyMember(200f, 0f);
+
+            try
+            {
+                const BindingFlags instance = BindingFlags.Instance | BindingFlags.NonPublic;
+                var stageType = typeof(StageController);
+                stageType.GetField("stageData", instance).SetValue(controller, config);
+                var register = stageType.GetMethod("RegisterPlayer", instance);
+                register.Invoke(controller, new object[] { first });
+                register.Invoke(controller, new object[] { second });
+                stageType.GetMethod("PrepareBossCombat", instance).Invoke(controller, new object[] { true });
+
+                var firstLife = first.GetComponent<PlayerLife>();
+                var secondLife = second.GetComponent<PlayerLife>();
+                var shield = first.GetComponent<Shield>();
+                int partyHits = 0;
+                controller.SharedBossHealthDamaged += _ => partyHits++;
+                Require(Mathf.Approximately(firstLife.SharedBossHealth.Maximum, 360f)
+                    && firstLife.SharedBossHealth == secondLife.SharedBossHealth, "The team did not receive one shared HP pool.");
+                Require(first.TakeDamage(10f) == DamageResult.Absorbed && shield.CurrentShield == 10f
+                    && partyHits == 0, "Shield must precede shared HP.");
+                Require(first.TakeDamage(30f) == DamageResult.Applied && partyHits == 1
+                    && Mathf.Approximately(controller.SharedBossHealth.Current, 340f)
+                    && first.Current == 100f, "Shared damage went through the wrong HP pool.");
+                Require(first.TakeDamage(1000f) == DamageResult.Applied && partyHits == 2
+                    && first.Current == 25f && second.Current == 50f && firstLife.CanAct,
+                    "The hit that depleted shared HP leaked excess damage into Last Breath.");
+                Require(second.TakeDamage(15f) == DamageResult.Applied && second.Heal(4f) == 4f
+                    && second.Current == 39f && first.Current == 25f, "Last Breath was not a recoverable personal pool.");
+                Require(first.TakeDamage(26f) == DamageResult.Killed && firstLife.State == LifeState.Ghost
+                    && firstLife.CanAct && firstLife.OutgoingDamageMultiplier == .3f
+                    && controller.AlivePlayers.Count == 1, "Ghost mode did not preserve actions or update the living roster.");
+
+                stageType.GetMethod("RestoreBossParty", instance).Invoke(controller, null);
+                Require(firstLife.State == LifeState.Alive && first.Current == 100f && second.Current == 200f
+                    && shield.CurrentShield == 0f && controller.AlivePlayers.Count == 2
+                    && Mathf.Approximately(controller.SharedBossHealth.Current, 360f),
+                    "Boss phase recovery did not restore the roster and shared HP while preserving shield.");
+                Debug.Log("BOSS PARTY HEALTH PASS: shield, shared HP, excess damage, Last Breath, ghost and phase recovery.");
+            }
+            finally
+            {
+                controller.gameObject.SetActive(false);
+                Object.Destroy(controller.gameObject);
+                Object.Destroy(first.GetComponent<Unit>().Data);
+                Object.Destroy(second.GetComponent<Unit>().Data);
+                Object.Destroy(first.gameObject);
+                Object.Destroy(second.gameObject);
+                Object.Destroy(config);
+            }
+        }
+
+        static Health CreatePartyMember(float hp, float shieldPoints)
+        {
+            var member = new GameObject("Party Health Check");
+            member.SetActive(false);
+            var unit = member.AddComponent<Unit>();
+            var stats = ScriptableObject.CreateInstance<UnitData>();
+            stats.MaxHealth = hp;
+            var unitData = new SerializedObject(unit);
+            unitData.FindProperty("data").objectReferenceValue = stats;
+            unitData.ApplyModifiedPropertiesWithoutUndo();
+            var health = member.AddComponent<Health>();
+            var shield = new SerializedObject(member.AddComponent<Shield>());
+            shield.FindProperty("maxShield").floatValue = shieldPoints;
+            shield.FindProperty("initialShield").floatValue = shieldPoints;
+            shield.ApplyModifiedPropertiesWithoutUndo();
+            member.AddComponent<Unity.Netcode.NetworkObject>();
+            member.AddComponent<PlayerLife>();
+            member.SetActive(true);
+            return health;
+        }
+
         static IEnumerator CheckBossStage()
         {
             Submit("Select Stage BossTest");
@@ -345,11 +588,163 @@ namespace BlueReaper.GameFlow.Editor
             Require(GameObject.Find("HPBG") && GameObject.Find("Boss HP Ghost"), "Spawned boss HUD was not bound.");
 
             var player = SoloPlayer();
+            float playerShield = player.TryGetComponent<Shield>(out var shield) ? shield.CurrentShield : 0f;
+            Require(player.TakeDamage(playerShield + player.MaxHealth * .1f) == DamageResult.Applied,
+                "Boss phase fixture could not lower the player's HP.");
             player.Invincible = true;
-            Hit(boss.GetComponent<Health>());
+            var ai = boss.GetComponent<EnemyAI>();
+            ai.Release();
+            var bullet = ScriptableObject.CreateInstance<BulletPatternData>();
+            bullet.BulletPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/Projectiles/ExampleBullet.prefab");
+            bullet.MovementType = BulletMovementType.Linear;
+            bullet.LayoutCenter = Vector3.up * 6f;
+            bullet.LinearSpeed = 0f;
+            bullet.LinearLifetime = 2f;
+            bullet.AimAtTargetEachEmission = true;
+            bullet.RepeatCount = 2;
+            bullet.RepeatInterval = .4f;
+            var step = ScriptableObject.CreateInstance<EnemyPatternData>();
+            step.Implementations = new PatternImplData[] { bullet };
+            var sequence = ScriptableObject.CreateInstance<EnemyPatternSequenceData>();
+            sequence.Steps = new[] { step, step };
+            var execute = typeof(EnemyAI).GetMethod("ExecuteAction", BindingFlags.Instance | BindingFlags.NonPublic);
+            ai.StartCoroutine((IEnumerator)execute.Invoke(ai, new object[] { sequence, new[] { player.transform } }));
+            while (Object.FindObjectsByType<ProjectileHitBox>(FindObjectsSortMode.None).Length == 0) yield return null;
+
+            var bossHealth = boss.GetComponent<Health>();
+            Require(bossHealth.TakeDamage(float.MaxValue) == DamageResult.Applied
+                && Mathf.Approximately(bossHealth.Current, bossHealth.MaxHealth * .5f)
+                && boss.IsPhaseTransitioning, "A lethal first-phase hit bypassed the boss HP boundary.");
+            Require(bossHealth.TakeDamage(float.MaxValue) == DamageResult.Ignored,
+                "The boss accepted damage during the phase transition.");
+            player.Kill();
+            Require(player.IsDead, "Could not remove the reserved volley target during the phase transition.");
+            while (boss.IsPhaseTransitioning || boss.Phase != 2) yield return null;
+            Require(Mathf.Approximately(player.Current, player.MaxHealth), "Phase completion did not heal the solo player.");
+            yield return null;
+            Require(Object.FindObjectsByType<ProjectileHitBox>(FindObjectsSortMode.None).Length == 2,
+                "Phase transition cancelled the reserved shot, returned an existing bullet or started a later step.");
+            Hit(bossHealth);
+            Object.Destroy(sequence);
+            Object.Destroy(step);
+            Object.Destroy(bullet);
             while (!Object.FindFirstObjectByType<StageExitPortal>()) yield return null;
             var portal = Object.FindFirstObjectByType<StageExitPortal>();
             Require(!GameObject.Find("HPBG"), "Boss HUD remained active after the field cleared.");
+            yield return ReturnThroughBossPortal(player, portal);
+            Debug.Log("BOSS STAGE PASS: spawn, HP boundary, immunity, active step bullets, skipped future step, recovery, HUD and portal return.");
+        }
+
+        static IEnumerator CheckMultipleBossStage(StageCatalogData originalCatalog)
+        {
+            const string fixturePath = "Assets/BlueReaperMultiBossFieldCheck.prefab";
+            Require(!AssetDatabase.LoadMainAssetAtPath(fixturePath), "A prefab already exists at the test fixture path.");
+            var catalog = Object.Instantiate(originalCatalog);
+            using var catalogSettings = new SerializedObject(catalog);
+            var entries = catalogSettings.FindProperty("entries");
+            int index = catalog.Entries.ToList().FindIndex(entry => entry.Stage.Title == "Stage BossTest");
+            Require(index >= 0, "The boss test stage was missing from the catalog.");
+            var stage = Object.Instantiate(catalog.Entries[index].Stage);
+            using var flow = new SerializedObject(Object.FindFirstObjectByType<GameFlow>());
+            var catalogSlot = flow.FindProperty("stageCatalog");
+            int clears = 0;
+            void OnCleared() => clears++;
+            GameEvents.StageCleared += OnCleared;
+            try
+            {
+                var fixture = SaveMultiBossFieldFixture(stage.Fields.Single(), fixturePath);
+                stage.Fields = new[] { fixture };
+                entries.GetArrayElementAtIndex(index).FindPropertyRelative("Stage").objectReferenceValue = stage;
+                catalogSettings.ApplyModifiedPropertiesWithoutUndo();
+                catalogSlot.objectReferenceValue = catalog;
+                flow.ApplyModifiedPropertiesWithoutUndo();
+
+                Submit("Depart");
+                StageField field;
+                while (!(field = FindField(fixture.name))) yield return null;
+                var entriesInScene = new SerializedObject(field).FindProperty("bossSpawns");
+                Require(entriesInScene.arraySize == 2, "Saving the prefab did not retain both boss spawns.");
+                var bosses = LiveEnemies().Where(enemy => enemy.Rank == EnemyRank.Boss).ToList();
+                Require(bosses.Count == 2, "The field did not spawn both configured bosses.");
+                for (int i = 0; i < entriesInScene.arraySize; i++)
+                {
+                    var point = (Transform)entriesInScene.GetArrayElementAtIndex(i)
+                        .FindPropertyRelative("Point").objectReferenceValue;
+                    var matchingBoss = bosses.SingleOrDefault(boss =>
+                        Vector3.Distance(boss.transform.position, point.position) < .7f
+                        && Quaternion.Angle(boss.transform.rotation, point.rotation) < 1f);
+                    Require(matchingBoss, $"Boss {i + 1} did not spawn at its saved point and rotation.");
+                    matchingBoss.GetComponent<EnemyAI>().Release();
+                    bosses.Remove(matchingBoss);
+                }
+
+                var player = SoloPlayer();
+                player.Invincible = true;
+                var living = LiveEnemies().Where(enemy => enemy.Rank == EnemyRank.Boss).ToArray();
+                yield return DefeatBoss(living[0]);
+                Require(clears == 0 && !Object.FindFirstObjectByType<StageExitPortal>()
+                    && !living[1].GetComponent<Health>().IsDead, "Defeating one boss cleared the field.");
+                yield return DefeatBoss(living[1]);
+                var portal = Object.FindFirstObjectByType<StageExitPortal>();
+                Require(clears == 1 && portal, "Defeating the last boss did not open the portal once.");
+                yield return ReturnThroughBossPortal(player, portal);
+                Require(clears == 1, "Returning through the portal duplicated the clear event.");
+                Debug.Log("MULTI-BOSS STAGE PASS: saved editor list, two placements, clear only after both bosses, and portal return.");
+            }
+            finally
+            {
+                GameEvents.StageCleared -= OnCleared;
+                catalogSlot.objectReferenceValue = originalCatalog;
+                flow.ApplyModifiedPropertiesWithoutUndo();
+                Object.Destroy(catalog);
+                Object.Destroy(stage);
+                AssetDatabase.DeleteAsset(fixturePath);
+            }
+        }
+
+        static StageField SaveMultiBossFieldFixture(StageField source, string path)
+        {
+            var contents = PrefabUtility.LoadPrefabContents(AssetDatabase.GetAssetPath(source));
+            try
+            {
+                using var fieldData = new SerializedObject(contents.GetComponent<StageField>());
+                var spawns = fieldData.FindProperty("bossSpawns");
+                Require(spawns.arraySize == 1, "The existing boss spawn was not migrated as the first entry.");
+                var first = spawns.GetArrayElementAtIndex(0);
+                var prefab = first.FindPropertyRelative("Prefab").objectReferenceValue;
+                var firstPoint = (Transform)first.FindPropertyRelative("Point").objectReferenceValue;
+                Require(prefab == AssetDatabase.LoadAssetAtPath<Enemy>("Assets/_Project/Prefabs/Boss/Boss_1.prefab")
+                    && firstPoint && firstPoint == contents.transform.Find("Boss Spawn Point"),
+                    "The original boss prefab or local spawn point reference was lost during migration.");
+
+                var secondPoint = StageEditorWindow.AddBossSpawnPoint(spawns, firstPoint.parent);
+                secondPoint.SetPositionAndRotation(firstPoint.position + Vector3.right * 6f,
+                    Quaternion.Euler(0f, 90f, 0f) * firstPoint.rotation);
+                spawns.GetArrayElementAtIndex(1).FindPropertyRelative("Prefab").objectReferenceValue = prefab;
+                fieldData.ApplyModifiedPropertiesWithoutUndo();
+                var saved = PrefabUtility.SaveAsPrefabAsset(contents, path);
+                Require(saved, "Could not save the two-boss test field.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+            return AssetDatabase.LoadAssetAtPath<StageField>(path);
+        }
+
+        static IEnumerator DefeatBoss(Enemy boss)
+        {
+            var health = boss.GetComponent<Health>();
+            while (!health.IsDead)
+            {
+                var result = health.TakeDamage(float.MaxValue);
+                Require(result is DamageResult.Applied or DamageResult.Killed, "The test boss rejected damage.");
+                while (boss.IsPhaseTransitioning) yield return null;
+            }
+        }
+
+        static IEnumerator ReturnThroughBossPortal(Health player, StageExitPortal portal)
+        {
             var motor = player.GetComponent<PlayerMotor>();
             motor.Teleport(portal.transform.position + Vector3.right * 5f, Quaternion.identity);
             float outsideUntil = Time.time + .15f;
@@ -357,10 +752,9 @@ namespace BlueReaper.GameFlow.Editor
             motor.Teleport(portal.transform.position, Quaternion.identity);
             while (!HasText("Stage cleared.")) yield return null;
             CheckReturnedToHub(player);
-            Debug.Log("BOSS STAGE PASS: authored position, single spawn, HUD and portal return.");
         }
 
-        static IEnumerator CheckDynamicClear(Health player)
+        static IEnumerator CheckDynamicClear(Health player, bool wipeAfterClear = false)
         {
             var field = FindField(DynamicField);
             var motor = player.GetComponent<PlayerMotor>();
@@ -368,6 +762,10 @@ namespace BlueReaper.GameFlow.Editor
             player.Invincible = true;
 
             int remaining = new SerializedObject(field).FindProperty("purificationGoal").intValue;
+            var controller = Object.FindFirstObjectByType<StageController>();
+            var phaseChanges = new List<HuntPhase>();
+            controller.HuntPhaseChanged += phaseChanges.Add;
+            Require(controller.CurrentHuntPhase == HuntPhase.Afternoon, "Hunting did not begin in the afternoon.");
             StageExitPortal portal;
             while (!(portal = Object.FindFirstObjectByType<StageExitPortal>()))
             {
@@ -379,20 +777,30 @@ namespace BlueReaper.GameFlow.Editor
                 }
                 yield return null;
             }
+            controller.HuntPhaseChanged -= phaseChanges.Add;
+            Require(phaseChanges.SequenceEqual(new[] { HuntPhase.Evening, HuntPhase.Night }),
+                "Kill progress did not cross the evening and night thresholds exactly once.");
             player.Invincible = false;
-            var before = player.Current;
-            Require(player.TakeDamage(float.MaxValue) == DamageResult.Ignored, "Cleared stage still accepts damage.");
-            player.Kill();
-            Require(player.Current == before && Vector3.Distance(portal.transform.position, player.transform.position) < 0.3f,
-                "Cleared stage still accepts death or the solo portal is off center.");
+            float shield = player.TryGetComponent<Shield>(out var component) ? component.CurrentShield : 0f;
+            Require(player.TakeDamage(shield + player.MaxHealth * .1f) == DamageResult.Applied,
+                "Portal opening unexpectedly locked combat damage.");
+            Require(Vector3.Distance(portal.transform.position, player.transform.position) < 0.3f,
+                "The solo portal is off center.");
             yield return null;
             Require(FindField("StageField_Dynamic"), "Initial portal overlap should wait for a new entry.");
+            if (wipeAfterClear)
+            {
+                player.Kill();
+                while (!HasText("Stage cleared.")) yield return null;
+                Debug.Log("DYNAMIC SOLO PASS: portal opened, damage accepted and post-clear wipe preserved the clear.");
+                yield break;
+            }
             motor.Teleport(portal.transform.position + Vector3.right * 5f, Quaternion.identity);
             float leftAt = Time.time;
             while (Time.time - leftAt < 0.1f) yield return null;
             motor.Teleport(portal.transform.position, Quaternion.identity);
             while (!HasText("Stage cleared.")) yield return null;
-            Debug.Log("DYNAMIC SOLO PASS: pad, batch size, combat lock and portal return.");
+            Debug.Log("DYNAMIC SOLO PASS: pad, batch size, continued combat and portal return.");
         }
 
         static Button FindButton(string name) => GameObject.Find(name)?.GetComponent<Button>();

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using BlueReaper.Boss;
@@ -16,15 +17,30 @@ namespace BlueReaper.Stage
 
         private readonly HashSet<Health> readyPlayers = new();
         private StageExitPortal exitPortal;
-        private bool usesManagedFields, lastField, readyForNextField, enteredExitPortal, clearConfirmed;
+        private bool lastField, readyForNextField, enteredExitPortal, clearConfirmed;
+
+        public HuntPhase CurrentHuntPhase { get; private set; }
+        public event Action<HuntPhase> HuntPhaseChanged;
+        /// <summary>Authoritative notification after an enemy has been initialized in a hunting field.</summary>
+        public event Action<Enemy, HuntPhase> HuntEnemySpawned;
 
         internal (StageFieldPhase Phase, int Current, int Goal) FieldProgress { get; private set; }
-        internal event System.Action FieldProgressChanged;
+        internal event Action FieldProgressChanged;
 
-        private void SetFieldProgress(StageFieldPhase phase, int current = 0, int goal = 0)
+        internal void ApplyRemoteHuntPhase(HuntPhase phase) => SetHuntPhase(phase);
+
+        private bool SetHuntPhase(HuntPhase phase)
+        {
+            if (CurrentHuntPhase == phase) return false;
+            CurrentHuntPhase = phase;
+            HuntPhaseChanged?.Invoke(phase);
+            return true;
+        }
+
+        private void SetFieldProgress(StageFieldPhase phase, int current = 0, int goal = 0, bool forceNotify = false)
         {
             var progress = (phase, current, goal);
-            if (FieldProgress == progress) return;
+            if (FieldProgress == progress && !forceNotify) return;
             FieldProgress = progress;
             FieldProgressChanged?.Invoke();
         }
@@ -57,6 +73,7 @@ namespace BlueReaper.Stage
             }
             if (runFinished) yield break;
             SetCombatLocked(false);
+            SetHuntPhase(HuntPhase.Afternoon);
             SetFieldProgress(StageFieldPhase.Combat, 0, requiredKills);
         }
 
@@ -114,22 +131,20 @@ namespace BlueReaper.Stage
         {
             fieldComplete = true;
             HideBossHUD();
-            ReleaseDeathProjectiles();
-            if (!currentField.UsesManagedFieldFlow && !(usesManagedFields && lastField)) return;
-
-            SetCombatLocked(true);
-            foreach (var record in units.Values)
-                if (!record.Dead && ReferenceEquals(record.Field, currentField) && record.AI) record.AI.Release();
-
-            if (!lastField)
+            if (lastField)
             {
-                SetFieldProgress(StageFieldPhase.NextField, requiredKills, requiredKills);
+                clearConfirmed = true;
+                OpenExitPortal();
+                SetFieldProgress(StageFieldPhase.ExitPortal, requiredKills, requiredKills);
+                GameEvents.RaiseStageCleared();
                 return;
             }
 
-            clearConfirmed = true;
-            SetFieldProgress(StageFieldPhase.ExitPortal, requiredKills, requiredKills);
-            if (managedRun) GameEvents.RaiseStageCleared();
+            ReleaseDeathProjectiles();
+            SetCombatLocked(true);
+            foreach (var record in units.Values)
+                if (!record.Dead && ReferenceEquals(record.Field, currentField) && record.AI) record.AI.Release();
+            SetFieldProgress(StageFieldPhase.NextField, requiredKills, requiredKills);
         }
 
         private void SetCombatLocked(bool locked)
@@ -143,7 +158,7 @@ namespace BlueReaper.Stage
             if (FieldProgress.Phase == StageFieldPhase.NextField) readyForNextField = true;
         }
 
-        private IEnumerator WaitForExitPortal()
+        private void OpenExitPortal()
         {
             Vector3 center = Vector3.zero;
             int count = 0;
@@ -155,11 +170,7 @@ namespace BlueReaper.Stage
                 count++;
                 fallback = player;
             }
-            if (!fallback || !exitPortalPrefab)
-            {
-                FinishRun(StageRunResult.Cleared);
-                yield break;
-            }
+            if (!fallback || !exitPortalPrefab) return;
 
             center /= count;
             if (NavMesh.SamplePosition(center, out var hit, 1.5f, NavMesh.AllAreas))
@@ -168,7 +179,11 @@ namespace BlueReaper.Stage
 
             exitPortal = NetworkWorld.Spawn(exitPortalPrefab.gameObject, center, Quaternion.identity).GetComponent<StageExitPortal>();
             exitPortal.Arm(this);
-            while (!enteredExitPortal && !runFinished) yield return null;
+        }
+
+        private IEnumerator WaitForExitPortal()
+        {
+            while (exitPortal && !enteredExitPortal && !runFinished) yield return null;
             ReleaseExitPortal();
         }
 

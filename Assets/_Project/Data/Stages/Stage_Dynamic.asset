@@ -12,5 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68a505b659e4bab4ba6b848fed842bbc, type: 3}
   m_Name: Stage_Dynamic
   m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Stage.StageData
+  StageId: 1
+  DisplayName: Stage Dynamic
   Fields:
   - {fileID: 8758468166228386424, guid: c956f20da64c03c4bb6bd3eb602045f3, type: 3}
+  BossHealthMultipliersByPartySize: {x: 1, y: 1, z: 1}
+  SharedHealthMultiplier: 1
+  LastBreathHealthMultiplier: 0.25

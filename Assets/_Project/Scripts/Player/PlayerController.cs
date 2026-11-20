@@ -83,7 +83,7 @@ namespace BlueReaper.Player
             if (!IsMine) return;
 
             // 빈사·사망 중엔 조작 불가 (입력은 계속 읽지만 몸에 전달하지 않음)
-            if (life.State != LifeState.Alive)
+            if (!life.CanAct)
             {
                 motor.SetMoveInput(Vector3.zero);
                 return;
@@ -106,7 +106,7 @@ namespace BlueReaper.Player
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void AttackRpc(Vector3 direction)
         {
-            if (life.State != LifeState.Alive || life.CombatLocked || health.Invincible
+            if (!life.CanAct || life.CombatLocked || health.Invincible
                 || !float.IsFinite(direction.x) || !float.IsFinite(direction.z)) return;
             direction.y = 0f;
             attack.TryAttack(direction.normalized);
@@ -129,7 +129,7 @@ namespace BlueReaper.Player
 
         void OnDashPressed()
         {
-            if (life.State == LifeState.Alive) motor.TryDash();
+            if (life.CanAct) motor.TryDash();
         }
     }
 }
