@@ -85,7 +85,7 @@ namespace RoomRun
         // x0.75, fogged). Weapon materials (_Metal > 0) are never darkened: albedo/hat/fog untouched, sheen back to the
         // material value, edge glint x0.5, top key x0.5 as its highlight. tune.txt: swordScale (steel colour), swordSheen,
         // swordGlint, swordKey, heroExposure (+ heroExposure.<room>).
-        public static float SwordScale = 1f, SwordSheen = 1f, SwordGlint = 0.5f, SwordKey = 0.5f;
+        public static float SwordScale = 1f, SwordSheen = 1f, SwordGlint = 1f, SwordKey = 1f;   /* v12: weapon at its material values (no reduction at all) */
         // v10 (Kido: "림라이트"): a thin, soft, cool-neutral fresnel rim on the BODY only (GSHero/Readable's own rim term,
         // _RimSharp 0 = soft ramp, no hard band; the 11-18 white streaks came from _RimSharp .85 at strength .75). Weapon
         // keeps its own values. tune.txt: rimStrength, rimColor r,g,b, rimWidth (alias rimPower).
@@ -94,13 +94,15 @@ namespace RoomRun
         // 설원 (11-20, Kido: "설원에서는 너무 어둡다"): on bright snow the hero and the blade read as a black blob; brighter
         // body, dark-tone lift, more of the radius fill on the hero (RoomHeroFill: hero + weapon only, the snow itself is
         // not lit more, floors never pale) and a slightly stronger rim (RoomRim)
-        public static readonly Dictionary<string, float> RoomHeroExposure = new Dictionary<string, float> { { "grass", 1.15f }, { "snow", 1.15f } };
-        public static readonly Dictionary<string, float> RoomHeroFill = new Dictionary<string, float> { { "snow", 3f } };
-        public static readonly Dictionary<string, float> RoomRim = new Dictionary<string, float> { { "snow", 0.25f } };
+        // 11-20 (Kido: "여기(갈대밭)랑 설원만 캐릭터가 너무 어두워"): 갈대밭 runs the darkest grade (StageMood -1.25 EV) and
+        // got no hero values; snow raised again. Hero + weapon only, floors unchanged.
+        public static readonly Dictionary<string, float> RoomHeroExposure = new Dictionary<string, float> { { "grass", 1.15f }, { "snow", 1.45f }, { "reeds", 1.35f } };
+        public static readonly Dictionary<string, float> RoomHeroFill = new Dictionary<string, float> { { "snow", 4f }, { "reeds", 3f } };
+        public static readonly Dictionary<string, float> RoomRim = new Dictionary<string, float> { { "snow", 0.3f }, { "reeds", 0.25f } };
         // dark-tone lift of the body texture (GSHero/Readable _Lift: lerp toward sqrt, hue kept) per room; the armour is near
         // black, so multiplying it does little where the room grade is very dark (풀밭 -0.9 EV). Body only, never the weapon.
         // tune.txt: heroLift.<room>. Rooms not listed keep the material value (0.16-0.18).
-        public static readonly Dictionary<string, float> RoomHeroLift = new Dictionary<string, float> { { "grass", 0.45f }, { "snow", 0.4f } };
+        public static readonly Dictionary<string, float> RoomHeroLift = new Dictionary<string, float> { { "grass", 0.45f }, { "snow", 0.5f }, { "reeds", 0.45f } };
         readonly HashSet<Material> swordMats = new HashSet<Material>();
         readonly Dictionary<Material, float> liftOrig = new Dictionary<Material, float>();
         readonly Dictionary<Material, (float w, float sharp, Color c)> rimOrig = new Dictionary<Material, (float, float, Color)>();

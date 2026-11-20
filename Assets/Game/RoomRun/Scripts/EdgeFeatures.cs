@@ -135,7 +135,7 @@ namespace RoomRun
             if (!Enabled || !Layout.TryGetValue(run.Room.id, out var list)) return;
             var holder = new GameObject("EdgeFeatures_" + run.Room.id);
             SceneManager.MoveGameObjectToScene(holder, scene);
-            Vector3 c = run.Room.center; float hx = run.Room.size.x * 0.5f, hz = run.Room.size.y * 0.5f;
+            Vector3 c = run.AreaCenter; float hx = run.AreaSize.x * 0.5f, hz = run.AreaSize.y * 0.5f;   // 11-20: the live arena (valley is scaled, RR.ValleyScale)
             int n = 0;
             float k = Lift.TryGetValue(run.Room.id, out var l) ? l : 1f;
             foreach (var f in list) if (Place(f, c, hx, hz, holder.transform, k, run.Room.id) != null) n++;

@@ -42,6 +42,7 @@ Shader "LookStudy/StageWater"
             float4 _LSRipples[8];   // xz position, age seconds, strength
             float4 _LSWisps[6];     // xyz position, w strength
             float3 _LSWispCol;
+            float4 _RR_RadiusPos[4];   // PlayerLightRadius lights (w = 1 used), set globally
 
             struct Attr { float4 positionOS : POSITION; float4 color : COLOR; };
             struct V2F { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; float4 screen : TEXCOORD1; float4 flow : TEXCOORD2; };
@@ -136,11 +137,30 @@ Shader "LookStudy/StageWater"
                 InputData inputData = (InputData)0;
                 inputData.positionWS = ws;
                 inputData.normalizedScreenSpaceUV = uv;
+                // 11-20 (Kido: "물에 비친 빛이 싸구려 같다", a blocky pixelated bright blob next to the player): that blob was
+                // the player's radius light (PlayerLightRadius, 4.5 m over the hero) in a 220-power highlight on the value-noise
+                // normals, whose cell grid showed through. The radius light now only lights the water softly like the ground
+                // (no mirror highlight, as in PoE2/D4 where the hero's light leaves no hot spot on water). Other point lights
+                // (lanterns, fires) get a broad soft sheen on a smoothed normal instead of the hard pixelated spot.
+                float3 ns = normalize(float3(n.x * 0.35, 1.0, n.z * 0.35));
                 uint count = GetAdditionalLightsCount();
                 LIGHT_LOOP_BEGIN(count)
+                    #if defined(_CLUSTER_LIGHT_LOOP)
+                    uint visIdx = lightIndex;
+                    #else
+                    uint visIdx = GetPerObjectLightIndex(lightIndex);
+                    #endif
+                    float3 lpos = _AdditionalLightsPosition[visIdx].xyz;
+                    bool isRadius = false;
+                    [unroll] for (int rk = 0; rk < 4; rk++)
+                    {
+                        float3 dp = lpos - _RR_RadiusPos[rk].xyz;
+                        isRadius = isRadius || (_RR_RadiusPos[rk].w > 0.5 && dot(dp, dp) < 0.0025);
+                    }
                     Light add = GetAdditionalLight(lightIndex, ws, half4(1, 1, 1, 1));
                     float3 ah = normalize(add.direction + v);
-                    col += add.color * add.distanceAttenuation * (pow(saturate(dot(n, ah)), 220.0) * 0.7 + 0.018);
+                    float sheen = isRadius ? 0.0 : pow(saturate(dot(ns, ah)), 48.0) * 0.22;
+                    col += add.color * add.distanceAttenuation * (sheen + (isRadius ? 0.03 : 0.018));
                 LIGHT_LOOP_END
                 for (int k = 0; k < 6; k++)
                 {

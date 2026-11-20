@@ -183,11 +183,11 @@ namespace KillKnight
             RockMat("KK_CliffMass2", PHMT("namaqualand_cliff_02", "diff"), PHMT("namaqualand_cliff_02", "nor_gl"), new Color(0.11f, 0.105f, 0.115f));
             RockMat("KK_Rock09", PHMT("rock_09", "diff"), PHMT("rock_09", "nor_gl"), new Color(0.12f, 0.11f, 0.115f));
             RockMat("KK_Spire", SpireTex + "BaseColor.jpg", SpireTex + "Normal.jpg", new Color(0.12f, 0.11f, 0.115f));
-            RockMat("KK_SKF_BoneDemon", Src + "SKF_BoneDemon/SKF_BoneDemon_albedo.jpg", Src + "SKF_BoneDemon/SKF_BoneDemon_normal.jpg", new Color(0.12f, 0.1f, 0.11f), 0.35f);
+            RockMat("KK_SKF_BoneDemon", Src + "SKF_BoneDemon/SKF_BoneDemon_albedo.jpg", Src + "SKF_BoneDemon/SKF_BoneDemon_normal.jpg", new Color(0.12f, 0.1f, 0.11f), 0.12f);
             RockMat("KK_SKF_GatesOfHell", Src + "SKF_GatesOfHell/SKF_GatesOfHell_albedo.jpg", null, new Color(0.13f, 0.11f, 0.11f), 0.2f);
             RockMat("KK_SKF_DragonSkull", Src + "SKF_DragonSkull/SKF_DragonSkull_albedo.jpg", Src + "SKF_DragonSkull/SKF_DragonSkull_normal.jpg", new Color(0.16f, 0.13f, 0.12f), 0.1f);
             RockMat("KK_SKF_AqueductRuin", Src + "SKF_AqueductRuin/SKF_AqueductRuin_albedo.jpg", Src + "SKF_AqueductRuin/SKF_AqueductRuin_normal.jpg", new Color(0.13f, 0.11f, 0.12f), 0.1f);
-            RockMat("KK_Root1", PHMT("dead_tree_trunk_02", "diff"), PHMT("dead_tree_trunk_02", "nor_gl"), new Color(0.07f, 0.06f, 0.06f), 0.7f);
+            RockMat("KK_Root1", PHMT("dead_tree_trunk_02", "diff"), PHMT("dead_tree_trunk_02", "nor_gl"), new Color(0.07f, 0.06f, 0.06f), 0.35f);
             RockMat("KK_Root2", PHMT("dead_quiver_trunk", "diff"), PHMT("dead_quiver_trunk", "nor_gl"), new Color(0.07f, 0.06f, 0.06f), 0.7f);
             RockMat("KK_Root3", PHMT("dead_tree_trunk_02", "diff"), null, new Color(0.06f, 0.05f, 0.05f), 0.8f);
             Mat("KK_AbyssFloor", "KillKnight/AbyssGlow", m => { m.SetFloat("_Mode", 0); });
@@ -376,7 +376,7 @@ namespace KillKnight
             string[] rootIds = { "dead_tree_trunk_02", "dead_quiver_trunk", "dead_tree_trunk_02" };
             for (int i = 0; i < 26; i++)
             {
-                bool hang = i < 9;
+                bool hang = false;   // 11-20: wall-hanging roots read as black streaks down the cliff faces
                 Vector3 pos; float yaw, tilt, size;
                 if (hang)
                 {
@@ -425,14 +425,12 @@ namespace KillKnight
             }
             Giant("SKF_BoneDemon", new Vector3(78f, -205f, -8f), 250f, 235f);            // east, 33 m out: head above the rim (screen right)
             Giant("SKF_BoneDemon", new Vector3(-22f, -255f, 82f), 200f, 230f);           // north, 37 m out
-            Giant("SKF_GatesOfHell", new Vector3(70f, -150f, 45f), 225f, 100f, -6f);      // north-east, mid depth
-            Giant("SKF_DragonSkull", new Vector3(12f, -62f, 76f), 175f, 55f, 18f);         // north, half sunk below the rim
+            Giant("SKF_DragonSkull", new Vector3(12f, -75f, 78f), 175f, 55f, 18f);         // north, half sunk below the rim
             Giant("SKF_DragonSkull", new Vector3(82f, -125f, -40f), 285f, 70f, -10f);      // east-south-east
             Giant("SKF_AqueductRuin", new Vector3(68f, -95f, 78f), 40f, 70f);             // north-east, broken arches
             Giant("SKF_AqueductRuin", new Vector3(-78f, -175f, 40f), 120f, 85f);          // west, deep (camera side: stays low)
-            Giant("SKF_BoneDemon", new Vector3(62f, -215f, -22f), 250f, 205f);          // v4: east, 17 m out, screen right
-            Giant("SKF_GatesOfHell", new Vector3(60f, -112f, 24f), 240f, 95f);           // v4: east, close
-            Giant("SKF_DragonSkull", new Vector3(-18f, -50f, 63f), 160f, 42f, 20f);      // v4: north, just under the rim
+            Giant("SKF_BoneDemon", new Vector3(64f, -232f, -22f), 250f, 205f);          // v4: east, 17 m out, screen right
+            Giant("SKF_DragonSkull", new Vector3(-18f, -66f, 66f), 160f, 42f, 20f);      // v4: north, just under the rim
             Log($"giants: {ngi}");
             int ne = 0;
             for (int i = 0; i < 6; i++)

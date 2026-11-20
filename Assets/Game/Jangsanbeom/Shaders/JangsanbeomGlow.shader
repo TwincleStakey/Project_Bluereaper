@@ -37,6 +37,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
         _HairSheenPower ("Hair sheen tightness", Range(2, 200)) = 40
         _StrandHairs ("Thin hairs per tuft", Range(1, 8)) = 3
         _StrandWidth ("Hair width share of its lane", Range(0.02, 1)) = 0.12
+        _ShellNormals ("Fur cards use the smooth imported shell normals (v2 model)", Range(0, 1)) = 0
 
         [Header(Warning Telegraph (driven by JangsanbeomTelegraph))]
         [Header(Claws)]
@@ -67,7 +68,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
             half4 _EyeColor; half _EyeIntensity; half _EyePulseSpeed; half _EyePulseAmount;
             half4 _RimColor; half _RimPower; half _RimIntensity; half _FurLumMin;
             half4 _SparkleColor; half _SparkleIntensity; half _SparkleDensity; half _SparkleAmount; half _SparkleSpeed;
-            half4 _StrandColor; half _StrandIntensity; half _StrandAmount; half _StrandSpeed; half _StrandHairs; half _StrandWidth; half _HairSheen; half _HairSheenPower;
+            half4 _StrandColor; half _StrandIntensity; half _StrandAmount; half _StrandSpeed; half _StrandHairs; half _StrandWidth; half _HairSheen; half _HairSheenPower; half _ShellNormals;
             half4 _ClawColor; half _ClawIntensity; half _ClawHeight; half _ClawRedness;
             half _Warn; half4 _WarnColor; half _WarnFurIntensity; half _WarnRimIntensity; half _WarnPulseSpeed; half _WarnWaveFreq; half _WarnWaveSpeed;
         CBUFFER_END
@@ -151,9 +152,24 @@ Shader "BulletHeaven/JangsanbeomGlow"
                         half kd = sqrt(saturate(1 - tl * tl));
                         float3 hv = normalize(ml.direction + v);
                         float th = dot(hairT, hv);
-                        sheen = pow(sqrt(saturate(1 - th * th)), _HairSheenPower) * kd;
-                        lit = ml.color * (0.15 + 0.85 * kd) * ml.shadowAttenuation * ml.distanceAttenuation;
+                        sheen = pow(sqrt(saturate(1 - th * th)), _HairSheenPower) * kd * 0.35;
+                        // 11-20 Kido ("위에 면이 다 깨졌는데"): from the top-down camera the big cards lying along the back each took
+                        // their own brightness from their own hair direction and the back read as broken glass. Keep only a
+                        // little of that variation over an even base.
+                        lit = ml.color * (0.62 + 0.18 * kd) * ml.shadowAttenuation * ml.distanceAttenuation;
                     }
+                }
+                // 11-20 Kido ("위에 면이 다 깨졌는데", still faceted after the even base): every card still had its own sheen,
+                // rim (from its own flat face) and glint facing. The v2 model now carries smooth "shell" normals (pointing out
+                // from the nearest bones, scripts/v2_fur_shellnormals.py): light the cards with those, no flipping, so the fur
+                // shades as one soft surface. Rim and glints below also use this normal.
+                float3 rn = gn;
+                if (_ShellNormals > 0.5 && i.strand.y >= 0 && vlen > 0.5)
+                {
+                    n = vn / vlen; rn = n;
+                    half w = dot(n, ml.direction) * 0.5 + 0.5;                      // half-Lambert: soft, no hard terminator
+                    lit = ml.color * (0.25 + 0.75 * w * w) * ml.shadowAttenuation * ml.distanceAttenuation;
+                    sheen *= 0.25;
                 }
                 // ambient from the scene's flat ambient colour; SampleSH can pick up a bright probe from another open scene
                 half3 amb = max(unity_AmbientSky.rgb, half3(0.02, 0.022, 0.03));
@@ -176,7 +192,7 @@ Shader "BulletHeaven/JangsanbeomGlow"
                 color += claw * _ClawColor.rgb * _ClawIntensity * pulse * (1 + _Warn * 2);
 
                 // fur rim: silhouette glow on the pale fur
-                half rim = pow(1 - saturate(abs(dot(gn, v))), _RimPower);   // geometric normal: robust on the Tripo mesh
+                half rim = pow(1 - saturate(abs(dot(rn, v))), _RimPower);   // geometric normal: robust on the Tripo mesh
                 half3 rimCol = lerp(_RimColor.rgb * _RimIntensity, _WarnColor.rgb * _WarnRimIntensity, _Warn);
                 color += rim * fur * rimCol;
 

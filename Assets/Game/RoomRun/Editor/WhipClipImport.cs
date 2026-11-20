@@ -11,6 +11,7 @@ namespace RoomRun
         const string Dir = "Assets/Game/LocoSplit/Art/MixamoRR/";
         static readonly string[] Names = { "WH_AxeCombo1", "WH_AxeCombo3", "WH_Torch03", "WH_Torch05", "WH_Backhand" };
 
+        static readonly string[] Mirror = { "WH_Torch03" };
         public static void Run()
         {
             var refMi = (ModelImporter)AssetImporter.GetAtPath(Dir + "WH_Throw.fbx");
@@ -31,6 +32,7 @@ namespace RoomRun
                 var c = src[0];
                 c.name = n;
                 c.loopTime = false;
+                c.mirror = System.Array.IndexOf(Mirror, n) >= 0;   // 11-20 Kido: the torch combo attacks with the LEFT hand; mirrored so the right (weapon) hand strikes
                 if (refClip != null)
                 {
                     c.lockRootRotation = refClip.lockRootRotation; c.keepOriginalOrientation = refClip.keepOriginalOrientation;

@@ -50,6 +50,7 @@ Shader "SnowPlague/Vegetation"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
             #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
+            #define RR_SEE_WIDE   // 11-20: vegetation gets the wide full clear (SPProp does not)
             #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
             #define SP_PASS_FORWARD
@@ -68,6 +69,7 @@ Shader "SnowPlague/Vegetation"
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
             #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
+            #define RR_SEE_WIDE   // 11-20: vegetation gets the wide full clear (SPProp does not)
             #pragma shader_feature_local _ALPHATEST_ON
             #define SP_PASS_SHADOW
             #include "Assets/Game/SnowPlague/Shaders/SPLit.hlsl"
@@ -85,6 +87,7 @@ Shader "SnowPlague/Vegetation"
 
             #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
+            #define RR_SEE_WIDE   // 11-20: vegetation gets the wide full clear (SPProp does not)
             #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
             #define SP_PASS_DEPTH
@@ -104,6 +107,7 @@ Shader "SnowPlague/Vegetation"
 
             #pragma multi_compile_local _ LS_PROC LS_PROC_IDX
             #define SP_DEFORM
+            #define RR_SEE_WIDE   // 11-20: vegetation gets the wide full clear (SPProp does not)
             #pragma shader_feature_local SP_SEETHROUGH
             #pragma shader_feature_local _ALPHATEST_ON
             #define SP_PASS_DEPTHNORMALS
@@ -121,6 +125,7 @@ Shader "SnowPlague/Vegetation"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
             #pragma shader_feature EDITOR_VISUALIZATION
             #define SP_DEFORM
+            #define RR_SEE_WIDE   // 11-20: vegetation gets the wide full clear (SPProp does not)
             #pragma shader_feature_local _ALPHATEST_ON
             #define SP_PASS_META
             #include "Assets/Game/SnowPlague/Shaders/SPLit.hlsl"

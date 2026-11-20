@@ -134,7 +134,7 @@ namespace RoomRun
             shafts.Clear(); wisps.Clear(); lanterns.Clear(); lanternScan = 0;
             look = Looks.TryGetValue(run.Room.id, out var l) ? l : null;
             if (look == null || !shaftSh) return;
-            Vector3 c = run.Room.center; float hx = run.Room.size.x * 0.5f, hz = run.Room.size.y * 0.5f;
+            Vector3 c = run.AreaCenter; float hx = run.AreaSize.x * 0.5f, hz = run.AreaSize.y * 0.5f;   // 11-20: the live arena (valley is scaled, RR.ValleyScale)
             var rnd = new System.Random(run.Room.id.GetHashCode() ^ 0x5eed);
             float R() => (float)rnd.NextDouble();
 

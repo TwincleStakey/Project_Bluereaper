@@ -439,7 +439,8 @@ namespace RoomRun
             if (!Health.Alive) { SetVisible(false); return; }
 
             // Blink while invulnerable after a hit.
-            SetVisible(hitLeft <= 0f || Mathf.Repeat(Time.time * 14f, 1f) > 0.45f);
+            BlinkOff = !(hitLeft <= 0f || Mathf.Repeat(Time.time * 14f, 1f) > 0.45f);
+            SetVisible(!BlinkOff);
 
             if (Rolling && usingGreatsword)
             {
@@ -514,6 +515,8 @@ namespace RoomRun
             visual.localPosition = Vector3.up * bob - AimDir * recoil;
         }
 
+        /// 11-20: true on the hidden beats of the hurt blink (the suit body mirrors it, so the blade does not blink alone)
+        public bool BlinkOff { get; private set; }
         void SetVisible(bool on)
         {
             foreach (var r in renderers) if (r) r.enabled = on && !hiddenRing.Contains(r);

@@ -1,13 +1,13 @@
-# 심연 고원 v3: downloaded Sketchfab models -> decimated FBX + 1K albedo/normal jpg
+# 심연 고원 v3 (v2 converter 11-20: higher budgets, smooth normals): downloaded Sketchfab models -> decimated FBX + 1K albedo/normal jpg
 # blender -b --factory-startup -P kk_convert.py -- <download dir> <unity out dir>
 import bpy, sys, os
 args = sys.argv[sys.argv.index("--") + 1:]
 SRC, DST = args[0], args[1]
 MODELS = {  # out: (file, tri budget, albedo override, normal override)
-    "SKF_DragonSkull": ("dragon_skull_2.glb", 20000, None, None),
-    "SKF_BoneDemon": ("faceless_boney_horror_demon.glb", 40000, None, None),
-    "SKF_GatesOfHell": ("goh/source/Gates.fbx.fbx", 40000, "goh/textures/Gates-of-Hell.jpeg", None),
-    "SKF_AqueductRuin": ("aq/source/tripo_convert_5f703562-179e-46cc-bd64-f0f73a9ff39a.fbx", 40000, "aq/textures/Zyklus15_Zeile7_basecolor.jpeg", "aq/textures/Zyklus15_Zeile7_normal.jpeg"),
+    "SKF_DragonSkull": ("dragon_skull_2.glb", 60000, None, None),
+    "SKF_BoneDemon": ("faceless_boney_horror_demon.glb", 110000, None, None),
+    "SKF_GatesOfHell": ("goh/source/Gates.fbx.fbx", 110000, "goh/textures/Gates-of-Hell.jpeg", None),
+    "SKF_AqueductRuin": ("aq/source/tripo_convert_5f703562-179e-46cc-bd64-f0f73a9ff39a.fbx", 110000, "aq/textures/Zyklus15_Zeile7_basecolor.jpeg", "aq/textures/Zyklus15_Zeile7_normal.jpeg"),
 }
 def save_img(img, path, size=1024):
     if img is None: return False
@@ -51,6 +51,12 @@ for name, (src, budget, aov, nov) in MODELS.items():
         if tn <= budget * 1.05: break
         m = ob.modifiers.new("dec", "DECIMATE"); m.ratio = budget / tn; m.use_collapse_triangulate = True
         bpy.ops.object.modifier_apply(modifier="dec")
+    bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.remove_doubles(threshold=0.0002); bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    try: bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    except Exception: pass
+    bpy.ops.object.shade_smooth()
     t1 = sum(len(f.vertices) - 2 for f in ob.data.polygons)
     out = os.path.join(DST, name); os.makedirs(out, exist_ok=True)
     if aov: alb = bpy.data.images.load(os.path.join(SRC, aov))
@@ -64,5 +70,5 @@ for name, (src, budget, aov, nov) in MODELS.items():
     else: ob.data.materials.append(nm)
     ob.name = name; dims = ob.dimensions
     bpy.ops.export_scene.fbx(filepath=os.path.join(out, name + ".fbx"), use_selection=True, apply_unit_scale=True,
-                             axis_forward="-Z", axis_up="Y", bake_space_transform=True, mesh_smooth_type="FACE", path_mode="STRIP", add_leaf_bones=False)
+                             axis_forward="-Z", axis_up="Y", bake_space_transform=True, mesh_smooth_type="OFF", path_mode="STRIP", add_leaf_bones=False)
     print(f"OK {name}: tris {t0} -> {t1}, size {dims.x:.2f} x {dims.y:.2f} x {dims.z:.2f}, albedo {a_ok}, normal {n_ok}")

@@ -1,0 +1,4 @@
+﻿Goblin smith (거점 대장간 NPC)
+- Goblin model: Kido (Tripo).
+- Rig + animations (Breathing Idle, Talking, Wiping Sweat, Neck Stretching, Standing Melee Attack Downward as avatar source): Adobe Mixamo, https://www.mixamo.com (free for commercial use under the Mixamo terms).
+- Hammer: "Lowpoly Smithing Hammer" by pixelgrapher, https://sketchfab.com/3d-models/lowpoly-smithing-hammer-55fa01d368104db1b2e69253cd91d4e8 , CC BY 4.0 (converted to FBX, scaled).

@@ -1,0 +1,38 @@
+거점 (HUB) courtyard - third-party assets (2026-11-20). Placed by Editor/HubBuilder.cs.
+Models converted by ArtSource/Hub/convert_hub.py / convert_gate.py (Blender: decimated, textures cut to 1K JPG, rescaled).
+
+Creative Commons Attribution 4.0 (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/) - attribution required in the
+game's credits screen, commercial use allowed:
+- "Round stone steps/platform" by Luke.G (LukeCG) - https://sketchfab.com/3d-models/1dce73e4baed45e4b28547ddadf3ca25 (HB_Dais, flattened)
+- "Old Smithy" by lucasprs51450 - https://sketchfab.com/3d-models/6e8297ae714547448cc6f7da8acbb247 (HB_Smithy)
+- "Anvil Nature Morte" by crazyshroomz - https://sketchfab.com/3d-models/970427a0aff3465689ac509f4fde9d94 (HB_Anvil)
+- "Tools" by RBG_illustrations - https://sketchfab.com/3d-models/7404804feda1487ea58a36c512be0f6b (HB_ToolRack)
+- "Weapon Rack" by Big2XG - https://sketchfab.com/3d-models/0921f267541c4dbe971f33c122101d48 (HB_WeaponRack)
+- "Gear Low-poly Free" by Ruslan Malovsky (malovsky) - https://sketchfab.com/3d-models/44a720424b444d419264cf39a2e8fa23 (HB_Gear)
+- "Kyobanggo" by KOREA HERITAGE SERVICE [KHS] - https://sketchfab.com/3d-models/b18bfab0c53b47b59170bad7e11f227f (HB_Drum)
+- "Old / Ancient Scroll" by Kigha - https://sketchfab.com/3d-models/73e9333251c7490786f99e67beb41d6e (HB_Scroll)
+- "Medieval Book Stack" by GetDeadEntertainment - https://sketchfab.com/3d-models/0ea43f7fdcb7411cb1123b987f297d41 (HB_Books)
+- "Iron chain" by dabori (DaBoRi) - https://sketchfab.com/3d-models/6d079f01c7c142e0be54d7f2d33b33e6 (HB_Chain, decimated)
+- "KCISA-경선문(Gyeongseonmun)" by Korea Culture Information Service Agency (KCISA), from the 대전 앞 court download
+  (see RoomRun/CREDITS.txt, PC_GateS) -> HB_Gate + HB_DoorL / HB_DoorR (the gate's own door panel split at its centre seam
+  so the leaves can swing; doors re-tinted dark wood)
+- Reused from other stages (credited there): "Korea Traditional House_House Wall" by chrishong (SnowPlague HanokWall, straight
+  module only), "Oriental_stone_lantern" by kebijini (RoomRun StageLantern), KHS Spear / HwandoA / Woldo (RoomRun PP_*)
+
+CC0 / free licences (no attribution required, credited anyway):
+- Poly Haven (CC0): chinese_console_table (HB_Desk), chinese_armchair (HB_Chair), cross_pein_hammer (HB_Hammer);
+  wooden_candlestick (DarkCrypt)
+- Quixel Megascans via Fab (Fab Standard License, free): Castle Floor Stone tdblbcyt (DarkCrypt, the court floor)
+- Kenney Particle Pack (CC0): twirl_01 / smoke_04 (portal swirl, ground fog)
+- Fab "Fire VFX - Lite - Surface Burning" by Skulmovski Studio (Underworld/HellFX): flame flipbook / sparks (lanterns, forge)
+- Floor seal (v3): BossSeal BS_Seal_TaegeukPalgwae mask (Wikimedia Commons CC0 bagua octagon by Vuccala + taegeuk, see BossSeal/CREDITS.txt)
+- Talismans (11-20): "TaoistCharm.JPG", Wikimedia Commons, public domain - https://commons.wikimedia.org/wiki/File:TaoistCharm.JPG (ThirdParty/HB_Talisman)
+
+NPCs:
+- Goblin smith: model by Kido (made with Tripo); rig and 5 animation clips from Mixamo (Adobe, free for commercial use).
+- Ghost fires: "FREE ASSETS VFX / Fire Toon Particle" by wallcoeur (itch.io, free; may be used in projects, not resold) - https://wallcoeur.itch.io/unity-urp-vfx-fire-toon-particle (Assets/VFXPACK_FIRE_WALLCOEUR; materials swapped to URP-safe copies)
+
+!! NON-COMMERCIAL - replace before release:
+- 저승문: "Torii gate" by DESIGN BUREAU - https://sketchfab.com/3d-models/torii-gate-c64d94871bc541a0a5b11d98b787b82e, CC BY-NC-SA 4.0 (non-commercial), modified (URP repack, teal emission, tint). Not usable in a commercial Steam release.
+- Seal ropes: "注連縄 (Shimenawa)" by ik-models - https://sketchfab.com/3d-models/278cf151e5964da69a57f89f749264a4 (Sketchfab Free Standard license; ThirdParty/HB_Shimenawa, decimated)
+- More talismans (atlas ThirdParty/HB_Talisman/HB_TalismanAtlas.png), Wikimedia Commons, public domain: "AAVH AP4928 - Annam, 1926 - Amulette" (Albert Sallet), "Ofuda from Yanagidani Kannon", "Ofuda from Kegon-Ji", plus TaoistCharm.JPG

@@ -45,6 +45,7 @@ Material:
     - _HairSheenPower: 40
     - _RimIntensity: 1.6
     - _RimPower: 2.5
+    - _ShellNormals: 1
     - _SparkleAmount: 0.3
     - _SparkleDensity: 7
     - _SparkleIntensity: 0

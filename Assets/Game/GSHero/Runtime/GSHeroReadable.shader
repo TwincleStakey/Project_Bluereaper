@@ -46,6 +46,7 @@ Shader "GSHero/Readable"
         _EdgeGlint ("Steel edge line", Range(0, 3)) = 0
         _NoFog ("Ignore scene fog", Range(0, 1)) = 1
         _OccColor ("Occluded outline colour", Color) = (1, 0.9, 0.72, 1)
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull (11-20: two-sided for the suit body coat/shirt; 2 = back as before)", Float) = 2
         _EmissionMap ("Emission Map", 2D) = "black" {}
         [HDR] _EmissionColor ("Emission Color", Color) = (0, 0, 0, 1)
     }
@@ -78,7 +79,7 @@ Shader "GSHero/Readable"
         {
             Name "ForwardReadable"
             Tags { "LightMode" = "UniversalForward" }
-            Cull Back
+            Cull [_Cull]
 
             HLSLPROGRAM
             #pragma vertex vert
@@ -262,7 +263,7 @@ Shader "GSHero/Readable"
         {
             Name "ShadowCaster"
             Tags { "LightMode" = "ShadowCaster" }
-            ZWrite On ZTest LEqual ColorMask 0 Cull Back
+            ZWrite On ZTest LEqual ColorMask 0 Cull [_Cull]
 
             HLSLPROGRAM
             #pragma vertex vert
@@ -299,7 +300,7 @@ Shader "GSHero/Readable"
         {
             Name "DepthOnly"
             Tags { "LightMode" = "DepthOnly" }
-            ZWrite On ColorMask R Cull Back
+            ZWrite On ColorMask R Cull [_Cull]
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -314,7 +315,7 @@ Shader "GSHero/Readable"
         {
             Name "DepthNormals"
             Tags { "LightMode" = "DepthNormals" }
-            ZWrite On Cull Back
+            ZWrite On Cull [_Cull]
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag

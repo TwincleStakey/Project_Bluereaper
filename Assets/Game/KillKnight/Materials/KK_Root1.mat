@@ -36,7 +36,7 @@ Material:
     - _Amb: 0.6
     - _Key: 0.8
     - _NrmStr: 1
-    - _Silhouette: 0.7
+    - _Silhouette: 0.35
     - _Tri: 0
     m_Colors:
     - _Band: {r: 0, g: 0, b: 0, a: 1}

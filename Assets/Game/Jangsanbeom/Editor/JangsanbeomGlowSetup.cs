@@ -535,6 +535,18 @@ public static class JangsanbeomGlowSetup
     public static Material GramoMat(Material src)
     {
         string n = src != null ? src.name : "";
+        if (n.Contains("TalismanV2"))
+        {   // 11-20 v2 yellow talismans (scripts/v2_gramo_embed.py): two-sided paper, matte, a faint warm self-light so they read on the dark map
+            var tp = $"{Root}/Materials/JSB_Gramo_Talisman.mat";
+            var tm = AssetDatabase.LoadAssetAtPath<Material>(tp);
+            if (tm == null) { tm = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(tm, tp); }
+            var tx = AssetDatabase.LoadAssetAtPath<Texture2D>($"{Root}/Textures/JSB2_Talisman.png");
+            tm.SetTexture("_BaseMap", tx); tm.SetColor("_BaseColor", Color.white); tm.SetFloat("_Metallic", 0f); tm.SetFloat("_Smoothness", 0.15f);
+            tm.SetFloat("_Cull", 0f); tm.doubleSidedGI = true;
+            tm.EnableKeyword("_EMISSION"); tm.SetTexture("_EmissionMap", tx); tm.SetColor("_EmissionColor", new Color(0.35f, 0.28f, 0.08f));
+            tm.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            EditorUtility.SetDirty(tm); return tm;
+        }
         if (n.Contains("Banner") || n.Contains("Cloth") || n.Contains("Talisman")) return src;
         string key = n.Contains("Rope") ? "Rope" : (n.Contains("Bronze") || n.Contains("Gold") || n.Contains("Brass")) ? "Bronze" : n.Contains("Inside") ? "Inside" : "Rust";
         var path = $"{Root}/Materials/JSB_Gramo_{key}.mat";
@@ -552,6 +564,9 @@ public static class JangsanbeomGlowSetup
             m.SetColor("_BaseColor", key == "Bronze" ? new Color(1f, 0.8f, 0.45f) : key == "Inside" ? new Color(0.35f, 0.3f, 0.28f) : Color.white);
             m.SetFloat("_Metallic", key == "Bronze" ? 0.9f : 0.6f); m.SetFloat("_Smoothness", key == "Bronze" ? 0.5f : 0.3f);
         }
+        // 11-20 Kido ("나팔들 속에 왜 다 뒤가 뚫려 보이냐"): the horn walls are single sheets; with back faces culled you saw
+        // straight through the bell from behind. Draw both sides.
+        m.SetFloat("_Cull", 0f); m.doubleSidedGI = true;
         EditorUtility.SetDirty(m); return m;
     }
 

@@ -25,6 +25,7 @@ Shader "BambooArena/Bamboo"
 
         HLSLINCLUDE
         #include "Assets/Game/ReedField/Shaders/ReedCommon.hlsl"
+        #define RR_SEE_WIDE   // 11-20: foliage gets the wide full clear
         #include "Assets/Game/RoomRun/Shaders/RRSeeThrough.hlsl"   // 11-13: shared soft falloff
         CBUFFER_START(UnityPerMaterial)
             float4 _CulmCol, _CulmTop, _NodeCol, _LeafCol, _LeafTip, _RootCol, _Ambient;
@@ -94,7 +95,7 @@ Shader "BambooArena/Bamboo"
                 // 11-20 wide clear: every culm/leaf covering the ground around the player goes, fully (RRSeeThrough.hlsl)
                 float w = RRSeeWideCut(ws);
                 if (w > 0.001) clip(RRSeeDither(positionCS.xy) - w);
-                return;
+                // 11-20: only above tree height; below it the soft v2 thinning still runs
             }
             if (RRSeeThroughActive())
             {

@@ -657,17 +657,21 @@ public class LookStudyDevTools : MonoBehaviour
         });
         // 11-20 wide clear (RoomRun.SeeThroughFX.WideKey...): tall occluders over the ground around the player vanish fully
         r = NewRow();
-        Toggle(r, "넓게 지우기", () => PlayerPrefs.GetInt("RR.SeeWide", 1) != 0, () =>
+        Toggle(r, "넓게 비치기", () => PlayerPrefs.GetInt("RR.SeeWide", 1) != 0, () =>
         {
             PlayerPrefs.SetInt("RR.SeeWide", PlayerPrefs.GetInt("RR.SeeWide", 1) == 0 ? 1 : 0); RefreshToggles();
         });
-        Toggle(r, "일반 소품도", () => PlayerPrefs.GetInt("RR.SeeWide.Props", 1) != 0, () =>
+        Toggle(r, "일반 소품도", () => PlayerPrefs.GetInt("RR.SeeWide.Props", 0) != 0, () =>
         {
-            PlayerPrefs.SetInt("RR.SeeWide.Props", PlayerPrefs.GetInt("RR.SeeWide.Props", 1) == 0 ? 1 : 0); RefreshToggles();
+            PlayerPrefs.SetInt("RR.SeeWide.Props", PlayerPrefs.GetInt("RR.SeeWide.Props", 0) == 0 ? 1 : 0); RefreshToggles();
         });
-        MakeSlider("지우기 반경", 3f, 20f, PlayerPrefs.GetFloat("RR.SeeWide.Inner", 9f), v => PlayerPrefs.SetFloat("RR.SeeWide.Inner", v));
-        MakeSlider("지우기 가장자리", 4f, 26f, PlayerPrefs.GetFloat("RR.SeeWide.Outer", 13f), v => PlayerPrefs.SetFloat("RR.SeeWide.Outer", v));
-        MakeSlider("좌우 늘림", 1f, 2f, PlayerPrefs.GetFloat("RR.SeeWide.Stretch", 1.35f), v => PlayerPrefs.SetFloat("RR.SeeWide.Stretch", v));
+        MakeSlider("비치기 반경", 3f, 20f, PlayerPrefs.GetFloat("RR.SeeWide.Inner", 7f), v => PlayerPrefs.SetFloat("RR.SeeWide.Inner", v));
+        MakeSlider("비치기 가장자리", 4f, 26f, PlayerPrefs.GetFloat("RR.SeeWide.Outer", 11f), v => PlayerPrefs.SetFloat("RR.SeeWide.Outer", v));
+        MakeSlider("좌우 늘림", 1f, 2f, PlayerPrefs.GetFloat("RR.SeeWide.Stretch", 1.2f), v => PlayerPrefs.SetFloat("RR.SeeWide.Stretch", v));
+        MakeSlider("남김(투명도)", 0f, 0.9f, PlayerPrefs.GetFloat("RR.SeeWide.Keep", 0.45f), v => PlayerPrefs.SetFloat("RR.SeeWide.Keep", v));
+        MakeSlider("빛범위 비움", 0f, 10f, PlayerPrefs.GetFloat("RR.SeeWide.Clear", 4.5f), v => PlayerPrefs.SetFloat("RR.SeeWide.Clear", v));
+        MakeSlider("빛범위 가장자리", 0.5f, 12f, PlayerPrefs.GetFloat("RR.SeeWide.ClearFade", 6f), v => PlayerPrefs.SetFloat("RR.SeeWide.ClearFade", v));
+        MakeSlider("빛범위 높이", 0.4f, 4f, PlayerPrefs.GetFloat("RR.SeeWide.ClearH", 1.6f), v => PlayerPrefs.SetFloat("RR.SeeWide.ClearH", v));
         // 11-13 r2: live shape of the soft see-through (RoomRun.SeeThroughFX reads these keys; defaults must match it)
         MakeSlider("안쪽 반경", 0f, 3f, PlayerPrefs.GetFloat("RR.See.Inner", 0.7f), v => PlayerPrefs.SetFloat("RR.See.Inner", v));
         MakeSlider("바깥 반경", 2f, 10f, PlayerPrefs.GetFloat("RR.See.Outer", 5.8f), v => PlayerPrefs.SetFloat("RR.See.Outer", v));

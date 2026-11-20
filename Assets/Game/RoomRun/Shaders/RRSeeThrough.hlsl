@@ -23,15 +23,17 @@ float4 _RR_SeeShape3;       // x: falloff curve exponent applied after the smoot
 // is removed completely (no minimum visibility, no "in front of the player" test: a culm behind the player hides enemies
 // too). The pixel's ground point is where the camera ray through it meets the player's feet height, so the test is in
 // metres on the ground and a tree far away whose top only overlaps the player on screen is kept. Shadows stay.
-// Set by RoomRun.SeeThroughFX; a shader can opt out with #define RR_SEE_NO_WIDE before including (reeds: their half-hiding
+// Set by RoomRun.SeeThroughFX. FOLIAGE ONLY, opt-in: #define RR_SEE_WIDE before including (bamboo, LS foliage, SP vegetation).
+// 11-20 Kido: landmarks (서낭당 tower, 문인석), houses, rocks keep the soft v2 thinning; reeds too (their half-hiding
 // of the player is intended).
 float4 _RR_SeeWide;         // x: inner radius (m, fully gone), y: outer radius (m, untouched beyond), z: lateral stretch along camera right, w: 1 = on
-float4 _RR_SeeWideRight;    // xy: camera right on the ground (normalised xz)
+float4 _RR_SeeWideRight;    // xy: camera right on the ground (normalised xz), z/w: fade starts/full this high above the feet (m)
+float4 _RR_SeeWide2;        // x: how much of the occluder stays inside the ellipse (r4: semi-transparent), y/z: light-circle clear radius full/fade (m, r5), w: clear height start above feet (m, r6)
 float4 _RR_SeePlayerWS[3];  // xyz: player feet (world), w: 1 = active
 
 bool RRSeeThroughActive() { return _RR_SeeShape.y > 0; }
 
-#if defined(RR_SEE_NO_WIDE)
+#if !defined(RR_SEE_WIDE)
 bool RRSeeWideActive() { return false; }
 float RRSeeWideCut(float3 ws) { return 0; }
 #else
@@ -43,18 +45,28 @@ float RRSeeWideCut(float3 ws)
     float3 cam = _WorldSpaceCameraPos;
     float2 rgt = _RR_SeeWideRight.xy, fwd = float2(-rgt.y, rgt.x);
     float stretch = max(_RR_SeeWide.z, 0.1);
+    float keep = saturate(_RR_SeeWide2.x);
     float f = 0;
     [unroll] for (int k = 0; k < 3; k++)
     {
         float4 p = _RR_SeePlayerWS[k];
         if (p.w < 0.5) continue;
-        float ramp = smoothstep(_RR_SeeShape2.y, _RR_SeeShape2.z, ws.y - p.y);
-        if (ramp <= 0) continue;
         float denom = cam.y - ws.y;
         float2 g = denom > 0.05 ? cam.xz + (ws.xz - cam.xz) * ((cam.y - p.y) / denom) : ws.xz;
         float2 d = g - p.xz;
+        // 11-20 r5 (Kido: "딱 빛범위만 아무것도 안가리게 하고 나머지는 지금처럼 투명"): inside the player's light circle
+        // (round, metres on the ground, _RR_SeeWide2.yz) nothing above the knees covers the lit ground at all
+        float clearCut = (1 - smoothstep(_RR_SeeWide2.y, _RR_SeeWide2.z, length(d)))
+                       * smoothstep(_RR_SeeWide2.w, _RR_SeeWide2.w + 0.8, ws.y - p.y);
+        // r6 (Kido, 계곡: "높은 나무만, 왜 잔디까지... 캐릭터가 박혀서"): the clear starts above chest height, not at the knees,
+        // so grass/flowers/shrubs never go even when the player stands sunk in water below the bank
+        f = max(f, clearCut);
+        // around it: only the tall upper parts (r2 "위에 나무만") standing between camera and player (r3 "주위 싹다
+        // 지워버리면") go semi-transparent (r4 "위에 환경이 좀 투명하게"), keep = what stays
+        float ramp = smoothstep(_RR_SeeWideRight.z, _RR_SeeWideRight.w, ws.y - p.y);
+        if (ramp <= 0 || LinearEyeDepth(ws, GetWorldToViewMatrix()) > _PlayerScreenPos[k].z + 0.5) continue;
         float dist = length(float2(dot(d, rgt) / stretch, dot(d, fwd)));
-        f = max(f, (1 - smoothstep(_RR_SeeWide.x, _RR_SeeWide.y, dist)) * ramp);
+        f = max(f, (1 - smoothstep(_RR_SeeWide.x, _RR_SeeWide.y, dist)) * ramp * (1 - keep));
     }
     return f;
 }
@@ -83,13 +95,13 @@ float RRSeeHeight(float wsY) { return smoothstep(_RR_SeeShape2.y, _RR_SeeShape2.
 float RRSeeThroughCut(float4 positionCS, float3 ws)
 {
     if (!RRSeeThroughActive()) return 0;
-    if (RRSeeWideActive()) return RRSeeWideCut(ws);
+    float w = RRSeeWideActive() ? RRSeeWideCut(ws) : 0;   // 11-20: wide clear above tree height + soft v2 below it
     float2 uv = GetNormalizedScreenSpaceUV(positionCS);
     float eye = LinearEyeDepth(ws, GetWorldToViewMatrix());
     float aspect = _ScreenParams.x / _ScreenParams.y;
     float f = 0;
     [unroll] for (int k = 0; k < 3; k++) f = max(f, RRSeeFadeOne(uv, eye, _PlayerScreenPos[k], aspect));
-    return f * RRSeeHeight(ws.y) * (1 - _RR_SeeShape.z);
+    return max(w, f * RRSeeHeight(ws.y) * (1 - _RR_SeeShape.z));
 }
 
 // Run it in the colour AND the depth passes (DepthOnly, DepthNormals), never the shadow caster.

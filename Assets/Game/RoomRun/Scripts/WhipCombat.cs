@@ -135,8 +135,9 @@ namespace RoomRun
         // the front (its swing 2, 1.42-1.8 s) with a forward lunge. token whiptorch=0 = v48 (WH_Throw body, one hit)
         public static bool TorchCombo = true;
         public static string TorchClipPath = "Assets/Game/LocoSplit/Art/MixamoRR/WH_Torch03.fbx";
-        public const float TA = 0.77f, TB0 = 1.30f, TBHit = 1.62f, TEnd = 2.15f;
+        public const float TA = 0.88f, TB0 = 1.28f, TBHit = 1.58f, TEnd = 2.15f;   // v51: clip MIRRORED (right hand strikes): chop lands .88, upswing 1.4-1.7 (probe_WH_Torch03_m.txt)
         public static float LungeSpeed = 3.2f;
+        public static bool TorchSpin = false;
         AnimationClip clipTorch; bool slam2;
         bool TorchOn => TorchCombo && clipTorch && MusaLash && Authored && MusaArc;
         public Vector3 LungeVelocity
@@ -152,19 +153,28 @@ namespace RoomRun
         void BladeDriver(float tt, out float pitch, out float yaw, out float rad)
         {
             if (!(TorchOn && kind == 1)) { ArcDriver(tt, out pitch, out yaw, out rad); return; }
-            if (tt < TB0) { ArcDriver(tt - (TA - ArcLand), out pitch, out yaw, out rad); return; }
+            if (tt < TB0)
+            {
+                float la = tt - (TA - ArcLand);
+                ArcDriver(la, out pitch, out yaw, out rad); yaw = 0f;
+                // v52: before and during the wind-up the blade lies BACK over the shoulder (was 40 deg forward-up) and stays
+                // short (assembled) until the throw
+                if (la < BWind) { float w = Mathf.Clamp01(la / BWind); pitch = Mathf.Lerp(160f, 176f, w); rad = AuthLen * (la <= 0f ? 0f : Mathf.Lerp(0f, 0.8f, w * w)); }   // v53: 0 until the throw so the sword stays whole with its texture (ext>0.06 swaps to the plain steel plates)
+                return;
+            }   // v52 (Kido 11-20 "위에서 아래로인데 왜 옆에서 와"): straight down the aim line, no side drift, no sideways sweep
             UpDriver(tt - TB0, out pitch, out yaw, out rad);
         }
         // hit B: comes out trailing low behind on the left, then sweeps round the front and rises (an upper-cut), drawn in
         void UpDriver(float u, out float pitch, out float yaw, out float rad)
         {
-            const float Out = 0.12f, Sw = 0.38f;
-            if (u < Out) { float w = EaseOut(Mathf.Clamp01(u / Out)); pitch = -4f; yaw = -150f; rad = AuthLen * Mathf.Lerp(0.15f, 1f, w); return; }
-            float s = Mathf.Clamp01((u - Out) / Sw);
-            float e = s < 0.5f ? 2f * s * s : 1f - Mathf.Pow(-2f * s + 2f, 2f) / 2f;
-            yaw = Mathf.Lerp(-150f, 25f, e);
-            pitch = Mathf.Lerp(-4f, 72f, Mathf.Pow(s, 2.2f));
-            float back = u - Out - Sw;
+            // v55 (Kido 11-20 "올려칠 때도 저 아크 리버스해서 아래에서 위로"): hit A's arc played backwards on the aim line: the
+            // blade lies out along the ground in front, then rises up the front, over the top and back behind the head
+            const float Out = 0.12f, Rise = 0.3f;
+            yaw = 0f;
+            if (u < Out) { float w = EaseOut(Mathf.Clamp01(u / Out)); pitch = -4f; rad = AuthLen * Mathf.Lerp(0.15f, 1f, w); return; }
+            float s = Mathf.Clamp01((u - Out) / Rise);
+            pitch = Mathf.Lerp(-4f, 172f, s * s * (3f - 2f * s));
+            float back = u - Out - Rise;
             rad = back <= 0f ? AuthLen : Mathf.MoveTowards(AuthLen, 0f, back * 30f);
         }
         public static bool Overhead = true;
@@ -273,6 +283,7 @@ namespace RoomRun
 
         public void Setup(PlayerController owner, Animator animator)
         {
+            SuitBody.WhipMode = true;
             animator = SuitBody.Attach(animator);   // 11-19 suit body test: the whip drives Joe's bones when on
             pc = owner; anim = animator;
             rUpper = anim.GetBoneTransform(HumanBodyBones.RightUpperArm);
@@ -497,7 +508,7 @@ namespace RoomRun
                     if (!slamDone && t >= TA) { slamDone = true; if (rigT) rigT.Shake(0.13f); Freeze(0.05f); }
                     if (!slam2 && t >= TBHit) { slam2 = true; if (rigT) rigT.Shake(0.1f); }
                     if (!cracked && t >= TA + 0.08f) { cracked = true; Crack(); }
-                    if (t >= TEnd - 0.08f && fire && DevFireGap <= 0f) StartAttack(ComboWide ? 2 : 1, aimDir);
+                    if (t >= TEnd - 0.08f && fire && DevFireGap <= 0f) StartAttack(TorchSpin && ComboWide ? 2 : 1, aimDir);   // v52: A-B repeats; the spin only with TorchSpin
                     else if (t >= TEnd) { kind = 0; gapLeft = DevFireGap; }
                 }
                 else if (kind == 1)
@@ -1034,9 +1045,32 @@ namespace RoomRun
             if (!(kind == 2 && SweepSpiral && ext > 0.02f) && !(kind == 1 && MusaLash && Authored && ext > 0.02f)) seg = Mathf.Lerp(SwordLen, lashLen, ext) / (N - 1);
             SwapPlateLook(ext > 0.06f);
             MeasureSword();
+            // v56b: the hilt is drawn from the sword transform; turn it so its blade line matches GripDir about the palm (else
+            // the hilt points the old way and the blade bends at the hand like an L)
+            if (GripOverride && SuitBody.WhipMode && swordAxisKnown && sword)
+            {
+                var cur = CurBladeAxis();
+                var want = GripDir();
+                var axisR = Vector3.Cross(cur, want);
+                if (axisR.sqrMagnitude > 1e-8f) sword.RotateAround(GripPalm(), axisR.normalized, Vector3.Angle(cur, want));
+                MeasureSword();
+            }
             if (RealSword && !swordCut && !swordCutTried && swordAxisKnown) CutSword();
             Simulate(live, F, U, R);
             Assemble();
+            // v57 (Kido 11-20 "칼은 왼쪽, 날은 위로"): the hilt is drawn from the sword transform; once the chain leaves the
+            // grip line (every attack) turn the hilt onto the blade's first links so hilt and blade stay one straight line
+            if (GripOverride && SuitBody.WhipMode && swordAxisKnown && sword)
+            {
+                var first = p[Mathf.Min(3, N - 1)] - p[0];
+                if (first.sqrMagnitude > 1e-6f)
+                {
+                    var cur = CurBladeAxis();
+                    var want = first.normalized;
+                    var axisR = Vector3.Cross(cur, want);
+                    if (axisR.sqrMagnitude > 1e-8f) sword.RotateAround(GripPalm(), axisR.normalized, Vector3.Angle(cur, want));
+                }
+            }
             DrawTube();
             if (swordCut) DrawSwordPlates(); else DrawBlade();
             UpdateRibbon(dt);
@@ -1121,7 +1155,7 @@ namespace RoomRun
         {
             var hand = rHand.position;
             var hd = HandDir();
-            var root = swordCut ? swordT.TransformPoint(bladeBaseLocal) : hand + hd * 0.07f;
+            var root = GripOverride && SuitBody.WhipMode ? GripPalm() + GripDir() * 0.05f : swordCut ? swordT.TransformPoint(bladeBaseLocal) : hand + hd * 0.07f;   // v56: the chain leaves Joe's palm
             float ground = pc.transform.position.y + 0.025f;
             if (!chainInit)
             {
@@ -1619,7 +1653,39 @@ namespace RoomRun
             swordAxisKnown = true;
         }
 
-        Vector3 SwordAxis => swordAxisKnown ? rHand.TransformDirection(swordAxisL) : HandDir();
+        Vector3 SwordAxis => GripOverride && SuitBody.WhipMode ? GripDir() : swordAxisKnown ? rHand.TransformDirection(swordAxisL) : HandDir();
+        // v56 (Kido 11-20 red line "무기를 반대방향으로 들고 있잖아"): on the suit body SplitBody keeps re-seating the sword in the
+        // hero's hand frame every frame, so the held blade pointed up/forward. The whip now takes the blade line from Joe's
+        // hand itself: down along the fingers and back away from the thumb (hangs down-back at rest, lies back when raised)
+        public static bool GripOverride = true;
+        // the sword's blade line in world space NOW (SplitBody re-seats the sword every frame, so the once-measured
+        // hand-local axis goes stale on the suit body)
+        Vector3 CurBladeAxis()
+        {
+            if (swordCut && swordT) return swordT.TransformDirection(cutA).normalized;
+            var mf = sword ? sword.GetComponentInChildren<MeshFilter>(true) : null;
+            if (!mf || !mf.sharedMesh) return rHand.TransformDirection(swordAxisL);
+            var b = mf.sharedMesh.bounds; var e = b.extents;
+            Vector3 A = e.x >= e.y && e.x >= e.z ? Vector3.right : e.y >= e.z ? Vector3.up : Vector3.forward;
+            var lo = mf.transform.TransformPoint(b.center - Vector3.Scale(A, e));
+            var hi = mf.transform.TransformPoint(b.center + Vector3.Scale(A, e));
+            var tip = (hi - rHand.position).sqrMagnitude > (lo - rHand.position).sqrMagnitude ? hi - lo : lo - hi;
+            return tip.normalized;
+        }
+        Vector3 GripDir()
+        {
+            var mid = anim.GetBoneTransform(HumanBodyBones.RightMiddleProximal);
+            var th = anim.GetBoneTransform(HumanBodyBones.RightThumbProximal);
+            if (!mid || !th) return HandDir();
+            var fingers = (mid.position - rHand.position).normalized;
+            var thumb = Vector3.ProjectOnPlane(th.position - rHand.position, fingers).normalized;
+            return (fingers * 0.85f - thumb * 0.55f).normalized;
+        }
+        Vector3 GripPalm()
+        {
+            var mid = anim.GetBoneTransform(HumanBodyBones.RightMiddleProximal);
+            return mid ? Vector3.Lerp(rHand.position, mid.position, 0.6f) : rHand.position;
+        }
 
         // v15: read the sword mesh once, sort its triangles into the hilt (rigid) and Plates slices of the blade
         void CutSword()
@@ -1756,7 +1822,7 @@ namespace RoomRun
             float w = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(ext * 1.4f));
             if (w <= 0f) return;
             var ax = SwordAxis;
-            var root = swordCut ? swordT.TransformPoint(bladeBaseLocal) : rHand.position + ax * 0.07f;
+            var root = GripOverride && SuitBody.WhipMode ? GripPalm() + ax * 0.05f : swordCut ? swordT.TransformPoint(bladeBaseLocal) : rHand.position + ax * 0.07f;
             for (int i = 0; i < N; i++)
             {
                 var rigid = root + ax * (i / (float)(N - 1)) * SwordLen;
@@ -2033,7 +2099,7 @@ namespace RoomRun
             var cam = RunDirector.Instance && RunDirector.Instance.Rig ? RunDirector.Instance.Rig.Cam : Camera.main;
             foreach (var f in flashes)
             {
-                if (!f.go.activeSelf) continue;
+                if (!f.go || !f.go.activeSelf) continue;   // the flash may be destroyed with a room change
                 f.age += dt;
                 float u = f.age / f.life;
                 if (u >= 1f) { f.go.SetActive(false); continue; }

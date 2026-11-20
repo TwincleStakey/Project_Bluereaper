@@ -24,14 +24,14 @@ namespace RoomRun
             for (float t = 0f; t <= clip.length + 1e-4f; t += 1f / 30f)
             {
                 clip.SampleAnimation(go, t);
-                var h = go.transform.InverseTransformPoint(hand.position);
+                var h = go.transform.InverseTransformPoint(hand.position); var lh = go.transform.InverseTransformPoint(an.GetBoneTransform(HumanBodyBones.LeftHand).position);
                 var hp = go.transform.InverseTransformPoint(hips.position);
                 float sp = (h - prev).magnitude * 30f; prev = h;
                 float yaw = chest ? Vector3.SignedAngle(Vector3.forward, go.transform.InverseTransformDirection(chest.forward), Vector3.up) : 0f;
-                sb.AppendLine($"t {t:0.000} hand {h.x:0.00} {h.y:0.00} {h.z:0.00} spd {sp:0.0} hips {hp.x:0.00} {hp.y:0.00} {hp.z:0.00} chestYaw {yaw:0}");
+                sb.AppendLine($"t {t:0.000} hand {h.x:0.00} {h.y:0.00} {h.z:0.00} spd {sp:0.0} L {lh.x:0.00} {lh.y:0.00} {lh.z:0.00} hips {hp.x:0.00} {hp.y:0.00} {hp.z:0.00} chestYaw {yaw:0}");
             }
             Object.DestroyImmediate(go);
-            System.IO.File.WriteAllText(System.IO.Path.Combine(Application.dataPath, "../ArtSource/Whip/probe_" + n + ".txt"), sb.ToString());
+            System.IO.File.WriteAllText(System.IO.Path.Combine(Application.dataPath, "../ArtSource/Whip/probe_" + n + "_m.txt"), sb.ToString());
             Debug.Log("[WhipClipProbe] wrote probe_" + n);
         }
     }

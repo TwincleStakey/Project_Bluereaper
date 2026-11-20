@@ -10,15 +10,29 @@ using UnityEngine;
 public class JangsanbeomFogDash : MonoBehaviour
 {
     public AnimationClip standClip, crouchClip, dashClip;
+    // 11-20 Kido ("처음 안개 속으로 들어갈 때 뒷걸음질 치면서 몸 점점 낮아지면서 숨을 수 있어?"): the opening is a retreat - still
+    // facing the player it backs away step by step (the walk played backwards), sinking lower and lower into a crouch, until
+    // the fog swallows it.
+    public AnimationClip walkClip;
+    [Tooltip("Seconds the backing-away into the fog takes")] public float retreatTime = 4.2f;
+    [Tooltip("How far into the crouch it sinks while backing away (1 = full crouch, belly on the floor)")] [Range(0, 1)] public float retreatCrouch = 0.45f;
+    [Tooltip("Metres a walk cycle covers going forward (jsb2_walk_lion: 13.07 m per cycle)")] public float walkCycleDist = 13.07f;
     [Tooltip("Gallop cycle: each bound of the pass plays one cycle")] public AnimationClip gallopClip;
     // 11-20 Kido ("딱 레퍼런스인 poe2처럼, 안개 퀄 좋은 거"): seen in the reference fight footage - a cool blue-grey, billowing,
     // rolling fog bank round a ragged clear patch; the wolf is a dark shape inside it and drags fog across the floor when it
     // comes through. Sprite: Unity Particle Pack "SmokeLoop02" (6x6 animated smoke loop, the pack's own ground-fog texture).
     public Material fogMaterial;          // animated smoke flipbook, alpha blended
     public int fogTiles = 6;
+    // 11-20 Kido ("안개 퀄이 너무 별로"): the bank itself is now a stack of fog sheets (JangsanbeomFogRing shader); the smoke
+    // sprites are only used for fog the boss drags out and blows out on a landing
+    public Material fogSheetMaterial;
+    Transform sheetRoot;
+    public int fogSheets = 10;
+    public float fogTop = 10f;
     public Material dustMaterial;         // smoke flipbook (4x4) for the dust the paws kick up
     public Material telegraphMaterial;    // additive HDR lines (JangsanbeomTrail, hard edge): the border of the strip
     public Material telegraphFillMaterial;// alpha-blended, vertex coloured: the solid red of the strip
+    [Tooltip("Red shock ring on the floor at a landing (11-20 Kido: off - \"바닥 칠 때 주위로 링 같은 거 날리지 마\")")] public bool landingRing = false;
     [Tooltip("Height of each bound (world units)")] public float boundHeight = 5.2f;
     // 11-19 Kido: two ways to cross. 0 = "흔들다가 확 점프해서 한 번 가운데 착지하고 지나가는": wiggle, explode off the mark, land once in
     // the middle, leap on. 1 = "저 뒤에서부터 포물선 그리면서 앞으로 크게 한 번": one great arcing leap from the back that comes down past
@@ -47,12 +61,12 @@ public class JangsanbeomFogDash : MonoBehaviour
     bool scaleKept;
     Vector3 baseScale = Vector3.one, fwdLocal = Vector3.forward; bool ringed; float ringT = -99f; Vector3 ringPos; LineRenderer ring;
     public bool Running { get; private set; }
-    public float Duration => fogIn + passes.Count * (telegraphTime + dashTime + gap) + fogOut;
+    public float Duration => fogIn + passes.Count * (telegraphTime + dashTime + gap) + (walkClip ? retreatTime - (telegraphTime + dashTime + gap) : 0f) + fogOut;
 
     class Pass { public float t0; public Vector3 from, to; public bool set, hit; }
     readonly List<Pass> passes = new List<Pass>();
     Transform head, hips; Quaternion baseRot = Quaternion.identity; Vector3 homePos; Quaternion homeRot;
-    ParticleSystem fog, dust; LineRenderer strip, fill, edgeA, edgeB; float gallopT0; Transform[] hindToes; bool landed; float lastSim = -1, startTime; System.Random rng; Renderer[] rends;
+    ParticleSystem fog, dust; LineRenderer strip, fill, edgeA, edgeB; float gallopT0; Transform[] hindToes, allToes; bool landed; float lastSim = -1, startTime; System.Random rng; Renderer[] rends;
 
     public void Build()
     {
@@ -72,15 +86,26 @@ public class JangsanbeomFogDash : MonoBehaviour
         rng = new System.Random(seed);
         passes.Clear();
         float t = fogIn;
-        for (int i = 0; i < dashes + 2; i++) { passes.Add(new Pass { t0 = t }); t += telegraphTime + dashTime + gap; }
+        for (int i = 0; i < dashes + 2; i++) { passes.Add(new Pass { t0 = t }); t += i == 0 && walkClip ? retreatTime : telegraphTime + dashTime + gap; }
 
         var root = new GameObject("FogDashFX") { hideFlags = HideFlags.DontSave }; root.transform.SetParent(transform, false);
         fog = NewPS(root.transform, "Fog", fogMaterial, 4400, fogTiles, 0.35f); dust = NewPS(root.transform, "Dust", fogMaterial, 1200, fogTiles, 1f);
+        // the bank must not ride on the boss (it moves, and is dropped out of sight while hidden): its own scene object
+        if (sheetRoot != null) { if (Application.isPlaying) Destroy(sheetRoot.gameObject); else DestroyImmediate(sheetRoot.gameObject); }
+        if (gameObject.scene.IsValid())   // a bank left over from an earlier capture (OnDestroy does not run in edit mode)
+            foreach (var g in gameObject.scene.GetRootGameObjects()) if (g.name == "FogDashFX_Bank") { if (Application.isPlaying) Destroy(g); else DestroyImmediate(g); }
+        if (fogSheetMaterial)
+        {
+            sheetRoot = new GameObject("FogDashFX_Bank") { hideFlags = HideFlags.DontSave }.transform;
+            if (gameObject.scene.IsValid()) UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(sheetRoot.gameObject, gameObject.scene);
+            BuildSheets(sheetRoot);
+        }
         strip = NewLine(root.transform, "Strip", telegraphFillMaterial ? telegraphFillMaterial : telegraphMaterial); fill = NewLine(root.transform, "Fill", telegraphFillMaterial ? telegraphFillMaterial : telegraphMaterial);
         edgeA = NewLine(root.transform, "EdgeA", telegraphMaterial); edgeB = NewLine(root.transform, "EdgeB", telegraphMaterial);
         ring = NewLine(root.transform, "Ring", telegraphMaterial); ring.loop = true; ring.positionCount = 64; ringT = -99f; ringed = false;
         // the gallop cycle starts where the hind paws are planted (the push-off)
         hindToes = new[] { System.Array.Find(all, t => t.name == "HindToes.L"), System.Array.Find(all, t => t.name == "HindToes.R") };
+        allToes = new[] { hindToes[0], hindToes[1], System.Array.Find(all, t => t.name == "FrontToes.L"), System.Array.Find(all, t => t.name == "FrontToes.R") };
         gallopT0 = 0f;
         if (gallopClip && hindToes[0] && hindToes[1])
         {
@@ -143,7 +168,14 @@ public class JangsanbeomFogDash : MonoBehaviour
         if (k == 0)
         {   // slip away: from where it stands straight out into the fog, away from the player
             var d = homePos - PlayerPos; d.y = 0; if (d.sqrMagnitude < 1f) d = Vector3.forward; d.Normalize();
-            ps.from = new Vector3(homePos.x, 0, homePos.z); ps.to = arenaCentre + (ps.from - arenaCentre + d * arenaRadius * 2f).normalized * arenaRadius;
+            ps.from = new Vector3(homePos.x, 0, homePos.z);
+            if (walkClip)
+            {   // back away across the screen (sideways for the top-down camera, which looks along +z), so the player
+                // sees it sink into the fog instead of walking off the top edge first
+                var side = new Vector3(Mathf.Sign(homePos.x - PlayerPos.x == 0f ? 1f : homePos.x - PlayerPos.x), 0f, 0f);
+                ps.to = ps.from + side * Mathf.Max(8f, fogInner + 6f - Mathf.Abs(ps.from.x - arenaCentre.x));   // only just into the bank, still on screen
+            }
+            else ps.to = arenaCentre + (ps.from - arenaCentre + d * arenaRadius * 2f).normalized * arenaRadius;
         }
         else if (k == passes.Count - 1)
         {   // home: out of the fog to where it stood
@@ -182,7 +214,21 @@ public class JangsanbeomFogDash : MonoBehaviour
             float lt = t - cur.t0; var dir = (cur.to - cur.from).normalized; float len = (cur.to - cur.from).magnitude;
             var rot = Quaternion.LookRotation(dir) * baseRot;
             bool last = k == passes.Count - 1;
-            if (lt < telegraphTime)
+            if (k == 0 && walkClip)
+            {   // backing away into the fog, facing the player, sinking
+                float u = Mathf.Clamp01(lt / retreatTime);
+                float e = u * u * (3f - 2f * u) * 0.35f + u * 0.65f;            // eases off, then keeps creeping
+                var pos = Vector3.Lerp(cur.from, cur.to, e);
+                transform.SetPositionAndRotation(pos, Quaternion.LookRotation(-dir) * baseRot);
+                float dist = len * e;
+                float tw = walkClip.length - ((dist / walkCycleDist) * walkClip.length) % walkClip.length;   // walk cycle backwards, feet in step
+                // 11-20 Kido ("뒤로 가는 거 바닥에 너무 크게 쳐박혀"): only half way down into the crouch, not belly in the floor
+                float low = Mathf.SmoothStep(0f, 1f, u * 1.25f) * retreatCrouch;
+                Pose(walkClip, tw % walkClip.length, crouchClip ? crouchClip : walkClip, crouchClip ? crouchClip.length * 0.4f : tw, low);
+                // gone once it is well inside the bank
+                vis = u < 0.97f;   // it is in the bank by the end; gone from then on
+            }
+            else if (lt < telegraphTime)
             {   // the strip fills; the boss shows at its head, crouched
                 float u = lt / telegraphTime;
                 transform.SetPositionAndRotation(cur.from, rot);
@@ -200,7 +246,10 @@ public class JangsanbeomFogDash : MonoBehaviour
                 // the body squashed flat, a hard shake; (2) it stays coiled there for a beat, in plain sight; (3) it explodes
                 // into the second leap. In the air the body stretches long and the legs sweep (gallop cycle under the
                 // stretched pose); red streaks trail from the paws (JangsanbeomClawTrails on all four).
-                const float land0 = 0.30f, land1 = 0.58f, landShare = 0.05f;   // the landing: 28 % of the time, 5 % of the way
+                // 11-20 Kido ("착지할 때 부르르 떨고... 이상해", "착지할 때 확실히 슬라이딩 되지 않게, 점프 다시 하는 느낌"): the landing
+                // no longer travels at all (it slid 5 % of the pass, metres) and no longer plays the crouch clip (its rump
+                // wiggle read as a shudder). It is one held coil pose: impact -> settle -> load up (sinks, rump rises) -> launch.
+                const float land0 = 0.30f, land1 = 0.56f, landShare = 0f;
                 float half = 0.5f - landShare * 0.5f;
                 float e, air, cycleU; float hgt = boundHeight; bool landing = false; float landQ = 0f;
                 if (leapStyle == 1)
@@ -212,11 +261,15 @@ public class JangsanbeomFogDash : MonoBehaviour
                     else { float q = (u - down) / (1f - down); e = flyShare + downShare + (1f - flyShare - downShare) * (last ? 1f - (1f - q) * (1f - q) : q); air = 0.25f * Mathf.Sin(Mathf.PI * q) * boundHeight / bigLeapHeight; cycleU = q; }
                 }
                 else if (u < land0) { float q = u / land0; e = half * q; air = Mathf.Sin(Mathf.PI * q) * (1f - 0.35f * q); cycleU = q; }   // flat out, diving in
-                else if (u < land1) { float q = (u - land0) / (land1 - land0); e = half + landShare * (1f - (1f - q) * (1f - q)); air = 0f; cycleU = 1f; landing = true; landQ = q; }
+                else if (u < land1) { float q = (u - land0) / (land1 - land0); e = half; air = 0f; cycleU = 1f; landing = true; landQ = q; }
                 else { float q = (u - land1) / (1f - land1); e = half + landShare + half * (last ? 1f - (1f - q) * (1f - q) : q * (0.35f + 0.65f * q) / 1f); air = Mathf.Sin(Mathf.PI * q) * (last ? 0.7f : 1.25f); cycleU = q; }
                 var pos = Vector3.Lerp(cur.from, cur.to, e) + Vector3.up * hgt * air;
                 // nose up on the way up, down on the way down
-                float pitch = landing ? 6f : -Mathf.Cos(Mathf.PI * cycleU) * (leapStyle == 1 && u < 0.62f ? 16f : 20f);
+                float pitch = landing ? 0f :   // held: tilting the root on the ground lifted/sank the paws
+                     -Mathf.Cos(Mathf.PI * cycleU) * (leapStyle == 1 && u < 0.62f ? 16f : 20f);
+                // style 0: level out at the touch-down and the take-off, so the paws meet the floor (they went 3.5 m into it
+                // nose-down at the touch-down and the body popped up a frame later)
+                if (leapStyle == 0 && !landing) pitch *= Mathf.SmoothStep(0f, 1f, cycleU / 0.15f) * (1f - Mathf.SmoothStep(0.8f, 1f, cycleU));
                 transform.SetPositionAndRotation(pos, Quaternion.AngleAxis(pitch, Vector3.Cross(Vector3.up, dir)) * rot);
                 Airborne = !landing;
                 // 11-20 Kido ("뛰는 거 역동성이 안 보여"): a looping gallop cycle read as paddling. The leap is now three clear shapes:
@@ -226,7 +279,7 @@ public class JangsanbeomFogDash : MonoBehaviour
                 {
                     if (landing)
                     {   // slam flat, then gather: the rump comes up and wiggles before the second leap
-                        crouchClip.SampleAnimation(gameObject, Mathf.Lerp(crouchClip.length * 0.38f, crouchClip.length * 0.98f, landQ));
+                        crouchClip.SampleAnimation(gameObject, crouchClip.length * 0.4f);   // the same coil the leap ends and starts in: no pop, no wiggle
                     }
                     else
                     {
@@ -238,11 +291,24 @@ public class JangsanbeomFogDash : MonoBehaviour
                 }
                 else if (gallopClip) gallopClip.SampleAnimation(gameObject, (gallopT0 + cycleU * gallopClip.length) % gallopClip.length);
                 else if (dashClip) dashClip.SampleAnimation(gameObject, Mathf.Min(u * dashTime, dashClip.length));
-                Shake = landing ? Mathf.Max(0f, 1f - landQ * 2.2f) : u > 0.96f && last ? 0.6f : 0f;
+                Shake = landing ? Mathf.Max(0f, 1f - landQ * 3.5f) : u > 0.96f && last ? 0.6f : 0f;
                 // squash and stretch along the run: long in the air, flattened wide on the slam, springing back
-                float sq = landing ? Mathf.Lerp(0.78f, 1f, Mathf.SmoothStep(0f, 1f, landQ * 2.5f)) : 1f + 0.16f * Mathf.Sin(Mathf.PI * cycleU);
-                ApplySquash(sq);
-                if (landing && !ringed) { ringed = true; ringT = t; ringPos = new Vector3(pos.x, 0.15f, pos.z); }
+                if (landing)
+                {   // on the ground only the height squashes (scaling along the body moved the planted paws = sliding):
+                    // the hit flattens it, it rises a little, then sinks to load up just before it springs
+                    float hit = Mathf.Lerp(0.74f, 0.95f, Mathf.SmoothStep(0f, 0.35f, landQ));
+                    float load = Mathf.Lerp(1f, 0.8f, Mathf.SmoothStep(0.5f, 1f, landQ));
+                    ApplySquashY(hit * load);
+                    // 11-20 probe: tipped nose-down the front paws sat 2 m under the floor and the hind paws floated; level
+                    // the paws on the floor (lowest paw at 0) - pose and pitch are held, so this only follows the squash
+                    if (allToes != null)
+                    {
+                        float lo = float.MaxValue; foreach (var tt in allToes) if (tt) lo = Mathf.Min(lo, tt.position.y);
+                        if (lo < float.MaxValue) transform.position -= Vector3.up * lo;
+                    }
+                }
+                else ApplySquash(1f + 0.16f * Mathf.Sin(Mathf.PI * cycleU) * (cycleU < 0.1f ? 1.6f : 1f));   // shoots out long off the mark
+                if (landing && !ringed) { ringed = true; if (landingRing) { ringT = t; ringPos = new Vector3(pos.x, 0.15f, pos.z); } }
                 if (!landing) ringed = false;
                 if (last && u > 0.85f && crouchClip) crouchClip.SampleAnimation(gameObject, crouchClip.length * 0.3f * (1f - (u - 0.85f) / 0.15f) + 0.0001f);
                 stripA = 1f - u * 0.6f; fillU = 1f;
@@ -265,6 +331,7 @@ public class JangsanbeomFogDash : MonoBehaviour
             // 11-19 Kido ("텔레그래프는 좀 더 진하고 빨간 확실한 라인"): a solid dark-red band, a saturated red fill that runs along
             // it, and two hard bright border lines
             var sideV = Vector3.Cross(Vector3.up, dir) * (stripWidth * 0.5f);
+            if (k == 0 && walkClip) stripA = 0f;   // no strip while it backs away
             DrawStrip(strip, cur.from, cur.to, stripWidth, stripA * 0.55f, new Color(0.55f, 0.0f, 0.0f));
             DrawStrip(fill, cur.from, Vector3.Lerp(cur.from, cur.to, fillU), stripWidth, stripA * 0.8f, new Color(1f, 0.02f, 0.02f));
             DrawStrip(edgeA, cur.from + sideV, cur.to + sideV, 0.55f, stripA > 0.01f ? 1f : 0f, new Color(telegraphColor.r, telegraphColor.g, telegraphColor.b));
@@ -279,6 +346,11 @@ public class JangsanbeomFogDash : MonoBehaviour
             if (step > 0) { fog.Simulate(step, true, false, false); dust.Simulate(step, true, false, false); }
         }
         lastSim = t;
+    }
+
+    void ApplySquashY(float y)
+    {   // height only, about the root (on the floor): the paws stay exactly where they are
+        transform.localScale = new Vector3(baseScale.x, baseScale.y * y, baseScale.z);
     }
 
     void ApplySquash(float along)
@@ -331,6 +403,42 @@ public class JangsanbeomFogDash : MonoBehaviour
     }
 
     // a ring of fog thrown out along the ground from an impact
+    void OnDestroy() { if (sheetRoot != null) { if (Application.isPlaying) Destroy(sheetRoot.gameObject); else DestroyImmediate(sheetRoot.gameObject); } }
+
+    void BuildSheets(Transform parent)
+    {
+        // one annulus mesh, shared by every sheet: from just inside the clearing out past the arena
+        float r0 = Mathf.Max(1f, fogInner - 8f), r1 = arenaRadius + 30f; int seg = 128, rings = 6;
+        var verts = new List<Vector3>(); var tris = new List<int>();
+        for (int j = 0; j <= rings; j++)
+        {
+            float rr = Mathf.Lerp(r0, r1, Mathf.Pow(j / (float)rings, 1.6f));
+            for (int i = 0; i <= seg; i++) { float a = i / (float)seg * Mathf.PI * 2f; verts.Add(new Vector3(Mathf.Cos(a) * rr, 0f, Mathf.Sin(a) * rr)); }
+        }
+        for (int j = 0; j < rings; j++)
+            for (int i = 0; i < seg; i++)
+            {
+                int a = j * (seg + 1) + i, b = a + seg + 1;
+                tris.Add(a); tris.Add(b); tris.Add(a + 1); tris.Add(a + 1); tris.Add(b); tris.Add(b + 1);
+            }
+        var mesh = new Mesh { name = "FogRing", hideFlags = HideFlags.DontSave };
+        mesh.SetVertices(verts); mesh.SetTriangles(tris, 0); mesh.RecalculateBounds();
+        mesh.bounds = new Bounds(Vector3.zero, new Vector3(r1 * 2f, fogTop + 2f, r1 * 2f));
+        for (int k = 0; k < fogSheets; k++)
+        {
+            float layer = fogSheets > 1 ? k / (float)(fogSheets - 1) : 0f;
+            var go = new GameObject("FogDashFX_Sheet" + k) { hideFlags = HideFlags.DontSave }; go.transform.SetParent(parent, false);
+            go.transform.position = arenaCentre + Vector3.up * Mathf.Lerp(0.4f, fogTop, Mathf.Pow(layer, 1.3f));
+            go.transform.rotation = Quaternion.identity;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = fogSheetMaterial;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
+            var mpb = new MaterialPropertyBlock();
+            mpb.SetFloat("_Layer", layer); mpb.SetVector("_Centre", new Vector4(arenaCentre.x, arenaCentre.y, arenaCentre.z, fogInner));
+            mr.SetPropertyBlock(mpb); mr.sortingOrder = k;
+        }
+    }
+
     void Burst(Vector3 pos, int count)
     {
         var e = new ParticleSystem.EmitParams();
@@ -354,6 +462,7 @@ public class JangsanbeomFogDash : MonoBehaviour
 
     void EmitFog()
     {
+        if (fogSheetMaterial) return;   // the sheets are the bank
         var e = new ParticleSystem.EmitParams(); float life = Duration;
         var r = new System.Random(seed * 31 + 5);
         System.Func<float, float, float> R = (a, b) => a + (float)r.NextDouble() * (b - a);

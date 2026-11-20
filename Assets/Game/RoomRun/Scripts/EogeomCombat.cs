@@ -199,6 +199,9 @@ namespace RoomRun
         public void Setup(PlayerController owner, Animator animator)
         {
             pc = owner; anim = animator;
+            // 11-20 Kido "이기어검도 이 모델로 바꿔, 애니메이션은 원래대로": the suit body (Mixamo Joe + long coat) is the default
+            // character; like the 사복검 (WhipCombat), the clip drives Joe's bones (order 260, after SuitBody's copy at 255)
+            if (SuitBody.On) { SuitBody.KeepSword = true; SuitBody.WhipMode = false; var joe = SuitBody.Attach(animator); if (joe && joe != animator) { anim = joe; CoatTail.Sync(joe); } }
             rHand = anim.GetBoneTransform(HumanBodyBones.RightHand);
             lHand = anim.GetBoneTransform(HumanBodyBones.LeftHand);
             lFore = anim.GetBoneTransform(HumanBodyBones.LeftLowerArm);

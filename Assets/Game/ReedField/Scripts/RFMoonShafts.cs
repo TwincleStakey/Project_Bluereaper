@@ -16,6 +16,7 @@ namespace Reeds
         [Range(0, 2)] public float beamIntensity = 0.3f;
         [Range(0, 3)] public float poolIntensity = 1.3f;
         public float drift = 0.22f;
+        public static bool Moving = false;   // 11-20: the old drifting/breathing beams (true) for A/B
 
         ReedField field;
         Transform[] beams;
@@ -87,7 +88,8 @@ namespace Reeds
             for (int i = 0; i < beams.Length; i++)
             {
                 // clouds carry the beams across the field; out one side, back in from the other
-                pos[i] += wind * drift * Time.deltaTime;
+                // 11-20 (Kido: 갈대밭 빛이 물결/구름처럼 지나감): beams stand still and keep one brightness; no drift, no breathing
+                if (Moving) pos[i] += wind * drift * Time.deltaTime;
                 if (pos[i].x > half.x + 6) pos[i].x -= half.x * 2 + 12;
                 if (pos[i].x < -half.x - 6) pos[i].x += half.x * 2 + 12;
                 if (pos[i].y > half.y + 6) pos[i].y -= half.y * 2 + 12;
@@ -95,7 +97,7 @@ namespace Reeds
                 float g = field ? field.GroundHeight(pos[i]) : 0f;
                 var p = origin + new Vector3(pos[i].x, g, pos[i].y);
                 // breathing: slow cloud cover, never fully on for long
-                float n = Mathf.PerlinNoise(phase[i], t * 0.05f);
+                float n = Mathf.PerlinNoise(phase[i], Moving ? t * 0.05f : 0f);
                 float fade = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.3f, 0.75f, n));
                 shafts[i] = new Vector4(p.x, p.y, p.z, rad[i]);
                 fades[i >> 2][i & 3] = fade;

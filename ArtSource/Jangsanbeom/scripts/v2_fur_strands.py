@@ -57,6 +57,7 @@ for k, members in enumerate(islands):
     if d1 < d0: u = 1.0 - u            # the root is the end that sits on the body
     w = (P - c) @ vt[1]; w0, w1 = w.min(), w.max()   # 11-19 '몸 왜이래': across-the-card coordinate so the shader draws thin hairs, not whole lit cards
     across[members] = (w - w0) / max(1e-6, w1 - w0)
+    if k == main: continue   # 11-20: the body shell is not a hair card - hair lighting on it shaded each triangle on its own and the back looked shattered
     along[members] = u; rid[members] = random.random(); n_strand += 1
 print('STRANDS', n_strand)
 # write the second UV layer

@@ -1,0 +1,4 @@
+Torii gate by DESIGN BUREAU (https://sketchfab.com/designbureau)
+Source: https://sketchfab.com/3d-models/torii-gate-c64d94871bc541a0a5b11d98b787b82e
+License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+Modified: textures repacked for URP, lantern emission recolored teal, material tint darkened.

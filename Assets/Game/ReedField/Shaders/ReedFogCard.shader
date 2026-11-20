@@ -28,7 +28,7 @@ Shader "ReedField/FogCard"
             V2F vert(Attr a) { V2F o; o.ws = TransformObjectToWorld(a.positionOS.xyz); o.positionCS = TransformWorldToHClip(o.ws); o.uv = a.uv; return o; }
             half4 frag(V2F i) : SV_Target
             {
-                float2 drift = _RF_Wind.xy * _RF_Time * _Speed;
+                float2 drift = 0;   // 11-20 (Kido: 구름같이 지나가는 물결): fog sheets stay put (scrolled with the wind at _Speed)
                 float2 p = (i.ws.xz - drift) * _Scale;
                 float n = RFNoise(p) * 0.6 + RFNoise(p * 2.7 + 3.1) * 0.3 + RFNoise(p * 6.1 - 1.7) * 0.1;
                 float m = smoothstep(0.35, 0.8, n);

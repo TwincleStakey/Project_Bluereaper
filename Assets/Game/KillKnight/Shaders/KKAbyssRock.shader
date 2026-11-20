@@ -41,6 +41,7 @@ Shader "KillKnight/AbyssRock"
         {
             Name "ForwardLit"
             Tags { "LightMode"="UniversalForward" }
+            Cull Off
             HLSLPROGRAM
             #pragma target 4.5
             #pragma vertex vert
@@ -55,9 +56,9 @@ Shader "KillKnight/AbyssRock"
                 o.uv = TRANSFORM_TEX(a.uv, _BaseMap); return o;
             }
             float Luma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
-            half4 frag(V i) : SV_Target
+            half4 frag(V i, bool front : SV_IsFrontFace) : SV_Target
             {
-                float3 N = normalize(i.n);
+                float3 N = normalize(i.n) * (front ? 1 : -1);
                 float3 alb; float3 n = N;
                 if (_Tri > 0)
                 {

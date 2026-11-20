@@ -71,7 +71,9 @@ float RFGust(float2 xz)
 // trampling and unseen stalkers. Matches the LookStudy grass: offs * h^2, so the base stays planted.
 float2 RFBend(float2 root, float rnd, float stiffness, out float gust, out float trample)
 {
-    gust = RFGust(root);
+    // 11-20 (Kido: 갈대가 바람에 웨이브치고 그림자가 따라 움직여 어색): no gust lanes rolling over the field any more;
+    // each clump keeps only its own gentle sway (random phase), so no wave and no sheen band travels across.
+    gust = 0;
     float2 dir = _RF_Wind.xy;
     float2 side = float2(-dir.y, dir.x);
     float t = _RF_Time;
@@ -79,7 +81,7 @@ float2 RFBend(float2 root, float rnd, float stiffness, out float gust, out float
     // Bend angle (radians at the tip): steady lean + gust lanes + gentle layered sway with a per-reed phase.
     float sway = sin(t * 1.3 + ph) * 0.035 + sin(t * 0.71 + ph * 1.7) * 0.025 + sin(t * 2.6 + ph * 2.3) * 0.01 * _RF_Gust.z;
     float soft = 1.15 - stiffness * 0.5;
-    float amount = (0.2 + gust * 0.17 * _RF_Gust.y + sway) * _RF_Wind.z * soft;
+    float amount = (0.2 + sway) * _RF_Wind.z * soft;
     float2 offs = dir * amount + side * sin(t * 0.97 + ph * 1.3) * 0.03 * _RF_Wind.z * soft;
 
     // Reeds hardly break (Kido 11-10): brushed past, they only part a little away from the player and spring straight
@@ -118,7 +120,7 @@ float RFStaticShadow(float2 xz)
     // 11-18 (Kido: the shade on the floor ripples like water): the sway used to take its phase from the ground position
     // (0.25 m * wind, sin(t*1.3 + x*0.6 + z*0.4)), so neighbouring patches swung opposite ways and a wave rolled across
     // the whole floor. Now the whole shade drifts together, a few centimetres, slowly: it reads as still.
-    float2 sway = _RF_Wind.xy * 0.04 * _RF_Wind.z * sin(_RF_Time * 0.6) / _RF_ShadowRect.zw;
+    float2 sway = 0;   // 11-20: the floor shade does not move at all
     float reed = SAMPLE_TEXTURE2D_LOD(_RF_ReedShadow, sampler_RF_ReedShadow, uv + sway, 0).r;
     float prop = SAMPLE_TEXTURE2D_LOD(_RF_PropShadow, sampler_RF_ReedShadow, uv, 0).r;
     return min(reed, prop);
@@ -142,7 +144,7 @@ float3 RFMass(float3 ws, float3 root)
     float depth = saturate(1 - y / canopy);            // 1 at the ground, 0 at the canopy top
     float occl = t.r * depth * (0.55 + 0.45 * depth);
     float above = saturate((y - canopy) / max(canopy * 0.3, 0.25));
-    float sun = lerp(1, RFStaticShadow(ws.xz), saturate(depth * 1.6));
+    float sun = lerp(1, RFStaticShadow(root.xz), saturate(depth * 1.6));   // 11-20: at the root, so the shade does not slide along a swaying stalk
     return float3(occl, sun, above);
 }
 
@@ -174,7 +176,7 @@ float RFShaftLight(float3 ws)
 // Low fog lying in the reeds plus distance fog. Fog thickness drifts with a slow noise.
 float3 RFFog(float3 col, float3 ws)
 {
-    float n = RFNoise(ws.xz * 0.06 + float2(_RF_Time * 0.05, _RF_Time * 0.02));
+    float n = RFNoise(ws.xz * 0.06);   // 11-20 (Kido: 물결이 구름처럼 지나감): fog thickness no longer drifts
     float low = saturate((_RF_FogCol.a - ws.y) / max(_RF_FogCol.a, 0.01));
     float fogLow = saturate(low * low * _RF_FogParams.x * lerp(1 - _RF_FogParams.z, 1 + _RF_FogParams.z, n));
     // The playfield floor stays readable: ground fog is thin inside the arena and thickens a few metres past its edge.

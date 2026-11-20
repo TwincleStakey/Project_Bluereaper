@@ -37,13 +37,14 @@ public static class ValleyMossyLog
 
         // Washed up against the west bank of the middle (gourd) pool, half sunk in the shallows: low dressing like the
         // cobbles (its top stays ~0.25 m above the floor, no collider), so the arena rule holds and it is in view.
-        var c = new Vector2(-0.6f, 10.2f);
+        float ws = LookStudyValley.WorldScale;   // 11-20: the valley is built raw and scaled up in play (RR.ValleyScale)
+        var c = new Vector2(-0.6f, 10.2f) * ws;
         var flow = new Vector2(-7f, -6f).normalized;
         var across = new Vector2(-flow.y, flow.x);
         var axis = (flow * 0.94f - across * 0.34f).normalized;   // mostly along the bank, the lower end reaching into the water
         var b = mesh.bounds;
         bool alongX = b.size.x >= b.size.z;   // Megascans meshes lie flat; long axis is x or z
-        float len = alongX ? b.size.x : b.size.z, scale = 1.1f, half = len * scale * 0.5f;
+        float len = alongX ? b.size.x : b.size.z, scale = 1.1f * ws, half = len * scale * 0.5f;
         var a2 = c - axis * half; var e2 = c + axis * half;
         float ya = Mathf.Max(LookStudyValley.Height(a2.x, a2.y), LookStudyValley.Water - 0.3f);
         float ye = Mathf.Max(LookStudyValley.Height(e2.x, e2.y), LookStudyValley.Water - 0.3f);
@@ -61,7 +62,7 @@ public static class ValleyMossyLog
         t.localScale = Vector3.one * scale;
         t.rotation = Quaternion.Euler(0f, yaw, 0f) * Quaternion.AngleAxis(alongX ? pitch : -pitch, alongX ? Vector3.forward : Vector3.right);
         // sunk: the top sits ~0.25 m above the local floor
-        float y = (ya + ye) * 0.5f - b.center.y * scale - b.extents.y * scale + 0.25f;
+        float y = (ya + ye) * 0.5f - b.center.y * scale - b.extents.y * scale + 0.25f * ws;
         t.position = new Vector3(mid.x, y, mid.y) - t.rotation * new Vector3(b.center.x, 0f, b.center.z) * scale;
         Debug.Log($"[Valley] mossy log at {t.position} rot {t.eulerAngles} bounds {mr.bounds} meshBounds {b} ya {ya:0.00} ye {ye:0.00}");
     }

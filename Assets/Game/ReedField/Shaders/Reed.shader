@@ -29,7 +29,6 @@ Shader "ReedField/Reed"
 
         HLSLINCLUDE
         #include "ReedCommon.hlsl"
-        #define RR_SEE_NO_WIDE   // 11-20: reeds keep the soft half-hide (intended); wide clear is for bamboo/trees/props
         #include "Assets/Game/RoomRun/Shaders/RRSeeThrough.hlsl"   // 11-13: tall reeds in front of the player thin out softly
         CBUFFER_START(UnityPerMaterial)
             float4 _RootCol, _LeafCol, _LeafTip, _StemCol, _PlumeCol, _PlumeTip, _ReedPlumeCol, _Ambient;
@@ -204,7 +203,7 @@ Shader "ReedField/Reed"
                 o.cut = b.cut;
                 o.rts = float2(1, 0.5);
                 #if defined(_MAIN_LIGHT_SHADOWS) || defined(_MAIN_LIGHT_SHADOWS_CASCADE)
-                if (_RF_RTShadow > 0.5) o.rts.x = MainLightRealtimeShadow(TransformWorldToShadowCoord(b.ws));
+                if (_RF_RTShadow > 0.5) o.rts.x = MainLightRealtimeShadow(TransformWorldToShadowCoord(float3(b.root.x, b.ws.y, b.root.z)));   // 11-20: unswayed point, shadow edges do not crawl over swaying blades
                 #endif
                 // the clump as one volume: a round normal from the clump's middle, so the sun side of each clump is lit and
                 // the far side falls into shade (reads as a solid tuft with depth, not flat cut-out blades)
@@ -252,8 +251,9 @@ Shader "ReedField/Reed"
                 float ndl = saturate(dl) * 0.8 + saturate(-dl) * 0.5 * (0.4 + hf) + _Wrap * 0.3;
                 float3 col = albedo * (_Ambient.rgb * (1 - _RF_AmbCut) * (0.4 + 0.6 * hf) * ao * lerp(1, ao, _RF_AmbCut) + ml.color * ndl * shadow);
                 col *= 1 + _TopLight * i.m.z;
-                // 11-14 QA: big slow cloud-shade patches (~10-15 m) so wide reed seas break into lit and shadowed areas
-                col *= lerp(0.66 - 0.2 * saturate(_RF_AmbCut * 2), 1.0, smoothstep(0.3, 0.7, RFNoise(i.ws.xz * 0.07 + 31.0 + _RF_Wind.xy * _RF_Time * 0.03)));
+                // 11-14 QA: big cloud-shade patches (~10-15 m) so wide reed seas break into lit and shadowed areas
+                // 11-20 (Kido: "구름같이 지나가는" waves): the patches stay put now (they drifted with the wind)
+                col *= lerp(0.66 - 0.2 * saturate(_RF_AmbCut * 2), 1.0, smoothstep(0.3, 0.7, RFNoise(i.ws.xz * 0.07 + 31.0)));
                 // moonlight shafts: reeds inside a beam catch the moon, the plumes glow in it
                 col += (albedo * (0.5 + 0.7 * hf) + plume * isPlume * 0.8) * _RF_ShaftCol.rgb * i.m.w;
                 // Plumes glow when the light is behind them (moon or red sky through the seed heads).

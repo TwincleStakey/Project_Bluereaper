@@ -1,0 +1,6 @@
+{
+    "name": "Hub.Editor",
+    "rootNamespace": "Hub",
+    "references": ["Hub.Runtime", "RoomRun", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+    "includePlatforms": ["Editor"]
+}

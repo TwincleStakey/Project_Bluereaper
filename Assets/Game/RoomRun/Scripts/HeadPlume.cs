@@ -21,6 +21,16 @@ namespace RoomRun
         readonly List<Feather> feathers = new List<Feather>();
         Material featherMat; GameObject band;
 
+        // capture tokens change look statics after the body is built: rebuild every live hat in place
+        public static void RebuildAll()
+        {
+            foreach (var hp in Object.FindObjectsByType<HeadPlume>(FindObjectsSortMode.None))
+            {
+                var an = hp.GetComponent<Animator>();
+                Object.DestroyImmediate(hp);
+                if (an) Attach(an);
+            }
+        }
         public static void Attach(Animator a)
         {
             if (!a || a.GetComponent<HeadPlume>()) return;
@@ -40,6 +50,7 @@ namespace RoomRun
             Vector3 c = head.position + up * (d * 0.62f);          // band height: forehead
             float r = d * 0.5f;
 
+            if (Satgat) { BuildSatgat(a, top, up, fwd, right, d); return; }
             if (Hat) { BuildHat(a, top, up, fwd, right, d); return; }
             // band: a ring (dark lacquer) + a small glowing jewel at the front
             band = new GameObject("PlumeBand");
@@ -97,7 +108,7 @@ namespace RoomRun
                     }
                     f.rest[i] = head.InverseTransformPoint(cur);
                 }
-                f.go = new GameObject(s < 0 ? "PlumeL" : "PlumeR");
+                f.go = new GameObject(s < 0 ? "PlumeL" : "PlumeR"); f.go.transform.SetParent(transform, false);
                 f.mesh = new Mesh { name = "PlumeFeather" }; f.mesh.MarkDynamic();
                 f.go.AddComponent<MeshFilter>().sharedMesh = f.mesh;
                 f.go.AddComponent<MeshRenderer>().sharedMaterial = featherMat;
@@ -107,7 +118,7 @@ namespace RoomRun
 
         // v5 (Kido 20:20, ref 경복궁 수문장): a 주립 (wide flat brim, short round crown, round badge in front) in black lacquer,
         // with two thin plumes standing straight up from the crown, rigid, burning as hard light rods (no sway).
-        public static bool Hat = true;
+        public static bool Hat = true, Rods = false, Weave;
         public static float RodGlow = 3.5f;   // v6 (Kido 11-20 "광원을 해당 깃털만"): 14 bloomed into a big red orb round the head   // v5b: brighter so the bloom makes a hard light rod
         readonly List<GameObject> hatParts = new List<GameObject>();
         GameObject Part(PrimitiveType t, Vector3 pos, Quaternion rot, Vector3 size, Material m, string name)
@@ -131,6 +142,24 @@ namespace RoomRun
             lacquer.SetColor("_BaseColor", new Color(0.008f, 0.007f, 0.007f)); lacquer.SetFloat("_Smoothness", 0.05f);
             lacquer.SetFloat("_SpecularHighlights", 0f); lacquer.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
             lacquer.SetFloat("_EnvironmentReflections", 0f); lacquer.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");   // v5b: read black, not grey
+            if (Weave)
+            {
+                // 11-20 preview (token hatweave=1, Kido "옷이랑 갓 매태리얼도 너무 다르고"): the clothes' dark tone and a fine woven
+                // horsehair grid like a real 갓, soft highlight instead of the flat matte plastic
+                const int TS = 128;
+                var wt = new Texture2D(TS, TS, TextureFormat.RGBA32, true) { name = "HatWeave", wrapMode = TextureWrapMode.Repeat };
+                var wp = new Color32[TS * TS];
+                for (int y = 0; y < TS; y++) for (int x = 0; x < TS; x++)
+                {
+                    bool line = (x % 8 == 0) || (y % 8 == 0);
+                    wp[y * TS + x] = line ? new Color32(70, 70, 80, 255) : new Color32(30, 30, 36, 255);
+                }
+                wt.SetPixels32(wp); wt.Apply(true);
+                lacquer.SetTexture("_BaseMap", wt); lacquer.SetTextureScale("_BaseMap", new Vector2(6f, 6f));
+                lacquer.SetColor("_BaseColor", new Color(0.55f, 0.55f, 0.62f));
+                lacquer.SetFloat("_Smoothness", 0.22f);
+                lacquer.SetFloat("_SpecularHighlights", 1f); lacquer.DisableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            }
             float brimY = -0.05f * k, brimD = 0.46f * k, crownD = 0.17f * k, crownH = 0.12f * k;
             var brimC = topPos + up * brimY;
             Part(PrimitiveType.Cylinder, brimC, rot, new Vector3(brimD, 0.006f * k, brimD), lacquer, "HatBrim");
@@ -147,6 +176,7 @@ namespace RoomRun
             featherMat.SetFloat("_Cull", 0f);
             featherMat.renderQueue = 2450;
             var crownTop = crownC + up * (crownH * 0.5f);
+            if (!Rods) return;   // 11-20 Kido: "머리 위 깃털 없애" - hat only, no plumes (all weapons)
             for (int s = -1; s <= 1; s += 2)
             {
                 var f = new Feather { rigid = true };
@@ -154,7 +184,7 @@ namespace RoomRun
                 var dir = (up + right * (s * 0.13f) - fwd * 0.07f).normalized;
                 float L = RodLen * k;
                 for (int i = 0; i < Pts; i++) f.rest[i] = head.InverseTransformPoint(basePt + dir * (L * i / (Pts - 1)));
-                f.go = new GameObject(s < 0 ? "PlumeRodL" : "PlumeRodR");
+                f.go = new GameObject(s < 0 ? "PlumeRodL" : "PlumeRodR"); f.go.transform.SetParent(transform, false);   // 11-20: root-level objects were destroyed by the hub -> field room change
                 f.mesh = new Mesh { name = "PlumeRod" }; f.mesh.MarkDynamic();
                 f.go.AddComponent<MeshFilter>().sharedMesh = f.mesh;
                 f.go.AddComponent<MeshRenderer>().sharedMaterial = featherMat;
@@ -171,9 +201,80 @@ namespace RoomRun
         }
         public static float RodLen = 0.5f, RodLight = 0f;   // v6: was 3 (point light lit the hat, shoulders and ground red)
 
+        // ---- 11-20 preview (token satgat=1; Kido: this character wears a 삿갓, a conical hat, matching the clothes)
+        public static bool Satgat;
+        static Texture2D RibTex()
+        {
+            const int TS = 128;
+            var wt = new Texture2D(TS, TS, TextureFormat.RGBA32, true) { name = "SatgatRibs", wrapMode = TextureWrapMode.Repeat };
+            var wp = new Color32[TS * TS];
+            for (int y = 0; y < TS; y++) for (int x = 0; x < TS; x++)
+            {
+                bool rib = x % 6 == 0;                       // radial bamboo ribs (u runs round the cone)
+                bool ring = y % 32 == 0;                     // a few woven rings
+                wp[y * TS + x] = rib || ring ? new Color32(62, 60, 66, 255) : new Color32(28, 27, 32, 255);
+            }
+            wt.SetPixels32(wp); wt.Apply(true);
+            return wt;
+        }
+        void BuildSatgat(Animator a, Transform top, Vector3 up, Vector3 fwd, Vector3 right, float d)
+        {
+            var topPos = top ? top.position : head.position + up * d;
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "Satgat" };
+            mat.SetTexture("_BaseMap", RibTex()); mat.SetTextureScale("_BaseMap", new Vector2(10f, 1f));
+            mat.SetColor("_BaseColor", new Color(0.8f, 0.8f, 0.85f)); mat.SetFloat("_Smoothness", 0.18f); mat.SetFloat("_Cull", 0f);
+            // a shallow cone: apex 16 cm over the head top, rim 34 cm out and 4 cm below the head top, slightly concave flanks
+            var apex = topPos + up * (0.16f * k); float R = 0.34f * k; var rimC = topPos - up * (0.04f * k);
+            var go = new GameObject("HatSatgat"); go.transform.SetParent(head, false);
+            var m = new Mesh { name = "Satgat" }; var vs = new List<Vector3>(); var uvs = new List<Vector2>(); var ts = new List<int>();
+            int seg = 48, rings = 6;
+            for (int r = 0; r <= rings; r++)
+            {
+                float u = r / (float)rings;
+                float sag = Mathf.Sin(u * Mathf.PI) * 0.018f * k;
+                for (int i = 0; i <= seg; i++)
+                {
+                    float ang = i / (float)seg * Mathf.PI * 2f;
+                    var dir = right * Mathf.Sin(ang) + fwd * Mathf.Cos(ang);
+                    var p = Vector3.Lerp(apex, rimC + dir * R, u) - up * sag;
+                    vs.Add(head.InverseTransformPoint(p)); uvs.Add(new Vector2(i / (float)seg * 6f, u));
+                }
+            }
+            int row = seg + 1;
+            for (int r = 0; r < rings; r++) for (int i = 0; i < seg; i++)
+            {
+                int b = r * row + i;
+                ts.AddRange(new[] { b, b + row, b + 1, b + 1, b + row, b + row + 1 });
+            }
+            m.SetVertices(vs); m.SetUVs(0, uvs); m.SetTriangles(ts, 0); m.RecalculateNormals(); m.RecalculateBounds();
+            go.AddComponent<MeshFilter>().sharedMesh = m; go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+            hatParts.Add(go);
+        }
+
+        // 11-20 bug (Kido: only the hat stays visible in the black stage-change fade): the hat parts are our own renderers, so
+        // they ignored whatever hides the body. They now take the body's layer and follow its renderer's on/off every frame.
+        Renderer bodyR; readonly List<Renderer> ownR = new List<Renderer>();
+        void SyncVisibility()
+        {
+            if (!bodyR)
+            {
+                foreach (var r in GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                    if (!r.name.Contains("Hair") && !r.name.Contains("Eyelash") && !r.name.Contains("Coat") && !r.name.Contains("Tie")) { bodyR = r; break; }
+                if (!bodyR) return;
+                ownR.Clear();
+                foreach (var g in hatParts) if (g) ownR.AddRange(g.GetComponentsInChildren<Renderer>(true));
+                foreach (var f in feathers) if (f.go) ownR.AddRange(f.go.GetComponentsInChildren<Renderer>(true));
+                if (band) ownR.AddRange(band.GetComponentsInChildren<Renderer>(true));
+                foreach (var r in ownR) if (r) r.gameObject.layer = bodyR.gameObject.layer;
+            }
+            bool vis = bodyR.enabled && bodyR.gameObject.activeInHierarchy;
+            foreach (var r in ownR) if (r && r.enabled != vis) r.enabled = vis;
+        }
+
         void LateUpdate()
         {
             if (!head) return;
+            SyncVisibility();
             float dt = Mathf.Max(1e-4f, Time.deltaTime);
             foreach (var f in feathers)
             {
@@ -213,7 +314,8 @@ namespace RoomRun
                 // the vane lies flat across (seen from above), widest a third of the way, pointed tip
                 float w = f.rigid ? k * Mathf.Lerp(0.045f, 0.028f, u) : k * (0.012f + 0.05f * Mathf.Sin(Mathf.Pow(u, 0.7f) * Mathf.PI) * (1f - 0.5f * u));   // v3: a real vane (wide in the middle, pointed tip); v2 .022->.004 read as antennae from above   // v2: slender tail feather, pointed
                 side = Vector3.Cross(tan, Vector3.up).sqrMagnitude > 0.05f ? Vector3.Cross(tan, Vector3.up).normalized : side;
-                rv.Add(f.p[i] - side * w); rv.Add(f.p[i] + side * w);
+                var gt = f.go.transform;
+                rv.Add(gt.InverseTransformPoint(f.p[i] - side * w)); rv.Add(gt.InverseTransformPoint(f.p[i] + side * w));   // the ribbon lives under the body now: local space
                 // banded pattern like a pheasant tail: crimson with brighter bars, gold toward the tip
                 float bar = 0.65f + 0.35f * (Mathf.Repeat(u * 9f, 1f) < 0.5f ? 1f : 0f);
                 var col = Color.Lerp(Glow, TipGlow, Mathf.SmoothStep(0.5f, 1f, u)) * bar;

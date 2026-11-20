@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-2073575227718695472
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Editor::UnityEditor.Rendering.Universal.AssetVersion
+  version: 10
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: HB_Floor
+  m_Shader: {fileID: 4800000, guid: f60b443378687d34ea2b774c65224e81, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 3cf9781be9c79c143a64771333103771, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 2800000, guid: 07db28f8e6e85da4db7b515d6b1f15a5, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Dirt:
+        m_Texture: {fileID: 2800000, guid: 8de99677d5942a440a0b6d084b4ef899, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DirtN:
+        m_Texture: {fileID: 2800000, guid: 77cd0b949139bd04098a1d6295904f7b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Macro:
+        m_Texture: {fileID: 2800000, guid: 357a5708655057c4ead33c2fa2d264ca, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _OcclusionMap:
+        m_Texture: {fileID: 2800000, guid: bb0879c8c4a0b1b4f88cbd65115cc12b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Seal:
+        m_Texture: {fileID: 2800000, guid: 55b0020f125ddf14d80b8d95fbd8127c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Groove: 0.55
+    - _Relief: 1.4
+    - _Smooth: 0.2
+    - _Tile: 2.5
+    m_Colors:
+    - _BaseColor: {r: 0.6392157, g: 0.65882355, b: 0.6784314, a: 1}
+    - _Blue: {r: 0.25999996, g: 0.33999997, b: 0.5, a: 1}
+    - _Court: {r: 14.700001, g: -9.700001, b: 8.400001, a: 1.6}
+    - _MacroAmt: {r: 8, g: 0.28, b: 0.58, a: 0.08}
+    - _Red: {r: 0.62, g: 0.27999997, b: 0.23999995, a: 1}
+    - _SealCentre: {r: 0, g: -0.6, b: 4.3, a: 0.35}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

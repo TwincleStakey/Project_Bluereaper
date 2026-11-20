@@ -53,6 +53,8 @@ namespace RoomRun
             { "crypt", new Grade(-0.025f, -0.4f) },
             // 심연 고원 (11-20): no black-point drop (the crimson abyss and the cliff walls live in the darks), gain like 봉인의 제단
             { "killknight", new Grade(0f, 0.55f) },   // v4 capture: floor 49 vs ref 67, abyss 29 vs 86 at 0.2
+            // 거점 (11-20): moonlit court lit by its lanterns / forge; no black-point drop, gain like 심연 고원
+            { "hub", new Grade(0f, 0.55f) },
         };
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

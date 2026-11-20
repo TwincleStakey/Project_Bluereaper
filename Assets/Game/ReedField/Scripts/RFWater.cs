@@ -76,11 +76,25 @@ namespace Reeds
                 d.renderPostProcessing = false; d.renderShadows = false;
                 d.requiresColorOption = CameraOverrideOption.Off; d.requiresDepthOption = CameraOverrideOption.Off;
                 d.antialiasing = AntialiasingMode.None;
+                // 11-20 perf (Kido: 갈대밭 30-40 FPS): on the default PC_Renderer this camera ran SSAO and the screen-space
+                // decal feature every frame for a few ripple particles (reeds 52 fps, 142 with it off). RR_FxRenderer has no
+                // features, plain Forward.
+                int ri = FxRendererIndex();
+                if (ri >= 0) d.SetRenderer(ri);
             }
             fxCam.targetTexture = fxRT;
             fxCam.depth = main.depth - 10;
             // The main camera must not draw the ripple particles themselves.
             main.cullingMask &= ~(1 << FxLayer);
+        }
+
+        static int FxRendererIndex()
+        {
+            var asset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+            if (!asset) return -1;
+            var list = asset.rendererDataList;
+            for (int i = 0; i < list.Length; i++) if (list[i] && list[i].name == "RR_FxRenderer") return i;
+            return -1;
         }
 
         void LateUpdate()

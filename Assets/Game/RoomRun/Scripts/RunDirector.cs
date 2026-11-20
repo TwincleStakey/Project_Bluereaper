@@ -208,6 +208,8 @@ namespace RoomRun
             PrepareStage(next);
             AreaCenter = next.center;
             AreaSize = next.size;
+            float stageScale = StageScale(next.id);
+            if (stageScale != 1f) { AreaCenter = new Vector3(next.center.x * stageScale, next.center.y, next.center.z * stageScale); AreaSize = next.size * stageScale; }
             if (usingStage && next.fitToStage) FitToStage(next);
             roomRoot = RoomBuilder.Build(next, config, Doors, !usingStage, AreaCenter, AreaSize);
 
@@ -375,6 +377,11 @@ namespace RoomRun
         public Vector3 AreaCenter { get; private set; }
         public Vector2 AreaSize { get; private set; }
 
+        // 11-20 (Kido: the valley's play space got far narrower): the hero is 1.5x since 11-19, so the valley stage could be built
+        // 1.5x larger in play (LookStudyValley.WorldScale, same PlayerPrefs key) and its arena box follows. 1 = the 11-14 size.
+        public static float StageScale(string roomId) =>
+            roomId == "valley" ? Mathf.Clamp(PlayerPrefs.GetFloat("RR.ValleyScale", 1f), 0.5f, 3f) : 1f;
+
         // Grows the room to everything the stage shows, so no part of the environment is cut off.
         void FitToStage(RoomDef room)
         {
@@ -441,9 +448,32 @@ namespace RoomRun
             Debug.Log($"[RoomRun] {room.id} fitted to stage: centre {AreaCenter}, size {AreaSize}");
         }
 
+        // 11-20 (Kido: "전에는 저 위에 올라가졌는데 지금은 왜 물속에서 밖에 이동이 안돼"): a jump without a door (F-keys, dev panel,
+        // the hub portal) put the player on the arena centre. In 산속 계곡 that is inside the deep middle pool, whose invisible
+        // pool fence (LookStudyValley.BuildPoolWalls) then kept them in the water. Start on the nearest dry, free ground
+        // instead: the floor must not sit under the room's floor height (water surface / wade floor) and the capsule must fit.
+        Vector3 DryCentre()
+        {
+            const float Below = 0.15f;
+            for (float r = 0f; r <= 30f; r += 1.5f)
+            {
+                int steps = r == 0f ? 1 : Mathf.Max(8, Mathf.CeilToInt(r * 2f));
+                for (int k = 0; k < steps; k++)
+                {
+                    float a = k * Mathf.PI * 2f / steps;
+                    var p = AreaCenter + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r;
+                    p.y = Ground.Sample(p, AreaCenter.y);
+                    if (p.y < AreaCenter.y - Below) continue;
+                    if (Physics.CheckCapsule(p + Vector3.up * 0.5f, p + Vector3.up * 1.5f, 0.45f, ~(1 << Ground.ActorLayer), QueryTriggerInteraction.Ignore)) continue;
+                    return p;
+                }
+            }
+            return AreaCenter;
+        }
+
         Vector3 SpawnPoint(DoorSide? side)
         {
-            if (side == null) return AreaCenter;
+            if (side == null) return Room != null && Room.id == "valley" ? DryCentre() : AreaCenter;
             var dir = side.Value.Dir();
             float reach = dir.x != 0f ? AreaSize.x / 2f : AreaSize.y / 2f;
             // Gates can sit inside the boundary (pulled off a hillside), so start from the gate itself.

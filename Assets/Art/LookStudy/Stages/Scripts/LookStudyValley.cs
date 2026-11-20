@@ -35,7 +35,7 @@ public class LookStudyValley : MonoBehaviour
     };
 
     void OnEnable() { Build(); }
-    void OnDisable() { if (!Application.isPlaying) Clear(); else ReleaseMeshes(); }
+    void OnDisable() { WorldScale = 1f; if (!Application.isPlaying) Clear(); else ReleaseMeshes(); }
     // In play mode the scene unload destroys the generated objects, but meshes made with new Mesh() are
     // assets that outlive them, so free them here. (Objects cannot be destroyed while being deactivated.)
     // Only meshes this script made (DontSave); the downloaded pines keep their imported meshes.
@@ -95,7 +95,23 @@ public class LookStudyValley : MonoBehaviour
     const float ShelfH = 0.7f;
     const float HeadH = 7.2f;   // r9: hillside head behind the big fall
 
+    // 11-20 (Kido: "계곡 플레이 공간이 엄청 좁아졌어"): the layout has not changed since 11-14, but the hero became 1.5x
+    // (RoomRunConfig.playerSize, 11-19) and the camera came closer, so the valley read 2/3 as wide. In play the whole
+    // generated valley is scaled up uniformly by WorldScale (PlayerPrefs RR.ValleyScale; 11-20 Kido "다른 아레나 크기 수준에 맞춰": default 1 = 112x88 like the other arenas, 1.5 = hero-proportional;
+    // 1 = the 11-14 size), so every bank, pool, tree and rock keeps its proportion to the hero from before 11-19.
+    // RoomRun's RunDirector scales the arena box by the same key. Everything is built in the old (raw) coordinates
+    // and the root is scaled at the end; Height() takes world coordinates and answers in world metres.
+    public const string ScaleKey = "RR.ValleyScale";
+    public static float WorldScale = 1f;
+    public static float PlayScale() => Mathf.Clamp(PlayerPrefs.GetFloat(ScaleKey, 1f), 0.5f, 3f);
+
     public static float Height(float x, float z)
+    {
+        float s = WorldScale;
+        return s == 1f ? HeightRaw(x, z) : HeightRaw(x / s, z / s) * s;
+    }
+
+    static float HeightRaw(float x, float z)
     {
         float wob = (N(x * 0.07f, z * 0.07f) - 0.5f) * 3.2f;
         Nearest(x, z, out float d0, out float w, out float depth, out Vector2 dir, out float side);
@@ -162,11 +178,16 @@ public class LookStudyValley : MonoBehaviour
         root = new GameObject("ValleyGenerated").transform;
         root.SetParent(transform, false);
         root.gameObject.hideFlags = HideFlags.DontSave;
+        WorldScale = 1f;   // build in raw coordinates
         BuildTerrain();
         BuildWater();
         BuildFall();
         BuildProps();
         BuildEffects();
+        float s = Application.isPlaying ? PlayScale() : 1f;
+        root.localScale = Vector3.one * s;
+        WorldScale = s;
+        PushWisps(12f);
     }
 
     MeshRenderer Add(string name, Mesh m, Material mat, bool shadows)
@@ -1297,7 +1318,7 @@ public class LookStudyValley : MonoBehaviour
         {
             if (i < Wisps.Length)
             {
-                var p = Wisps[i];
+                var p = Wisps[i] * WorldScale;
                 float k = 0.8f + 0.2f * Mathf.Sin(t * 3.1f + i * 2f);
                 wispData[i] = new Vector4(p.x, p.y, p.z, k);
             }

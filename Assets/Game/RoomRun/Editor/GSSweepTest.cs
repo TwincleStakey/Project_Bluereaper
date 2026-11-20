@@ -34,6 +34,7 @@ namespace RoomRun
         // 6 = the walk only, close. Fire is a 0.15 s click, so each click is exactly one hit 1.
         static readonly float[] Single4 = { 0.6f, 2.3f, 4.0f, 6.2f, 7.9f };
         public const float SingleWalk4 = 9.8f;
+        public static bool AimFollowMove;   // shots token aimmove=1
         public static float HandZoom = 0.3f;   // mode 6: tight on the hero for the walking-hand check
         PlayerCommand ReadSingle(float t, PlayerCommand c)
         {
@@ -47,7 +48,9 @@ namespace RoomRun
                     int k = (int)((t - walkAt) / WideWalkLen);
                     float ang = k * 45f * Mathf.Deg2Rad;
                     string[] n8 = { "walkN", "walkNE", "walkE", "walkSE", "walkS", "walkSW", "walkW", "walkNW" };
-                    c.move = new Vector2(Mathf.Sin(ang), Mathf.Cos(ang)); Phase = n8[k]; return c;
+                    c.move = new Vector2(Mathf.Sin(ang), Mathf.Cos(ang)); Phase = n8[k];
+                    if (AimFollowMove) c.aimDir = new Vector3(c.move.x, 0f, c.move.y);   // 11-20: the cursor turns with the walk (pose per direction)
+                    return c;
                 }
                 Phase = "idle"; return c;
             }

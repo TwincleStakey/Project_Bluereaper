@@ -173,3 +173,7 @@ ArtSource/atk_slow/
 ArtSource/uw_quality/final_*.md
 ArtSource/uw_quality/qa_*.md
 ArtSource/uw_quality/review_*.md
+
+# Hub (거점) raw downloads + concept refs
+ArtSource/Hub/dl/
+ArtSource/Hub/ref/

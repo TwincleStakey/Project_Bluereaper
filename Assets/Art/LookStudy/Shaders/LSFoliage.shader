@@ -20,6 +20,7 @@ Shader "LookStudy/Foliage"
         Tags { "RenderType"="TransparentCutout" "RenderPipeline"="UniversalPipeline" "Queue"="AlphaTest" }
         Cull Off
         HLSLINCLUDE
+        #define RR_SEE_WIDE   // 11-20: foliage gets the wide full clear (LSToon/rocks/houses do not)
         #include "LSCommon.hlsl"
         TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
         CBUFFER_START(UnityPerMaterial)

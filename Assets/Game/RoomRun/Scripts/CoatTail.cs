@@ -10,30 +10,49 @@ namespace RoomRun
     public sealed class CoatTail : MonoBehaviour
     {
         public const string Key = "RR.Coat";
-        public static bool? Force;                         // shots token coat=
-        public static bool On => Force ?? PlayerPrefs.GetInt(Key, 0) != 0;
+        public static bool? Force;
+        public static float? TopOverride, WaistOverride;                         // shots token coat=
+        public static bool On => Force ?? PlayerPrefs.GetInt(Key, 1) != 0;   // 11-20 Kido: the suit + long coat is the default character (RR.Suit / RR.Coat = 0 turns it off)
 
         public Animator anim;
-        public float topAboveHips = 0.12f;   // pinned band starts here (under the jacket line)
+        public float topAboveHips = 0.0f;   // v6: starts under the jacket hem so jacket + skirt read as ONE long coat (no second layer over the jacket); v5 was .34   // v5 (Kido 11-20 "상체가 너무 타이트"): the coat body now reaches the chest (was .12)   // pinned band starts here (under the jacket line)
         public float hemHeight = 0.1f;       // ankle
-        public float waistRadius = 0.17f, topRadius = 0.18f, hemRadius = 0.27f;   // v3 (ref image 13:06): straight drop, not a flared skirt (was 0.36)
+        public float waistRadius = 0.17f, topRadius = 0.18f, hemRadius = 0.29f;   // v6: hugs the hips under the jacket (v5 .2/.24)   // v5: looser over the bulked chest (was .17/.18/.27)   // v3 (ref image 13:06): straight drop, not a flared skirt (was 0.36)
         public float depthScale = 0.8f;
         public float slitFromWaist = 0.08f, slitGapDeg = 6f;
         // v2 (Kido ref 13:06, modern 저승사자: black suit + ankle-length black coat, thin white piping on the front edges):
         // heavier so it swings as one sheet instead of strips, white trim on the front edges and the hem
-        public float maxSwing = 0.6f;
-        public float stiffness = 1f, bending = 0.7f, damping = 0.25f;
-        public float velocityScale = 0.45f, accelerationScale = 0.55f, friction = 0.5f;
-        public bool trim = true;
+        public float maxSwing = 0.42f;   // v5 (Kido: "흔들리는게 어색해"): calmer, heavier (was .6)
+        public float stiffness = 1f, bending = 0.85f, damping = 0.45f;
+        public float velocityScale = 0.22f, accelerationScale = 0.3f, friction = 0.6f;
+        public bool trim = false;   // v6 (Kido 11-20 "하얀 외곽라인 전부 없애, 그냥 롱코트처럼"): no white piping
         public float thighRadius = 0.1f, shinRadius = 0.08f;   // v4: was .09/.07
-        public Color color = new Color(0.035f, 0.035f, 0.04f);
+        public Color color = new Color(0.05f, 0.055f, 0.1f);   // v6: the jacket's navy-black so the two read as one coat
 
         SkinnedMeshRenderer smr; Cloth cloth; GameObject go; readonly List<GameObject> cols = new List<GameObject>();
         float[] maxDist;
 
+        public static void RebuildAll()
+        {
+            foreach (var ct in Object.FindObjectsByType<CoatTail>(FindObjectsSortMode.None))
+            {
+                var an = ct.anim;
+                Object.DestroyImmediate(ct);
+                if (an) Sync(an);
+            }
+        }
         public static void Sync(Animator a)
         {
             if (!a) return;
+            // 11-20: the downloaded long coat (RealCoat) replaces this hand-built panel when on
+            var rc = a.GetComponent<RealCoat>();
+            if (On && RealCoat.Use)
+            {
+                var old = a.GetComponent<CoatTail>(); if (old) Destroy(old);
+                if (!rc) { rc = a.gameObject.AddComponent<RealCoat>(); rc.anim = a; }
+                return;
+            }
+            if (rc) Destroy(rc);
             var c = a.GetComponent<CoatTail>();
             if (On && !c) { c = a.gameObject.AddComponent<CoatTail>(); c.anim = a; }
             else if (!On && c) Destroy(c);
@@ -94,6 +113,9 @@ namespace RoomRun
             // panels between the cuts: front opening (0), right slit, back vent (180), left slit
             float[] cuts = { 0f, 100f, 180f, 260f, 360f };
             int perPanelCols = 9;
+            // 11-20 capture-only overrides (token coattop= / coatwaist=), so a variant can be shown before it becomes the default
+            if (TopOverride.HasValue) topAboveHips = TopOverride.Value;
+            if (WaistOverride.HasValue) { waistRadius = WaistOverride.Value; topRadius = WaistOverride.Value + 0.01f; }
             float top = hipY + topAboveHips, waist = hipY + 0.02f, hem = hemHeight;
             float slitY = waist - slitFromWaist;
             int rowsTop = 3, rowsBottom = 16;

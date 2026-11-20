@@ -66,6 +66,7 @@ public static class JangsanbeomV2Capture
         m.SetColor("_RimColor", new Color(1.4f, 0.12f, 0.05f, 1f)); m.SetFloat("_RimIntensity", 1.6f);   // the fur edge glows red too (was cold blue)   // 11-18 Kido: "불게 빛나야지" - red embers in the fur, not white
         // red eyes and claws like v1. The capture draws CPU-skinned copies, so "object space" is world space here: claws = the
         // reddish parts within 2.2 m of the ground (the capture skins into the root's space like Play does).
+        m.SetFloat("_ShellNormals", 1f);   // 11-20: fur cards lit with the smooth shell normals baked by v2_fur_shellnormals.py (no shattered back)
         m.SetFloat("_EyeIntensity", 9f); m.SetFloat("_ClawIntensity", 6f); m.SetFloat("_ClawRedness", 0.06f); m.SetFloat("_ClawHeight", 2.2f);
         EditorUtility.SetDirty(m); return m;
     }
@@ -218,6 +219,7 @@ public static class JangsanbeomV2Capture
             }
             try { WindKeySetup.AddToJangsanbeom(boss); JangsanbeomGlowSetup.BossKeyMat(boss); } catch (System.Exception e) { sb.AppendLine("windkey: " + e.Message); }   // the boss key material (slow turn, glow), as on v1
             sb.AppendLine($"renderers body {nBody} snake {nSnake} gramophone {nGramo}");
+            foreach (var r in boss.GetComponentsInChildren<Renderer>()) if (r.name == "Horn" || r.name == "Drum") sb.AppendLine($"  {r.name} enabled {r.enabled} active {r.gameObject.activeInHierarchy} bounds {r.bounds.center} {r.bounds.size} parent {r.transform.parent?.name}");
             // howl FX: glowing mouth, face light, rings of light rolling out (JangsanbeomHowlFX); every clip gets it, it only fires
             // while the jaw is open
             var howl = boss.AddComponent<JangsanbeomHowlFX>();
@@ -305,6 +307,7 @@ public static class JangsanbeomV2Capture
             {   // 11-19 Kido: fog dash pattern (JangsanbeomFogDash); poses from JangsanbeomPounceBake
                 pattern = boss.AddComponent<JangsanbeomFogDash>();
                 pattern.standClip = clip;
+                pattern.walkClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(Root + "/Models/jsb2_walk_lion.anim");
                 pattern.crouchClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(Root + "/Models/jsb2_crouch.anim");
                 pattern.dashClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(Root + "/Models/jsb2_dash.anim");
                 pattern.gallopClip = AssetDatabase.LoadAllAssetsAtPath(Root + "/Models/jsb2_gallop.fbx").OfType<AnimationClip>().FirstOrDefault(c => !c.name.StartsWith("__preview"));
@@ -319,6 +322,17 @@ public static class JangsanbeomV2Capture
                 if (clipName == "fogdashb") { pattern.leapStyle = 1; pattern.dashTime = 1.0f; }
                 // fog: the soft fog sprite of the downloaded RainSnowCloudEffect pack, alpha blended, vertex coloured
                 pattern.fogMaterial = FxSprite("JSB2_FogSmoke", AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/Textures/Fog/SmokeLoop02.tif"));   // Unity Particle Pack
+                // soft particles: the puffs melt into the floor instead of being cut off in a straight line
+                pattern.fogMaterial.SetFloat("_SoftParticlesEnabled", 1f); pattern.fogMaterial.EnableKeyword("_SOFTPARTICLES_ON");
+                pattern.fogMaterial.SetFloat("_SoftParticlesNearFadeDistance", 0f); pattern.fogMaterial.SetFloat("_SoftParticlesFarFadeDistance", 3f);
+                pattern.fogMaterial.SetVector("_SoftParticleFadeParams", new Vector4(0f, 1f / 3f, 0f, 0f));
+                // the bank: stacked fog sheets
+                var ringPath = Root + "/JSB2_FogRing.mat";
+                var ringMat2 = AssetDatabase.LoadAssetAtPath<Material>(ringPath);
+                if (ringMat2 == null) { ringMat2 = new Material(Shader.Find("BulletHeaven/JangsanbeomFogRing")); AssetDatabase.CreateAsset(ringMat2, ringPath); }
+                ringMat2.SetTexture("_NoiseTex", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/SnowPlague/Textures/SP_FogNoise.png"));
+                EditorUtility.SetDirty(ringMat2);
+                pattern.fogSheetMaterial = ringMat2;
                 pattern.telegraphFillMaterial = FxSprite("JSB2_TelegraphFill", null);
                 var edgeMat = AssetDatabase.LoadAssetAtPath<Material>(Root + "/JSB2_TelegraphEdge.mat");
                 if (edgeMat == null) { edgeMat = new Material(Shader.Find("BulletHeaven/JangsanbeomTrail")); AssetDatabase.CreateAsset(edgeMat, Root + "/JSB2_TelegraphEdge.mat"); }
@@ -426,7 +440,7 @@ public static class JangsanbeomV2Capture
                     {
                         pattern.Sample(t);
                         // red streaks from all four paws while it flies (cleared whenever it is hidden in the fog)
-                        if (dashTrails != null) { if (f == 0 || !pattern.Visible) dashTrails.ResetTrails(); else dashTrails.Sample(t); }
+                        if (dashTrails != null) { if (f == 0 || !pattern.Visible || !pattern.Airborne) dashTrails.ResetTrails(); else dashTrails.Sample(t); }
                     }
                     else if (carry && f < nA)
                     {   // the bite: the boss stands at the start of the circle
@@ -544,6 +558,7 @@ public static class JangsanbeomV2Capture
                     if (fogdash && !pattern.Visible) boss.transform.position += Vector3.down * 1000f;   // hidden in the fog
                     SyncSkin(boss);
                     if (f == 0) foreach (var kv in proxies) sb.AppendLine($"  proxy {kv.Value.name} bounds c {kv.Value.bounds.center} size {kv.Value.bounds.size}");
+                    if (f == 0 || f == 60) foreach (var bn in new[] { "Hips", "Spine1", "Spine2", "Spine3", "Neck1", "Head" }) { var bt = boss.GetComponentsInChildren<Transform>().FirstOrDefault(x => x.name == bn); if (bt) sb.AppendLine($"  bone f{f} {bn} pos {bt.position} up {bt.up} fwd {bt.forward} right {bt.right}"); }
                     Shader.SetGlobalFloat("_JSB_FixedTime", t); Shader.SetGlobalFloat("_WK_FixedTime", t);   // the key on capture time too (it ran on real time = several times too fast)
                     if (follow && hero != null)
                     {   // the game camera follows the player: the bite seen exactly as it plays

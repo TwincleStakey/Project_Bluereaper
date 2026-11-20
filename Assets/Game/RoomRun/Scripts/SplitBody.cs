@@ -438,7 +438,7 @@ namespace RoomRun
         public Vector3 sideUpper = new Vector3(-0.28f, -0.95f, -0.05f), sideFore = new Vector3(0.10f, 0.75f, 0.30f);
         public Vector3 backUpper = new Vector3(-0.22f, -0.95f, -0.22f), backFore = new Vector3(-0.05f, -0.75f, 0.30f);
         public float offSwing = 26f, sideSwing = 12f, backSwing = 8f;     // deg with the steps, along the travel axis
-        public static bool RunArmV6 = true;   // 11-20 option 2 (shots token runarm=5 = the v5 pump)
+        public static bool RunArmV6 = false;   // 11-20 Kido: "상체 원래대로" -> off (runarm=6 turns it on)   // 11-20 option 2 (shots token runarm=5 = the v5 pump)
         public static float SwingFwd6 = 22f, SwingSide6 = 4f, ElbowFlex6 = 90f;
         float fwdK6;
         public static bool RunArmV4 = true;   // shots token runarm=3 = the v3 body-frame poses

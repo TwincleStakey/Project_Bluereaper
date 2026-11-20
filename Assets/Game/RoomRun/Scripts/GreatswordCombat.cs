@@ -261,7 +261,7 @@ namespace RoomRun
         public static Vector3 MxLR = new Vector3(14f / 40f, 20f / 40f, 30f / 40f), MxRL = new Vector3(10f / 39f, 18.5f / 39f, 28f / 39f), MxSpin = new Vector3(11f / 57f, 34.5f / 57f, 46f / 57f);
         public static float MxIdleStart = 6f / 40f;     // the opener out of the idle guard starts earlier in its clip (nearer the idle pose)
         public static float MxWindup = 1.3f;            // playback speed before the strike window
-        bool mxLoco, suitTried; int mxUpper = -1; MxGrip mxGrip;
+        bool mxLoco, suitTried; int mxUpper = -1; MxGrip mxGrip; GuardCarry guard;
         Step MxStep(int i)
         {
             i = ((i % 3) + 3) % 3;
@@ -612,7 +612,8 @@ namespace RoomRun
             }
             // the suit body (Mixamo Joe) for the greatsword in every mode, not only the Mixamo chain (11-20 Kido: "기본 캐릭터 정장 입고
             // 하던 거 ... 롱코트로 그거부터 끝내자"), with the 사복검 thread's long coat (CoatTail, RR.Coat / token coat=) on Joe
-            if (!suitTried && SuitBody.On && trail) { suitTried = true; var body = SuitBody.Attach(anim); if (body && body != anim) CoatTail.Sync(body); }
+            if (!suitTried && SuitBody.On && trail) { suitTried = true; SuitBody.KeepSword = true; var body = SuitBody.Attach(anim); if (body && body != anim) CoatTail.Sync(body); }
+                if (!guard && !MixamoChain && trail && trail.sword && (suitTried || !SuitBody.On)) { guard = gameObject.AddComponent<GuardCarry>(); guard.Setup(trail.sword, this, GetComponent<PlayerController>(), GetComponent<SplitBody>()); }   // 11-20 Cascadeur carry pose
             // v3: the Animator advances by exactly what t advanced this frame (speedUsed; 0 on the frame a step starts,
             // where t is 0), so the pose and the root path never disagree (a 1-frame mismatch at the hit hold slid the feet)
             float atkSpeed = step >= 0 ? (Berserker ? (startedThisFrame ? 0f : speedUsed) : PhaseSpeed()) : dashAnim ? 1f : attackSpeed;

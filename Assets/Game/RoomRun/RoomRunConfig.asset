@@ -288,6 +288,22 @@ MonoBehaviour:
     bossOffset: {x: 0, y: 0, z: 0}
     bossHp: 60
     devOnly: 1
+  - id: hub
+    displayName: "\uAC70\uC810"
+    mapCell: {x: 12, y: 0}
+    scenePath: Assets/Game/Hub/Hub.unity
+    groundMeshName: 
+    center: {x: 0, y: 0, z: -0.75}
+    size: {x: 27.6, y: 16.1}
+    fitToStage: 0
+    floorColor: {r: 0.16470589, g: 0.18039216, b: 0.2, a: 1}
+    pillarCount: 0
+    doors: []
+    waves: []
+    bossPrefab: {fileID: 0}
+    bossOffset: {x: 0, y: 0, z: 0}
+    bossHp: 60
+    devOnly: 1
   enemies:
   - id: shade
     prefab: {fileID: 141494584402590501, guid: a777c57e70632414996f325b9bec82ff, type: 3}

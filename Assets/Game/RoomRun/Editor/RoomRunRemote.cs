@@ -637,6 +637,18 @@ namespace RoomRun
                 if (token.StartsWith("seat=")) { SplitBody.SeatFix = !token.EndsWith("0"); continue; }
                 if (token.StartsWith("mx=")) { GreatswordCombat.MixamoChain = token.EndsWith("1"); continue; }
                 if (token.StartsWith("mxik=")) { MxGrip.LeftHandIK = !token.EndsWith("0"); continue; }
+                if (token.StartsWith("guard=")) { GuardCarry.On = token.EndsWith("1"); continue; }
+                if (token.StartsWith("bladelen=")) { GuardCarry.BladeLenMul = float.Parse(token.Substring(9), System.Globalization.CultureInfo.InvariantCulture); continue; }
+                if (token.StartsWith("bladewide=")) { GuardCarry.WidthMul = float.Parse(token.Substring(10), System.Globalization.CultureInfo.InvariantCulture); continue; }
+                if (token.StartsWith("aimmove=")) { SweepTest.AimFollowMove = token.EndsWith("1"); continue; }
+                if (token.StartsWith("keepface=")) { GuardCarry.KeepBodyFacing = token.EndsWith("1"); continue; }
+                if (token.StartsWith("harm=")) { GuardCarry.HumanoidArms = token.EndsWith("1"); continue; }
+                if (token.StartsWith("tipclamp=")) { GuardCarry.TipClamp = token.EndsWith("1"); continue; }
+                if (token.StartsWith("tie=")) { NeckTie.On = token.EndsWith("1"); continue; }
+                if (token.StartsWith("fists=")) { GuardCarry.ThroughFists = token.EndsWith("1"); continue; }
+                if (token.StartsWith("wrist=")) { GuardCarry.FixWrists = token.EndsWith("1"); continue; }
+                if (token.StartsWith("poseyaw=")) { GuardCarry.PoseYawOffset = float.Parse(token.Substring(8), System.Globalization.CultureInfo.InvariantCulture); continue; }
+                if (token.StartsWith("longgrip=")) { GuardCarry.LongGrip = float.Parse(token.Substring(9), System.Globalization.CultureInfo.InvariantCulture); continue; }
                 if (token.StartsWith("swap=")) { SplitBody.HandSwap = !token.EndsWith("0"); continue; }
                 if (token.StartsWith("walkright=")) { SplitBody.WalkCarryRight = !token.EndsWith("0"); continue; }
                 if (token.StartsWith("ghost=")) { BladeGhost.On = !token.EndsWith("0"); continue; }
@@ -692,6 +704,12 @@ namespace RoomRun
                 if (token.StartsWith("whipstraight=")) { WhipCombat.Straight = !token.EndsWith("0"); continue; }
                 if (token.StartsWith("whipover=")) { WhipCombat.Overhead = !token.EndsWith("0"); continue; }
                 if (token.StartsWith("suit=")) { SuitBody.Force = !token.EndsWith("0"); continue; }
+                if (token.StartsWith("realcloth=")) { RealCoat.ClothOn = !token.EndsWith("0"); continue; }
+                if (token.StartsWith("realcoat=")) { RealCoat.Use = !token.EndsWith("0"); continue; }
+                if (token.StartsWith("satgat=")) { HeadPlume.Satgat = token.EndsWith("1"); HeadPlume.RebuildAll(); continue; }
+                if (token.StartsWith("hatweave=")) { HeadPlume.Weave = token.EndsWith("1"); HeadPlume.RebuildAll(); continue; }
+                if (token.StartsWith("coattop=")) { var cv = token.Substring(8); CoatTail.TopOverride = cv == "off" ? (float?)null : float.Parse(cv, System.Globalization.CultureInfo.InvariantCulture); CoatTail.RebuildAll(); continue; }
+                if (token.StartsWith("coatwaist=")) { var cv = token.Substring(10); CoatTail.WaistOverride = cv == "off" ? (float?)null : float.Parse(cv, System.Globalization.CultureInfo.InvariantCulture); CoatTail.RebuildAll(); continue; }
                 if (token.StartsWith("coat=")) { CoatTail.Force = !token.EndsWith("0"); continue; }
                 if (token.StartsWith("whiparms=")) { WhipCombat.FullClipArms = !token.EndsWith("0"); continue; }
                 if (token.StartsWith("whipswish=")) { WhipCombat.Swish = !token.EndsWith("0"); continue; }
@@ -757,8 +775,13 @@ namespace RoomRun
                     at = new Vector3(float.Parse(xz[0], System.Globalization.CultureInfo.InvariantCulture), 0, float.Parse(xz[1], System.Globalization.CultureInfo.InvariantCulture));
                     tag = $"{id}_{xz[0]}_{xz[1]}" + (firing ? "_fire" : "") + (cutWalk ? "_cutwalk" : "");
                 }
+                // 11-20 (hub start): DevJump is ignored while a transition runs (e.g. the start room still loading) - wait it out
+                // first, and retry once if the room did not change
+                while (run.Transitioning) yield return null;
                 if (run.Room.id != id) run.DevJump(id);
                 for (int f = 0; f < 10 && !run.Transitioning; f++) yield return null;
+                while (run.Transitioning) yield return null;
+                if (run.Room.id != id) { Note($"shots: still in {run.Room.id}, jumping to {id} again"); run.DevJump(id); for (int f = 0; f < 10 && !run.Transitioning; f++) yield return null; }
                 while (run.Transitioning) yield return null;
                 yield return new WaitForSeconds(2.5f);
                 if (at.HasValue)

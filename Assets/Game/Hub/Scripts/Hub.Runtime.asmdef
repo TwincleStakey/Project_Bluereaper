@@ -1,0 +1,6 @@
+{
+    "name": "Hub.Runtime",
+    "rootNamespace": "Hub",
+    "references": ["RoomRun", "Unity.InputSystem", "UnityEngine.UI", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+    "autoReferenced": true
+}
