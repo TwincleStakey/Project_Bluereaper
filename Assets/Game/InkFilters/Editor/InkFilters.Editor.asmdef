@@ -1,0 +1,5 @@
+{
+  "name": "InkFilters.Editor",
+  "references": ["InkFilters", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "includePlatforms": ["Editor"]
+}

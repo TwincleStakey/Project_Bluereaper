@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_ChogaSlime
+  m_Shader: {fileID: 4800000, guid: 1c28aa8aa4513bd4380308245a7e6d4e, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Absorb: 0.95
+    - _ArmWobble: 0.6
+    - _MaxThick: 5
+    - _MurkIntensity: 0.22
+    - _MurkScale: 0.35
+    - _ReflIntensity: 1
+    - _Refract: 0.05
+    - _RimIntensity: 0.45
+    - _RimPower: 3.5
+    - _RippleAmp: 0.35
+    - _RippleSpeed: 9
+    - _RippleStart: -100
+    - _RippleWave: 2.2
+    - _Spec2Intensity: 0.25
+    - _SpecIntensity: 6
+    - _SpecPower: 700
+    - _SpecPower2: 45
+    - _WobbleAmp: 0.07
+    - _WobbleFreq: 0.45
+    - _WobbleSpeed: 0.8
+    m_Colors:
+    - _BaseColor: {r: 0.008, g: 0.006, b: 0.012, a: 1}
+    - _EnvBottom: {r: 0.03, g: 0.025, b: 0.02, a: 1}
+    - _EnvTop: {r: 0.22, g: 0.25, b: 0.34, a: 1}
+    - _MurkColor: {r: 0.34999996, g: 0.03, b: 0.059999965, a: 1}
+    - _RimColor: {r: 0.31999996, g: 0.049999982, b: 0.11999995, a: 1}
+    - _RippleOrigin: {r: 0, g: 0, b: 0, a: 0}
+    - _TintColor: {r: 0.54999995, g: 0.24999997, b: 0.6, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

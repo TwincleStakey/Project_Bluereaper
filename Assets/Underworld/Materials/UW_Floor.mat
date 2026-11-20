@@ -1,0 +1,98 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UW_Floor
+  m_Shader: {fileID: 4800000, guid: 02eabcaf7b7b4af297ff72c1ceb010e0, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _LavaAH:
+        m_Texture: {fileID: 2800000, guid: 56d136184bb748feb96ecd5a1b403f42, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LavaE:
+        m_Texture: {fileID: 2800000, guid: d2d6d540830746d795ab979ff21d9508, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _AshAH:
+        m_Texture: {fileID: 2800000, guid: 0470a47621eb4c1cad5aad2dad232b6b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _AshNRA:
+        m_Texture: {fileID: 2800000, guid: 6128b4e6dd0f43d69009e64c1250beb2, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BasaltAH:
+        m_Texture: {fileID: 2800000, guid: ff85a5745f044392b9df0e2e2015ac88, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BasaltNRA:
+        m_Texture: {fileID: 2800000, guid: 4c3cb42052b1428c956e251a5ee76832, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RippleAH:
+        m_Texture: {fileID: 2800000, guid: 3b54788b046f4cc2b1e5bacf97879261, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RippleNRA:
+        m_Texture: {fileID: 2800000, guid: 024e355e48ea42148ede95ec3b2b4ece, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SandAH:
+        m_Texture: {fileID: 2800000, guid: 3ee1cee37d944fd398827a95bb95b200, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SandNRA:
+        m_Texture: {fileID: 2800000, guid: 20caff31ff234472ac130f0ecfcfecaf, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _LavaAmt: 0.4
+    - _LavaEdge: 14
+    - _LavaInt: 4
+    - _LavaTile: 9
+    - _AOStr: 1
+    - _AlbedoMax: 0.12
+    - _CavityDark: 0.55
+    - _Contrast: 0.5
+    - _AshAmt: 0.25
+    - _BlendDepth: 0.18
+    - _CliffTile: 4
+    - _Macro: 0.45
+    - _NrmStr: 1.5
+    - _RippleAmt: 0.2
+    - _Sat: 0.35
+    - _SandAmt: 0.45
+    - _SmoothMax: 0.35
+    - _SmoothScale: 0.45
+    m_Colors:
+    - _LavaCol: {r: 1, g: 0.5, b: 0.25, a: 1}
+    - _LavaTint: {r: 0.35, g: 0.3, b: 0.28, a: 1}
+    - _PlazaHalf: {r: 0, g: -1, b: 44, a: 28}
+    - _AmbLift: {r: 0.015, g: 0.013, b: 0.014, a: 1}
+    - _AshTint: {r: 0.5, g: 0.47, b: 0.46, a: 1}
+    - _BasaltTint: {r: 0.55, g: 0.5, b: 0.47, a: 1}
+    - _CliffTint: {r: 1.0, g: 0.96, b: 0.94, a: 1}
+    - _RippleTint: {r: 0.6, g: 0.56, b: 0.54, a: 1}
+    - _SandTint: {r: 0.55, g: 0.51, b: 0.49, a: 1}
+    - _Tiles: {r: 6, g: 3, b: 5, a: 1.2}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

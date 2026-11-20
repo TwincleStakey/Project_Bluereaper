@@ -1,0 +1,73 @@
+RoomRun arena-edge features (Resources/EdgeFeatures, baked by Editor/EdgeFeaturesBake.cs, placed by Scripts/EdgeFeatures.cs)
+All models below: Creative Commons Attribution 4.0 (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/).
+Attribution is required wherever the game is shipped (credits screen). Commercial use allowed.
+Modified for this game: recoloured materials (the snow field's copies with snow off), rescaled; the house without its yard ground tiles.
+
+- "Japanese Black Pine" by matt z chan (https://sketchfab.com/mattzch)
+  https://sketchfab.com/3d-models/japanese-black-pine-f0cb4705f1c446c7bc393fdbfcdf024a
+  EF_PineA / EF_PineB (from SnowPlague/ThirdParty/Trees TR_HeroPine_A/B)
+- "Korean Totem Pole- Jangseung" by ththqkf (https://sketchfab.com/ththqkf)
+  https://sketchfab.com/3d-models/korean-totem-pole-jangseung-27663a8ef05f4ab4a81abc78d522d652
+  EF_Jangseung (from SnowPlague/ThirdParty/Landmarks/Jangseung)
+- "KCISA-수내동가옥_초가집02" by Korea Culture Information Service Agency (KCISA)
+  https://sketchfab.com/3d-models/12f1375cfa8e4b22b1f07735cd4cd1a8
+  EF_ThatchHouse (from SnowPlague/ThirdParty/Landmarks/ThatchHouse2)
+
+Grass / village depth trees (11-13, baked by Editor/EdgeDepthBake.cs), all CC BY 4.0:
+- "Coniferous Forest Assets Pack" by Dari
+  https://sketchfab.com/3d-models/coniferous-forest-assets-pack-240ce9cf0ad3474f809a59f9446e63cd
+  EF_TallPine / EF_Fir / EF_DeadConiferA (from SnowPlague/ThirdParty/Trees TR_Pine, TR_Fir, TR_DeadConifer_A)
+
+대전 앞 court props (11-16, Resources/EdgeFeatures/PP_*, baked by Editor/PalacePropsBake.cs from ThirdParty/PalaceProps,
+converted by ArtSource/PalaceProps/convert_palace_props.py: decimated, retextured dark/greyed, rescaled).
+All by KOREA HERITAGE SERVICE [KHS] (https://sketchfab.com/KHS_Asset), Creative Commons Attribution 4.0 (CC BY 4.0):
+- "Gyeongbokgung_Geunjeongjeon_Dumu" https://sketchfab.com/3d-models/1a6fe27f9cd04fc591b71d0a417d0f03 (PP_Dumu)
+- "Gyeongbokgung_Geunjeongjeon_IncenseBurnerB" https://sketchfab.com/3d-models/c0b91f8896164e60ba6299a5e4f86864 (PP_IncenseB)
+- "Gyeongbokgung_Geunjeongjeon_IncenseBunnerC" https://sketchfab.com/3d-models/61775871db37497d8dad1004745f0e6c (PP_IncenseC)
+- "Gwanghwamun Gate_HaetaeA" https://sketchfab.com/3d-models/e11f9ee66df74288be83f9fede578bd4 (PP_Haetae)
+- "Brazer" https://sketchfab.com/3d-models/2ee7e644ce694ee4acce57acf4484375 (PP_Brazier)
+- "Flag" https://sketchfab.com/3d-models/f41f3364f6614209ae0f063c8223e65c (PP_Flag)
+- "Hwacha" https://sketchfab.com/3d-models/59ae879f47cb4bf3b9f2defd1e8c1f02 (PP_Hwacha)
+- "Spear" https://sketchfab.com/3d-models/948e9e031c354b3ba84f29bc44237894 (PP_Spear)
+- "HwandoA" https://sketchfab.com/3d-models/fb23b5a305c043a79f14b4fd463e6604 (PP_Hwando)
+- "Woldo" https://sketchfab.com/3d-models/5510105e64a94dda9ee8ba47e809e2ed (PP_Woldo)
+Fab / Quixel Megascans (Fab Standard License, free listing; no attribution required, credited anyway):
+- "Old Wooden Beam" https://www.fab.com/listings/13d1a4c3-1f5b-4e85-85bd-a5a343c1620f (PP_Beam, darkened to charred)
+
+대전 앞 volume pilot (11-19, Scripts/EnvRecompose.Volume.cs, off by default) reuses models already in the project:
+- "Oriental_stone_lantern" by kebijini (https://sketchfab.com/kebijini01), CC BY 4.0
+  https://sketchfab.com/3d-models/oriental-stone-lantern-b582ab0acb67424e88a12320734fe789 (Resources/StageLantern)
+- "석탑 리토폴로지 텍스쳐 2k" by k28792300, CC BY 4.0 https://sketchfab.com/3d-models/9d64b2b8d4f7407682ee03ae8b2c6501
+  (Underworld Resources/Hell/Pagoda, from SnowPlague Landmarks/PagodaGame)
+- "Coniferous Forest Assets Pack" by Dari, CC BY 4.0 (Hell/DeadTree0/1), "Korean Totem Pole- Jangseung" by ththqkf, CC BY 4.0
+  (EF_Jangseung) - links above
+- Quixel Megascans via Fab (free, Fab Standard License): japanese_stone_pillar_uddocimqx (EF_RF_StonePillar),
+  dead_pine_tree_trunk_tksvbajda (EF_RF_DeadTrunk); KHS IncenseBurnerB (PP_IncenseB, above)
+- Kenney Particle Pack smoke_04 (CC0) for the fog cards (Resources/VFX)
+- 11-19 central dais (대전 앞 volume layer): Quixel Megascans via Fab (free, Fab Standard License) "Japanese Shrine Stone Floor"
+  udyqbjkfa, https://www.fab.com/listings/11033a96-4cce-43cc-bb87-67bd0a915666 (ThirdParty/PalaceStage/Dais, Resources/PalaceStage/PS_DaisSlab)
+
+대전 앞 court layer (11-19, Scripts/EnvRecompose.Court.cs, off by default; Resources/PalaceCourt/PC_*, baked by
+Editor/PalaceCourtBake.cs from ThirdParty/PalaceCourt, converted by ArtSource/PalaceCourt/convert_palace_court.py: decimated,
+textures cut to 1K, greyed and darkened, rescaled). All Creative Commons Attribution 4.0 (CC BY 4.0):
+- "KCISA-수원화성행궁_득중정(Deugjungjeong)" by Korea Culture Information Service Agency (KCISA)
+  https://sketchfab.com/3d-models/1a427035755447c8b0ce51388728dede (PC_Hall)
+- "KCISA-수원화성행궁_솟을삼문(Large Gate)" by Korea Culture Information Service Agency (KCISA)
+  https://sketchfab.com/3d-models/c47350dfbbed414a9b81fbb25c6faaaa (PC_Gate)
+- "Changdeokgung Palace entrance stairs - KOREA" by Arqueomodel3D (juanbrualla)
+  https://sketchfab.com/3d-models/a02c7a2db9334b2f9fec177e79d8db2b (PC_Stairs)
+- "Tomb of King Seongdeok_Stone Lion_001" by KOREA HERITAGE SERVICE [KHS]
+  https://sketchfab.com/3d-models/177a89808ff4402baaeb75452e1e9f00 (PC_Lion)
+- "Gyeongbokgung_Geunjeongjeon_RankstoneA" by KOREA HERITAGE SERVICE [KHS]
+  https://sketchfab.com/3d-models/15df1ecb95624fa194a77e4ba57f5846 (PC_RankStone)
+- PC_Pillar: one column (red post, stone base, tile-eave run) cut out of the KCISA 득중정 model above (same CC BY 4.0 credit)
+- "KCISA-수원화성행궁_경선문(Gyeongseonmun)" by Korea Culture Information Service Agency (KCISA), CC BY 4.0
+  https://sketchfab.com/3d-models/894bfb3b868c46499c43f086d029f8e8 (PC_GateS)
+- "KCISA-수원화성행궁_가어문(Gaeomun)" by Korea Culture Information Service Agency (KCISA), CC BY 4.0
+  https://sketchfab.com/3d-models/796f55c2cbc04013bf7157e5011174dd (PC_GateA)
+
+Decals (11-20 decal test, Resources/Decals, used only when RR.Decals = 1) - Fab, Quixel Megascans, free, Fab Standard License (not CC BY):
+- "Dirt Patch" https://www.fab.com/listings/109b6a12-fcb4-406b-9ab4-a78cdd014c31
+- "Military Trenches Decal Path Dirt Straight 01" https://www.fab.com/listings/8b760fa3-70c6-459d-a012-83efdf8c08d0
+- "Mud Splash" https://www.fab.com/listings/0a461105-d696-4e2a-834d-a271f9ce67f9 (same source / licence)
+- "Charcoal Scatter" https://www.fab.com/listings/6f27bd7a-6ce5-46ad-a25d-6f960fb5443e (same source / licence, 저승)

@@ -1,0 +1,19 @@
+Underworld (저승) third-party assets
+===================================
+
+Red spider lily (피안화) - Assets/Underworld/Models/SpiderLily/UW_SpiderLily.fbx, UW_SpiderLily_Albedo.png
+  "CC0 ヒガンバナ Red Spider Lily, Lycoris radiata" by ffish.asia / floraZia.com
+  https://sketchfab.com/3d-models/cc0-red-spider-lily-lycoris-radiata-3595e743a5b64d8699fac6dcf4af3f4f
+  Author page: https://sketchfab.com/ffishAsia-and-floraZia
+  License: CC0 1.0 (public domain dedication) - http://creativecommons.org/publicdomain/zero/1.0/
+  Changes: pedestal removed, scaled to 0.7 m, decimated from 233k to 4k triangles
+  (ArtSource/Underworld/build_spider_lily.py). Original .glb kept locally in ArtSource/downloads/red_spider_lily.
+
+Other hell-set props reuse assets already in the project; their licences are with the sources
+(see Assets/Underworld/Editor/UWHellProps.cs).
+
+Lava sea texture - Assets/Underworld/Textures/Lava/T_UWL_Lava_*.png (used by Resources/UW_LavaSea.mat)
+  "Lava Texture & Material Vol. 04" by ehsan vaezi
+  https://www.fab.com/listings/d5f9c52b-ce79-4654-b155-605bcada41da
+  License: CC BY 4.0 - https://creativecommons.org/licenses/by/4.0/
+  Changes: 4K maps downscaled to 2K and channel-packed (basecolor+height, normal+roughness, emissive).

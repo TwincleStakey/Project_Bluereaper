@@ -1,0 +1,11 @@
+Model Information:
+* title:	석탑 리토폴로지 텍스쳐 2k
+* source:	https://sketchfab.com/3d-models/2k-9d64b2b8d4f7407682ee03ae8b2c6501
+* author:	k28792300 (https://sketchfab.com/k28792300)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "석탑 리토폴로지 텍스쳐 2k" (https://sketchfab.com/3d-models/2k-9d64b2b8d4f7407682ee03ae8b2c6501) by k28792300 (https://sketchfab.com/k28792300) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

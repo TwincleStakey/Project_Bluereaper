@@ -1,0 +1,21 @@
+Shared tree prefabs (Prefabs/TR_*.prefab) - snow plague field, reusable by other fields.
+Built by SPBuilder (Editor/SPBuilder.Vegetation.cs, SkMakePrefabs) from the downloaded models below; materials in
+Materials/TR_*.mat (shader SnowPlague/Vegetation), textures copied into Textures/.
+
+Snow is a material property: _SnowClump (0 = no snow, 1 = full) and _SnowCover (how much of the crown, 0..1).
+Another field can turn the snow down on its own material copies. Scale: each prefab is pre-scaled to a game height
+(hero pine ~11 m, pine 12 m, fir 11.5 m, noble fir 7.5 m, dead trees 10 / 8 m, snags 1.6-2.6 m), base at the origin.
+
+All models: Creative Commons Attribution 4.0 (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/).
+Attribution is required wherever the game is shipped (credits screen). Commercial use allowed.
+
+- "Japanese Black Pine" by matt z chan (https://sketchfab.com/mattzch)
+  https://sketchfab.com/3d-models/japanese-black-pine-f0cb4705f1c446c7bc393fdbfcdf024a
+  Used for TR_HeroPine_A / TR_HeroPine_B. Modified: recoloured toward Korean red pine (red-brown bark, dark needles),
+  needle alpha rebuilt (SP_SK_HeroNeedles.png: source alpha x14, dilated), shader snow.
+- "Coniferous Forest Assets Pack" by Dari
+  https://sketchfab.com/3d-models/coniferous-forest-assets-pack-240ce9cf0ad3474f809a59f9446e63cd
+  Used for TR_Pine, TR_Fir, TR_NobleFir, TR_DeadConifer_A, TR_DeadConifer_B. Modified: split per tree, recoloured, shader snow.
+- "Dead Trees Demo" by Quadra3D
+  https://sketchfab.com/3d-models/dead-trees-demo-9bdd36641ef541adb51f0d01ddb07b2c
+  Used for TR_Snag_A..D. Modified: split, decimated to ~6k tris each, recoloured, shader snow.

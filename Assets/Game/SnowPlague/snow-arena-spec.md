@@ -1,0 +1,18 @@
+# 설원 역병 아레나 기술 스펙 (타래 스타일)
+(코디네이터가 전달한 기도님 스펙 원문. 키 프레임 레퍼런스: tarae-refs/03_screens/029.jpg, 048.webp, 025.jpg, 030.jpg, 033.jpg)
+
+스택: Unity 6.3 URP 17.3 Forward+, Blender, 무료 에셋만. 목표 RTX 4060 1080p 200FPS. 상단 메뉴바 추가 금지(개발자 도구 패널), 브랜치 금지.
+
+0. 순서: 1) Volume+메인 라이트 → 2) 높이 안개+안개 시트 → 3) 전경 적송/고사목+디더 → 4) 바닥 → 5) 석등 → 6) 식생 공용 셰이더 → 7) 보라 경계벽, 디졸브, 눈 파티클. 단계마다 Frame Debugger로 ms 확인.
+1. 레이아웃 ~112x88m: FG0 카메라쪽 남쪽 가장자리(화면 하단 10~15%) 키 큰 적송/고사목/초가 처마 끝, 거의 검은 실루엣. FG1 경계: 석등, 바위, 무너진 기와 담장, 장승, 눈더미, 짚더미, 부서진 수레. 중앙 70%는 비움(눈 덮인 자갈 길+다져진 눈). 북쪽 절벽 낙차→안개 바다, 원경 사찰/산은 Blender에서 70° 카메라로 렌더한 카드 1장.
+2. Volume: Tonemapping Neutral; Color Adjustments Post Exposure -0.2, Contrast +18, Color Filter #E6EEF5, Saturation -28; White Balance Temp -12 Tint +3; Split Toning Shadows #3A5566 Highlights #D9C8B0 Balance +20; Hue vs Sat 빨강1.1 주황0.75 노랑~파랑0.5, Hue vs Hue 주황→빨강 -5°; Bloom Threshold 1.2 Intensity 0.4 Scatter 0.6 Clamp 30 Dual Quarter HQ off; Vignette #05070A 0.45 Smooth 0.4 Center(0.5,0.48); Film Grain Medium2 0.2; MotionBlur/DoF/LensDistortion off; SMAA Medium, RenderScale 1. 팔레트 ink #0e1216 soil #2b3540 blue-grey #5f6e7b fog #9aabb8 frost #e4eaee blood #8e1a17.
+3. 라이팅: 달빛 청회색 약하게, 고도 15~25° 긴 그림자, shadow 2048, cascade 1, max dist 40, soft low. Ambient gradient Sky 어두운 남청, Equator #5f6e7b, Ground 밝은 회청. Lightmap(GPU Progressive)+APV, Shadowmask, 정적 Static. 몬스터 Cast Shadows Off → 발밑 블롭 + 가까운 석등 반대방향 스트레치 쿼드(인스턴싱). 투사체 광원X: HDR 이미시브 4~10 + 가산 바닥 글로우 쿼드. 림: 셰이더 프레넬, 기본 차갑게, 가까운 석등(전역 변수) 근처 따뜻하게.
+4. 석등: Mixed 스팟(포인트 금지) 앰버 ~2200K 아래로 넓게. 쿠키: Blender에서 화창/창살+가지를 흰 배경 검은색 렌더 256~512 PNG, Cookie Atlas 1024. 긴 베이크 그림자용 Baked 스팟을 낮고 뒤에 따로. 텍셀당 Mixed 겹침 ≤4. 중앙 2~3개만 Realtime 그림자(플레이어/보스만, Rendering Layers). 화구: 이미시브 메시 깜빡임 ±10% + 원뿔 광선 메시(가산, fresnel, depth fade, 노이즈 스크롤).
+5. 안개: 높이 안개 = Full Screen Pass Renderer Feature + Fullscreen Shader Graph, After Opaques, depth→world, exp(-(y-base)*falloff)×거리×XZ 스크롤 노이즈, 색 #9aabb8→원거리 남색 (~0.15ms). 안개 시트 2~3장 지면위 0.3/0.8/1.5m, 다른 속도 노이즈, depth fade+카메라 근접 페이드. 절벽 아래 안개 바다 같은 셰이더 2~3장. CristianQiu 볼류메트릭은 옵션 토글 기본 OFF.
+6. 전경: 적송 = 커브 S자 줄기 + 우산형 수평층 3~5, 솔잎 알파카드 4~12(아틀라스 1장, Alpha Clip), 2~8k tri. 고사목은 불투명 가지. FG 셰이더 Unlit, 수직 그라디언트(밑동 검정→위 안개색), 앰버 프레넬 림 0.1~0.3, 그림자 off. 디더 컷아웃: Screen Position + 4x4 Bayer Alpha Clip(불투명 큐), 플레이어 3명 화면좌표 Shader.SetGlobalVectorArray("_PlayerScreenPos"), 원형 구멍 반경 화면높이 ~12% 경계 ~4%. 대나무 아레나 dither see-through 재사용 가능. 가려진 플레이어 ZTest Greater 실루엣. 탄 영역은 레퍼런스보다 30~50% 덜 가림.
+7. 바닥: Terrain Lit Shader Graph 또는 Blender 메시+커스텀, 레이어 ≤4: 다져진 눈, 자갈, 젖은 흙/진흙, 낙엽(붉은 단풍 일부). 높이 블렌드로 자갈 틈에 눈. 2K 텍스처 4~8m 반복, 4K/POM/테셀 금지. 공용 눈 마스크 서브그래프 saturate(dot(N,up))×높이×노이즈×전역 _SnowAmount → 지형/소품/식생 공통. 눈 알베도 sRGB 200~235, Smoothness 0.1~0.3(다져진 눈 0.5~0.8). 스캐터 조약돌/돌/가지/뼈 200~800 tri 5천~2만개 그림자off, GPU Resident Drawer 또는 기존 indirect. 지형 알베도 탑다운 베이크 → 소품 밑동 블렌드 + AO 블롭 데칼. 데칼 핏자국/발자국 길/짚 깔린 시체 자리(Screen Space 또는 메시 데칼). 발자국: 기존 트램플 RT 샘플. 텍스처 Poly Haven/ambientCG CC0.
+8. 식생(빼지 말고 그리는 방식 최적화): 고사목, 마른 가지 덤불(불투명), 마른 풀 덩어리(기존 트램플 풀 확장, dry #b9a45f→회색), 눈 덮인 단풍 소수. 공용 셰이더: 바람(전역 노이즈, 버텍스컬러), 트램플 RT, 눈 마스크, 시듦 그라디언트(월드 해시, MPB 금지), wrap lighting. 작은 식생 그림자 off, 나무는 저폴리 Shadows Only 프록시. 카드 타이트 메시, 아틀라스 1~2장.
+9. VFX: 보라 경계벽 원통 링 3~5m Transparent Additive: Fresnel + 2겹 노이즈 UV.y 스크롤 + depth intersection glow + 하단 그라디언트 + HDR 보라×4~8, 바닥 보라 데칼, 위로 흐르는 불씨. 몬스터 사망 디졸브(붉은 HDR 경계, 발→머리) + 전역 VFX Graph 먹 연기 플립북 동시 40 상한. 눈/재 VFX Graph 1개 카메라 추종 2~5천. 탄막은 불투명 이미시브 인스턴싱. 무료 플립북: Unity Labs VFX image sequences(CC0), Brackeys VFX(CC0), Kenney Particle Pack(CC0).
+10. 예산(5ms): 전경 0.2~0.5 / 바닥 0.7~1.0 / 식생 0.8~1.0 / 조명 0.8~1.2 / 안개·VFX 0.4~0.6 / 포스트 0.5~0.9. 투명 오버드로 평균 ≤3~4배. 몬스터 300 + 탄 2000 스트레스로 실측.
+
+추가(첫 메시지): 거적 덮인 시체, 부서진 손수레, 핏자국 유지.
