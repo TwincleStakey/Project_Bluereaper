@@ -1,0 +1,11 @@
+Model Information:
+* title:	KCISA-수원화성행궁_솟을삼문(Large Gate)
+* source:	https://sketchfab.com/3d-models/kcisa--large-gate-c47350dfbbed414a9b81fbb25c6faaaa
+* author:	Korea Culture Information Service Agency (https://sketchfab.com/kcisameta)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "KCISA-수원화성행궁_솟을삼문(Large Gate)" (https://sketchfab.com/3d-models/kcisa--large-gate-c47350dfbbed414a9b81fbb25c6faaaa) by Korea Culture Information Service Agency (https://sketchfab.com/kcisameta) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

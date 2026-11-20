@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: KK_Floor
+  m_Shader: {fileID: 4800000, guid: a6ae9251d21a8344d8bf2e6a0b1f51a4, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Base:
+        m_Texture: {fileID: 2800000, guid: f213fe2d70481d2439d088c774398839, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BaseN:
+        m_Texture: {fileID: 2800000, guid: 98bce187e7fdffd469cbd488f61f37f0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Crack:
+        m_Texture: {fileID: 2800000, guid: a09f04af5e19fdd4086833ea8ec35edc, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CrackN:
+        m_Texture: {fileID: 2800000, guid: fff83001cf1454640ae5e386dab35142, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Macro:
+        m_Texture: {fileID: 2800000, guid: 7c7199d22a4522e4c9fd838920d8e1eb, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MacroH:
+        m_Texture: {fileID: 2800000, guid: 054182e1c9e82724d90eb8f6ef61b16a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MacroN:
+        m_Texture: {fileID: 2800000, guid: bee340eeffe027547907c306b5a1c335, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _NrmStr: 0.75
+    - _Smooth: 0.08
+    m_Colors:
+    - _EdgeGlow: {r: 0, g: 0, b: 0, a: 1}
+    - _EdgeGlowW: {r: 4.5, g: 1.8, b: 1.5, a: 0}
+    - _Lip: {r: 0.22, g: 0.08, b: 0, a: 0}
+    - _MacroAmt: {r: 0.55, g: 0.14, b: 0.45, a: 0.55}
+    - _Scale: {r: 5.5, g: 8.3, b: 11, a: 7}
+    - _Tint: {r: 0.36999997, g: 0.40499994, b: 0.40999997, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

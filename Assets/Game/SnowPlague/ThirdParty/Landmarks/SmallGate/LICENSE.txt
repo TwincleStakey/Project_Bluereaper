@@ -1,0 +1,11 @@
+Model Information:
+* title:	KCISA-House of Changwon_Small Gate
+* source:	https://sketchfab.com/3d-models/kcisa-house-of-changwon-small-gate-f844d3c578614148af2677add0678c97
+* author:	Korea Culture Information Service Agency (https://sketchfab.com/kcisameta)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "KCISA-House of Changwon_Small Gate" (https://sketchfab.com/3d-models/kcisa-house-of-changwon-small-gate-f844d3c578614148af2677add0678c97) by Korea Culture Information Service Agency (https://sketchfab.com/kcisameta) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -1,0 +1,6 @@
+{
+  "name": "KillKnight.Editor",
+  "rootNamespace": "KillKnight",
+  "references": ["Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime", "KillKnight.Runtime"],
+  "includePlatforms": ["Editor"]
+}

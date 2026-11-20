@@ -1,0 +1,11 @@
+Model Information:
+* title:	KCISA-House of Changwon_Sarangchae(창원의 집 사랑채)
+* source:	https://sketchfab.com/3d-models/kcisa-house-of-changwon-sarangchae-095e7862fb91443ca2658b1e98066e53
+* author:	Korea Culture Information Service Agency (https://sketchfab.com/kcisameta)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+This work is based on "KCISA-House of Changwon_Sarangchae(창원의 집 사랑채)" (https://sketchfab.com/3d-models/kcisa-house-of-changwon-sarangchae-095e7862fb91443ca2658b1e98066e53) by Korea Culture Information Service Agency (https://sketchfab.com/kcisameta) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+Converted from the 1k GLB (Blender 5.2): decimated to the triangle budget, textures split per material.

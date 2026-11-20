@@ -1,0 +1,4 @@
+underworld 25 9 3.5
+abandoned 3 7 3
+village 12 7.5 3.5 1
+bamboo 12 7.5 3.5

@@ -1,0 +1,18 @@
+심연 고원 (KillKnight-style plateau, 11-19) - third-party assets
+
+Poly Haven (https://polyhaven.com), CC0 1.0 - downloaded 2026-11-19 into Source/PH_*
+- textures: rock_01 (floor base), dark_rock (floor macro patches, cliff walls), cracked_concrete (floor cracks, height/normal)
+- models: namaqualand_cliff_01, namaqualand_cliff_02 (rock masses under the rim, spires), rock_09 (spires),
+  dead_tree_trunk_02, dead_quiver_trunk (dead root / thorn silhouettes)
+
+Quixel Megascans via Fab (Fab Standard License) - reused from Assets/Underworld/Resources/LavaRocks
+- Weathered Icelandic Lava Spire (LR_Spire.fbx + textures)
+
+Kenney (www.kenney.nl) CC0 - reused from Assets/Game/RoomRun/Resources/VFX: spark_01.png (embers)
+
+v3 (11-19) Sketchfab, CC Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/) - decimated in Blender (ArtSource script kk_convert.py), Source/SKF_*
+- "Dragon Skull 2" by Jungle Jim (@jungle_jim) https://sketchfab.com/3d-models/dragon-skull-2-ba4939ca6aad41c18b6309757d9940bd
+- "Faceless Boney Horror Demon" by Pigcraft (@s8819296) https://sketchfab.com/3d-models/faceless-boney-horror-demon-8d896c8d527f463985115d526c23c039
+- "Gates of Hell" by Alan Zimmerman (@nenjo) https://sketchfab.com/3d-models/gates-of-hell-d4328120c44d470ca86c678220e3921b
+- "Ruined Aqueduct Arches Segment" by Pigcraft (@s8819296) https://sketchfab.com/3d-models/ruined-aqueduct-arches-segment-4944acabd2c44767a03ba2620891393b
+Poly Haven CC0: rock_boulder_dry (floor macro, cliff walls)

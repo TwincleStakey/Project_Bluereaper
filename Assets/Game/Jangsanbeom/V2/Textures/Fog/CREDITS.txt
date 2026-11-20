@@ -1,0 +1,1 @@
+SmokeLoop02.tif: from "Particle Pack" by Unity Technologies (Unity Asset Store, free, product 127325), EffectExamples/Smoke & Steam Effects/Textures. Standard Unity Asset Store EULA. Only this texture was taken from the pack.

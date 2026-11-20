@@ -1,0 +1,1159 @@
+// Builds the bamboo arena scene (menu Tools/Dev/Bamboo Arena/Build Scene): materials, the forest floor (dry bamboo leaves, a
+// packed-earth footpath, pebbles, moss), floor props after the bamboo refs (fallen and split culms lying flat; stumps,
+// shoots, roots and mossy rocks near the bamboo; nothing blocks the clearing), low undergrowth, the instanced bamboo wall, mist sheets, light shafts, drifting leaves, sun, camera
+// at the RoomRun angle, post-processing, the ink filter, invisible walls, and the RoomRun dev room (F9).
+// Re-running rebuilds everything; the BambooField settings in the open scene are kept.
+using System.Collections.Generic;
+using System.Linq;
+using BambooArena;
+using Reeds;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+
+public static partial class BABuilder
+{
+    public const string Root = "Assets/Game/BambooArena";
+    public const string ScenePath = Root + "/BambooArena.unity";
+    public static readonly Vector2 ArenaSize = new Vector2(88, 72);   // was 44 x 36
+    const int E = 2, A = 2;   // prop counts: x2 along the edge (perimeter); inside only x2 so the bigger clearing stays clean (11-10)
+    const string Gen = Root + "/Generated";
+    const string Mats = Root + "/Materials";
+    const string AV = "Assets/Game/AbandonedVillage/Models/";
+    const string AVMS = "Assets/Game/AbandonedVillage/ThirdParty/Megascans";
+
+    static Material Mat(string name, string shader, System.Action<Material> init = null)
+    {
+        var path = $"{Mats}/{name}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        var sh = Shader.Find(shader);
+        if (!sh) { Debug.LogError("[Bamboo] missing shader " + shader); return null; }
+        if (!m) { m = new Material(sh); AssetDatabase.CreateAsset(m, path); }
+        else if (m.shader != sh) m.shader = sh;
+        init?.Invoke(m);
+        m.enableInstancing = true;
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
+    static Mesh FbxMesh(string name) => AssetDatabase.LoadAllAssetsAtPath($"{Root}/Models/{name}.fbx").OfType<Mesh>().FirstOrDefault();
+    static GameObject Fbx(string name) => AssetDatabase.LoadAssetAtPath<GameObject>($"{Root}/Models/{name}.fbx");
+    static Texture2D Tex(string n) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Root}/Textures/{n}_2k.jpg");
+
+    static void SaveMesh(Mesh m, string name)
+    {
+        var path = $"{Gen}/{name}.asset";
+        var old = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+        if (old) { EditorUtility.CopySerialized(m, old); EditorUtility.SetDirty(old); }
+        else AssetDatabase.CreateAsset(m, path);
+    }
+
+    static void ImportSettings()
+    {
+        foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { Root + "/Models" }))
+        {
+            var imp = (ModelImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
+            bool ch = false;
+            if (imp.importAnimation) { imp.importAnimation = false; ch = true; }
+            if (imp.importCameras || imp.importLights) { imp.importCameras = false; imp.importLights = false; ch = true; }
+            if (imp.materialImportMode != ModelImporterMaterialImportMode.None) { imp.materialImportMode = ModelImporterMaterialImportMode.None; ch = true; }
+            if (ch) imp.SaveAndReimport();
+        }
+        foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { Root + "/Textures" }))
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var imp = (TextureImporter)AssetImporter.GetAtPath(path);
+            bool nrm = path.Contains("_nor_");
+            bool lit = path.Contains("mossy") ;   // URP Lit props need real normal maps; the ground shader unpacks its own
+            var type = nrm && lit ? TextureImporterType.NormalMap : TextureImporterType.Default;
+            bool srgb = !nrm;
+            if (imp.maxTextureSize == 1024 && imp.textureType == type && imp.sRGBTexture == srgb) continue;
+            imp.maxTextureSize = 1024; imp.textureType = type; imp.sRGBTexture = srgb;
+            imp.SaveAndReimport();
+        }
+    }
+
+    static Material LitTex(string name, string tex, Color tint, float tile)
+    {
+        return Mat(name, "Universal Render Pipeline/Lit", m =>
+        {
+            m.SetTexture("_BaseMap", Tex(tex + "_diff")); m.SetTexture("_BumpMap", Tex(tex + "_nor_gl"));
+            m.SetTextureScale("_BaseMap", Vector2.one * tile); m.EnableKeyword("_NORMALMAP");
+            m.SetColor("_BaseColor", tint); m.SetFloat("_Smoothness", 0.1f);
+        });
+    }
+
+    // 11-13: the editor is shared with other threads: build in the bamboo scene opened additively, then put the scene
+    // setup back the way it was (BuildKeepScenes; the old Build replaced whatever was open).
+    [MenuItem("Tools/Dev/Bamboo Arena/Build Scene")]
+    public static void BuildKeepScenes()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) { Debug.LogError("[Bamboo] ABORT: in play mode"); return; }
+        var setup = EditorSceneManager.GetSceneManagerSetup();
+        var s = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(ScenePath);
+        bool wasOpen = s.IsValid() && s.isLoaded;
+        if (!wasOpen) s = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
+        var prevActive = EditorSceneManager.GetActiveScene();
+        EditorSceneManager.SetActiveScene(s);
+        try { Build(); }
+        finally
+        {
+            if (setup.Length > 0) EditorSceneManager.RestoreSceneManagerSetup(setup);
+            else if (prevActive.IsValid()) EditorSceneManager.SetActiveScene(prevActive);
+        }
+    }
+
+    public static void Build()
+    {
+        var active = EditorSceneManager.GetActiveScene();
+        if (active.isDirty && active.path != ScenePath) { Debug.LogError("[Bamboo] ABORT: unsaved changes in " + active.path); return; }
+        foreach (var d in new[] { Gen, Mats })
+            if (!AssetDatabase.IsValidFolder(d)) AssetDatabase.CreateFolder(Root, d.Substring(Root.Length + 1));
+        ImportSettings();
+
+        // ---------------------------------------------------------------- materials
+        // 11-13 C mood (Sekiro bamboo thicket at night): older, grey-green culms, dark heavy leaves
+        void BambooCols(Material m, float k)
+        {
+            // r29 (Kido 11-14: "색이 너무 초록초록해"): culms and leaves pulled to a dark, low-saturation grey-green
+            m.SetColor("_CulmCol", new Color(0.25f, 0.26f, 0.205f) * k); m.SetColor("_CulmTop", new Color(0.30f, 0.31f, 0.245f) * k);
+            m.SetColor("_NodeCol", new Color(0.14f, 0.135f, 0.11f) * k); m.SetColor("_LeafCol", new Color(0.05f, 0.06f, 0.052f) * k);
+            m.SetColor("_LeafTip", new Color(0.095f, 0.11f, 0.095f) * k); m.SetColor("_RootCol", new Color(0.03f, 0.03f, 0.025f) * k);
+            m.SetColor("_Ambient", new Color(0.10f, 0.12f, 0.15f) * k);
+        }
+        var bamboo = Mat("BA_Bamboo", "BambooArena/Bamboo", m => { BambooCols(m, 1f); m.SetFloat("_Translucency", 0.5f); });
+        // camera-side foreground: the same bamboo, near black, no backlight (Kido's Hades 2 ref)
+        var bambooSil = Mat("BA_BambooSil", "BambooArena/Bamboo", m => { BambooCols(m, 0.16f); m.SetFloat("_Translucency", 0f); });
+        // Flush floor only (dry bamboo leaves, a packed-earth trail, pebbles, moss, damp patches, dappled light).
+        Texture2D RF(string n) => AssetDatabase.LoadAssetAtPath<Texture2D>($"Assets/Game/ReedField/Textures/{n}_2k.jpg");
+        // 11-13 redo (Kido: "the floor is green, not soil"; picked the Wukong bamboo-grove floor, ref B2): dark forest
+        // earth, dry bamboo straw and dead-leaf litter in big regions, a packed-earth path with old stone slabs, roots,
+        // gravel, moss only in the shade. No green tint over everything.
+        var ground = Mat("BA_Ground", "BambooArena/Floor", m =>
+        {
+            m.SetTexture("_SoilTex", Tex("fab_soil_diff")); m.SetTexture("_SoilNrm", Tex("fab_soil_nor_gl"));   /* r35b (Kido: "너무 빽빽"): plain damp soil (Fab Megascans Damp Soil scnmokp0); mud_forest had sprout specks everywhere */
+            m.SetTexture("_LeafTex", Tex("fab_moss_diff")); m.SetTexture("_LeafNrm", Tex("fab_moss_nor_gl"));   /* r32: B2 moss carpets (Fab Megascans Mossy Ground umilae2n) */
+            m.SetTexture("_Leaf2Tex", Tex("ms_leaves_diff")); m.SetTexture("_Leaf2Nrm", Tex("ms_leaves_nor_gl"));
+            m.SetTexture("_PathTex", Tex("ms_tracks_diff")); m.SetTexture("_PathNrm", Tex("ms_tracks_nor_gl"));
+            m.SetTexture("_SlabTex", Tex("fab_flag_diff")); m.SetTexture("_SlabNrm", Tex("fab_flag_nor_gl"));   /* r32: B2 flagstones (Fab Megascans Mossy Flagstone Floor vemjads) */
+            m.SetTexture("_PebbleTex", Tex("ms_gravel_diff")); m.SetTexture("_PebbleNrm", Tex("ms_gravel_nor_gl"));
+            m.SetTexture("_RootTex", Tex("ms_roots_diff")); m.SetTexture("_RootNrm", Tex("ms_roots_nor_gl"));
+            m.SetTexture("_MossTex", Tex("mossy_rock_diff"));
+            m.SetFloat("_SoilTile", 7f); m.SetFloat("_Calm", 0.12f); m.SetFloat("_NormalStrength", 0.5f);
+            /* r30 (Kido 11-18: the floor texture looked washed out): scans at their own colour, 4.5-6 m tiles, gains into range */
+            m.SetFloat("_TileLitter", 2.5f);   /* damp soil scan covers 0.42 m */ m.SetFloat("_TileLeaves", 4.5f); m.SetFloat("_TileEarth", 6f); m.SetFloat("_TileRoots", 5f);
+            m.SetVector("_Gains", new Vector4(2.8f, 1.7f, 1.4f, 1.1f));   /* r32: soil (mud_forest), leaves, path earth, roots */
+            m.SetFloat("_TileLitter", 2.5f);   /* damp soil scan covers 0.42 m */ m.SetFloat("_TileMoss", 5f);   /* r35 (Kido: "너무 빽빽"): bigger soil tile = fewer specks per screen */ m.SetFloat("_TileSlab", 3f); m.SetFloat("_MossGain", 3.3f); m.SetFloat("_Detail", 1f); m.SetFloat("_MipBias", 0f);   /* r34 (Kido: "색 죽이는 건 후처리로"): the floor material shows the scans as they are */ m.SetFloat("_SlabGain", 0.95f);
+            m.SetFloat("_Leaves", 0.4f); m.SetFloat("_Moss", 0.75f); m.SetFloat("_Pebbles", 0.55f); m.SetFloat("_Roots", 0.7f);
+            m.SetFloat("_Slabs", 0f);   /* r40 (Kido: "랜드마크 주변 텍스처 각졌어, 디아블로 룰"): no mosaic paving texture; real stones instead */ m.SetFloat("_Damp", 0.55f); m.SetFloat("_Dapple", 0.9f); m.SetFloat("_Damp", 0f);
+            m.SetColor("_LeafCol", new Color(1f, 0.95f, 0.88f));   // r30: the litter scan keeps its own colour (r9 had 0.66/0.6/0.5)
+            m.SetColor("_MossCol", new Color(1f, 1f, 1f));   /* r32: the moss scan carries its colour */   // r27: B2 moss, yellow-olive   // r25: survives the -42 sat grade as green
+            m.SetColor("_Tint", new Color(1f, 1f, 1f));   // r28: the r27 floor carries its own value
+            m.SetColor("_Shade", new Color(0.05f, 0.05f, 0.055f));
+            m.SetColor("_Ambient", new Color(0.07f, 0.07f, 0.07f));   /* r33 (Kido: "허여멀건"): the flat blue ambient lifted the whole floor grey; was 0.16/0.17/0.2 */
+        });
+        // low ground cover (the reed field's low grass mesh, in bamboo-floor greens)
+        var coverMat = Mat("BA_GroundCover", "ReedField/Reed", m =>
+        {
+            m.SetColor("_LeafCol", new Color(0.17f, 0.19f, 0.13f)); m.SetColor("_LeafTip", new Color(0.30f, 0.32f, 0.22f));   // r9: dark olive-grey, not black stars
+            m.SetColor("_RootCol", new Color(0.07f, 0.08f, 0.05f)); m.SetColor("_StemCol", new Color(0.18f, 0.20f, 0.12f));
+            m.SetFloat("_Translucency", 0.3f); m.SetFloat("_GustSheen", 0.1f);
+        });
+        var stone = LitTex("BA_Stone", "mossy_rock", new Color(0.82f, 0.86f, 0.78f), 0.45f);
+        var stone2 = LitTex("BA_Stone2", "rock_pitted_mossy", new Color(0.55f, 0.58f, 0.54f), 0.6f);
+        var stump = Mat("BA_Stump", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.46f, 0.44f, 0.24f)); m.SetFloat("_Smoothness", 0.12f); });
+        var stumpCut = Mat("BA_StumpCut", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.72f, 0.64f, 0.44f)); m.SetFloat("_Smoothness", 0.1f); });
+        var fallenMat = Mat("BA_Fallen", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.30f, 0.27f, 0.19f)); m.SetFloat("_Smoothness", 0.1f); });   // r10: moonlit pale culms read as white lines
+        var shootMat = Mat("BA_Shoot", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.40f, 0.33f, 0.20f)); m.SetFloat("_Smoothness", 0.12f); });
+        var rootMat = Mat("BA_Root", "Universal Render Pipeline/Lit", m => { m.SetColor("_BaseColor", new Color(0.24f, 0.18f, 0.11f)); m.SetFloat("_Smoothness", 0.12f); });
+        var mist = Mat("BA_Mist", "ReedField/FogCard", m => { m.SetColor("_Color", new Color(0.42f, 0.50f, 0.58f, 0.11f)); m.SetFloat("_Scale", 0.1f); m.SetFloat("_Speed", 0.35f); });
+        var shaftMat = Mat("BA_Shaft", "BambooArena/LightShaft");
+        var leafMat = Mat("BA_Leaf", "ReedField/Fluff", m => { m.SetColor("_Color", new Color(0.62f, 0.68f, 0.36f, 0.9f)); m.SetFloat("_Backlight", 1.4f); });
+        AssetDatabase.SaveAssets();
+
+        // ---------------------------------------------------------------- scene
+        var scene = EditorSceneManager.GetActiveScene().path == ScenePath
+            ? EditorSceneManager.GetActiveScene()
+            : (System.IO.File.Exists(ScenePath) ? EditorSceneManager.OpenScene(ScenePath) : EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single));
+        string keep = null;
+        var old = Object.FindAnyObjectByType<BambooField>();
+        if (old) keep = JsonUtility.ToJson(old);
+        foreach (var go in scene.GetRootGameObjects()) Object.DestroyImmediate(go);
+
+        var sunGo = new GameObject("Sun");
+        var sun = sunGo.AddComponent<Light>();
+        sun.type = LightType.Directional; sun.shadows = LightShadows.Soft; sun.shadowStrength = 0.75f;
+        RenderSettings.sun = sun; RenderSettings.skybox = null; RenderSettings.fog = false;
+
+        var rootGo = new GameObject("BambooField");
+        rootGo.AddComponent<ReedInstancer>();
+        var field = rootGo.AddComponent<BambooField>();
+        if (keep != null) JsonUtility.FromJsonOverwrite(keep, field);
+        // 11-10 (Kido: the wall did not read as a tall dense wall, the floor was a foggy blur)
+        field.spacing = Mathf.Min(field.spacing, 1.05f); field.heightScale = Mathf.Max(field.heightScale, 1.25f);
+        field.wallDepth = Mathf.Max(field.wallDepth, 12f); field.groundFog = Mathf.Min(field.groundFog, 0.12f);
+        field.clumps = new[] { FbxMesh("BA_Bamboo_A"), FbxMesh("BA_Bamboo_B"), FbxMesh("BA_Bamboo_C") };
+        field.farClump = FbxMesh("BA_Bamboo_Far");
+        field.bambooMat = bamboo; field.sunLight = sun;
+        field.silhouetteMat = bambooSil; field.silhouetteHeight = 0.55f;   // ~13 m, 9+ m out: only the bottom quarter of the screen
+        // 11-13 redo (Kido: bamboo too short and sprinkled evenly; C mood): much taller groves leaning in over the edge,
+        // a ragged wall with bays, and a cold moon instead of the warm afternoon sun
+        field.heightScale = 1.8f; field.leanIn = 11f; field.edgeNoise = 3.2f; field.spacing = 1.0f; field.wallDepth = 14f;
+        field.lightColor = new Color(0.7f, 0.78f, 0.96f); field.lightIntensity = 1.8f; field.sun = new Vector2(48f, 150f);
+        field.ambient = new Color(0.15f, 0.16f, 0.19f); field.fog = new Color(0.07f, 0.09f, 0.10f);
+        field.groundFog = 0f; field.groundFogHeight = 1.2f; field.distanceFog = 0.02f; field.hazeStart = 40f;   /* r33: no haze over the floor (was 0.16 / 0.05 from 26 m) */ field.canopyShade = 0.75f;
+        field.groundCover = AssetDatabase.LoadAllAssetsAtPath("Assets/Game/ReedField/Models/RF_LowGrass.fbx").OfType<Mesh>().FirstOrDefault();
+        field.groundCoverMat = coverMat; field.groundCoverScale = 1.1f;
+        field.groundCover = null;   /* r36b: the dark low-grass stars are replaced by the green Megascans tufts (FloorDetail) */
+        field.seeThroughTarget = null;
+        // 11-10 (Kido: every arena 2x per side, 4x the area). The scene keeps its own settings, so force the new size.
+        field.arena = ArenaSize;
+
+        // ---------------------------------------------------------------- floor props (after the bamboo-forest refs)
+        // Nothing here has a collider and nothing in the middle stands up: fallen and split culms lie flat, stumps,
+        // shoots, roots and mossy rocks stay near the bamboo. The trail through the clearing is kept clear.
+        var props = new GameObject("Props").transform;
+        var drifts = new List<Vector3>();   // (x, z, radius): dry leaves pile up around these
+        GameObject Place(GameObject src, Vector3 pos, float yaw, float scale, params Material[] mats)
+        {
+            if (!src) return null;
+            if (field.Court(new Vector2(pos.x, pos.z)) > 0.05f) return null;   // r27: the shrine court stays paved and clear
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(src, props);
+            go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
+            go.transform.localScale = Vector3.one * scale;
+            if (mats.Length > 0) foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) r.sharedMaterials = mats.Take(r.GetComponent<MeshFilter>().sharedMesh.subMeshCount).ToArray();
+            foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+            // dry leaves pile up only against props near the bamboo; out in the clearing the floor stays clean
+            // (11-10: with the bigger clearing every scattered culm left a leaf blotch and the floor read as one smear)
+            if (field.Outside(new Vector2(pos.x, pos.z)) > -6f) drifts.Add(new Vector3(pos.x, pos.z, 0.9f + scale * 0.6f));
+            return go;
+        }
+        var rs = new System.Random(field.seed + 5);
+        float Rn() => (float)rs.NextDouble();
+        float hx = field.arena.x * 0.5f, hz = field.arena.y * 0.5f;
+        bool OnTrail(Vector3 p) => field.Trail(new Vector2(p.x, p.z)) > 0.05f;
+        Vector3 NearEdge(float inset, float depth = 3f)
+        {
+            for (int k = 0; k < 30; k++)
+            {
+                int side = rs.Next(4); float t = Rn() * 2 - 1;
+                float i = inset + Rn() * depth;
+                var p = side switch
+                {
+                    0 => new Vector3(t * (hx - 2), 0, hz - i),
+                    1 => new Vector3(t * (hx - 2), 0, -hz + i),
+                    2 => new Vector3(hx - i, 0, t * (hz - 2)),
+                    _ => new Vector3(-hx + i, 0, t * (hz - 2)),
+                };
+                if (!OnTrail(p)) return p;
+            }
+            return new Vector3(hx - inset, 0, 0);
+        }
+        Vector3 Inside(float margin)
+        {
+            for (int k = 0; k < 40; k++)
+            {
+                var p = new Vector3((Rn() * 2 - 1) * (hx - margin), 0, (Rn() * 2 - 1) * (hz - margin));
+                if (!OnTrail(p) && field.Trail(new Vector2(p.x + 1.5f, p.z)) < 0.05f && field.Trail(new Vector2(p.x - 1.5f, p.z)) < 0.05f) return p;
+            }
+            return Vector3.zero;
+        }
+        Vector3 Jit(Vector3 c, float r) => c + new Vector3((Rn() * 2 - 1) * r, 0, (Rn() * 2 - 1) * r);
+        // 11-13 redo (Kido: spiky stones, sticks everywhere; ref B2): the clearing itself stays open floor. Dressing sits
+        // at the foot of the bamboo and in the bays of the wall: cut stumps, roots, mossy boulders in groups, a few
+        // fallen culms and piles, Megascans debris/stick/rock patches and low ferns. Nothing in the middle stands up.
+        float Out(Vector3 p) => field.Outside(new Vector2(p.x, p.z));
+        Vector3 Foot(float outMin, float outMax)   // a spot at the bamboo foot: outMin..outMax metres outside the edge line
+        {
+            for (int k = 0; k < 60; k++)
+            {
+                var p = NearEdge(-outMax, outMax - outMin + 0.01f);
+                float o = Out(p);
+                if (o >= outMin && o <= outMax && !OnTrail(p)) return p;
+            }
+            return NearEdge(0.2f, 1f);
+        }
+        GameObject PlaceH(GameObject src, Vector3 pos, float yaw, float height, Material mat = null)
+        {
+            var go = mat ? Place(src, pos, yaw, 1f, mat) : Place(src, pos, yaw, 1f);
+            if (!go) return null;
+            var b = new Bounds(pos, Vector3.zero); bool any = false;
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) { if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds); }
+            if (any && b.size.y > 0.001f) go.transform.localScale = Vector3.one * (height / b.size.y);
+            return go;
+        }
+        GameObject MS(string f, string v = "") => AssetDatabase.LoadAssetAtPath<GameObject>($"{AVMS}/{f}/AV_MS_{f}{v}.fbx");
+        Material MSMat(string f) => AssetDatabase.LoadAssetAtPath<Material>($"Assets/Game/AbandonedVillage/Materials/AV_MS_{f}.mat");
+        // cut stumps in small groups at the bamboo foot, roots beside them
+        for (int i = 0; i < 6 * E; i++)
+        {
+            var c = Foot(0.3f, 2.5f);   // r12 (QA): standing props strictly outside the edge
+            Place(Fbx("BA_Stumps"), c, Rn() * 360, 0.9f + Rn() * 0.6f, stump, stumpCut);
+            if (Rn() < 0.6f) Place(Fbx("BA_Roots"), Jit(c, 0.6f), Rn() * 360, 0.9f + Rn() * 0.4f, rootMat);
+        }
+        for (int i = 0; i < 8 * E; i++) Place(Fbx("BA_Roots"), Foot(0.1f, 2f), Rn() * 360, 1f + Rn() * 0.6f, rootMat);
+        // fallen culms: a few lone ones and three piles, all at the foot of the wall
+        for (int i = 0; i < 4 * E; i++) Place(Fbx("BA_Fallen"), Foot(0.3f, 3f), Rn() * 360, 0.8f + Rn() * 0.35f, fallenMat);
+        for (int i = 0; i < 3; i++) Place(Fbx("BA_FallenPile"), Foot(0.5f, 2.5f), Rn() * 360, 0.9f + Rn() * 0.2f, fallenMat);
+        // mossy boulders in groups (one big, two to four smaller), half sunk, at the foot and in the bays
+        var rockClear = new List<Vector3>();   // r30 (Kido 11-18: bamboo growing through the rocks): no culms on the boulder groups
+        for (int g = 0; g < 9 * E; g++)
+        {
+            var c = Foot(0.9f, 4f);
+            rockClear.Add(new Vector3(c.x, c.z, 2.4f));
+            int n = 2 + rs.Next(4);
+            for (int k = 0; k < n; k++)
+            {
+                bool bigOne = k == 0;
+                var src = AssetDatabase.LoadAssetAtPath<GameObject>(bigOne && Rn() < 0.6f
+                    ? $"Assets/Art/LookStudy/Stages/Models/Rock_boulder0{(Rn() < 0.5f ? 1 : 3)}.fbx"
+                    : $"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx");
+                var p = bigOne ? c : Jit(c, 1.6f);
+                if (!bigOne && Out(p) < 0.3f) p = c + (c - p) * 0.6f;   // small ones stay at the wall, never out in the open
+                float h = bigOne ? 0.9f + Rn() * 0.9f : 0.25f + Rn() * 0.35f;
+                var go = PlaceH(src, p + Vector3.down * h * 0.25f, Rn() * 360, h, Rn() < 0.5f ? stone : stone2);
+                if (go) go.transform.rotation = Quaternion.Euler(Rn() * 16 - 8, Rn() * 360, Rn() * 16 - 8);
+            }
+        }
+        // Megascans floor scans: debris / sticks / small rocks / pebbles patches, flat, mostly toward the wall, a few in the open
+        string[] patches = { "Debris", "Pebbles", "Debris" };   /* r30: no RubblePatch (dark boards from the top camera) */   // r12 (QA): no stick patches (read as sticks again)
+        for (int i = 0; i < 12 * E; i++)
+        {
+            string f = patches[rs.Next(patches.Length)];
+            Vector3 p = Rn() < 0.55f ? Foot(-4f, 0.5f) : Inside(6f);
+            var go = Place(MS(f), p, Rn() * 360, 0.8f + Rn() * 0.5f, MSMat(f));
+            if (go) foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
+        }
+        // low ferns and shrubs (knee high at most) in drifts at the foot of the bamboo
+        string[] plantVars = { "_VarA", "_VarB", "_VarC", "_VarD", "_VarE", "_VarF", "_VarG", "_VarH" };
+        for (int g = 0; g < 10 * E; g++)
+        {
+            var c = Foot(-1.5f, 2f);
+            string f = Rn() < 0.6f ? "shrubs" : "WildGreen";
+            int n = 2 + rs.Next(4);
+            for (int k = 0; k < n; k++)
+            {
+                var p = Jit(c, 1.8f);
+                if (Out(p) < -2.5f || OnTrail(p)) continue;
+                PlaceH(MS(f, plantVars[rs.Next(plantVars.Length)]), p, Rn() * 360, 0.35f + Rn() * 0.5f, MSMat(f));
+            }
+        }
+        // r5: low clumps out in the clearing as well (B2: grass and fern tufts on the leaf litter), shin high, never on the path
+        for (int g = 0; g < 0; g++)   // r28: Megascans grass cards read as black crosses from the top camera; none in the open
+        {
+            var c = Inside(8f);
+            string f = Rn() < 0.75f ? "WildGreen" : "shrubs";
+            int n = 3 + rs.Next(4);
+            for (int k = 0; k < n; k++)
+            {
+                var p = Jit(c, 1.3f);
+                if (OnTrail(p)) continue;
+                PlaceH(MS(f, plantVars[rs.Next(plantVars.Length)]), p, Rn() * 360, 0.35f + Rn() * 0.3f, MSMat(f));
+            }
+        }
+        Landmarks(field, props, rs);
+        field.clearings.AddRange(rockClear);
+        // r33 (Kido 11-18: "B2 has small plants, stones poking out, the stone path a little raised, plants around it; ours
+        // is only a floor texture"): the B2 floor detail as real geometry. Short grass tufts in clumps (Megascans
+        // WildGreen, a lighter bamboo-floor material so they do not read as black crosses), small stones half buried in
+        // twos and threes, and the path as separate flat stones standing a few cm proud of the soil, grass at their edges.
+        {
+            var detail = new GameObject("FloorDetail").transform; detail.SetParent(props, false);
+            var grassMat = Mat("BA_FloorGrass", "Universal Render Pipeline/Lit", m =>
+            {
+                var src = AssetDatabase.LoadAssetAtPath<Material>("Assets/Game/AbandonedVillage/Materials/AV_MS_WildGreen.mat");
+                if (src) m.CopyPropertiesFromMaterial(src);
+                m.SetColor("_BaseColor", new Color(1.5f, 1.6f, 1.15f)); m.SetFloat("_Smoothness", 0.05f);   /* r33b: lifted, they read as black X from the top camera */
+                m.SetFloat("_EnvironmentReflections", 0f); m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+            });
+            /* r38: the path stones read pale blue-grey and pasted on; darker, earthier, the same scan */
+            var pathStone = LitTex("BA_PathStone", "mossy_rock", new Color(0.42f, 0.4f, 0.34f), 0.45f);
+            string[] gv = { "VarA", "VarB", "VarC", "VarD", "VarE", "VarF", "VarG", "VarH" };
+            GameObject Grass() => AssetDatabase.LoadAssetAtPath<GameObject>($"{AVMS}/WildGreen/AV_MS_WildGreen_{gv[rs.Next(gv.Length)]}.fbx");
+            GameObject SmallRock() => AssetDatabase.LoadAssetAtPath<GameObject>(Rn() < 0.35f ? $"{AVMS}/SmallRocks/AV_MS_SmallRocks.fbx" : $"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx");
+            var srMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Game/AbandonedVillage/Materials/AV_MS_SmallRocks.mat");
+            void Keep(GameObject g, bool shadow) { if (!g) return; g.transform.SetParent(detail, true); foreach (var rk in g.GetComponentsInChildren<Renderer>()) rk.shadowCastingMode = shadow ? ShadowCastingMode.On : ShadowCastingMode.Off; }
+            int nGrass = 0, nStone = 0, nSlab = 0;
+            float hx2 = field.arena.x * 0.5f, hz2 = field.arena.y * 0.5f;
+            var stoneSpots = new List<Vector3>();
+            // stones poking out of the soil: twos and threes, half buried, a few beside the grass
+            for (int si = 0; si < 45; si++)
+            {
+                var sp = new Vector3((Rn() * 2 - 1) * hx2, 0, (Rn() * 2 - 1) * hz2);
+                var s2 = new Vector2(sp.x, sp.z);
+                if (field.Trail(s2) > 0.05f || field.Court(s2) > 0.3f) continue;
+                stoneSpots.Add(sp);
+                int n = 1 + rs.Next(3);
+                for (int k = 0; k < n; k++)
+                {
+                    var q = sp + new Vector3((Rn() - 0.5f) * 0.9f, 0, (Rn() - 0.5f) * 0.9f);
+                    float h = 0.12f + Rn() * 0.22f;
+                    var src = SmallRock();
+                    var st = PlaceH(src, q + Vector3.down * h * 0.45f, Rn() * 360, h, src && src.name.Contains("SmallRocks") && srMat ? srMat : (Rn() < 0.5f ? stone : stone2));
+                    if (st) { st.transform.rotation = Quaternion.Euler(Rn() * 30 - 15, Rn() * 360, Rn() * 30 - 15); Keep(st, false); nStone++; }
+                }
+            }
+            // the path: flat stones a little proud of the soil, one every ~1 m along the trail, some missing, grass at the edges
+            for (float z = -hz2 - 2f; z < hz2 + 2f; z += 1.0f + Rn() * 0.3f)
+            {
+                float tx = field.TrailX(z);
+                var c2 = new Vector2(tx, z);
+                if (field.Court(c2) > 0.2f || field.Outside(c2) > 1.5f) continue;
+                int across = Rn() < 0.75f ? 2 : 1;
+                for (int a2 = 0; a2 < across; a2++)
+                {
+                    if (Rn() < 0.1f) continue;   // a stone missing here and there
+                    float off = across == 1 ? (Rn() - 0.5f) * 0.5f : (a2 == 0 ? -0.62f : 0.62f) + (Rn() - 0.5f) * 0.2f;
+                    var q = new Vector3(tx + off, 0, z + (Rn() - 0.5f) * 0.3f);
+                    var sl = PlaceH(AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx"), q, Rn() * 360, 0.5f, pathStone);
+                    if (!sl) continue;
+                    var rr = sl.GetComponentsInChildren<Renderer>(); var sb = rr[0].bounds; foreach (var r0 in rr) sb.Encapsulate(r0.bounds);
+                    float w = 1.05f + Rn() * 0.4f, foot = Mathf.Max(sb.size.x, sb.size.z);
+                    var ls = sl.transform.localScale; float k = w / Mathf.Max(foot, 0.01f);
+                    sl.transform.localScale = new Vector3(ls.x * k, ls.y * 0.35f, ls.z * k);
+                    sl.transform.rotation = Quaternion.Euler(Rn() * 4 - 2, Rn() * 360, Rn() * 4 - 2);
+                    rr = sl.GetComponentsInChildren<Renderer>(); sb = rr[0].bounds; foreach (var r0 in rr) sb.Encapsulate(r0.bounds);
+                    sl.transform.position += Vector3.up * (0.03f + Rn() * 0.04f - sb.max.y);   /* top 6-10 cm above the soil */
+                    Keep(sl, false); nSlab++;
+                    if (Rn() < 0.5f) { var g = PlaceH(Grass(), q + new Vector3((Rn() - 0.5f) * 1.4f, 0, (Rn() - 0.5f) * 1.4f), Rn() * 360, 0.18f + Rn() * 0.18f, grassMat); Keep(g, false); }
+                }
+            }
+            // r36 (Kido 11-18: "요 초록풀 괜찮다, 이걸로 안 어색하게"): the green tufts grow where grass grows in B2 instead of
+            // in random blobs: along the path shoulders, at the foot of stones and boulders, thick toward the bamboo, and only
+            // a few loose patches in the open. Each patch is dense and tall at its heart and thins out to small single
+            // blades at its rim, so it melts into the soil instead of sitting on it as a disc.
+            void Patch(Vector3 c, float radius, int count)
+            {
+                count = Mathf.RoundToInt(count * 2.2f);   /* r36b: patches read as lone sprigs; mass them */
+                for (int k = 0; k < count; k++)
+                {
+                    float rr2 = Mathf.Sqrt(Rn()) * radius, ang = Rn() * Mathf.PI * 2f;
+                    var q = c + new Vector3(Mathf.Cos(ang) * rr2, 0, Mathf.Sin(ang) * rr2);
+                    var q2 = new Vector2(q.x, q.z);
+                    if (field.Trail(q2) > 0.25f || field.Court(q2) > 0.3f) continue;
+                    float t = rr2 / Mathf.Max(radius, 0.01f);
+                    if (t > 0.7f && Rn() < (t - 0.7f) * 1.5f) continue;   /* sparser toward the rim */
+                    float h = Mathf.Lerp(0.6f, 0.3f, t) * (0.8f + Rn() * 0.4f);
+                    var g = PlaceH(Grass(), q, Rn() * 360, h, grassMat);
+                    if (g) { g.transform.rotation = Quaternion.Euler(Rn() * 12 - 6, Rn() * 360, Rn() * 12 - 6); Keep(g, false); nGrass++; }
+                }
+            }
+            // r40: the shrine court as soil with scattered old flat stones (same as the path, which Kido liked), thinning out
+            // toward the rim, and grass patches covering the rim, instead of a hard-edged mosaic paving texture.
+            {
+                var sh = new Vector3(field.shrine.x, 0, field.shrine.y);
+                int placedC = 0;
+                for (int ci = 0; ci < 400 && placedC < 34; ci++)
+                {
+                    float ang = Rn() * Mathf.PI * 2f, rad = Mathf.Sqrt(Rn()) * field.shrineRadius;
+                    var q = sh + new Vector3(Mathf.Cos(ang) * rad, 0, Mathf.Sin(ang) * rad);
+                    if ((q - sh).magnitude < 3.6f) continue;   /* the pagoda rock */
+                    if (Rn() < rad / field.shrineRadius * 0.7f) continue;   /* thinner toward the rim */
+                    var src = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx");
+                    if (!src) continue;
+                    var cs = (GameObject)PrefabUtility.InstantiatePrefab(src, detail);
+                    cs.transform.SetPositionAndRotation(q, Quaternion.Euler(0, Rn() * 360, 0));
+                    foreach (var col in cs.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(col);
+                    foreach (var r1 in cs.GetComponentsInChildren<MeshRenderer>()) { r1.sharedMaterials = Enumerable.Repeat(pathStone, r1.sharedMaterials.Length).ToArray(); r1.shadowCastingMode = ShadowCastingMode.Off; }
+                    var rr1 = cs.GetComponentsInChildren<Renderer>(); var b1 = rr1[0].bounds; foreach (var r0 in rr1) b1.Encapsulate(r0.bounds);
+                    float w = 0.9f + Rn() * 0.6f, foot = Mathf.Max(Mathf.Max(b1.size.x, b1.size.z), 0.01f);
+                    cs.transform.localScale = new Vector3(w / foot, (w / foot) * 0.3f, w / foot);
+                    rr1 = cs.GetComponentsInChildren<Renderer>(); b1 = rr1[0].bounds; foreach (var r0 in rr1) b1.Encapsulate(r0.bounds);
+                    cs.transform.position += Vector3.up * (0.03f + Rn() * 0.03f - b1.max.y);
+                    GameObjectUtility.SetStaticEditorFlags(cs, StaticEditorFlags.BatchingStatic);
+                    placedC++; nSlab++;
+                }
+                for (int ci = 0; ci < 10; ci++) { float ang = Rn() * Mathf.PI * 2f; Patch(sh + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * (field.shrineRadius + 0.5f + Rn() * 1.5f), 0.9f, 8 + rs.Next(6)); }
+            }
+            // path shoulders: both sides of the trail, in runs with gaps
+            for (float z = -hz2; z < hz2; z += 1.2f + Rn() * 1.2f)
+            {
+                float tx = field.TrailX(z);
+                if (field.Court(new Vector2(tx, z)) > 0.1f || Rn() < 0.3f) continue;
+                float side = Rn() < 0.5f ? -1f : 1f;
+                Patch(new Vector3(tx + side * (1.9f + Rn() * 0.6f), 0, z), 0.6f + Rn() * 0.6f, 6 + rs.Next(6));
+            }
+            // at the foot of stones and the island boulders
+            foreach (var sp in stoneSpots) if (Rn() < 0.6f) Patch(sp + new Vector3(Rn() - 0.5f, 0, Rn() - 0.5f) * 0.6f, 0.5f + Rn() * 0.5f, 4 + rs.Next(5));
+            /* r43: no grass patches at the old island spots (the groves stand there now) */
+            // thick toward the bamboo: a broken band 0-6 m inside the edge
+            for (int gi = 0; gi < 500; gi++)
+            {
+                var gp = new Vector3((Rn() * 2 - 1) * hx2, 0, (Rn() * 2 - 1) * hz2);
+                float o = field.Outside(new Vector2(gp.x, gp.z));
+                if (o < -6f || o > 0.5f) continue;
+                if (Mathf.PerlinNoise(gp.x * 0.12f + 3f, gp.z * 0.12f + 7f) < 0.45f) continue;
+                Patch(gp, 0.8f + Rn() * 0.8f, 8 + rs.Next(8));
+            }
+            // a few loose patches out in the open (rest areas stay bare)
+            for (int gi = 0; gi < 12; gi++) Patch(new Vector3((Rn() * 2 - 1) * hx2 * 0.8f, 0, (Rn() * 2 - 1) * hz2 * 0.8f), 0.7f + Rn() * 0.5f, 6 + rs.Next(6));
+            // r41 (Kido 11-18: "환경규칙 md 기준으로 맵 꾸며봐"): env rules ch.1/2/4/5. The clearing was 75-85 % of every screen
+            // with nothing at its edge. Now the bamboo wall gets B "edge masses" and a C "transition band":
+            //  - 11 vignettes along the edge, 12-20 m apart (gaps are rest spots): hero = 3-5 mossy rocks overlapping 20-30 %
+            //    as one mound (or a cut-culm pile), 2-3 medium pieces leaning on it (big ferns, a stump or a smaller rock), 5-10
+            //    small ones trailing toward the clearing in one direction (stones, grass, small ferns); bases buried, a debris
+            //    scan skirt under each;
+            //  - between them a broken band 2-4 m deep of ferns and grass so the bamboo never meets bare soil.
+            //  Nothing blocks inside the arena except the hero mound, which sits on the edge line (collider like the wall).
+            {
+                var vig = new GameObject("EdgeVignettes").transform; vig.SetParent(props, false);
+                var fernMat = Mat("BA_LadyFern", "Universal Render Pipeline/Lit", m =>
+                {
+                    m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>($"{TP}/LadyFern/BA_LadyFern_RGBA.png"));
+                    var fn = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TP}/LadyFern/BA_LadyFern_N.png");
+                    if (fn) { m.SetTexture("_BumpMap", fn); m.EnableKeyword("_NORMALMAP"); m.SetFloat("_BumpScale", 0.6f); }
+                    m.SetFloat("_AlphaClip", 1f); m.EnableKeyword("_ALPHATEST_ON"); m.SetFloat("_Cutoff", 0.45f);
+                    m.SetFloat("_Cull", 0f); m.SetColor("_BaseColor", new Color(1.35f, 1.4f, 1.15f));
+                    m.SetFloat("_Smoothness", 0.05f); m.SetFloat("_EnvironmentReflections", 0f); m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+                });
+                string[] fv = { "A", "B", "C", "D", "E" };
+                var fern2Mat = Mat("BA_CommonFern", "Universal Render Pipeline/Lit", m =>
+                {
+                    m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>($"{TP}/CommonFern/BA_CommonFern_RGBA.png"));
+                    var fn = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TP}/CommonFern/BA_CommonFern_N.png");
+                    if (fn) { m.SetTexture("_BumpMap", fn); m.EnableKeyword("_NORMALMAP"); m.SetFloat("_BumpScale", 0.6f); }
+                    m.SetFloat("_AlphaClip", 1f); m.EnableKeyword("_ALPHATEST_ON"); m.SetFloat("_Cutoff", 0.45f);
+                    m.SetFloat("_Cull", 0f); m.SetColor("_BaseColor", new Color(1.3f, 1.35f, 1.1f));
+                    m.SetFloat("_Smoothness", 0.05f); m.SetFloat("_EnvironmentReflections", 0f); m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+                });
+                string[] cv = { "A", "B", "C" };
+                bool lastLady = true;
+                GameObject Fern() { lastLady = Rn() < 0.55f; return lastLady ? AssetDatabase.LoadAssetAtPath<GameObject>($"{TP}/LadyFern/BA_LadyFern_Var{fv[rs.Next(fv.Length)]}.fbx") : AssetDatabase.LoadAssetAtPath<GameObject>($"{TP}/CommonFern/BA_CommonFern_Var{cv[rs.Next(cv.Length)]}.fbx"); }
+                /* r41b: Fab Megascans mossy boulders as mound heroes (JM = Japanese Mossy Boulder, MF = Mossy Forest Boulder) */
+                var jmMat = ScanMat("JMBoulder", 1f, 0.1f); var mfMat = ScanMat("MFBoulder", 1f, 0.1f); var msMat = ScanMat("MStump", 1f, 0.08f);
+                Material heroMat = null;
+                GameObject HeroRock() { float rr2 = Rn(); if (rr2 < 0.4f) { heroMat = jmMat; return AssetDatabase.LoadAssetAtPath<GameObject>($"{TP}/JMBoulder/BA_JMBoulder.fbx"); } if (rr2 < 0.8f) { heroMat = mfMat; return AssetDatabase.LoadAssetAtPath<GameObject>($"{TP}/MFBoulder/BA_MFBoulder.fbx"); } heroMat = stone; return AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_boulder0{(Rn() < 0.5f ? 1 : 3)}.fbx"); }
+                GameObject RockM(bool big) => AssetDatabase.LoadAssetAtPath<GameObject>(big
+                    ? $"Assets/Art/LookStudy/Stages/Models/Rock_boulder0{(Rn() < 0.5f ? 1 : 3)}.fbx"
+                    : $"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx");
+                GameObject Put(GameObject src, Vector3 pos, float h, Material mat, float sinkFrac, bool shadow, float tilt = 8f)
+                {
+                    if (!src) return null;
+                    var go = (GameObject)PrefabUtility.InstantiatePrefab(src, vig);
+                    go.transform.SetPositionAndRotation(pos, Quaternion.Euler(Rn() * tilt * 2 - tilt, Rn() * 360, Rn() * tilt * 2 - tilt));
+                    foreach (var col in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(col);
+                    var rr = go.GetComponentsInChildren<Renderer>(); if (rr.Length == 0) return go;
+                    if (mat) foreach (var r1 in go.GetComponentsInChildren<MeshRenderer>()) r1.sharedMaterials = Enumerable.Repeat(mat, r1.sharedMaterials.Length).ToArray();
+                    var bb = rr[0].bounds; foreach (var r0 in rr) bb.Encapsulate(r0.bounds);
+                    go.transform.localScale = Vector3.one * (h / Mathf.Max(bb.size.y, 0.01f));
+                    rr = go.GetComponentsInChildren<Renderer>(); bb = rr[0].bounds; foreach (var r0 in rr) bb.Encapsulate(r0.bounds);
+                    go.transform.position += new Vector3(pos.x - bb.center.x, pos.y - bb.min.y - h * sinkFrac, pos.z - bb.center.z);
+                    foreach (var r1 in rr) r1.shadowCastingMode = shadow ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                    GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+                    return go;
+                }
+                // walk the edge line (arena rectangle, ragged by Outside()) and drop a vignette every 12-20 m
+                float hxA = field.arena.x * 0.5f, hzA = field.arena.y * 0.5f, perim = 2f * (field.arena.x + field.arena.y);
+                Vector3 EdgePoint(float t, out Vector3 inward)
+                {
+                    t = Mathf.Repeat(t, perim);
+                    Vector2 p2, n2;
+                    if (t < field.arena.x) { p2 = new Vector2(-hxA + t, hzA); n2 = Vector2.down; }
+                    else if (t < field.arena.x + field.arena.y) { p2 = new Vector2(hxA, hzA - (t - field.arena.x)); n2 = Vector2.left; }
+                    else if (t < 2f * field.arena.x + field.arena.y) { p2 = new Vector2(hxA - (t - field.arena.x - field.arena.y), -hzA); n2 = Vector2.up; }
+                    else { p2 = new Vector2(-hxA, -hzA + (t - 2f * field.arena.x - field.arena.y)); n2 = Vector2.right; }
+                    // slide along the inward normal until the ragged edge (Outside ~ 0.5 m outside)
+                    for (int k = 0; k < 20 && field.Outside(p2) > 0.5f; k++) p2 += n2 * 0.5f;
+                    for (int k = 0; k < 20 && field.Outside(p2) < 0.5f; k++) p2 -= n2 * 0.5f;
+                    inward = new Vector3(n2.x, 0, n2.y);
+                    return new Vector3(p2.x, 0, p2.y);
+                }
+                int nVig = 0, nBand = 0;
+                var southSkip = new System.Func<Vector3, bool>(q => q.z < -hzA + 2f);   /* camera side: the black silhouettes are the frame there */
+                for (float t = Rn() * 6f; t < perim; t += 9f + Rn() * 5f)
+                {
+                    var c = EdgePoint(t, out var inw);
+                    if (southSkip(c)) continue;
+                    var c2 = new Vector2(c.x, c.z);
+                    if (field.Trail(c2) > 0.05f || field.Court(c2) > 0.05f) continue;
+                    bool culmPile = Rn() < 0.25f;
+                    var side = Vector3.Cross(Vector3.up, inw) * (Rn() < 0.5f ? -1f : 1f);   /* the small ones trail off this way */
+                    // hero: rock mound (3-5 rocks, 20-30 % overlap) on the edge line, or a pile of cut culms with a stump
+                    var hero = c + inw * 0.6f;
+                    float heroR = 0f;
+                    if (!culmPile)
+                    {
+                        int n = 4 + rs.Next(3);
+                        float bigH = 2.2f + Rn() * 1.0f;
+                        for (int k = 0; k < n; k++)
+                        {
+                            float hk = k == 0 ? bigH : bigH * (0.45f + Rn() * 0.35f);
+                            var off = k == 0 ? Vector3.zero : (Quaternion.Euler(0, Rn() * 360, 0) * Vector3.forward) * bigH * (0.45f + Rn() * 0.3f);
+                            GameObject g; if (k < 2) { var hsrc = HeroRock(); g = Put(hsrc, hero + off - inw * 0.4f, hk, heroMat, 0.2f, true); } else g = Put(RockM(false), hero + off - inw * 0.4f, hk, Rn() < 0.6f ? stone : stone2, 0.2f, true);
+                            if (g) heroR = Mathf.Max(heroR, off.magnitude + hk * 0.5f);
+                        }
+                        var bc = new GameObject("Blocker").AddComponent<BoxCollider>(); bc.transform.SetParent(vig, false);
+                        bc.transform.position = hero + Vector3.up * 1f; bc.size = new Vector3(heroR * 1.2f, 2f, heroR * 1.2f);
+                    }
+                    else
+                    {
+                        var pile = Place(Fbx("BA_FallenPile"), hero, Rn() * 360, 0.9f + Rn() * 0.2f, fallenMat); if (pile) pile.transform.SetParent(vig, true);
+                        Put(AssetDatabase.LoadAssetAtPath<GameObject>($"{TP}/MStump/BA_MStump.fbx"), hero - inw * 0.8f + side * 1.2f, 0.9f + Rn() * 0.5f, msMat, 0.1f, true, 4f);
+                        heroR = 1.6f;
+                    }
+                    field.clearings.Add(new Vector3(hero.x, hero.z, heroR + 1.6f));   /* r41d (Kido: "돌에 대나무 겹치지마"): no culms through the mound */
+                // skirt: a flat debris scan and small stones round the base
+                    var sk = Place(MS("Debris"), hero, Rn() * 360, 1.2f + heroR * 0.5f, MSMat("Debris"));
+                    if (sk) { sk.transform.SetParent(vig, true); foreach (var r1 in sk.GetComponentsInChildren<Renderer>()) r1.shadowCastingMode = ShadowCastingMode.Off; }
+                    // mediums: 2-3 big ferns / a smaller rock leaning on the hero, toward the clearing
+                    int nm = 2 + rs.Next(2);
+                    for (int k = 0; k < nm; k++)
+                    {
+                        var q = hero + inw * (heroR * 0.7f + Rn() * 0.8f) + side * ((k - 1) * heroR * 0.8f + (Rn() - 0.5f));
+                        if (Rn() < 0.7f) { var fsrc = Fern(); Put(fsrc, q, 1.1f + Rn() * 0.5f, lastLady ? fernMat : fern2Mat, 0.05f, true, 4f); }
+                        else Put(RockM(false), q, 0.45f + Rn() * 0.3f, Rn() < 0.5f ? stone : stone2, 0.3f, true);
+                    }
+                    // smalls: 5-10 trailing off in one direction into the transition band, getting smaller
+                    int ns = 5 + rs.Next(6);
+                    for (int k = 0; k < ns; k++)
+                    {
+                        float ff = (k + 1f) / ns;
+                        var q = hero + side * (heroR + ff * 4.5f) + inw * (Rn() * 2.5f) + new Vector3(Rn() - 0.5f, 0, Rn() - 0.5f) * 0.6f;
+                        float rv = Rn();
+                        if (rv < 0.4f) Put(RockM(false), q, Mathf.Lerp(0.3f, 0.12f, ff), Rn() < 0.5f ? stone : stone2, 0.4f, true);
+                        else if (rv < 0.7f) { var fsrc = Fern(); Put(fsrc, q, Mathf.Lerp(0.9f, 0.45f, ff), lastLady ? fernMat : fern2Mat, 0.05f, true, 4f); }
+                        else Patch(q, 0.4f, 4);
+                    }
+                    nVig++;
+                }
+                // the transition band between vignettes: ferns and grass in broken runs, 0-4 m inside the edge
+                for (float t = 0; t < perim; t += 1.0f)
+                {
+                    var c = EdgePoint(t, out var inw);
+                    if (southSkip(c)) continue;
+                    if (Mathf.PerlinNoise(t * 0.12f + 3f, 7f) < 0.33f) continue;   /* breaks in the band */
+                    var q = c + inw * (0.2f + Rn() * Rn() * 6f);
+                    var q2 = new Vector2(q.x, q.z);
+                    if (field.Trail(q2) > 0.1f || field.Court(q2) > 0.05f) continue;
+                    if (Rn() < 0.7f) { var fsrc = Fern(); Put(fsrc, q, 0.8f + Rn() * 0.6f, lastLady ? fernMat : fern2Mat, 0.05f, true, 4f); nBand++; }
+                    else Patch(q, 0.7f, 5);
+                }
+                // r42: small bamboo groves inside the clearing (Kido: "안에도 대나무 조금씩"), off the path, the court and each
+                // other, uneven spacing; a collider like the wall and a fern/grass skirt with a few stones (env rules 4-2, 5-2)
+                {
+                    field.groves = new List<Vector3>();
+                    Vector2[] gp = { new Vector2(-23f, -12f), new Vector2(25f, -17f), new Vector2(-29f, 17f), new Vector2(29f, 12f), new Vector2(-9f, -24f), new Vector2(15f, 24f), new Vector2(-17f, 5f) };
+                    var gRoot = new GameObject("Groves").transform; gRoot.SetParent(props, false);
+                    foreach (var g0 in gp)
+                    {
+                        var gc = new Vector3(g0.x + (Rn() - 0.5f) * 3f, 0, g0.y + (Rn() - 0.5f) * 3f);
+                        for (int k = 0; k < 6 && (field.Trail(new Vector2(gc.x, gc.z)) > 0.02f || field.Court(new Vector2(gc.x, gc.z)) > 0.02f); k++) gc.x += 3f;
+                        float gr2 = 1.4f + Rn() * 0.8f;
+                        field.groves.Add(new Vector3(gc.x, gc.z, gr2));
+                        var cap = new GameObject("GroveBlocker").AddComponent<CapsuleCollider>(); cap.transform.SetParent(gRoot, false);
+                        cap.transform.position = gc + Vector3.up * 1.5f; cap.radius = gr2 * 0.75f; cap.height = 3f;
+                        for (int k = 0; k < 5; k++)
+                        {
+                            float ang = Rn() * Mathf.PI * 2f;
+                            var q = gc + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * (gr2 * 0.8f + Rn() * 1.2f);
+                            /* r43 (Kido: "아래 그 이상한 식생들 너무 안 어울리고 많이"): no ferns/grass under the groves; only leaf litter and stones */
+                            Put(RockM(false), q, 0.12f + Rn() * 0.15f, Rn() < 0.5f ? stone : stone2, 0.45f, false);
+                        }
+                        for (int k = 0; k < 3; k++) { float ang = Rn() * Mathf.PI * 2f; Put(RockM(false), gc + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * (gr2 + Rn()), 0.15f + Rn() * 0.2f, Rn() < 0.5f ? stone : stone2, 0.4f, false); }
+                        var gsk = Place(MS("Debris"), gc, Rn() * 360, 1.3f, MSMat("Debris"));
+                        if (gsk) { gsk.transform.SetParent(gRoot, true); foreach (var r1 in gsk.GetComponentsInChildren<Renderer>()) r1.shadowCastingMode = ShadowCastingMode.Off; }
+                    }
+                }
+
+                Debug.Log($"[Bamboo] edge: {nVig} vignettes, {nBand} band ferns");
+            }
+
+            Debug.Log($"[Bamboo] floor detail: {nGrass} grass tufts, {nStone} stones, {nSlab} path stones");
+        }
+        // r31 (Kido 11-18: "물체랑, 레퍼런스 준거 보고"): D4 floors stay calm and the mid-size detail lives in object
+        // groups. A few hand-placed islands in the clearing, each one composed group: a half-sunk mossy boulder, smaller
+        // stones heaped on one side, roots and a fallen culm reaching out, a flat debris scan under it, soil/moss heaped
+        // at its foot (floor shader contact). Placed by hand per screen, not by noise; the big stone blocks like a wall.
+        {
+            Vector2[] islPos = { };   /* r41 (env rules 5-2): no lone boulders in the open; the rocks moved into the edge vignettes */
+            var islRoot = new GameObject("Islands").transform; islRoot.SetParent(props, false);
+            foreach (var iq in islPos)
+            {
+                var ic = new Vector3(iq.x, 0, iq.y);
+                for (int ik = 0; ik < 6 && field.Trail(new Vector2(ic.x, ic.z)) > 0.02f; ik++) ic.x += 3f;
+                float iyaw = Rn() * 360f, iya = iyaw * Mathf.Deg2Rad;
+                var iside = new Vector3(Mathf.Cos(iya), 0, Mathf.Sin(iya));
+                var ibig = PlaceH(AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_boulder0{(Rn() < 0.5f ? 1 : 3)}.fbx"), ic + Vector3.down * 0.35f, iyaw, 1.3f + Rn() * 0.5f, stone);
+                if (!ibig) continue;
+                ibig.transform.SetParent(islRoot, true);
+                ibig.transform.rotation = Quaternion.Euler(Rn() * 10 - 5, iyaw, Rn() * 10 - 5);
+                var irs = ibig.GetComponentsInChildren<Renderer>(); var ibb = irs[0].bounds; foreach (var ir0 in irs) ibb.Encapsulate(ir0.bounds);
+                var ibc = new GameObject("Blocker").AddComponent<BoxCollider>(); ibc.transform.SetParent(islRoot, false);
+                ibc.transform.position = new Vector3(ibb.center.x, ibb.min.y + ibb.size.y * 0.5f, ibb.center.z);
+                ibc.size = new Vector3(ibb.size.x * 0.7f, ibb.size.y, ibb.size.z * 0.7f);
+                float irad = Mathf.Max(ibb.extents.x, ibb.extents.z);
+                for (int ik = 0; ik < 4; ik++)
+                {
+                    var ip = ic + iside * (irad * (0.8f + Rn() * 0.5f)) + new Vector3(Rn() - 0.5f, 0, Rn() - 0.5f) * irad;
+                    var igo = PlaceH(AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/LookStudy/Stages/Models/Rock_rock{1 + rs.Next(13):00}.fbx"), ip + Vector3.down * 0.06f, Rn() * 360, 0.22f + Rn() * 0.3f, Rn() < 0.5f ? stone : stone2);
+                    if (igo) { igo.transform.SetParent(islRoot, true); igo.transform.rotation = Quaternion.Euler(Rn() * 24 - 12, Rn() * 360, Rn() * 24 - 12); }
+                }
+                /* r31b: no roots / fallen culms on the islands: from the game camera they read as loose black sticks */
+                var idb = Place(MS("Debris"), ic - iside * 0.4f, Rn() * 360, 1.1f + Rn() * 0.4f, MSMat("Debris"));
+                if (idb) { idb.transform.SetParent(islRoot, true); foreach (var ir1 in idb.GetComponentsInChildren<Renderer>()) ir1.shadowCastingMode = ShadowCastingMode.Off; }
+                if (field.contacts.Count < 12) field.contacts.Add(new Vector4(ibb.center.x, ibb.center.z, irad * 1.5f, 0.9f));
+            }
+        }
+
+        // ---------------------------------------------------------------- ground
+        var gm = BuildGround(field, drifts); SaveMesh(gm, "BA_Ground");
+        AssetDatabase.SaveAssets();
+        var gGo = new GameObject("BA_Ground");
+        gGo.AddComponent<MeshFilter>().sharedMesh = AssetDatabase.LoadAssetAtPath<Mesh>($"{Gen}/BA_Ground.asset");
+        var gr = gGo.AddComponent<MeshRenderer>(); gr.sharedMaterial = ground; gr.shadowCastingMode = ShadowCastingMode.Off;
+        gGo.AddComponent<MeshCollider>().sharedMesh = gGo.GetComponent<MeshFilter>().sharedMesh;
+        GameObjectUtility.SetStaticEditorFlags(gGo, StaticEditorFlags.BatchingStatic);
+        foreach (var r in props.GetComponentsInChildren<MeshRenderer>()) r.shadowCastingMode = ShadowCastingMode.On;
+
+        // ---------------------------------------------------------------- bamboo
+        field.Generate();
+        field.ApplyMood();
+
+        // ---------------------------------------------------------------- mist sheets: thick in the bamboo, thin in the clearing
+        var quad = Resources.GetBuiltinResource<Mesh>("Quad.fbx");
+        var fogRoot = new GameObject("Mist").transform;
+        var fr = new System.Random(field.seed + 11);
+        var full = field.FullSize;
+        int made = 0;
+        for (int i = 0; i < 400 * E && made < 60 * E; i++)
+        {
+            float x = (float)(fr.NextDouble() - 0.5) * (field.arena.x + 24f), z = (float)(fr.NextDouble() - 0.5) * (field.arena.y + 24f);
+            float o = field.Outside(new Vector2(x, z));
+            float y = Mathf.Lerp(0.8f, 3.5f, (float)fr.NextDouble()), yawM = (float)fr.NextDouble() * 360f, size = Mathf.Lerp(8f, 14f, (float)fr.NextDouble());
+            // r29 (Kido 11-14: pale hazy blotches over the floor): the 8-14 m sheets centred just 1.5 m into the bamboo
+            // reached ~6 m over the clearing and read as white smears from the top-down camera. Keep each whole sheet
+            // (its half-diagonal) at least 2 m inside the bamboo.
+            if (o < size * 0.71f + 2f) continue;
+            var go = new GameObject("MistSheet");
+            go.transform.SetParent(fogRoot, false);
+            go.transform.position = new Vector3(x, y, z);
+            go.transform.rotation = Quaternion.Euler(90, yawM, 0);
+            go.transform.localScale = Vector3.one * size;
+            go.AddComponent<MeshFilter>().sharedMesh = quad;
+            var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = mist; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+            made++;
+        }
+
+        // ---------------------------------------------------------------- light shafts falling into the clearing edge
+        var shaftMesh = new Mesh { name = "BA_ShaftQuad" };
+        shaftMesh.vertices = new[] { new Vector3(-0.5f, 0, 0), new Vector3(0.5f, 0, 0), new Vector3(0.5f, 1, 0), new Vector3(-0.5f, 1, 0) };
+        shaftMesh.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1) };
+        shaftMesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+        shaftMesh.bounds = new Bounds(Vector3.up * 8, Vector3.one * 30);   // stretched toward the sun in the shader
+        SaveMesh(shaftMesh, "BA_ShaftQuad");
+        AssetDatabase.SaveAssets();
+        shaftMesh = AssetDatabase.LoadAssetAtPath<Mesh>($"{Gen}/BA_ShaftQuad.asset");
+        var sunDir = -(Quaternion.Euler(field.sun.x, field.sun.y, 0) * Vector3.forward);
+        shaftMat.SetVector("_SunDir", sunDir);
+        // 11-13 C mood: cold moonlight shafts, at the bamboo edge and a few falling across the clearing (Kido: "달빛 줄기")
+        shaftMat.SetColor("_Color", new Color(0.62f, 0.74f, 1.0f)); shaftMat.SetFloat("_Intensity", 0.09f);
+        var shafts = new GameObject("LightShafts").transform;
+        var sr = new System.Random(field.seed + 23);
+        for (int i = 0; i < 0; i++)   // 11-13 r2: the stretched quads read as white sticks from the top-down camera; moonlight is the dappled floor instead
+        {
+            var p = i < 8 * E ? NearEdgeShaft(field, sr)
+                              : new Vector2((float)(sr.NextDouble() - 0.5) * field.arena.x * 0.8f, (float)(sr.NextDouble() - 0.5) * field.arena.y * 0.8f);
+            var go = new GameObject("Shaft");
+            go.transform.SetParent(shafts, false);
+            go.transform.position = new Vector3(p.x, 0, p.y);
+            go.transform.localScale = Vector3.one * Mathf.Lerp(0.7f, 1.3f, (float)sr.NextDouble());
+            go.AddComponent<MeshFilter>().sharedMesh = shaftMesh;
+            var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = shaftMat; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+        }
+
+        // ---------------------------------------------------------------- leaves drifting down
+        {
+            var go = new GameObject("AirLeaves");
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true; main.prewarm = true; main.duration = 10f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(8f, 12f);
+            main.startSpeed = 0f; main.startSize3D = true;
+            main.startSizeX = new ParticleSystem.MinMaxCurve(0.18f, 0.32f);
+            main.startSizeY = new ParticleSystem.MinMaxCurve(0.04f, 0.07f);
+            main.startSizeZ = 1f;
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.55f, 0.58f, 0.40f, 0.85f), new Color(0.32f, 0.36f, 0.22f, 0.75f));
+            main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = 120; main.gravityModifier = 0f;
+            var em = ps.emission; em.rateOverTime = 9f;
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Box; shape.scale = new Vector3(40f, 3f, 30f);
+            var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+            vel.x = new ParticleSystem.MinMaxCurve(0.3f, 0.8f); vel.y = new ParticleSystem.MinMaxCurve(-0.75f, -0.35f); vel.z = new ParticleSystem.MinMaxCurve(0.3f, 0.8f);
+            var noise = ps.noise; noise.enabled = true; noise.strength = 0.8f; noise.frequency = 0.4f; noise.scrollSpeed = 0.25f; noise.quality = ParticleSystemNoiseQuality.Low;
+            var rot = ps.rotationOverLifetime; rot.enabled = true; rot.z = new ParticleSystem.MinMaxCurve(-3f, 3f);
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                         new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.15f), new GradientAlphaKey(1, 0.8f), new GradientAlphaKey(0, 1) });
+            col.color = grad;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = leafMat; r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+            go.AddComponent<BAAirLeaves>();
+            ps.Play();
+        }
+
+        // ---------------------------------------------------------------- fireflies (r12, final review: the middle needs a warm glow)
+        // Small warm-green glows drifting low over the whole clearing, more toward the bamboo; additive, picked up by bloom.
+        {
+            var ffMat = Mat("BA_Firefly", "Universal Render Pipeline/Particles/Unlit", m =>
+            {
+                m.SetTexture("_BaseMap", AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd"));
+                m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 2f);
+                m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha); m.SetFloat("_DstBlend", (float)BlendMode.One); m.SetFloat("_ZWrite", 0f);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue = 3000;
+                m.SetColor("_BaseColor", Color.white);
+            });
+            var go = new GameObject("Fireflies");
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true; main.prewarm = true; main.duration = 10f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(6f, 11f);
+            main.startSpeed = 0f; main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.55f);   // r13: 0.1 m was ~3 px at the game zoom
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1.5f, 1.25f, 0.35f, 1f), new Color(1.0f, 1.45f, 0.4f, 1f));   // r15: under the bloom threshold so they stay yellow-green
+            main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = 260; main.gravityModifier = 0f;
+            var em = ps.emission; em.rateOverTime = 28f;
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Box; shape.scale = new Vector3(field.arena.x + 6f, 1.2f, field.arena.y + 6f);
+            go.transform.position = new Vector3(0, 1.1f, 0);
+            var noise = ps.noise; noise.enabled = true; noise.strength = 0.6f; noise.frequency = 0.25f; noise.scrollSpeed = 0.15f; noise.quality = ParticleSystemNoiseQuality.Medium;
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                         new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.2f), new GradientAlphaKey(0.15f, 0.45f), new GradientAlphaKey(1, 0.65f), new GradientAlphaKey(0, 1) });   // a slow blink
+            col.color = grad;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = ffMat; r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+            ps.Play();
+        }
+
+        // ---------------------------------------------------------------- 도깨비불 (r25: a warm accent for the open clearing)
+        // A handful of slow warm wisps drifting high over the clearing (3-4 m, never in the way), each lighting the floor
+        // under it through the particle Lights module (max 6 real lights), flickering.
+        {
+            var wispMat = Mat("BA_Wisp", "Universal Render Pipeline/Particles/Unlit", m =>
+            {
+                m.SetTexture("_BaseMap", AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd"));
+                m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 2f);
+                m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha); m.SetFloat("_DstBlend", (float)BlendMode.One); m.SetFloat("_ZWrite", 0f);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue = 3001;
+                m.SetColor("_BaseColor", Color.white);
+            });
+            var go = new GameObject("Dokkaebibul");
+            go.transform.position = new Vector3(0, 2.3f, 0);
+            var lightTpl = new GameObject("WispLight");
+            lightTpl.transform.SetParent(go.transform, false);
+            var lt = lightTpl.AddComponent<Light>();
+            lt.type = LightType.Point; lt.range = 5f; lt.intensity = 3.4f; lt.color = new Color(1f, 0.74f, 0.38f);   // r26: amber, tighter (rust smudges) lt.shadows = LightShadows.None;
+            lightTpl.SetActive(false);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true; main.prewarm = true; main.duration = 20f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(16f, 24f);
+            main.startSpeed = 0f; main.startSize = new ParticleSystem.MinMaxCurve(0.7f, 1.0f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(2.2f, 0.95f, 0.35f, 1f), new Color(2.0f, 0.75f, 0.3f, 1f));
+            main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = 6;
+            var em = ps.emission; em.rateOverTime = 0.33f;
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Box; shape.scale = new Vector3(field.arena.x * 0.85f, 0.8f, field.arena.y * 0.85f);
+            var noise = ps.noise; noise.enabled = true; noise.strength = 1.4f; noise.frequency = 0.08f; noise.scrollSpeed = 0.05f; noise.quality = ParticleSystemNoiseQuality.Medium;
+            var sz = ps.sizeOverLifetime; sz.enabled = true;
+            sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0, 0.85f), new Keyframe(0.25f, 1.1f), new Keyframe(0.5f, 0.9f), new Keyframe(0.75f, 1.05f), new Keyframe(1, 0.8f)));
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                         new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.1f), new GradientAlphaKey(1, 0.9f), new GradientAlphaKey(0, 1) });
+            col.color = grad;
+            var lights = ps.lights; lights.enabled = true; lights.light = lt; lights.ratio = 1f; lights.maxLights = 6;
+            lights.useParticleColor = false; lights.sizeAffectsRange = false; lights.alphaAffectsIntensity = true; lights.intensityMultiplier = 1f; lights.rangeMultiplier = 1f;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = wispMat; r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+            ps.Play();
+        }
+
+        // ---------------------------------------------------------------- camera (RoomRun angle) and post
+        var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
+        var cam = camGo.AddComponent<Camera>();
+        cam.fieldOfView = 30; cam.nearClipPlane = 0.3f; cam.farClipPlane = 400f;
+        cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = field.fog;
+        camGo.transform.position = new Vector3(0, 17f, -14.5f); camGo.transform.LookAt(Vector3.zero);
+        camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = true;
+        camGo.AddComponent<AudioListener>();
+
+        var profPath = $"{Root}/BA_PostFX.asset";
+        var prof = AssetDatabase.LoadAssetAtPath<VolumeProfile>(profPath);
+        if (!prof)
+        {
+            prof = ScriptableObject.CreateInstance<VolumeProfile>();
+            AssetDatabase.CreateAsset(prof, profPath);
+            var bloom = prof.Add<Bloom>(true); bloom.intensity.Override(0.6f); bloom.threshold.Override(0.9f); bloom.scatter.Override(0.7f);
+            var vig = prof.Add<Vignette>(true); vig.intensity.Override(0.32f); vig.smoothness.Override(0.5f);
+            var ca = prof.Add<ColorAdjustments>(true); ca.contrast.Override(14f); ca.saturation.Override(-12f); ca.postExposure.Override(0.1f);
+            var wb = prof.Add<WhiteBalance>(true); wb.temperature.Override(4f); wb.tint.Override(-4f);
+            var grain = prof.Add<FilmGrain>(true); grain.intensity.Override(0.18f); grain.type.Override(FilmGrainLookup.Medium1);
+            var tm = prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.Neutral);
+            foreach (var c in prof.components) AssetDatabase.AddObjectToAsset(c, prof);
+            AssetDatabase.SaveAssets();
+        }
+        var vol = new GameObject("PostFX").AddComponent<Volume>();
+        vol.isGlobal = true; vol.sharedProfile = prof;
+        field.volume = vol;
+
+        // screen filters (F10), shared with the reed field
+        InkFilterTools.Ensure();
+
+        // invisible walls on the clearing edge
+        var walls = new GameObject("ArenaWalls").transform;
+        void WallBox(Vector3 c, Vector3 sz) { var w = new GameObject("Wall"); w.transform.SetParent(walls, false); w.transform.position = c; w.AddComponent<BoxCollider>().size = sz; }
+        WallBox(new Vector3(-hx - 0.5f, 2, 0), new Vector3(1, 6, field.arena.y + 2));
+        WallBox(new Vector3(hx + 0.5f, 2, 0), new Vector3(1, 6, field.arena.y + 2));
+        WallBox(new Vector3(0, 2, -hz - 0.5f), new Vector3(field.arena.x + 2, 6, 1));
+        WallBox(new Vector3(0, 2, hz + 0.5f), new Vector3(field.arena.x + 2, 6, 1));
+
+        field.Generate(); field.ApplyMood(); field.SetGlobals();
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        AddRoomRunRoom(field);
+        Debug.Log($"[Bamboo] built: {rootGo.GetComponent<ReedInstancer>().Count} bamboo clumps");
+    }
+
+    static Vector2 NearEdgeShaft(BambooField f, System.Random r)
+    {
+        for (int k = 0; k < 50; k++)
+        {
+            var p = new Vector2((float)(r.NextDouble() - 0.5) * f.arena.x, (float)(r.NextDouble() - 0.5) * f.arena.y);
+            float o = f.Outside(p);
+            if (o > -7f && o < -1f) return p;
+        }
+        return Vector2.zero;
+    }
+
+    // Flat clearing; outside it the forest floor rolls a little. Colour: R = dry-leaf drift (bamboo edge and around the
+    // floor props), G = the packed-earth footpath, B = under the bamboo (darker).
+    static Mesh BuildGround(BambooField f, List<Vector3> drifts)
+    {
+        var full = f.FullSize;
+        int nx = Mathf.CeilToInt(full.x * 2f), nz = Mathf.CeilToInt(full.y * 2f);   // 0.5 m cells: soft mask edges, no 1 m stair steps
+        var v = new List<Vector3>(); var c = new List<Color>(); var t = new List<int>();
+        for (int j = 0; j <= nz; j++)
+        for (int i = 0; i <= nx; i++)
+        {
+            float x = -full.x * 0.5f + full.x * i / nx, z = -full.y * 0.5f + full.y * j / nz;
+            var p = new Vector2(x, z);
+            float o = f.Outside(p);
+            float y = Mathf.Max(o, 0) > 0 ? Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.8f, 8f, o)) * (1.8f + Mathf.PerlinNoise(x * 0.08f, z * 0.08f) * 2.2f) : 0f;   /* r41 (env rules 4-1): the bamboo grows on a 2-4 m bank, the edge is a height step, not only a colour */
+            y += Mathf.Max(o, 0) <= 0 ? (Mathf.PerlinNoise(x * 0.09f + 40f, z * 0.09f + 11f) - 0.5f) * 0.08f * Mathf.Clamp01(-o / 6f) : 0f;   /* gentle 0.1-0.2 m swell in the playfield (rule 4-1), flat at the edge */
+            float path = f.Trail(p);   // packed-earth footpath (flush)
+            // dry leaves drift against the bamboo and around stumps / fallen culms
+            float drift = Mathf.Clamp01(Mathf.InverseLerp(-5f, 0f, o));
+            foreach (var d in drifts) drift = Mathf.Max(drift, 1f - Mathf.Clamp01(Vector2.Distance(p, new Vector2(d.x, d.y)) / d.z));
+            float under = f.UnderCanopy(p);
+            v.Add(new Vector3(x, y, z)); c.Add(new Color(drift, path, under, 1f - f.Court(p)));   // a = 1 - shrine court (paved)
+        }
+        for (int j = 0; j < nz; j++)
+        for (int i = 0; i < nx; i++)
+        {
+            int a = j * (nx + 1) + i, b = a + 1, d = a + nx + 1, e = d + 1;
+            t.AddRange(new[] { a, d, b, b, d, e });
+        }
+        var m = new Mesh { name = "BA_Ground", indexFormat = IndexFormat.UInt32 };
+        m.SetVertices(v); m.SetColors(c); m.SetTriangles(t, 0);
+        m.RecalculateNormals(); m.RecalculateBounds();
+        return m;
+    }
+
+    public static void AddRoomRunRoom(BambooField f)
+    {
+        const string cfgPath = "Assets/Game/RoomRun/RoomRunConfig.asset";
+        var cfg = AssetDatabase.LoadAssetAtPath<ScriptableObject>(cfgPath);
+        if (!cfg) return;
+        var so = new SerializedObject(cfg);
+        var rooms = so.FindProperty("rooms");
+        for (int i = 0; i < rooms.arraySize; i++)
+            if (rooms.GetArrayElementAtIndex(i).FindPropertyRelative("id").stringValue == "bamboo")
+            {
+                rooms.GetArrayElementAtIndex(i).FindPropertyRelative("size").vector2Value = f.arena;
+                so.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssets();
+                return;
+            }
+        int at = rooms.arraySize;
+        rooms.InsertArrayElementAtIndex(at - 1);
+        var r = rooms.GetArrayElementAtIndex(at);
+        r.FindPropertyRelative("id").stringValue = "bamboo";
+        r.FindPropertyRelative("displayName").stringValue = "대나무숲";
+        r.FindPropertyRelative("mapCell").vector2IntValue = new Vector2Int(6, 0);
+        r.FindPropertyRelative("scenePath").stringValue = ScenePath;
+        r.FindPropertyRelative("groundMeshName").stringValue = "";
+        r.FindPropertyRelative("center").vector3Value = Vector3.zero;
+        r.FindPropertyRelative("size").vector2Value = f.arena;
+        r.FindPropertyRelative("fitToStage").boolValue = false;
+        r.FindPropertyRelative("floorColor").colorValue = new Color(0.08f, 0.09f, 0.08f);
+        r.FindPropertyRelative("pillarCount").intValue = 0;
+        r.FindPropertyRelative("doors").arraySize = 0;
+        r.FindPropertyRelative("waves").arraySize = 0;
+        r.FindPropertyRelative("bossPrefab").objectReferenceValue = null;
+        r.FindPropertyRelative("bossOffset").vector3Value = Vector3.zero;
+        r.FindPropertyRelative("devOnly").boolValue = true;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        AssetDatabase.SaveAssets();
+    }
+}
+
+// Captures for the review: the clearing from the RoomRun camera (filters off and the three ink filters), a corner
+// (no void past the bamboo), and the player at the south edge with the bamboo in front dissolved around them.
+public static class BACapture
+{
+    [MenuItem("Tools/Dev/Bamboo Arena/Capture Shots")]
+    public static void Capture()
+    {
+        var f = Object.FindAnyObjectByType<BambooField>(); var cam = Camera.main;
+        if (!f || !cam) { Debug.LogError("[Bamboo] open the bamboo arena scene first"); return; }
+        var ink = InkFilterTools.Ensure();
+        ShaderUtil.allowAsyncCompilation = false;
+        var p0 = cam.transform.position; var r0 = cam.transform.rotation; var keepMode = ink.editorMode;
+        void View(Vector3 target) { cam.transform.position = target + new Vector3(0, 17f, -14.5f); cam.transform.LookAt(target); }
+        void Shot(string file) { f.SetGlobals(); for (int w = 0; w < 3; w++) cam.Render(); InkFilterTools.Shot(cam, file); }
+        try
+        {
+            ink.editorMode = InkFilters.InkMode.Off;
+            View(Vector3.zero); Shot("10_bamboo_center.png");
+            View(new Vector3(f.arena.x * 0.5f - 3f, 0, f.arena.y * 0.5f - 3f)); Shot("10_bamboo_corner_ne.png");
+            View(new Vector3(-f.arena.x * 0.5f + 3f, 0, -f.arena.y * 0.5f + 3f)); Shot("10_bamboo_corner_sw.png");
+            ink.editorMode = InkFilters.InkMode.Ink; View(new Vector3(f.arena.x * 0.5f - 3f, 0, f.arena.y * 0.5f - 3f)); Shot("10_bamboo_corner_ink.png");
+            ink.editorMode = InkFilters.InkMode.SumiE; Shot("10_bamboo_corner_sumie.png");
+            ink.editorMode = InkFilters.InkMode.Watercolour; Shot("10_bamboo_corner_watercolour.png");
+            ink.editorMode = InkFilters.InkMode.Off;
+
+            // the RoomRun player model standing at the south edge, bamboo between it and the camera
+            var cfg = AssetDatabase.LoadAssetAtPath<ScriptableObject>("Assets/Game/RoomRun/RoomRunConfig.asset");
+            var prefab = cfg ? new SerializedObject(cfg).FindProperty("playerPrefab").objectReferenceValue as GameObject : null;
+            var stand = prefab ? (GameObject)Object.Instantiate(prefab) : GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            stand.name = "Player (capture stand-in)";
+            var at = new Vector3(4f, 0, -f.arena.y * 0.5f + 1.2f);
+            stand.transform.position = at + (prefab ? Vector3.zero : Vector3.up); stand.transform.localScale *= 1.15f;
+            stand.transform.rotation = Quaternion.Euler(0, 160, 0);
+            View(at);
+            f.seeThroughTarget = stand.transform;
+            f.seeThrough = false; f.UpdateSeeThrough(); Shot("10_bamboo_edge_no_seethrough.png");
+            f.seeThrough = true; f.UpdateSeeThrough(); Shot("10_bamboo_edge_seethrough.png");
+            f.seeThroughTarget = null; f.UpdateSeeThrough();
+            Object.DestroyImmediate(stand);
+        }
+        finally
+        {
+            ink.editorMode = keepMode; cam.transform.SetPositionAndRotation(p0, r0);
+            ShaderUtil.allowAsyncCompilation = true;
+        }
+        Debug.Log("[Bamboo] shots saved to " + InkFilterTools.OutDir);
+    }
+
+    [MenuItem("Tools/Dev/Bamboo Arena/Benchmark (editor)")]
+    public static void Bench()
+    {
+        var cam = Camera.main; var f = Object.FindAnyObjectByType<BambooField>();
+        if (!cam || !f) return;
+        var p0 = cam.transform.position; var r0 = cam.transform.rotation;
+        var rt = new RenderTexture(1920, 1080, 24); cam.targetTexture = rt;
+        var inst = f.GetComponent<ReedInstancer>();
+        var sb = new System.Text.StringBuilder("[Bamboo] benchmark (1920x1080, RoomRun view): ");
+        foreach (var (name, at) in new[] { ("centre", Vector3.zero), ("NE corner", new Vector3(f.arena.x * 0.5f - 3f, 0, f.arena.y * 0.5f - 3f)), ("south edge", new Vector3(0, 0, -f.arena.y * 0.5f + 1.5f)) })
+        {
+            cam.transform.position = at + new Vector3(0, 17f, -14.5f); cam.transform.LookAt(at);
+            f.SetGlobals();
+            for (int i = 0; i < 30; i++) cam.Render();
+            double best = double.MaxValue;
+            for (int k = 0; k < 3; k++)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                for (int i = 0; i < 100; i++) { cam.Render(); if (i % 10 == 9) AsyncGPUReadback.Request(rt, 0, 0, 1, 0, 1, 0, 1).WaitForCompletion(); }
+                best = System.Math.Min(best, sw.Elapsed.TotalMilliseconds / 100);
+            }
+            sb.Append($"{name} {best:0.00} ms ({inst.LastDrawnInstances} clumps, {inst.LastDrawnTris / 1000000.0:0.0} M tris)  ");
+        }
+        sb.Append($"| {inst.Count} clumps total");
+        Debug.Log(sb.ToString());
+        cam.targetTexture = null; Object.DestroyImmediate(rt); cam.transform.SetPositionAndRotation(p0, r0);
+    }
+}
+
+// Play-mode helpers: jump the RoomRun run into the bamboo arena (same as F9), and put the player at the south edge
+// and save a game-camera shot with the see-through dither (10_bamboo_play_edge.png).
+public static class BAPlay
+{
+    static System.Type Dir => System.AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType("RoomRun.RunDirector")).FirstOrDefault(x => x != null);
+
+    [MenuItem("Tools/Dev/Bamboo Arena/Play: Jump To Bamboo")]
+    public static void Jump()
+    {
+        if (!Application.isPlaying) { Debug.LogWarning("[Bamboo] enter Play first"); return; }
+        var inst = Dir?.GetProperty("Instance")?.GetValue(null);
+        if (inst == null) { Debug.LogWarning("[Bamboo] no RunDirector"); return; }
+        Dir.GetMethod("DevJump").Invoke(inst, new object[] { "bamboo" });
+        Debug.Log("[Bamboo] jumped");
+    }
+
+    // Centre shot (ink-filter-test/v3/bamboo_center.png), then the player's CharacterController is walked across the
+    // whole clearing in rows and columns; anything that stops it before the outer wall is logged.
+    [MenuItem("Tools/Dev/Bamboo Arena/Play: Centre Shot + Walk Test")]
+    public static void WalkTest()
+    {
+        if (!Application.isPlaying) return;
+        var t = Dir; var run = t?.GetProperty("Instance")?.GetValue(null);
+        var f = Object.FindAnyObjectByType<BambooField>();
+        if (run == null || !f) { Debug.LogWarning("[Bamboo] not in the bamboo arena"); return; }
+        var player = t.GetProperty("Player").GetValue(run) as Component;
+        var place = player.GetType().GetMethod("PlaceAt");
+        var rig = t.GetProperty("Rig").GetValue(run);
+        var dir = System.IO.Path.Combine(InkFilterTools.OutDir, "v3"); System.IO.Directory.CreateDirectory(dir);
+        place.Invoke(player, new object[] { new Vector3(0.5f, 0, -2.5f), 0f });
+        rig?.GetType().GetMethod("Snap")?.Invoke(rig, null);
+        double at = EditorApplication.timeSinceStartup + 1.2; bool shot = false;
+        void Step()
+        {
+            if (!Application.isPlaying) { EditorApplication.update -= Step; return; }
+            if (!shot && EditorApplication.timeSinceStartup > at) { ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "bamboo_center.png")); shot = true; at = EditorApplication.timeSinceStartup + 0.5; return; }
+            if (!shot || EditorApplication.timeSinceStartup < at) return;
+            EditorApplication.update -= Step;
+            var cc = player.GetComponent<CharacterController>();
+            float hx = f.arena.x * 0.5f - 1.2f, hz = f.arena.y * 0.5f - 1.2f;
+            var sb = new System.Text.StringBuilder("[Bamboo] walk test: ");
+            int blocked = 0;
+            void Walk(Vector3 a, Vector3 b)
+            {
+                place.Invoke(player, new object[] { a, 0f });
+                var d = b - a; d.y = 0; float len = d.magnitude; var stepV = d.normalized * 0.2f;
+                for (int k = 0; k < len / 0.2f; k++) cc.Move(stepV + Vector3.down * 0.3f);
+                var end = player.transform.position; float miss = new Vector2(b.x - end.x, b.z - end.z).magnitude;
+                if (miss > 0.6f) { blocked++; sb.Append($"blocked {a}->{b} at {end}; "); }
+            }
+            for (float z = -hz; z <= hz; z += 3f) Walk(new Vector3(-hx, 0, z), new Vector3(hx, 0, z));
+            for (float x = -hx; x <= hx; x += 3f) Walk(new Vector3(x, 0, -hz), new Vector3(x, 0, hz));
+            sb.Append(blocked == 0 ? "nothing blocks inside the clearing" : $"{blocked} lines blocked");
+            Debug.Log(sb.ToString());
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "bamboo_walk.txt"), sb.ToString());
+            place.Invoke(player, new object[] { Vector3.zero, 0f });
+        }
+        EditorApplication.update += Step;
+    }
+
+    [MenuItem("Tools/Dev/Bamboo Arena/Play: Edge Shot")]
+    public static void EdgeShot()
+    {
+        if (!Application.isPlaying) return;
+        var t = Dir; var run = t?.GetProperty("Instance")?.GetValue(null);
+        var f = Object.FindAnyObjectByType<BambooField>();
+        if (run == null || !f) { Debug.LogWarning("[Bamboo] not in the bamboo arena"); return; }
+        var player = t.GetProperty("Player").GetValue(run) as Component;
+        player.GetType().GetMethod("PlaceAt").Invoke(player, new object[] { new Vector3(4f, 0, -f.arena.y * 0.5f + 1.2f), 0f });
+        var rig = t.GetProperty("Rig").GetValue(run);
+        rig?.GetType().GetMethod("Snap")?.Invoke(rig, null);
+        f.LateUpdateNow();
+        InkFilterTools.Shot(Camera.main, "10_bamboo_play_edge.png");
+        Debug.Log($"[Bamboo] play edge shot, player found: {f.seeThroughTarget != null}");
+    }
+}

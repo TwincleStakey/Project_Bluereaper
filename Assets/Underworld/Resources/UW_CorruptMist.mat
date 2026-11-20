@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UW_CorruptMist
+  m_Shader: {fileID: 4800000, guid: 29f074528ddcf204885e5de4688b0e38, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - _SURFACE
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _BandAbove: 1.0
+    - _BandBelow: 1.5
+    - _BorderFade: 1.5
+    - _Drift: 0.5
+    - _EdgeScale: 0.2
+    - _Flat: 1
+    - _Feather: 0.14
+    - _MaxDensity: 0.72
+    - _MinDensity: 0.6
+    - _Scale: 0.08
+    - _Surface: 1
+    - _ZTest: 8
+    m_Colors:
+    - _ClearLift: {r: 0, g: 0, b: 0, a: 1}
+    - _Deep: {r: 0.28, g: 0.07, b: 0.44, a: 1}
+    - _Glow: {r: 0.3, g: 0.08, b: 0.45, a: 1}
+    - _GlowCut: {r: 0.3, g: 0.9, b: 0, a: 0}
+    - _Mid: {r: 0.32, g: 0.08, b: 0.5, a: 1}
+    - _NoiseOffset: {r: -20, g: 1, b: 0, a: 0}
+    - _Rim: {r: 0, g: 0, b: 0, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

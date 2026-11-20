@@ -1,0 +1,8 @@
+Downloaded 2026-11-20 from Fab (Quixel Megascans, free, Fab Standard License), used as downloaded (BaseColor + Opacity jpg):
+- DirtPatch  : "Dirt Patch" (Decals > Building & Human-made > Debris) https://www.fab.com/listings/109b6a12-fcb4-406b-9ab4-a78cdd014c31  dirt_patch_ufiqbdvcw_1k.zip
+- DirtPath01 : "Military Trenches Decal Path Dirt Straight 01" (Decals > Nature & Terrain > Ground) https://www.fab.com/listings/8b760fa3-70c6-459d-a012-83efdf8c08d0  ..._ydytafl_2k.zip (1024x2048)
+Shader: Assets/Game/RoomRun/Shaders/RR_DecalOpacity.shadergraph = URP's Decal.shadergraph with Alpha read from the Opacity map.
+11-20 second pass (darker), same source and licence:
+- MudSplash : "Mud Splash" https://www.fab.com/listings/0a461105-d696-4e2a-834d-a271f9ce67f9  mud_splash_vlpgefev_1k.zip
+- Charcoal  : "Charcoal Scatter" https://www.fab.com/listings/6f27bd7a-6ce5-46ad-a25d-6f960fb5443e  charcoal_scatter_smnhxxh_1k.zip
+Darkening is the material's _Tint (RR_DecalOpacity graph), the jpgs are as downloaded.

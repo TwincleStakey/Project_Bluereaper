@@ -1,0 +1,14 @@
+장산범 move set: animation retargeted from these free models (meshes not used, motion only).
+All CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: motion retargeted to the 장산범 rig, trimmed, re-timed.
+
+- "Siberian Tiger - Rigged, Animated, Fur (Amur)" by Animal Animator (animalanimator.com)
+  https://sketchfab.com/3d-models/siberian-tiger-rigged-animated-fur-amur-860f119b7a9f485096136789eedee908
+  Used: idle, walk, trot, gallop, roar.
+
+- "Four Legged Predator" by Timsblends
+  https://sketchfab.com/3d-models/four-legged-predator-7f68f9daa698433299092bfecaae4e9e
+  Used: attack (claw swipe), powerful attack (rear-up slam), roar, run.
+
+- "Smilodon Game Animations" by BPoole
+  https://sketchfab.com/3d-models/smilodon-game-animations-a9cdecb78b4a479488b3dd9e523b4ea0
+  Used: bite, death, jump.

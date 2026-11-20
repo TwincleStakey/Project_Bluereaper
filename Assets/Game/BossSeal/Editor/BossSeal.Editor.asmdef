@@ -1,0 +1,6 @@
+{
+  "name": "BossSeal.Editor",
+  "rootNamespace": "BossSeal",
+  "references": ["Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "includePlatforms": ["Editor"]
+}

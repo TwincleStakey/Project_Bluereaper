@@ -1,0 +1,11 @@
+Model Information:
+* title:	KCISA-수내동가옥_초가집02
+* source:	https://sketchfab.com/3d-models/kcisa--02-12f1375cfa8e4b22b1f07735cd4cd1a8
+* author:	Korea Culture Information Service Agency (https://sketchfab.com/kcisameta)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+This work is based on "KCISA-수내동가옥_초가집02" (https://sketchfab.com/3d-models/kcisa--02-12f1375cfa8e4b22b1f07735cd4cd1a8) by Korea Culture Information Service Agency (https://sketchfab.com/kcisameta) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+Converted from the 1k GLB (Blender 5.2): decimated to the triangle budget, textures split per material.

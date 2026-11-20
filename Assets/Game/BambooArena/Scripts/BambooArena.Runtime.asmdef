@@ -1,0 +1,4 @@
+{
+  "name": "BambooArena.Runtime",
+  "references": ["ReedField.Runtime", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"]
+}

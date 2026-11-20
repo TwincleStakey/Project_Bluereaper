@@ -1,0 +1,5 @@
+{
+  "name": "BambooArena.Editor",
+  "references": ["BambooArena.Runtime", "ReedField.Runtime", "InkFilters", "InkFilters.Editor", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "includePlatforms": ["Editor"]
+}

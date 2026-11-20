@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UW_Ghost
+  m_Shader: {fileID: 4800000, guid: fdf7c6aee7bb46445addf3117c0573f7, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Fade: 0.45
+    - _Height: 1.85
+    - _Hover: 0.12
+    - _Phase: 0
+    - _RimPow: 2.5
+    m_Colors:
+    - _Col: {r: 0.78431374, g: 0.7607843, b: 0.84705883, a: 0.62}
+    - _Edge: {r: 2.4313726, g: 1.2078432, b: 4, a: 1}
+    - _Rim: {r: 0.7764706, g: 0.6039216, b: 1.1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
