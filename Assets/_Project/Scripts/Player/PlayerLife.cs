@@ -24,12 +24,15 @@ namespace BlueReaper.Player
 
         // 호스트만 쓰고 모두가 읽는다 (NetworkVariable 기본 권한)
         readonly NetworkVariable<float> syncedHealth = new();
+        readonly NetworkVariable<float> syncedShield = new();
         readonly NetworkVariable<LifeState> syncedState = new();
         readonly NetworkVariable<float> syncedRescue = new();
+        readonly NetworkVariable<bool> syncedCombatLocked = new();
         /// <summary>빈사가 사망으로 바뀌는 서버 시각. 늦게 들어온 팀원도 남은 시간을 맞게 본다.</summary>
         readonly NetworkVariable<double> syncedBleedOutEnd = new();
 
         Health health;
+        Shield shield;
 
         public LifeState State { get; private set; } = LifeState.Alive;
         /// <summary>사망까지 남은 시간(초). UI 카운트다운용.</summary>
@@ -38,13 +41,18 @@ namespace BlueReaper.Player
         public float BleedOutTime => bleedOutTime;
         /// <summary>구조 게이지 0~1.</summary>
         public float RescueProgress { get; private set; }
+        internal bool CombatLocked => IsAuthority ? health.CombatLocked : syncedCombatLocked.Value;
 
         public event Action<LifeState> StateChanged;
 
         /// <summary>이 PC가 체력·상태를 정하는지. 네트워크를 안 켰으면(샌드박스) 내가 정한다.</summary>
         bool IsAuthority => !IsSpawned || IsServer;
 
-        void Awake() => health = GetComponent<Health>();
+        void Awake()
+        {
+            health = GetComponent<Health>();
+            shield = GetComponent<Shield>();
+        }
 
         void OnEnable() => health.Died += OnHealthDepleted;
 
@@ -56,12 +64,16 @@ namespace BlueReaper.Player
             {
                 // 처음 접속한 팀원도 바로 맞는 값을 받도록 스폰 때 채워 둔다
                 syncedHealth.Value = health.Current;
+                syncedShield.Value = shield ? shield.CurrentShield : 0f;
                 syncedState.Value = State;
+                syncedCombatLocked.Value = health.CombatLocked;
                 return;
             }
 
             health.NetworkDriven = true;
             syncedHealth.OnValueChanged += OnSyncedHealth;
+            syncedShield.OnValueChanged += OnSyncedShield;
+            OnSyncedShield(0f, syncedShield.Value);
             syncedState.OnValueChanged += OnSyncedState;
             health.ApplyNetworkHealth(syncedHealth.Value);
             OnSyncedState(State, syncedState.Value);
@@ -71,6 +83,7 @@ namespace BlueReaper.Player
         {
             if (IsServer) return;
             syncedHealth.OnValueChanged -= OnSyncedHealth;
+            syncedShield.OnValueChanged -= OnSyncedShield;
             syncedState.OnValueChanged -= OnSyncedState;
             health.NetworkDriven = false;
         }
@@ -81,11 +94,13 @@ namespace BlueReaper.Player
             {
                 // 값이 같으면 보내지 않으므로 매 프레임 넣어도 된다
                 syncedHealth.Value = health.Current;
+                syncedShield.Value = shield ? shield.CurrentShield : 0f;
                 syncedRescue.Value = RescueProgress;
+                syncedCombatLocked.Value = health.CombatLocked;
             }
             else if (!IsAuthority) RescueProgress = syncedRescue.Value;
 
-            if (State != LifeState.Downed) return;
+            if (CombatLocked || State != LifeState.Downed) return;
 
             BleedOutLeft = IsAuthority
                 ? Mathf.Max(0f, BleedOutLeft - Time.deltaTime)
@@ -97,7 +112,7 @@ namespace BlueReaper.Player
         /// <summary>구조하는 플레이어가 버튼을 누르고 있는 동안 매 프레임 부른다. 다 차면 일어난다. 호스트에서만 효과가 있다.</summary>
         public void AddRescueProgress(float deltaTime)
         {
-            if (!IsAuthority || State != LifeState.Downed) return;
+            if (!IsAuthority || CombatLocked || State != LifeState.Downed) return;
 
             RescueProgress = Mathf.Min(1f, RescueProgress + deltaTime / rescueTime);
             if (RescueProgress < 1f) return;
@@ -110,13 +125,18 @@ namespace BlueReaper.Player
         void OnHealthDepleted()
         {
             // 팀원 PC는 HP 0을 봐도 상태는 호스트가 보낸 값(OnSyncedState)으로 바꾼다
-            if (!IsAuthority || State != LifeState.Alive) return;
+            if (!IsAuthority || CombatLocked || State != LifeState.Alive) return;
 
             EnterDowned();
             SetState(LifeState.Downed);
         }
 
         void OnSyncedHealth(float _, float value) => health.ApplyNetworkHealth(value);
+
+        void OnSyncedShield(float _, float value)
+        {
+            if (shield) shield.ApplyNetworkShield(value);
+        }
 
         void OnSyncedState(LifeState _, LifeState next)
         {

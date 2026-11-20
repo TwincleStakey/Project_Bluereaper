@@ -28,11 +28,15 @@ namespace BlueReaper.Data.Editor
                 RectangleSize = effect.RectangleSize, SectorAngle = effect.SectorAngle
             };
 
-        internal static Vector3 Center(AreaAttackShapeData shape, Transform origin) =>
-            origin ? origin.TransformPoint(shape.LocalCenter) : shape.LocalCenter;
+        internal static Vector3 Center(AreaAttackShapeData shape, Transform origin,
+            (Vector3 Position, Quaternion Rotation)? placement = null) =>
+            placement is { } fixedOrigin ? fixedOrigin.Position + fixedOrigin.Rotation * shape.LocalCenter
+                : origin ? origin.TransformPoint(shape.LocalCenter) : shape.LocalCenter;
 
-        internal static Quaternion Facing(AreaAttackShapeData shape, Transform origin) =>
-            Quaternion.Euler(0f, (origin ? origin.eulerAngles.y : 0f) + shape.LocalYaw, 0f);
+        internal static Quaternion Facing(AreaAttackShapeData shape, Transform origin,
+            (Vector3 Position, Quaternion Rotation)? placement = null) =>
+            (placement?.Rotation ?? Quaternion.Euler(0f, origin ? origin.eulerAngles.y : 0f, 0f))
+                * Quaternion.Euler(0f, shape.LocalYaw, 0f);
 
         internal static Vector3[] Outline(AreaAttackShapeData shape, Vector3 center, Quaternion facing,
             float radius, Vector2? rectangleSize = null)
@@ -61,11 +65,12 @@ namespace BlueReaper.Data.Editor
         }
 
         internal static void DrawShape(AreaAttackShapeData shape, Transform origin, Color color, bool height,
-            int pickControl = 0, (Vector3 Size, float InnerRadius)? evaluated = null)
+            int pickControl = 0, (Vector3 Size, float InnerRadius)? evaluated = null,
+            (Vector3 Position, Quaternion Rotation)? placement = null)
         {
             if (shape == null) return;
-            var center = Center(shape, origin);
-            var facing = Facing(shape, origin);
+            var center = Center(shape, origin, placement);
+            var facing = Facing(shape, origin, placement);
             float radius = evaluated?.Size.x ?? Mathf.Max(0.01f, shape.Radius);
             float innerRadius = evaluated?.InnerRadius ?? shape.InnerRadius;
             Vector2? rectangleSize = evaluated.HasValue ? new Vector2(evaluated.Value.Size.x, evaluated.Value.Size.z) : null;
@@ -114,15 +119,16 @@ namespace BlueReaper.Data.Editor
             view.Repaint();
         }
 
-        internal static Bounds BoundsOf(AreaAttackPatternData effect, Transform origin)
+        internal static Bounds BoundsOf(AreaAttackPatternData effect, Transform origin,
+            (Vector3 Position, Quaternion Rotation)? placement = null)
         {
-            Bounds bounds = new Bounds(Center(GetShape(effect, 0), origin), Vector3.zero);
+            Bounds bounds = new Bounds(Center(GetShape(effect, 0), origin, placement), Vector3.zero);
             for (int i = 0; i <= (effect.AdditionalShapes?.Length ?? 0); i++)
             {
                 var shape = GetShape(effect, i);
                 if (shape == null) continue;
-                Vector3 center = Center(shape, origin);
-                foreach (var point in Outline(shape, center, Facing(shape, origin), Mathf.Max(0.01f, shape.Radius)))
+                Vector3 center = Center(shape, origin, placement);
+                foreach (var point in Outline(shape, center, Facing(shape, origin, placement), Mathf.Max(0.01f, shape.Radius)))
                     bounds.Encapsulate(point);
             }
             return bounds;

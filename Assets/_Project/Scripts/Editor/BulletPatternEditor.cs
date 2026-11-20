@@ -1,6 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using BlueReaper.HitBox;
+using BlueReaper.Network.Editor;
+using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace BlueReaper.BulletPatterns.Editor
@@ -8,6 +14,7 @@ namespace BlueReaper.BulletPatterns.Editor
     [CustomEditor(typeof(BulletPatternData))]
     public sealed class BulletPatternEditor : UnityEditor.Editor
     {
+        internal bool Embedded { get; set; }
         // shortcut: preview at most 256 paths/instances, use instancing if larger previews are needed.
         private const int PreviewLimit = 256;
         private const float PathPickDistance = 8f;
@@ -55,7 +62,9 @@ namespace BlueReaper.BulletPatterns.Editor
         {
             serializedObject.Update();
             EditorGUILayout.LabelField("탄막 패턴", EditorStyles.boldLabel);
-            Field("BulletPrefab", "탄 프리팹 (Collider 포함)");
+            SerializedProperty bulletPrefab = serializedObject.FindProperty("BulletPrefab");
+            EditorGUILayout.PropertyField(bulletPrefab, new GUIContent("탄 프리팹 (Collider 포함)"));
+            DrawNetworkSetup(bulletPrefab.objectReferenceValue as GameObject);
             Field("MovementType", "이동 방식");
             bool linear = serializedObject.FindProperty("MovementType").enumValueIndex == (int)BulletMovementType.Linear;
             Field("AimAtTargetEachEmission", "매 발사 회차 타겟 재조준 (XZ)");
@@ -73,6 +82,15 @@ namespace BlueReaper.BulletPatterns.Editor
             }
             Field("RepeatCount", "총 발사 횟수 (최초 포함)");
             Field("RepeatInterval", "발사 시작 간격 (초)");
+            Field("UseHitWindow", "탄별 지속 판정");
+            if (serializedObject.FindProperty("UseHitWindow").boolValue)
+            {
+                Field("HitStartSeconds", "탄 생성 후 첫 판정 (초)");
+                Field("HitDurationSeconds", "판정 유지 (초)");
+                Field("RepeatHits", "반복 판정");
+                if (serializedObject.FindProperty("RepeatHits").boolValue)
+                    Field("HitRepeatIntervalSeconds", "판정 간격 (초)");
+            }
             Field("AlignToPath", "진행 방향으로 회전");
             Field("DirectionOffset", "방향 보정 (로컬 Y도)");
             Field("DamageMultiplier", "데미지 배율");
@@ -131,7 +149,48 @@ namespace BlueReaper.BulletPatterns.Editor
             }
 
             DrawPreviewInspector();
-            if (GUILayout.Button("이 패턴 저장")) AssetDatabase.SaveAssetIfDirty(pattern);
+            if (!Embedded && GUILayout.Button("이 패턴 저장")) AssetDatabase.SaveAssetIfDirty(pattern);
+        }
+
+        private static void DrawNetworkSetup(GameObject prefab)
+        {
+            if (!prefab || !PrefabUtility.IsPartOfPrefabAsset(prefab) || !prefab.GetComponent<ProjectileHitBox>()) return;
+            var list = NetworkPrefabAuthoring.LoadList();
+            if (prefab.GetComponent<NetworkObject>() && prefab.GetComponent<NetworkTransform>() && list && list.Contains(prefab))
+                return;
+
+            EditorGUILayout.HelpBox("멀티 설정 추가는 공유 탄 프리팹과 네트워크 목록에 즉시 저장합니다.", MessageType.Warning);
+            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+            {
+                if (!GUILayout.Button("멀티 설정 추가")) return;
+                try { SetupNetworkPrefab(prefab); }
+                catch (Exception error) when (error is IOException or InvalidOperationException)
+                { EditorUtility.DisplayDialog("멀티 설정 추가", error.Message, "확인"); }
+            }
+        }
+
+        internal static void SetupNetworkPrefab(GameObject prefab)
+        {
+            string path = AssetDatabase.GetAssetPath(prefab);
+            if (!prefab || !prefab.GetComponent<ProjectileHitBox>() || string.IsNullOrEmpty(path)
+                || !path.StartsWith("Assets/", StringComparison.Ordinal) || !path.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase)
+                || AssetDatabase.LoadAssetAtPath<GameObject>(path) != prefab || !AssetDatabase.IsOpenForEdit(prefab)
+                || PrefabStageUtility.GetCurrentPrefabStage()?.assetPath == path)
+                throw new IOException("Prefab Mode에서 열려 있지 않은, 루트에 ProjectileHitBox가 있는 편집 가능한 탄 프리팹을 선택하세요.");
+
+            var list = NetworkPrefabAuthoring.RequireEditableList();
+            if (!prefab.GetComponent<NetworkObject>() || !prefab.GetComponent<NetworkTransform>())
+            {
+                var root = PrefabUtility.LoadPrefabContents(path);
+                try
+                {
+                    NetworkPrefabAuthoring.EnsureMotionComponents(root);
+                    PrefabUtility.SaveAsPrefabAsset(root, path, out bool saved);
+                    if (!saved) throw new IOException("탄 프리팹에 멀티 설정을 저장하지 못했습니다.");
+                }
+                finally { PrefabUtility.UnloadPrefabContents(root); }
+            }
+            NetworkPrefabAuthoring.Register(list, AssetDatabase.LoadAssetAtPath<GameObject>(path));
         }
 
         private void Field(string name, string label)
@@ -258,7 +317,9 @@ namespace BlueReaper.BulletPatterns.Editor
 
         private void DrawScene(SceneView view)
         {
-            if (pattern == null || pattern.GetValidationError() != null || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            var active = BlueReaper.Data.Editor.MonsterEditorWindow.ActivePatternPreview;
+            if (pattern == null || pattern.GetValidationError() != null || (active && active != this)
+                || EditorApplication.isPlayingOrWillChangePlaymode) return;
             if (cachedPrefab != pattern.BulletPrefab) CachePrefab();
             selected = Mathf.Clamp(selected, 0, pattern.MaximumCount - 1);
             using (new Handles.DrawingScope(PreviewMatrix))

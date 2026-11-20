@@ -10,6 +10,12 @@ namespace BlueReaper.Stage
         [Range(1, 100)] public int ClearPercent = 85;
 
         [SerializeField] private GameObject fieldObject;
+        [SerializeField] private EnemySpawner dynamicSpawner;
+        [SerializeField, Min(1)] private int purificationGoal = 30;
+
+        internal EnemySpawner DynamicSpawner => dynamicSpawner;
+        internal int PurificationGoal => purificationGoal;
+        internal StageReadyPad[] ReadyPads { get; private set; }
 
         internal EnemySpawnEntry[] SpawnEntries { get; private set; }
         internal PlayerSpawnEntry Entrance { get; private set; }
@@ -22,7 +28,13 @@ namespace BlueReaper.Stage
             Transform markers = LayoutOrigin;
             SpawnEntries = markers.GetComponentsInChildren<EnemySpawnEntry>();
             Entrance = markers.GetComponentInChildren<PlayerSpawnEntry>();
+            ReadyPads = markers.GetComponentsInChildren<StageReadyPad>(true);
             PlacedUnits = GetComponentsInChildren<Unit>(true);
+        }
+
+        internal void SetReadyPadsVisible(bool visible)
+        {
+            foreach (var pad in ReadyPads) pad.gameObject.SetActive(visible);
         }
 
         internal bool TryGetClearTarget(out int requiredKills, out bool bossesOnly)

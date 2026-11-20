@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
 using Unity.Services.Multiplayer;
@@ -21,6 +22,7 @@ namespace BlueReaper.Network
 
         /// <summary>단독 외근이면 true. UI가 채팅·코드 라벨·파티 패널을 숨길 때 쓴다.</summary>
         public bool IsSolo { get; private set; }
+        public int TeamSize { get; private set; } = MaxPlayers;
         public bool InSession => NetworkManager.Singleton && NetworkManager.Singleton.IsListening;
         /// <summary>방장 화면의 [외근 코드 복사] 라벨에 띄울 코드. 솔로면 null.</summary>
         public string JoinCode => session?.Code;
@@ -55,11 +57,13 @@ namespace BlueReaper.Network
         {
             if (Busy || InSession) return;
             IsSolo = true;
+            var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+            if (transport) transport.SetConnectionData("127.0.0.1", transport.ConnectionData.Port);
             if (NetworkManager.Singleton.StartHost()) SessionStarted?.Invoke();
             else Fail("단독 외근을 시작하지 못했어요.");
         }
 
-        public async void CreateTeam()
+        public async void CreateTeam(int capacity = MaxPlayers)
         {
             if (Busy || InSession) return;
             connecting = true;
@@ -67,7 +71,8 @@ namespace BlueReaper.Network
             try
             {
                 await SignInAsync();
-                var options = new SessionOptions { MaxPlayers = MaxPlayers }.WithRelayNetwork();
+                TeamSize = Mathf.Clamp(capacity, 2, MaxPlayers);
+                var options = new SessionOptions { MaxPlayers = TeamSize }.WithRelayNetwork();
                 var created = await MultiplayerService.Instance.CreateSessionAsync(options);
                 if (myAttempt != attempt) { await LeaveLateAsync(created); return; }
                 session = created;

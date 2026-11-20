@@ -61,6 +61,11 @@ namespace BlueReaper.BulletPatterns
         public VfxAutoDespawn LaunchVfxPrefab;
         public VfxAutoDespawn HitVfxPrefab;
         [Min(0f)] public float HitVfxDelaySeconds;
+        public bool UseHitWindow;
+        [Min(0f)] public float HitStartSeconds;
+        [Min(0.01f)] public float HitDurationSeconds = 1f;
+        public bool RepeatHits;
+        [Min(0.01f)] public float HitRepeatIntervalSeconds = 0.2f;
         public BulletMovementType MovementType = BulletMovementType.Path;
         public bool AimAtTargetEachEmission;
         [Min(1)] public int LinearCount = 1;
@@ -214,6 +219,10 @@ namespace BlueReaper.BulletPatterns
                 return "선형 탄막은 Line, Circle, Fan 배치를 사용해주세요.";
             if (RepeatCount < 1 || !IsFinite(RepeatInterval) || RepeatInterval < 0f || !IsFinite(TotalDuration))
                 return "반복 횟수는 1 이상, 주기는 0 이상이며 전체 시간은 유한해야 합니다.";
+            if (UseHitWindow && (!(HitStartSeconds >= 0f) || !(HitDurationSeconds > 0f) ||
+                !IsFinite(HitStartSeconds + HitDurationSeconds) ||
+                (RepeatHits && (!(HitRepeatIntervalSeconds > 0f) || !IsFinite(HitRepeatIntervalSeconds)))))
+                return "탄 판정 시작은 0 이상이고 유지 시간과 반복 간격은 양수여야 합니다.";
             if (!IsFinite(DamageMultiplier) || DamageMultiplier < 0f || !IsFinite(DirectionOffset))
                 return "데미지 배율은 0 이상, 방향 보정은 유한한 값이어야 합니다.";
             if (!IsFinite(Spacing) || Spacing < 0f || !IsFinite(Radius) || Radius < 0f

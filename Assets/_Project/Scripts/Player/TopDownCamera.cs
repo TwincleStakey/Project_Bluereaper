@@ -24,6 +24,28 @@ namespace BlueReaper.Player
             velocity = Vector3.zero;
         }
 
+        internal void GetSpawnViewPlanes(Transform player, Plane[] planes)
+        {
+            var camera = GetComponent<Camera>();
+            if (player == target)
+            {
+                GeometryUtility.CalculateFrustumPlanes(camera, planes);
+                return;
+            }
+
+            // shortcut: estimate remote cameras with the shared rig and a wide aspect until their poses are synchronized.
+            Quaternion rotation = Quaternion.Euler(pitch, 0f, 0f);
+            Vector3 position = player.position - rotation * Vector3.forward * distance;
+            var worldToCamera = Matrix4x4.TRS(position, rotation, new Vector3(1f, 1f, -1f)).inverse;
+            float aspect = Mathf.Max(camera.aspect, 2.4f);
+            float halfHeight = camera.orthographicSize;
+            float halfWidth = halfHeight * aspect;
+            var projection = camera.orthographic
+                ? Matrix4x4.Ortho(-halfWidth, halfWidth, -halfHeight, halfHeight, camera.nearClipPlane, camera.farClipPlane)
+                : Matrix4x4.Perspective(camera.fieldOfView, aspect, camera.nearClipPlane, camera.farClipPlane);
+            GeometryUtility.CalculateFrustumPlanes(projection * worldToCamera, planes);
+        }
+
         void LateUpdate()
         {
             if (target == null) return;

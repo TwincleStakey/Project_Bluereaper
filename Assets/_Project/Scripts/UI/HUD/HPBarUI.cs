@@ -14,27 +14,58 @@ namespace BlueReaper.UI
         private Image fillImage = null;
         [SerializeField]
         private TextMeshProUGUI hpText = null;
+        [SerializeField]
+        private Image shieldFillImage = null;
 
         private Health targetHealth = null;
+        private Shield targetShield = null;
 
         public void Init(Health target)
         {
-            if (targetHealth) targetHealth.Damaged -= OnHealthChanged;
+            if (targetHealth)
+            {
+                targetHealth.Damaged -= OnHealthChanged;
+                targetHealth.Revived -= OnRevived;
+            }
             targetHealth = target;
-            if (targetHealth && isActiveAndEnabled) targetHealth.Damaged += OnHealthChanged;
+            if (targetHealth && isActiveAndEnabled) SubscribeToHealth();
             OnHealthChanged(0f);
+
+            if (targetShield) targetShield.ShieldChanged -= OnShieldChanged;
+            targetShield = target ? target.GetComponent<Shield>() : null;
+            if (targetShield && isActiveAndEnabled) targetShield.ShieldChanged += OnShieldChanged;
+                
+            if (shieldFillImage) shieldFillImage.gameObject.SetActive(targetShield != null);
+
+            OnShieldChanged(0f);
         }
 
         private void OnEnable()
         {
-            if (targetHealth) targetHealth.Damaged += OnHealthChanged;
+            if (targetHealth) SubscribeToHealth();
             OnHealthChanged(0f);
+
+            if (targetShield) targetShield.ShieldChanged += OnShieldChanged;
+            OnShieldChanged(0f);
         }
 
         private void OnDisable()
         {
-            if (targetHealth) targetHealth.Damaged -= OnHealthChanged;
+            if (targetHealth)
+            {
+                targetHealth.Damaged -= OnHealthChanged;
+                targetHealth.Revived -= OnRevived;
+            }
+            if (targetShield) targetShield.ShieldChanged -= OnShieldChanged;
         }
+
+        private void SubscribeToHealth()
+        {
+            targetHealth.Damaged += OnHealthChanged;
+            targetHealth.Revived += OnRevived;
+        }
+
+        private void OnRevived() => OnHealthChanged(0f);
 
         private void OnHealthChanged(float damage)
         {
@@ -49,5 +80,15 @@ namespace BlueReaper.UI
                 hpText.text = $"{targetHealth.Current:0}/{targetHealth.MaxHealth:0}";
             }
         }
+
+        private void OnShieldChanged(float obj)
+        {
+            if (!targetShield) return;
+            if(shieldFillImage)
+            {
+                shieldFillImage.fillAmount = targetShield.MaxShield > 0f ? targetShield.CurrentShield / targetShield.MaxShield : 0f;
+            }
+        }
+
     }
 }

@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a889ef0d232c048479f903cefe50d4bf, type: 3}
+  m_Name: ReusePositionExplosion
+  m_EditorClassIdentifier: Assembly-CSharp::BlueReaper.Data.EnemyPatternData
+  RequirePhase:
+  TargetMode: 0
+  TargetRule:
+    Filters: []
+    SortBy: []
+    SelectionMode: 0
+    Count: 1
+  CanForwardTracking: 0
+  TrackingRotationRatio: 1
+  TrackingMoveRatio: 1
+  TrackingDuration: 0.15
+  SelfDestructAfterPattern: 0
+  MotionClip: {fileID: 0}
+  PlacementMode: 2
+  TelegraphPrefab: {fileID: 0}
+  TelegraphDurationSeconds: 0
+  CastVfxPrefab: {fileID: 0}
+  CastVfxDelaySeconds: 0
+  RestTime: 0
+  ChasingDistance: 10
+  Implementations:
+  - {fileID: 11400000, guid: b4e5884faa2720447a5e3812de0ef43b, type: 2}

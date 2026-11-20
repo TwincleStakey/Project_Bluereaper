@@ -1,10 +1,15 @@
 # BlueReaper 시스템 지도
 
-기준 커밋 `29dce39`의 코드와 저장된 씬·프리팹·ScriptableObject를 대조했다. 작업별 문서는 [색인](INDEX.md)에서 찾는다.
+작업별 문서는 [색인](INDEX.md)에서 찾는다.
 
 ```mermaid
 flowchart LR
-    Scene["Seonggyu 씬"] --> Stage["StageController"]
+    Menu["GameMenu 씬"] --> Hub["Hub 씬"]
+    Hub --> Solo["Stage 씬"]
+    Solo --> Hub
+    Solo --> Stage["StageController"]
+    Solo --> Player["Player 프리팹"]
+    Scene["Seonggyu 씬"] --> Stage
     Scene --> Player["Player 프리팹"]
     Stage --> Field["StageData → StageField"]
     Field --> Enemy["배치·웨이브·소환 적"]
@@ -24,10 +29,19 @@ flowchart LR
 
 | 씬 | 저장된 연결 |
 | --- | --- |
-| [Seonggyu](../Assets/_Project/Scenes/_Sandbox/Seonggyu.unity) | Player 인스턴스의 Health, BossHUD, TopDownCamera, Stage_1이 StageController에 연결돼 있다. 전투와 필드 진행의 진입점이다. |
+| [GameMenu](../Assets/_Project/Scenes/GameMenu.unity) | 빌드 첫 씬이다. 타이틀·로비 uGUI와 공용 세션을 유지한다. |
+| [Hub](../Assets/_Project/Scenes/Hub.unity) | 세션 시작 및 전투 복귀 시 로드한다. 스폰 지점, 이동 가능한 바닥과 경계, TopDownCamera가 있다. 화면 오른쪽 uGUI에서 스테이지 선택·준비·출발을 처리한다. |
+| [Stage](../Assets/_Project/Scenes/Stage.unity) | 출발마다 로드하는 공용 전투 씬이다. Player 프리팹, StageController, TopDownCamera, 플레이어 HP와 BossHUD가 연결돼 있다. |
+| [Seonggyu](../Assets/_Project/Scenes/_Sandbox/Seonggyu.unity) | Player 인스턴스의 Health, BossHUD, TopDownCamera, Stage_Dynamic과 복귀 포털이 StageController에 연결돼 있다. 중앙 입구와 준비 발판부터 동적 전투를 시작한다. |
 | [Kibaek](../Assets/_Project/Scenes/_Sandbox/Kibaek.unity) | 플레이어와 타격용 더미가 배치돼 있다. StageController에 StageData가 연결돼 있지 않아 현재 필드 진행은 시작되지 않는다. |
 | [Prototype](../Assets/_Project/Scenes/Prototype.unity) | 카메라와 조명이 배치돼 있다. |
-| [SampleScene](../Assets/Scenes/SampleScene.unity) | [저장된 기본 빌드 목록](../ProjectSettings/EditorBuildSettings.asset)의 유일한 활성 씬이다. 전투와 Stage_1 연결은 Seonggyu 씬에서 확인한다. |
+| [SampleScene](../Assets/Scenes/SampleScene.unity) | [빌드 목록](../ProjectSettings/EditorBuildSettings.asset)에 남아 있다. |
+
+## 게임 흐름
+
+- 타이틀의 새로하기에서 로비에 진입해 Warrior 캐릭터를 생성·선택한다. 솔로는 로컬 호스트를 열고, 멀티는 2인·3인 Relay 방을 생성하거나 코드로 합류한다. 멀티는 정원을 채운 상태에서 호스트가 스테이지를 선택하고 전원이 Ready를 누르면 출발할 수 있다. 선택한 스테이지나 참가자가 바뀌면 Ready를 초기화한다.
+- 호스트는 `Hub`와 `Stage`를 NGO 씬 전환으로 로드·해제한다. 씬 로드 후 참가자별 플레이어를 생성한다. 각 PC는 자기 플레이어에 카메라와 개인 HUD를 연결한다. 클리어·전멸·스테이지 중단 뒤 같은 세션의 거점으로 복귀한다. 스테이지 중 합류는 차단하고, 진행 중 참가자가 이탈하면 남은 인원은 거점으로 돌아간다. 호스트가 종료하면 참가자는 로비로 돌아간다. [GameFlow.cs](../Assets/_Project/Scripts/GameFlow/GameFlow.cs) · [StageEntry.cs](../Assets/_Project/Scripts/GameFlow/StageEntry.cs)
+- 스테이지의 필드·스폰·AI·피해·처치 집계는 호스트가 진행한다. 참가자의 평타는 소유자 입력으로 요청하고 호스트에서 위치·쿨다운·생존 상태를 기준으로 처리한다. 클라이언트는 필드와 등록된 적·투사체·전조 프리팹을 표시하고 HP·실드·빈사 상태를 반영한다. 멀티 스테이지에서 사용하는 새 프리팹은 루트에 `NetworkObject`를 붙이고 네트워크 프리팹 목록에 등록한다.
 
 ## 공통 개체와 플레이어
 
@@ -48,14 +62,17 @@ flowchart LR
 
 ## 스테이지와 회수
 
-[StageController.RunStage](../Assets/_Project/Scripts/Stage/StageController.cs)가 [Stage_1](../Assets/_Project/Data/Stages/Stage_1.asset)에 지정된 필드를 순서대로 생성한다. 입구 이동·사전 배치 등록 후 첫 웨이브를 만들고, 반복 웨이브를 5초 간격으로 생성한다. 필드 전환과 본체·사망 탄막 회수는 [개체 수명 계약](contracts/UNIT_LIFECYCLE.md)을 참조한다.
+[StageController.RunStage](../Assets/_Project/Scripts/Stage/StageController.cs)는 선택한 StageData의 필드 프리팹을 배열 순서대로 생성한다. 현재 게임 메뉴와 Seonggyu 샌드박스는 Stage_Dynamic을 사용한다. 필드 전환과 본체·사망 탄막 회수는 [개체 수명 계약](contracts/UNIT_LIFECYCLE.md)을 참조한다.
 
-| 필드 | 웨이브당 구성 | 반복 | 저장된 설정의 클리어 조건 |
-| --- | --- | ---: | --- |
-| [1](../Assets/_Project/Prefabs/Stage/StageField_1.prefab) | Monster_1 × 16 | 3 | 48마리 중 41마리 |
-| [2](../Assets/_Project/Prefabs/Stage/StageField_2.prefab) | Monster_1 × 16, Monster_2 × 16 | 2 | 64마리 중 55마리 |
-| [3](../Assets/_Project/Prefabs/Stage/StageField_3.prefab) | Monster_1 × 16, Monster_3 × 16 | 1 | 32마리 중 28마리 |
-| [4](../Assets/_Project/Prefabs/Stage/StageField_4.prefab) | Boss_1 × 1 | 1 | 보스 1마리 |
+거점의 **Select Stage Dynamic**에서 [동적 스폰 예제](../Assets/_Project/Data/Stages/Stage_Dynamic.asset)를 선택할 수 있다. 중앙 입장 후 준비 발판에서 출발하고, 처치로 공용 정화 게이지를 채운다. 최종 클리어 뒤 생존자 중앙의 포털을 통과하면 같은 방의 거점으로 돌아온다. [동적 스포너](../Assets/_Project/Scripts/Stage/EnemySpawner.cs) · [동적 필드 계약](contracts/UNIT_LIFECYCLE.md#동적-스폰-필드)
+
+### 스테이지 편집
+
+1. Unity 메뉴에서 **Tools > BlueReaper > Stage Editor**를 열고 기존 StageData를 고르거나 새로 만든다.
+2. **필드 진행 순서**에 StageField 프리팹을 추가하고 배열의 순서를 맞춘 뒤 **StageData 저장**을 누른다. 새 필드가 필요하면 Project 창에서 StageField_Dynamic을 복제한 뒤 목록에 넣는다.
+3. **Prefab Mode에서 편집**을 열고 정화 목표, 스포너의 반경·정원·반복 주기·웨이브 구성을 편집한다. 웨이브 목록은 시작 시간 오름차순으로 정리한다. 각 웨이브에서 적 프리팹과 1회 수량을 지정하고, 순차 급습은 단계 간격도 지정한다.
+4. 도구에서 중앙 입구와 준비 발판을 추가한 다음 Unity SceneView에서 배치와 크기를 조정한다. 최대 3인 필드는 활성 준비 발판 3개를 사용한다. 지형을 바꿨으면 해당 프리팹에 사용할 NavMesh를 Bake하고 저장한다. 복제한 프리팹에서 지형을 바꿀 때는 원본과 별도 NavMesh 에셋을 사용한다.
+5. 새 StageData를 거점에서 선택할 수 있게 하려면 GameMenu 씬의 GameFlow **Stages** 목록에 추가한다.
 
 ## UI·카메라·보상·제작 도구
 
@@ -71,6 +88,7 @@ flowchart LR
 
 | 확인할 동작 | 따라갈 호출 |
 | --- | --- |
+| 출발과 복귀 | `GameFlow` → 거점 참가자 배치 → 호스트 출발 → `StageController.TryStartRun` → `RunFinished` → 전투 씬 해제 및 거점 재입장 |
 | 이동과 평타 | `PlayerController.Update` → `PlayerMotor` / `AutoAim.Resolve` → `SwordAttack.TryAttack` → `Health.TakeDamage` |
 | 적 패턴 선택·실행 | `EnemyAI.AIUpdate` → `SelectNextPattern` → `ExecuteAction` → `ExecutePattern` |
 | 웨이브와 소환 | `RunStage` → `SpawnWave` 또는 패턴 효과 → `SummonEnemies` → `SpawnEnemy` → `RegisterUnit` |

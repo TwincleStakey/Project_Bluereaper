@@ -2,6 +2,7 @@ using BlueReaper.BulletPatterns;
 using BlueReaper.Core;
 using BlueReaper.Data;
 using BlueReaper.HitBox;
+using BlueReaper.Network;
 using BlueReaper.Stage;
 using BlueReaper.Vfx;
 using System;
@@ -35,15 +36,28 @@ namespace BlueReaper.Boss
                 Layout = origin.localToWorldMatrix;
                 Facing = Quaternion.Euler(0f, origin.eulerAngles.y, 0f);
             }
+
+            internal AreaPlacement(Vector3 position, Quaternion facing)
+            {
+                Layout = Matrix4x4.TRS(position, facing, Vector3.one);
+                Facing = facing;
+            }
+        }
+
+        private sealed class PatternExecution
+        {
+            internal AreaPlacement[] CapturedPlacements;
         }
 
         private struct AreaCast
         {
             internal AreaAttackPatternData Pattern;
-            internal float NextAt, HitAt, StartedAt, EndsAt, LastSample, LastHitCheckAt, Damage;
-            internal HashSet<IDamageable> DamagedTargets;
+            internal float NextAt, HitAt, LastSample;
+            internal AttackDamage Damage;
+            internal HitWindow Window;
             internal bool Placed, HasHit;
             internal AreaPlacement Placement;
+            internal AreaPlacement[] CapturedPlacements;
         }
 
         private PatternState currentPatternState;
@@ -53,16 +67,17 @@ namespace BlueReaper.Boss
         private Posture posture;
         private NavMeshAgent agent;
         private Animator animator;
-        private GameObject activeTelegraph;
+        private readonly List<GameObject> activeTelegraphs = new();
         private Coroutine coAIUpdate = null;
         private Coroutine coMeleeHitWindow = null;
         private MeleeHitBox[] meleeHitBoxes;
-        private readonly Dictionary<IDamageable, float> nextMeleeHits = new();
+        private readonly HitWindow meleeHits = new();
         private readonly AreaHitQuery areaQuery = new();
         private readonly HashSet<ProjectileHitBox> projectiles = new();
         private MeleeAttackPatternData activeMelee;
         private bool meleeAfterDeath;
-        private float meleeStartedAt, meleeDamage, motionUntil;
+        private float meleeStartedAt, motionUntil;
+        private AttackDamage meleeDamage;
         private Vector3 chaseDestination;
         private bool hasChaseDestination;
         private bool rewardHandled;
@@ -113,7 +128,10 @@ namespace BlueReaper.Boss
             if (coAIUpdate == null) coAIUpdate = StartCoroutine(AIUpdate());
         }
 
+        private Transform initialChaseTarget;
+
         internal void NotifySpawned() => spawnPatternPending = true;
+        internal void SetInitialChaseTarget(Transform target) => initialChaseTarget = target;
 
         private void OnHealthDied()
         {
@@ -175,6 +193,7 @@ namespace BlueReaper.Boss
             hasChaseDestination = false;
             if (agent && agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
             currentPatternState = PatternState.None;
+            initialChaseTarget = null;
         }
 
         private IEnumerator AIUpdate()
@@ -195,7 +214,14 @@ namespace BlueReaper.Boss
                     continue;
                 }
 
-                EnemyTargetSelector.Select(Owner, Owner.Players, chaseTargetRule, chaseTargets);
+                if (initialChaseTarget && (!IsCurrentPlayer(initialChaseTarget) || InitialAggroWasOvertaken()))
+                    initialChaseTarget = null;
+                if (initialChaseTarget)
+                {
+                    chaseTargets.Clear();
+                    chaseTargets.Add(initialChaseTarget);
+                }
+                else EnemyTargetSelector.Select(Owner, Owner.Players, chaseTargetRule, chaseTargets);
                 if (chaseTargets.Count > 1) chaseTargets.RemoveRange(1, chaseTargets.Count - 1);
 
                 if (spawnPatternPending && spawnPattern)
@@ -266,6 +292,7 @@ namespace BlueReaper.Boss
 
                 if (agent.isActiveAndEnabled && agent.isOnNavMesh) agent.isStopped = true;
                 FaceTarget(target);
+                initialChaseTarget = null;
 
                 yield return ExecuteAction(selectedAction, actionTargets);
                 trackingDirection = Vector3.zero;
@@ -275,6 +302,16 @@ namespace BlueReaper.Boss
                 yield return wait;
             }
             coAIUpdate = null;
+        }
+
+        private bool InitialAggroWasOvertaken()
+        {
+            if (!Owner.Aggro) return false;
+            float initial = Owner.Aggro.GetAggro(initialChaseTarget.GetComponent<Unit>());
+            foreach (var player in Owner.Players)
+                if (player != initialChaseTarget && IsCurrentPlayer(player)
+                    && Owner.Aggro.GetAggro(player.GetComponent<Unit>()) > initial) return true;
+            return false;
         }
 
         private static Transform FirstTarget(IReadOnlyList<Transform> targets) => targets.Count > 0 ? targets[0] : null;
@@ -389,9 +426,10 @@ namespace BlueReaper.Boss
 
         private IEnumerator ExecuteAction(EnemyActionData action, IReadOnlyList<Transform> targets)
         {
+            var execution = new PatternExecution();
             if (action is EnemyPatternData pattern)
             {
-                yield return ExecutePattern(pattern, targets, action.CanForwardTracking);
+                yield return ExecutePattern(pattern, targets, action.CanForwardTracking, execution);
                 yield break;
             }
 
@@ -403,16 +441,16 @@ namespace BlueReaper.Boss
                     if (health.IsDead || !step) yield break;
                     if (step.TargetMode == ActionTargetMode.Inherit)
                     {
-                        yield return ExecutePattern(step, targets, action.CanForwardTracking);
+                        yield return ExecutePattern(step, targets, action.CanForwardTracking, execution);
                         continue;
                     }
 
                     stepTargets ??= new List<Transform>();
-                    if (!ResolveTargets(step, targets, stepTargets)) continue;
+                    if (!ResolveTargets(step, targets, stepTargets) && step.PlacementMode == PatternPlacementMode.Default) continue;
                     Quaternion facing = transform.rotation;
                     Vector3 direction = trackingDirection;
                     FaceTarget(FirstTarget(stepTargets));
-                    yield return ExecutePattern(step, stepTargets, action.CanForwardTracking);
+                    yield return ExecutePattern(step, stepTargets, action.CanForwardTracking, execution);
                     if (health.IsDead) yield break;
                     transform.rotation = facing;
                     trackingDirection = direction;
@@ -457,7 +495,8 @@ namespace BlueReaper.Boss
             if (!animator.GetCurrentAnimatorStateInfo(0).IsName(state)) animator.Play(state, 0, 0f);
         }
 
-        private IEnumerator ExecutePattern(EnemyPatternData pattern, IReadOnlyList<Transform> targets, bool canForwardTracking)
+        private IEnumerator ExecutePattern(EnemyPatternData pattern, IReadOnlyList<Transform> targets,
+            bool canForwardTracking, PatternExecution execution)
         {
             StopMeleeHitWindow();
             StopForwardTracking();
@@ -468,6 +507,24 @@ namespace BlueReaper.Boss
             bool CanStart() => !health.IsDead && isActiveAndEnabled
                 && (ReferenceEquals(stage, null) || (stage && field && stage.GetActiveField(unit) == field));
             if (!CanStart()) yield break;
+
+            AreaPlacement[] capturedPlacements = null;
+            if (pattern.PlacementMode != PatternPlacementMode.Default)
+            {
+                if (pattern.PlacementMode == PatternPlacementMode.CaptureTargets)
+                {
+                    Quaternion facing = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+                    execution.CapturedPlacements = targets.Where(IsCurrentPlayer)
+                        .Select(target => new AreaPlacement(target.position, facing)).ToArray();
+                }
+
+                capturedPlacements = execution.CapturedPlacements;
+                if (capturedPlacements == null || capturedPlacements.Length == 0)
+                {
+                    currentPatternState = PatternState.Done;
+                    yield break;
+                }
+            }
 
             currentPatternState = PatternState.Executing;
             AreaPlacement? telegraphCaster = null;
@@ -484,7 +541,7 @@ namespace BlueReaper.Boss
 
                 var area = (pattern.Implementations ?? Array.Empty<PatternImplData>())
                     .OfType<AreaAttackPatternData>().FirstOrDefault(effect => effect);
-                bool fieldRelative = area && area.PlacementOrigin == AreaPlacementOrigin.Field;
+                bool fieldRelative = capturedPlacements == null && area && area.PlacementOrigin == AreaPlacementOrigin.Field;
                 if (fieldRelative && !field)
                 {
                     Debug.LogWarning("Field-relative telegraph requires an active field.", pattern);
@@ -495,11 +552,19 @@ namespace BlueReaper.Boss
 
                 telegraphCaster = new AreaPlacement(transform);
                 telegraphField = field ? new AreaPlacement(field.LayoutOrigin) : null;
-                var placement = fieldRelative ? telegraphField.GetValueOrDefault() : telegraphCaster.Value;
-                Vector3 position = area ? placement.Layout.MultiplyPoint3x4(area.LocalCenter) : transform.position;
-                Quaternion rotation = area ? placement.Facing * Quaternion.Euler(0f, area.LocalYaw, 0f) : placement.Facing;
-                ObjectPool.Spawn(pattern.TelegraphPrefab, position, rotation,
-                    beforeEnable: instance => activeTelegraph = instance);
+                if (capturedPlacements == null)
+                {
+                    SpawnTelegraph(pattern.TelegraphPrefab, area,
+                        fieldRelative ? telegraphField.GetValueOrDefault() : telegraphCaster.Value);
+                }
+                else
+                {
+                    foreach (var placement in capturedPlacements)
+                    {
+                        if (!CanStart()) break;
+                        SpawnTelegraph(pattern.TelegraphPrefab, area, placement);
+                    }
+                }
                 float endsAt = Time.time + pattern.TelegraphDurationSeconds;
                 while (Time.time < endsAt && CanStart()) yield return null;
                 ReturnTelegraph();
@@ -538,7 +603,7 @@ namespace BlueReaper.Boss
 
                     case AreaAttackPatternData areaAttack when areaAttack:
                         float placementDelay = areaAttack.PlacementDelaySeconds;
-                        float hitDelay = Mathf.Max(0f, areaAttack.HitStartSeconds);
+                        float hitDelay = areaAttack.HitStartSeconds;
                         string error = areaAttack.GetValidationError();
                         if (error != null)
                         {
@@ -551,7 +616,8 @@ namespace BlueReaper.Boss
                             Pattern = areaAttack,
                             NextAt = startedAt + placementDelay,
                             HitAt = startedAt + hitDelay,
-                            Damage = DamageFormula.Calculate(unit.Data.Attack, areaAttack.DamageMultiplier),
+                            Damage = new AttackDamage(unit.Data.Attack, areaAttack.DamageMultiplier),
+                            CapturedPlacements = capturedPlacements,
                         });
                         break;
 
@@ -562,12 +628,14 @@ namespace BlueReaper.Boss
                             break;
                         }
 
-                        int volleys = bulletAttack.AimAtTargetEachEmission ? Mathf.Max(1, targets.Count) : 1;
+                        int volleys = capturedPlacements?.Length ??
+                            (bulletAttack.AimAtTargetEachEmission ? Mathf.Max(1, targets.Count) : 1);
                         for (int i = 0; i < volleys; i++)
                         {
                             pendingBulletEffects++;
                             Transform target = i < targets.Count ? targets[i] : null;
-                            StartCoroutine(ExecuteBulletEffect(bulletAttack, target, onBulletFinished));
+                            StartCoroutine(ExecuteBulletEffect(bulletAttack, target, onBulletFinished,
+                                capturedPlacements?[i], capturedPlacements != null ? CanStart : null));
                         }
                         break;
 
@@ -619,11 +687,22 @@ namespace BlueReaper.Boss
             foreach (var target in targets) Stage.SummonEnemies(unit, target, pattern, deathOrigin);
         }
 
+        private void SpawnTelegraph(GameObject prefab, AreaAttackPatternData area, AreaPlacement placement)
+        {
+            Vector3 position = placement.Layout.MultiplyPoint3x4(area ? area.LocalCenter : Vector3.zero);
+            Quaternion facing = placement.Facing * Quaternion.Euler(0f, area ? area.LocalYaw : 0f, 0f);
+            activeTelegraphs.Add(NetworkWorld.Spawn(prefab, position, facing));
+        }
+
         private void ReturnTelegraph()
         {
-            var instance = activeTelegraph;
-            activeTelegraph = null;
-            if (instance) ObjectPool.Despawn(instance);
+            while (activeTelegraphs.Count > 0)
+            {
+                int index = activeTelegraphs.Count - 1;
+                var instance = activeTelegraphs[index];
+                activeTelegraphs.RemoveAt(index);
+                if (instance) NetworkWorld.Despawn(instance);
+            }
         }
 
         private Func<bool> GetVfxGuard(bool afterDeath = false) =>
@@ -667,15 +746,18 @@ namespace BlueReaper.Boss
 
                     if (!cast.Placed)
                     {
-                        if (cast.Pattern.PlacementOrigin == AreaPlacementOrigin.Field && !field)
+                        if (cast.CapturedPlacements == null && cast.Pattern.PlacementOrigin == AreaPlacementOrigin.Field && !field)
                         {
                             Debug.LogWarning("Field-relative area attack requires an active field.", cast.Pattern);
                             casts.RemoveAt(next);
                             continue;
                         }
-                        cast.Placement = cast.Pattern.PlacementOrigin == AreaPlacementOrigin.Field
-                            ? telegraphField ?? new AreaPlacement(field.LayoutOrigin)
-                            : telegraphCaster ?? new AreaPlacement(transform);
+                        if (cast.CapturedPlacements == null)
+                        {
+                            cast.Placement = cast.Pattern.PlacementOrigin == AreaPlacementOrigin.Field
+                                ? telegraphField ?? new AreaPlacement(field.LayoutOrigin)
+                                : telegraphCaster ?? new AreaPlacement(transform);
+                        }
                         cast.Placed = true;
                         cast.NextAt = cast.HitAt;
                         casts[next] = cast;
@@ -683,70 +765,39 @@ namespace BlueReaper.Boss
                     }
 
                     var pattern = cast.Pattern;
-                    bool expanding = pattern.ExpansionMode != AreaExpansionMode.None;
                     float now = Time.time;
-                    if (cast.HasHit && now >= cast.EndsAt
-                        && (!expanding || cast.LastSample >= pattern.ExpansionDurationSeconds))
+                    float endsAt = cast.HitAt + pattern.HitDurationSeconds;
+                    float elapsed = now - cast.HitAt;
+                    int slice = HitWindow.Slice(elapsed, pattern.HitDurationSeconds,
+                        pattern.RepeatHits, pattern.HitRepeatIntervalSeconds);
+                    if (now >= endsAt || slice < 0)
                     {
                         casts.RemoveAt(next);
                         continue;
                     }
-                    if (!cast.HasHit)
-                    {
-                        cast.StartedAt = now;
-                        cast.EndsAt = now + pattern.ActiveDuration;
-                        if (expanding) cast.DamagedTargets = new HashSet<IDamageable>();
-                    }
-
-                    float interval = pattern.RepeatHits
-                        ? Mathf.Max(Time.fixedDeltaTime, pattern.HitRepeatIntervalSeconds)
-                        : Time.fixedDeltaTime;
-                    // The final sweep can run early, but targets hit on the last tick keep their interval.
-                    if (pattern.RepeatHits && now - cast.LastHitCheckAt >= interval - 0.0001f)
-                        cast.DamagedTargets?.Clear();
-
-                    float sample = 0f;
-                    if (expanding)
-                        sample = now >= cast.EndsAt ? pattern.ExpansionDurationSeconds
-                            : Mathf.Min(now - cast.StartedAt, pattern.ExpansionDurationSeconds);
-                    Vector3 center = cast.Placement.Layout.MultiplyPoint3x4(pattern.LocalCenter);
-                    Quaternion facing = cast.Placement.Facing * Quaternion.Euler(0f, pattern.LocalYaw, 0f);
-                    if (!cast.HasHit) VfxAutoDespawn.Play(pattern.AttackVfxPrefab, center, facing, canPlay: vfxGuard);
-
-                    var (size, innerRadius) = pattern.EvaluateHitShape(sample);
+                    cast.Window ??= new HitWindow();
+                    var (size, innerRadius) = pattern.EvaluateHitShape(elapsed);
                     // Cover the band crossed since the previous tick, even when it moved farther than its width.
                     if (cast.HasHit && pattern.ExpansionMode == AreaExpansionMode.MovingRing)
                         innerRadius = pattern.EvaluateHitShape(cast.LastSample).InnerRadius;
 
-                    var hits = areaQuery.Find(pattern.Shape, center, facing, size,
-                        pattern.SectorAngle, unit, targets, innerRadius);
-                    foreach (AreaAttackShapeData shape in pattern.AdditionalShapes ?? Array.Empty<AreaAttackShapeData>())
+                    if (cast.CapturedPlacements == null)
                     {
-                        if (shape == null) continue;
-                        var (additionalSize, additionalInner) = pattern.EvaluateHitShape(sample, shape);
-                        areaQuery.Append(shape.Shape, cast.Placement.Layout.MultiplyPoint3x4(shape.LocalCenter),
-                            cast.Placement.Facing * Quaternion.Euler(0f, shape.LocalYaw, 0f), additionalSize,
-                            shape.SectorAngle, unit, targets, additionalInner);
+                        ApplyAreaTick(cast, cast.Placement, elapsed, size, innerRadius, targets, CanRun, vfxGuard, slice);
                     }
+                    else
+                    {
+                        foreach (var placement in cast.CapturedPlacements)
+                        {
+                            if (!CanRun()) yield break;
+                            ApplyAreaTick(cast, placement, elapsed, size, innerRadius, targets, CanRun, vfxGuard, slice);
+                        }
+                    }
+                    if (!CanRun()) yield break;
 
-                    foreach (var (target, collider) in hits)
-                    {
-                        if (!CanRun()) yield break;
-                        if (cast.DamagedTargets?.Contains(target) == true) continue;
-                        var result = DamageWithVfx(target, collider, center, facing, cast.Damage,
-                            pattern.HitVfxPrefab, pattern.HitVfxDelaySeconds, vfxGuard);
-                        if (result is DamageResult.Applied or DamageResult.Killed) cast.DamagedTargets?.Add(target);
-                    }
-
-                    if (now >= cast.EndsAt)
-                    {
-                        casts.RemoveAt(next);
-                        continue;
-                    }
                     cast.HasHit = true;
-                    cast.LastSample = sample;
-                    cast.LastHitCheckAt = now;
-                    cast.NextAt = Mathf.Min(now + interval, cast.EndsAt);
+                    cast.LastSample = elapsed;
+                    cast.NextAt = Mathf.Min(now + Time.fixedDeltaTime, endsAt);
                     casts[next] = cast;
                 }
             }
@@ -756,7 +807,36 @@ namespace BlueReaper.Boss
             }
         }
 
-        private IEnumerator ExecuteBulletEffect(BulletPatternData bulletAttack, Transform target, Action onFinished)
+        private void ApplyAreaTick(AreaCast cast, AreaPlacement placement, float sample, Vector3 size,
+            float innerRadius, LayerMask targets, Func<bool> canRun, Func<bool> vfxGuard, int slice)
+        {
+            var pattern = cast.Pattern;
+            Vector3 center = placement.Layout.MultiplyPoint3x4(pattern.LocalCenter);
+            Quaternion facing = placement.Facing * Quaternion.Euler(0f, pattern.LocalYaw, 0f);
+            if (!cast.HasHit) VfxAutoDespawn.Play(pattern.AttackVfxPrefab, center, facing, canPlay: vfxGuard);
+
+            var hits = areaQuery.Find(pattern.Shape, center, facing, size,
+                pattern.SectorAngle, unit, targets, innerRadius);
+            foreach (AreaAttackShapeData shape in pattern.AdditionalShapes ?? Array.Empty<AreaAttackShapeData>())
+            {
+                if (shape == null) continue;
+                var (additionalSize, additionalInner) = pattern.EvaluateHitShape(sample, shape);
+                areaQuery.Append(shape.Shape, placement.Layout.MultiplyPoint3x4(shape.LocalCenter),
+                    placement.Facing * Quaternion.Euler(0f, shape.LocalYaw, 0f), additionalSize,
+                    shape.SectorAngle, unit, targets, additionalInner);
+            }
+
+            foreach (var (target, collider) in hits)
+            {
+                if (!canRun()) return;
+                if (!cast.Window.Claim(HurtboxTarget.Key(target, collider), slice)) continue;
+                DamageWithVfx(target, collider, center, facing, cast.Damage,
+                    pattern.HitVfxPrefab, pattern.HitVfxDelaySeconds, vfxGuard);
+            }
+        }
+
+        private IEnumerator ExecuteBulletEffect(BulletPatternData bulletAttack, Transform target, Action onFinished,
+            AreaPlacement? capturedPlacement, Func<bool> canFire)
         {
             try
             {
@@ -764,14 +844,15 @@ namespace BlueReaper.Boss
                     yield return new WaitForSeconds(bulletAttack.StartTime);
 
                 float startedAt = Time.time;
-                Vector3 origin = transform.position;
-                Quaternion facing = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+                Vector3 origin = capturedPlacement is AreaPlacement placement
+                    ? placement.Layout.MultiplyPoint3x4(Vector3.zero) : transform.position;
+                Quaternion facing = capturedPlacement?.Facing ?? Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
                 var vfxGuard = GetVfxGuard();
                 for (int emission = 0; emission < bulletAttack.RepeatCount; emission++)
                 {
                     while (Time.time - startedAt < emission * bulletAttack.RepeatInterval) yield return null;
-                    if (health.IsDead) yield break;
-                    if (bulletAttack.AimAtTargetEachEmission)
+                    if (health.IsDead || canFire?.Invoke() == false) yield break;
+                    if (capturedPlacement == null && bulletAttack.AimAtTargetEachEmission)
                     {
                         if (!IsCurrentPlayer(target)) break;
                         origin = transform.position;
@@ -802,12 +883,15 @@ namespace BlueReaper.Boss
         {
             StopMeleeHitWindow();
             float startedAt = diedAt ?? Time.time;
-            if (!pattern || !unit.Data || !(pattern.HitDurationSeconds > 0f)
-                || !(pattern.HitStartSeconds + pattern.HitDurationSeconds > Time.time - startedAt)) return;
+            if (!pattern || !unit.Data || !(pattern.HitStartSeconds >= 0f) || !(pattern.HitDurationSeconds > 0f)
+                || !float.IsFinite(pattern.HitStartSeconds + pattern.HitDurationSeconds)
+                || !(pattern.HitStartSeconds + pattern.HitDurationSeconds > Time.time - startedAt)
+                || (pattern.RepeatHits && (!(pattern.HitRepeatIntervalSeconds > 0f)
+                    || !float.IsFinite(pattern.HitRepeatIntervalSeconds)))) return;
             activeMelee = pattern;
             meleeAfterDeath = diedAt.HasValue;
             meleeStartedAt = startedAt;
-            meleeDamage = DamageFormula.Calculate(unit.Data.Attack, pattern.DamageMultiplier);
+            meleeDamage = new AttackDamage(unit.Data.Attack, pattern.DamageMultiplier);
             coMeleeHitWindow = StartCoroutine(IEMeleeHitWindow(pattern));
         }
 
@@ -844,7 +928,7 @@ namespace BlueReaper.Boss
             SetMeleeArmed(false);
             activeMelee = null;
             meleeAfterDeath = false;
-            nextMeleeHits.Clear();
+            meleeHits.Reset();
         }
 
         private void SetMeleeArmed(bool armed)
@@ -857,26 +941,22 @@ namespace BlueReaper.Boss
         {
             if (!activeMelee || health.IsDead != meleeAfterDeath) return;
             if (meleeAfterDeath && (!Stage || !Stage.CanRunDeathPattern(unit))) return;
-            float elapsed = Time.time - meleeStartedAt;
-            if (elapsed < activeMelee.HitStartSeconds
-                || elapsed >= activeMelee.HitStartSeconds + activeMelee.HitDurationSeconds) return;
-            if (nextMeleeHits.TryGetValue(target, out float next) && Time.time < next) return;
-            nextMeleeHits[target] = activeMelee.RepeatHits
-                ? Time.time + Mathf.Max(Time.fixedDeltaTime, activeMelee.HitRepeatIntervalSeconds)
-                : float.PositiveInfinity;
+            float elapsed = Time.time - meleeStartedAt - activeMelee.HitStartSeconds;
+            int slice = HitWindow.Slice(elapsed, activeMelee.HitDurationSeconds,
+                activeMelee.RepeatHits, activeMelee.HitRepeatIntervalSeconds);
+            if (!meleeHits.Claim(HurtboxTarget.Key(target, collider), slice)) return;
             DamageWithVfx(target, collider, transform.position, transform.rotation, meleeDamage,
                 activeMelee.HitVfxPrefab, activeMelee.HitVfxDelaySeconds,
                 activeMelee.HitVfxPrefab ? GetVfxGuard(meleeAfterDeath) : null);
         }
 
-        private DamageResult DamageWithVfx(IDamageable target, Collider collider, Vector3 origin, Quaternion facing,
-            float damage, VfxAutoDespawn prefab, float delay, Func<bool> canPlay)
+        private void DamageWithVfx(IDamageable target, Collider collider, Vector3 origin, Quaternion facing,
+            AttackDamage damage, VfxAutoDespawn prefab, float delay, Func<bool> canPlay)
         {
             Vector3 point = prefab && collider ? collider.ClosestPoint(origin) : origin;
-            var result = target.TakeDamage(damage, unit);
+            var result = HurtboxTarget.TakeDamage(target, collider, damage, unit);
             if (result is DamageResult.Applied or DamageResult.Killed)
                 VfxAutoDespawn.Play(prefab, point, facing, delay, canPlay);
-            return result;
         }
 
         private void OnProjectileReturned(ProjectileHitBox projectile) => projectiles.Remove(projectile);

@@ -7,6 +7,7 @@ namespace BlueReaper.Core
     public class UnitData : ScriptableObject
     {
         [Min(0f)] public float Attack = 10f;
+        [Min(0f)] public float Defense;
         [Min(1f)] public float MaxHealth = 100f;
         [Min(0f)] public float MoveSpeed = 7f;
     }

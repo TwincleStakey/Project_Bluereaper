@@ -33,13 +33,18 @@ namespace BlueReaper.Player
 
         void Update() => cooldownLeft -= Time.deltaTime;
 
-        public bool TryAttack(Vector3 direction)
+        internal bool TrySwing(Vector3 direction)
         {
             if (cooldownLeft > 0f) return false;
             cooldownLeft = cooldown;
+            Swung?.Invoke(transform.position, direction);
+            return true;
+        }
 
+        public bool TryAttack(Vector3 direction)
+        {
+            if (!TrySwing(direction)) return false;
             Vector3 origin = transform.position;
-            Swung?.Invoke(origin, direction);
             Vector3 forward = Vector3.ProjectOnPlane(direction, Vector3.up);
             Quaternion facing = forward.sqrMagnitude >= 0.0001f
                 ? Quaternion.LookRotation(forward, Vector3.up)
@@ -47,12 +52,12 @@ namespace BlueReaper.Player
             if (!(range > 0f)) return true;
             var hits = areaQuery.Find(AreaHitShape.Sector, origin, facing,
                 new Vector3(range, range * 2f, 0f), arcAngle, unit, targetLayers);
-            float damage = DamageFormula.Calculate(unit.Data.Attack, damageMultiplier);
+            var damage = new AttackDamage(unit.Data.Attack, damageMultiplier);
 
             foreach (var (target, collider) in hits)
             {
                 Vector3 point = collider.ClosestPoint(origin);
-                target.TakeDamage(damage, unit);
+                HurtboxTarget.TakeDamage(target, collider, damage, unit);
                 HitLanded?.Invoke(point);
             }
             return true;
